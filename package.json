@@ -1,0 +1,42 @@
+{
+  "name": "ai-coding-training-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "db:migrate": "tsx lib/db/migrate.ts",
+    "db:seed": "tsx lib/db/seed.ts",
+    "extension:check": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "next": "15.3.6",
+    "react": "19.1.2",
+    "react-dom": "19.1.2",
+    "recharts": "2.15.3",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.53.1",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.3.0",
+    "@types/better-sqlite3": "7.6.13",
+    "@types/chrome": "0.0.326",
+    "@types/node": "24.0.4",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "autoprefixer": "10.4.21",
+    "jsdom": "26.1.0",
+    "postcss": "8.5.6",
+    "tailwindcss": "3.4.17",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}
