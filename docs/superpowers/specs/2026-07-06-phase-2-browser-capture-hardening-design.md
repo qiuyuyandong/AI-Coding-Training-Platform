@@ -1,14 +1,14 @@
 # Phase 2.1 Browser Capture Hardening Design
 
 日期：2026-07-06  
-状态：Approved for planning  
+状态：Completed on 2026-07-06; retained as historical design context  
 上游依据：`docs/superpowers/specs/2026-07-05-ai-coding-training-platform-design.md`
 
 ## 1. 背景
 
 V1 已经完成本地 Next.js 应用、Capture API、SQLite 事件表、Chrome MV3 extension 源码、统一题目入口和基础 Coach/Growth/Compliance 页面。当前最大断点是：extension 仍只是 TypeScript 源码，manifest 指向尚不存在的 `.js` 文件；capture 失败时缺少可靠反馈；API 对无效 body 会抛出 500；用户无法判断本地采集是否真的工作。
 
-Phase 2.1 选择 **Browser capture hardening** 作为第一轮子项目。目标不是增加 AI Coach 或 Playwright companion，而是把“用户打开原站题页 → extension 观测用户可见页面 → 本地 API 持久化 capture event → app 显示采集状态”做成可安装、可开关、可诊断、可测试的闭环。
+Phase 2.1 选择 **Browser capture hardening** 作为第一轮子项目。目标不是增加 AI Coach 或 Playwright companion，而是把“用户打开原站题页 → extension 观测用户可见页面 → 本地 API 持久化 capture event → app 显示采集状态”做成可安装、可开关、可诊断、可测试的闭环。该阶段已完成，后续运行细节见 `docs/runbook.md`。
 
 ## 2. 目标
 

@@ -1,14 +1,14 @@
 # Phase 2.3 Coach Intelligence & Growth Insights Design
 
 日期：2026-07-06  
-状态：Approved for planning  
+状态：Completed on 2026-07-06; retained as historical design context  
 上游依据：`docs/superpowers/specs/2026-07-06-phase-2-2-training-loop-design.md`
 
 ## 1. 背景
 
 Phase 2.2 已经完成本地训练记录闭环：浏览器 extension 发送 capture events，本地 API 保存事件并 materialize 成 `TrainingAttempt`，Training 页面显示 attempt 状态，Coach/Growth 页面能读取真实 attempts。当前断点是：Coach 和 Growth 仍只是 attempts 的浅层展示，无法回答“我哪里弱、为什么、下一题/下一轮练什么”。
 
-Phase 2.3 选择 **Coach Intelligence & Growth Insights**。目标是把现有 `training_attempts` 转成确定性的本地分析结果：能力画像、弱点证据、下一步建议和 Growth 指标。它不是 LLM Coach，不依赖云服务，也不引入新的浏览器捕获能力；它让 Phase 2.2 已经产生的数据第一次具备训练指导价值。
+Phase 2.3 选择 **Coach Intelligence & Growth Insights**。目标是把现有 `training_attempts` 转成确定性的本地分析结果：能力画像、弱点证据、下一步建议和 Growth 指标。它不是 LLM Coach，不依赖云服务，也不引入新的浏览器捕获能力；它让 Phase 2.2 已经产生的数据第一次具备训练指导价值。该阶段已完成，当前服务边界见 `docs/architecture.md`。
 
 ## 2. 目标
 

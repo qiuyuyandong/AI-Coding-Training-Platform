@@ -1,14 +1,14 @@
 # Phase 2.2 Training Records Loop Design
 
 日期：2026-07-06  
-状态：Approved for planning  
+状态：Completed on 2026-07-06; retained as historical design context  
 上游依据：`docs/superpowers/specs/2026-07-06-phase-2-browser-capture-hardening-design.md`
 
 ## 1. 背景
 
 Phase 2.1 已经把浏览器采集链路做成可构建、可开关、可排队、可诊断的本地闭环：extension 发送 `CaptureEvent`，本地 API 持久化事件，Training 页面显示最近采集状态。当前断点是：capture event 仍只是事件日志，不会自动成为训练事实。Coach、Growth 和 Attempts 只能依赖手动或种子数据，无法反映用户刚刚在原平台完成的训练。
 
-Phase 2.2 选择 **Training records loop**。目标是把 `PAGE_DETECTED`、`SUBMISSION_DETECTED`、`VERDICT_UPDATED` 等本地 capture events 转成 `TrainingAttempt` 草稿或结果记录，并让 Stats、Coach、Growth 基于这些 attempt 更新。它不是新的浏览器观测层，也不是 LLM Coach；它是 Phase 2.1 数据入口到 V1 分析闭环之间的最小可靠桥。
+Phase 2.2 选择 **Training records loop**。目标是把 `PAGE_DETECTED`、`SUBMISSION_DETECTED`、`VERDICT_UPDATED` 等本地 capture events 转成 `TrainingAttempt` 草稿或结果记录，并让 Stats、Coach、Growth 基于这些 attempt 更新。它不是新的浏览器观测层，也不是 LLM Coach；它是 Phase 2.1 数据入口到 V1 分析闭环之间的最小可靠桥。该阶段已完成，当前代码架构见 `docs/architecture.md`。
 
 ## 2. 目标
 

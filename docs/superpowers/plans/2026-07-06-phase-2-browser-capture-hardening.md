@@ -1,5 +1,7 @@
 # Phase 2 Browser Capture Hardening Implementation Plan
 
+Status: Completed on 2026-07-06. This file is retained as a historical execution plan; use `docs/architecture.md` and `docs/runbook.md` for current onboarding.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn the current Chrome MV3 capture source into a buildable, installable, diagnosable local capture loop from original OJ page to local SQLite-backed app status.
