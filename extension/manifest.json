@@ -3,7 +3,7 @@
   "name": "Unified OJ Capture",
   "version": "0.1.0",
   "description": "Detects user-visible OJ training events and sends them to the local training app.",
-  "permissions": ["storage", "tabs", "alarms"],
+  "permissions": ["storage", "alarms"],
   "host_permissions": [
     "http://localhost:3000/*",
     "https://leetcode.com/*",
