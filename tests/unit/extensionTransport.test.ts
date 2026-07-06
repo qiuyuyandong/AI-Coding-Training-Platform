@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   CAPTURE_QUEUE_LIMIT,
+  MAX_RETRY_ATTEMPTS,
   enqueueCaptureEvent,
   isCaptureMessage,
+  isQueueItem,
   planQueueAfterFlush,
   type CaptureQueueItem,
 } from "@/extension/src/transport";
@@ -67,5 +69,86 @@ describe("planQueueAfterFlush", () => {
 
     expect(result.queue).toHaveLength(1);
     expect(result.queue[0]?.attempts).toBe(1);
+  });
+
+  it("keeps network_error retryable failures and increments attempts when below cap", () => {
+    const result = planQueueAfterFlush(
+      [{ event: event("evt_1"), attempts: 0 }],
+      { status: "network_error", error: "fetch failed" },
+    );
+
+    expect(result.queue).toHaveLength(1);
+    expect(result.queue[0]?.attempts).toBe(1);
+    expect(result.queue[0]?.event.id).toBe("evt_1");
+    expect(result.lastCaptureError).toBe("fetch failed");
+  });
+
+  it("keeps retryable failures when incremented attempts is below the cap", () => {
+    const result = planQueueAfterFlush(
+      [{ event: event("evt_1"), attempts: MAX_RETRY_ATTEMPTS - 2 }],
+      { status: 500, error: "server failed" },
+    );
+
+    expect(result.queue).toHaveLength(1);
+    expect(result.queue[0]?.attempts).toBe(MAX_RETRY_ATTEMPTS - 1);
+    expect(result.lastCaptureError).toBe("server failed");
+  });
+
+  it("keeps network_error failures when incremented attempts is below the cap", () => {
+    const result = planQueueAfterFlush(
+      [{ event: event("evt_1"), attempts: MAX_RETRY_ATTEMPTS - 2 }],
+      { status: "network_error", error: "fetch failed" },
+    );
+
+    expect(result.queue).toHaveLength(1);
+    expect(result.queue[0]?.attempts).toBe(MAX_RETRY_ATTEMPTS - 1);
+    expect(result.lastCaptureError).toBe("fetch failed");
+  });
+
+  it("drops 500 failures once the incremented attempts reaches the cap", () => {
+    const result = planQueueAfterFlush(
+      [{ event: event("evt_1"), attempts: MAX_RETRY_ATTEMPTS - 1 }],
+      { status: 500, error: "server failed" },
+    );
+
+    expect(result.queue).toEqual([]);
+    expect(result.lastCaptureError).toBe("server failed");
+  });
+
+  it("keeps network_error failures queued when the local app remains unavailable", () => {
+    const result = planQueueAfterFlush(
+      [{ event: event("evt_1"), attempts: MAX_RETRY_ATTEMPTS - 1 }],
+      { status: "network_error", error: "fetch failed" },
+    );
+
+    expect(result.queue).toHaveLength(1);
+    expect(result.queue[0]?.attempts).toBe(MAX_RETRY_ATTEMPTS);
+    expect(result.lastCaptureError).toBe("fetch failed");
+  });
+});
+
+describe("isQueueItem", () => {
+  it("accepts a valid queue item", () => {
+    expect(isQueueItem({ event: event("evt_1"), attempts: 0 })).toBe(true);
+  });
+
+  it("rejects null and non-object values", () => {
+    expect(isQueueItem(null)).toBe(false);
+    expect(isQueueItem(undefined)).toBe(false);
+    expect(isQueueItem("evt_1")).toBe(false);
+    expect(isQueueItem(42)).toBe(false);
+  });
+
+  it("rejects items missing the event field", () => {
+    expect(isQueueItem({ attempts: 0 })).toBe(false);
+  });
+
+  it("rejects items with an invalid event payload", () => {
+    expect(isQueueItem({ event: { id: "evt_1" }, attempts: 0 })).toBe(false);
+  });
+
+  it("rejects items with non-number attempts", () => {
+    expect(isQueueItem({ event: event("evt_1"), attempts: "0" })).toBe(false);
+    expect(isQueueItem({ event: event("evt_1") })).toBe(false);
   });
 });

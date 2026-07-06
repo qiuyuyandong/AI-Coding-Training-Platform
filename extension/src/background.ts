@@ -1,4 +1,4 @@
-import { enqueueCaptureEvent, isCaptureMessage, planQueueAfterFlush, type CaptureQueueItem, type FlushResult } from "./transport";
+import { enqueueCaptureEvent, isCaptureMessage, isQueueItem, planQueueAfterFlush, type CaptureQueueItem, type FlushResult } from "./transport";
 
 const STORAGE_KEYS = ["captureEnabled", "eventQueue"] as const;
 const FLUSH_ALARM_NAME = "flushCaptureQueue";
@@ -73,6 +73,3 @@ function readQueue(value: unknown): readonly CaptureQueueItem[] {
   return Array.isArray(value) ? value.filter(isQueueItem) : [];
 }
 
-function isQueueItem(value: unknown): value is CaptureQueueItem {
-  return typeof value === "object" && value !== null && "event" in value && "attempts" in value;
-}

@@ -1,13 +1,17 @@
+import { z } from "zod";
 import { CaptureEventSchema, type CaptureEvent } from "@/lib/capture/events";
 
 export const CAPTURE_QUEUE_LIMIT = 100;
+export const MAX_RETRY_ATTEMPTS = 3;
 
 export type CaptureMessage = { readonly type: "CAPTURE_EVENT"; readonly event: CaptureEvent };
 
-export type CaptureQueueItem = {
-  readonly event: CaptureEvent;
-  readonly attempts: number;
-};
+export const CaptureQueueItemSchema = z.object({
+  event: CaptureEventSchema,
+  attempts: z.number().int().min(0),
+});
+
+export type CaptureQueueItem = z.infer<typeof CaptureQueueItemSchema>;
 
 export type FlushResult =
   | { readonly status: 200 }
@@ -32,6 +36,10 @@ export function isCaptureMessage(value: unknown): value is CaptureMessage {
   );
 }
 
+export function isQueueItem(value: unknown): value is CaptureQueueItem {
+  return CaptureQueueItemSchema.safeParse(value).success;
+}
+
 export function enqueueCaptureEvent(queue: readonly CaptureQueueItem[], event: CaptureEvent): readonly CaptureQueueItem[] {
   return [...queue, { event, attempts: 0 }].slice(-CAPTURE_QUEUE_LIMIT);
 }
@@ -51,8 +59,9 @@ export function planQueueAfterFlush(queue: readonly CaptureQueueItem[], result: 
 
   if (head === undefined) return { queue };
 
-  return {
-    queue: [{ ...head, attempts: head.attempts + 1 }, ...rest],
-    lastCaptureError: result.error,
-  };
+  const nextAttempts = head.attempts + 1;
+  const shouldDrop = result.status === 500 && nextAttempts >= MAX_RETRY_ATTEMPTS;
+  const nextQueue = shouldDrop ? rest : [{ ...head, attempts: nextAttempts }, ...rest];
+
+  return { queue: nextQueue, lastCaptureError: result.error };
 }
