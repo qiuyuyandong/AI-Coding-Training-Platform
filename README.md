@@ -21,3 +21,13 @@ npm run typecheck
 npm run test
 npm run build
 ```
+
+## Browser Extension
+
+Build the Chrome MV3 extension:
+
+```powershell
+npm run extension:build
+```
+
+Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000` so the extension can post capture events to `/api/capture/events`.

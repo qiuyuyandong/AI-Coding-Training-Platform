@@ -16,3 +16,13 @@ Not allowed in V1:
 - upload platform session cookies;
 - cache LeetCode, NowCoder, or Luogu full statements by default;
 - run server-side crawlers against commercial OJ platforms.
+
+## Phase 2.1 Browser Capture
+
+The browser extension is local-first and user-controlled:
+
+- capture can be disabled from the popup;
+- queued events stay in Chrome local storage until sent to the local app;
+- invalid events are dropped after a 400 response to avoid retry loops;
+- no cookies, session tokens, passwords, or hidden platform data are read or uploaded;
+- commercial platform full statements remain out of scope unless explicitly licensed or manually entered by the user.
