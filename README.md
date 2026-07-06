@@ -12,6 +12,13 @@ It provides:
 
 V1 does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
 
+## Project Docs
+
+- `docs/architecture.md` explains the current app, extension, API, SQLite, and Coach/Growth flow.
+- `docs/runbook.md` contains setup, verification, and troubleshooting steps.
+- `DESIGN.md` defines the quiet slate/white UI system used by app pages and panels.
+- `COMPLIANCE.md` documents local-first privacy and platform-boundary rules.
+
 ## Commands
 
 ```powershell
