@@ -3,11 +3,26 @@ import {
   CaptureEventSchema,
   pageDetectedEventToAttemptDraft,
   submissionEventToAttemptUpdate,
+  type CaptureEvent,
 } from "@/lib/capture/events";
+
+function event(overrides: Partial<CaptureEvent> = {}): CaptureEvent {
+  return {
+    id: "evt_1",
+    type: "PAGE_DETECTED",
+    platform: "leetcode",
+    problemExternalId: "two-sum",
+    problemTitle: "Two Sum",
+    canonicalUrl: "https://leetcode.com/problems/two-sum/",
+    occurredAt: "2026-07-06T00:00:00.000Z",
+    payload: {},
+    ...overrides,
+  };
+}
 
 describe("CaptureEventSchema", () => {
   it("accepts a page detected event", () => {
-    const event = CaptureEventSchema.parse({
+    const parsed = CaptureEventSchema.parse({
       id: "evt_1",
       type: "PAGE_DETECTED",
       platform: "leetcode",
@@ -15,45 +30,61 @@ describe("CaptureEventSchema", () => {
       problemTitle: "Two Sum",
       canonicalUrl: "https://leetcode.com/problems/two-sum/",
       occurredAt: "2026-07-05T00:00:00.000Z",
-      payload: { source: "content_script" }
+      payload: { source: "content_script" },
     });
 
-    expect(event.type).toBe("PAGE_DETECTED");
-  });
-
-  it("converts page detection into an attempt draft", () => {
-    const draft = pageDetectedEventToAttemptDraft({
-      id: "evt_1",
-      type: "PAGE_DETECTED",
-      platform: "leetcode",
-      problemExternalId: "two-sum",
-      problemTitle: "Two Sum",
-      canonicalUrl: "https://leetcode.com/problems/two-sum/",
-      occurredAt: "2026-07-05T00:00:00.000Z",
-      payload: { source: "content_script" }
-    });
-
-    expect(draft.result).toBe("draft");
-    expect(draft.platform).toBe("leetcode");
-    expect(draft.problemExternalId).toBe("two-sum");
+    expect(parsed.type).toBe("PAGE_DETECTED");
   });
 });
 
-describe("submissionEventToAttemptUpdate", () => {
-  it("maps accepted verdicts into passed attempts", () => {
-    const update = submissionEventToAttemptUpdate({
-      id: "evt_2",
-      type: "SUBMISSION_DETECTED",
+describe("capture event attempt conversion", () => {
+  it("creates attempt drafts from page detection events", () => {
+    const draft = pageDetectedEventToAttemptDraft(event());
+
+    expect(draft).toEqual({
+      result: "draft",
       platform: "leetcode",
       problemExternalId: "two-sum",
       problemTitle: "Two Sum",
       canonicalUrl: "https://leetcode.com/problems/two-sum/",
-      occurredAt: "2026-07-05T00:10:00.000Z",
-      payload: { verdict: "Accepted", language: "TypeScript" }
+      startedAt: "2026-07-06T00:00:00.000Z",
     });
+  });
 
-    expect(update.result).toBe("passed");
-    expect(update.verdict).toBe("Accepted");
-    expect(update.language).toBe("TypeScript");
+  it("marks accepted verdicts as passed", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "Accepted", language: "TypeScript" } }),
+    );
+
+    expect(update).toEqual({
+      result: "passed",
+      verdict: "Accepted",
+      language: "TypeScript",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
+  it("marks non-accepted verdicts as failed", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "SUBMISSION_DETECTED", payload: { verdict: "Wrong Answer" } }),
+    );
+
+    expect(update).toEqual({
+      result: "failed",
+      verdict: "Wrong Answer",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
+  it("uses Unknown when a verdict payload is missing", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: {} }),
+    );
+
+    expect(update).toEqual({
+      result: "failed",
+      verdict: "Unknown",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
   });
 });
