@@ -26,3 +26,12 @@ The browser extension is local-first and user-controlled:
 - invalid events are dropped after a 400 response to avoid retry loops;
 - no cookies, session tokens, passwords, or hidden platform data are read or uploaded;
 - commercial platform full statements remain out of scope unless explicitly licensed or manually entered by the user.
+
+## Phase 2.2 Training Records Loop
+
+Materialized attempts remain local-first:
+
+- capture events are reduced to training metadata such as platform, external problem ID, title, URL, result, and timestamps;
+- `source_event_id` links a local attempt to its originating capture event for idempotent replay without storing browser secrets;
+- Coach and Growth pages read from the local SQLite database and do not send training records to external services;
+- the loop records user-visible page/submission outcomes, not hidden platform data, cookies, or full commercial problem statements.
