@@ -1,10 +1,18 @@
 <!doctype html>
 <html lang="zh-CN">
   <body>
-    <main style="width: 260px; font-family: sans-serif; padding: 12px;">
-      <h1 style="font-size: 16px;">Unified OJ Capture</h1>
-      <p>打开支持的 OJ 题目页后，插件会把页面检测事件发送到本地训练平台。</p>
-      <p id="status">Ready</p>
+    <main style="width: 300px; font-family: sans-serif; padding: 12px;">
+      <h1 style="font-size: 16px; margin: 0 0 8px;">Unified OJ Capture</h1>
+      <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+        <input id="captureEnabled" type="checkbox" />
+        <span>Enable local capture</span>
+      </label>
+      <dl style="display: grid; grid-template-columns: 90px 1fr; gap: 6px; font-size: 12px;">
+        <dt>Queue</dt><dd id="queueLength">0</dd>
+        <dt>Last success</dt><dd id="lastSuccess">Never</dd>
+        <dt>Last error</dt><dd id="lastError">None</dd>
+      </dl>
+      <p id="status" style="font-size: 12px; margin-top: 12px;">Ready</p>
       <script type="module" src="popup.js"></script>
     </main>
   </body>

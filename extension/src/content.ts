@@ -1,8 +1,14 @@
 import { detectProblemFromLocation } from "./platforms";
 
-const detected = detectProblemFromLocation(window.location, document.title);
+void run();
 
-if (detected) {
+async function run(): Promise<void> {
+  const state = await chrome.storage.local.get(["captureEnabled"]);
+  if (state.captureEnabled === false) return;
+
+  const detected = detectProblemFromLocation(window.location, document.title);
+  if (!detected) return;
+
   chrome.runtime.sendMessage({
     type: "CAPTURE_EVENT",
     event: {

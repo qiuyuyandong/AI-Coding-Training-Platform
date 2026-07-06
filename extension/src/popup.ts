@@ -1,6 +1,20 @@
+const enabledNode = document.querySelector<HTMLInputElement>("#captureEnabled");
+const queueNode = document.querySelector("#queueLength");
+const successNode = document.querySelector("#lastSuccess");
+const errorNode = document.querySelector("#lastError");
 const statusNode = document.querySelector("#status");
-chrome.storage.local.get(["lastCaptureError"], (items) => {
-  if (statusNode) {
-    statusNode.textContent = items.lastCaptureError ? `Last error: ${items.lastCaptureError}` : "No recent capture errors";
-  }
+
+void render();
+
+enabledNode?.addEventListener("change", () => {
+  void chrome.storage.local.set({ captureEnabled: enabledNode.checked }).then(render);
 });
+
+async function render(): Promise<void> {
+  const state = await chrome.storage.local.get(["captureEnabled", "eventQueue", "lastCaptureError", "lastSuccessfulCaptureAt"]);
+  if (enabledNode) enabledNode.checked = state.captureEnabled !== false;
+  if (queueNode) queueNode.textContent = Array.isArray(state.eventQueue) ? String(state.eventQueue.length) : "0";
+  if (successNode) successNode.textContent = typeof state.lastSuccessfulCaptureAt === "string" ? state.lastSuccessfulCaptureAt : "Never";
+  if (errorNode) errorNode.textContent = typeof state.lastCaptureError === "string" ? state.lastCaptureError : "None";
+  if (statusNode) statusNode.textContent = state.captureEnabled === false ? "Capture disabled" : "Capture enabled";
+}
