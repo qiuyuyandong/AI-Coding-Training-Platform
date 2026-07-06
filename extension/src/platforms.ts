@@ -1,5 +1,7 @@
 type Platform = "leetcode" | "nowcoder" | "luogu" | "codeforces" | "atcoder";
 
+export type DetectableLocation = Pick<Location, "href" | "hostname" | "pathname">;
+
 export type DetectedProblem = {
   platform: Platform;
   problemExternalId: string;
@@ -7,7 +9,7 @@ export type DetectedProblem = {
   canonicalUrl: string;
 };
 
-export function detectProblemFromLocation(location: Location, documentTitle: string): DetectedProblem | null {
+export function detectProblemFromLocation(location: DetectableLocation, documentTitle: string): DetectedProblem | null {
   const url = location.href;
   const title = documentTitle.replace(/ - .*$/, "").trim();
 
