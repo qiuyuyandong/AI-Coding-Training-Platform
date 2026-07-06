@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { TrainingAttempt } from "@/lib/domain/training";
+import type { AttemptResult, TrainingAttempt } from "@/lib/domain/training";
 
 type AttemptsResponse = {
   readonly ok: boolean;
@@ -56,7 +56,7 @@ export function AttemptStatusPanel() {
       {latest && (
         <div className="mt-2 text-slate-600">
           <p>
-            Latest: <span className="font-medium text-slate-900">{latest.result}</span>
+            Latest: <ResultBadge result={latest.result} />
             {" · "}
             {latest.platform}
             {" · "}
@@ -69,4 +69,14 @@ export function AttemptStatusPanel() {
       )}
     </section>
   );
+}
+
+function ResultBadge({ result }: { readonly result: AttemptResult }) {
+  const className = result === "passed"
+    ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800"
+    : result === "failed" || result === "stuck"
+      ? "rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800"
+      : "rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700";
+
+  return <span className={className}>{result}</span>;
 }

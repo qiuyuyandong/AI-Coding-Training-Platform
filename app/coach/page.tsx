@@ -1,6 +1,8 @@
 import { openDatabase } from "@/lib/db/client";
 import { listRecentAttempts } from "@/lib/repositories/attempts";
 
+export const dynamic = "force-dynamic";
+
 export default function CoachPage() {
   const db = openDatabase();
   try {
