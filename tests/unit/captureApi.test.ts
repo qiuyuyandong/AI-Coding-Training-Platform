@@ -1,8 +1,10 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openDatabase } from "@/lib/db/client";
+import type { CaptureEvent } from "@/lib/capture/events";
 
 let tempDir = "";
 
@@ -11,8 +13,11 @@ beforeEach(() => {
   process.env.TRAINING_DB_PATH = join(tempDir, "test.sqlite");
   const db = openDatabase();
   try {
-    const sql = readFileSync(join(process.cwd(), "lib", "db", "migrations", "0001_initial.sql"), "utf8");
-    db.exec(sql);
+    const migrations = ["0001_initial.sql", "0002_attempt_capture_source.sql"];
+    for (const name of migrations) {
+      const sql = readFileSync(join(process.cwd(), "lib", "db", "migrations", name), "utf8");
+      db.exec(sql);
+    }
   } finally {
     db.close();
   }
@@ -23,7 +28,7 @@ afterEach(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
 
-function validEvent() {
+function validEvent(overrides: Partial<CaptureEvent> = {}): CaptureEvent {
   return {
     id: "evt_api_1",
     type: "PAGE_DETECTED",
@@ -33,33 +38,125 @@ function validEvent() {
     canonicalUrl: "https://leetcode.com/problems/two-sum/",
     occurredAt: "2026-07-06T00:00:00.000Z",
     payload: { source: "test" },
+    ...overrides,
   };
 }
 
+function requestWithEvent(event: CaptureEvent): Request {
+  return new Request("http://localhost/api/capture/events", { method: "POST", body: JSON.stringify(event) });
+}
+
+function rowCount(db: Database.Database, table: string): number {
+  return db.prepare<[], { c: number }>(`SELECT COUNT(*) AS c FROM ${table}`).get()?.c ?? 0;
+}
+
 describe("capture API", () => {
-  it("returns 200 for valid capture events", async () => {
+  it("creates a draft attempt for valid PAGE_DETECTED events", async () => {
     const { POST } = await import("@/app/api/capture/events/route");
 
-    const response = await POST(new Request("http://localhost/api/capture/events", { method: "POST", body: JSON.stringify(validEvent()) }));
+    const response = await POST(requestWithEvent(validEvent()));
+    const body = await response.json();
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true, eventId: "evt_api_1" });
+    expect(body).toEqual({ ok: true, eventId: "evt_api_1", attemptId: "attempt_evt_api_1", attemptStatus: "draft" });
+
+    const verifyDb = openDatabase();
+    try {
+      expect(rowCount(verifyDb, "capture_events")).toBe(1);
+      expect(rowCount(verifyDb, "training_attempts")).toBe(1);
+      const attempt = verifyDb
+        .prepare<[], { result: string; source_event_id: string | null }>(
+          "SELECT result, source_event_id FROM training_attempts",
+        )
+        .get();
+      expect(attempt).toEqual({ result: "draft", source_event_id: "evt_api_1" });
+    } finally {
+      verifyDb.close();
+    }
   });
 
-  it("returns 400 for invalid capture events", async () => {
+  it("updates the draft attempt for verdict events", async () => {
     const { POST } = await import("@/app/api/capture/events/route");
 
-    const response = await POST(new Request("http://localhost/api/capture/events", { method: "POST", body: JSON.stringify({ id: "bad" }) }));
+    const pageResponse = await POST(requestWithEvent(validEvent()));
+    expect(pageResponse.status).toBe(200);
+
+    const verdictResponse = await POST(
+      requestWithEvent(
+        validEvent({
+          id: "evt_verdict_1",
+          type: "VERDICT_UPDATED",
+          payload: { verdict: "Accepted" },
+        }),
+      ),
+    );
+    const verdictBody = await verdictResponse.json();
+
+    expect(verdictResponse.status).toBe(200);
+    expect(verdictBody.attemptId).toBe("attempt_evt_api_1");
+    expect(verdictBody.attemptStatus).toBe("passed");
+
+    const verifyDb = openDatabase();
+    try {
+      expect(rowCount(verifyDb, "capture_events")).toBe(2);
+      expect(rowCount(verifyDb, "training_attempts")).toBe(1);
+      const row = verifyDb
+        .prepare<[], { result: string; verdict: string | null }>("SELECT result, verdict FROM training_attempts")
+        .get();
+      expect(row).toEqual({ result: "passed", verdict: "Accepted" });
+    } finally {
+      verifyDb.close();
+    }
+  });
+
+  it("does not duplicate attempts on replayed events", async () => {
+    const { POST } = await import("@/app/api/capture/events/route");
+
+    const firstResponse = await POST(requestWithEvent(validEvent()));
+    const firstBody = await firstResponse.json();
+    expect(firstResponse.status).toBe(200);
+
+    const secondResponse = await POST(requestWithEvent(validEvent()));
+    const secondBody = await secondResponse.json();
+
+    expect(secondResponse.status).toBe(200);
+    expect(secondBody.eventId).toBe(firstBody.eventId);
+    expect(secondBody.attemptId).toBe(firstBody.attemptId);
+    expect(secondBody.attemptStatus).toBe(firstBody.attemptStatus);
+
+    const verifyDb = openDatabase();
+    try {
+      expect(rowCount(verifyDb, "capture_events")).toBe(1);
+      expect(rowCount(verifyDb, "training_attempts")).toBe(1);
+    } finally {
+      verifyDb.close();
+    }
+  });
+
+  it("returns 400 for invalid capture events without writing attempts", async () => {
+    const { POST } = await import("@/app/api/capture/events/route");
+
+    const response = await POST(
+      new Request("http://localhost/api/capture/events", { method: "POST", body: JSON.stringify({ id: "bad" }) }),
+    );
+    const body = await response.json();
 
     expect(response.status).toBe(400);
-    const body = await response.json();
     expect(body.ok).toBe(false);
     expect(body.error).toBe("Invalid capture event");
+
+    const verifyDb = openDatabase();
+    try {
+      expect(rowCount(verifyDb, "capture_events")).toBe(0);
+      expect(rowCount(verifyDb, "training_attempts")).toBe(0);
+    } finally {
+      verifyDb.close();
+    }
   });
 
   it("returns recent capture status", async () => {
     const events = await import("@/app/api/capture/events/route");
-    await events.POST(new Request("http://localhost/api/capture/events", { method: "POST", body: JSON.stringify(validEvent()) }));
+    await events.POST(requestWithEvent(validEvent()));
     const status = await import("@/app/api/capture/status/route");
 
     const response = await status.GET();
@@ -67,5 +164,26 @@ describe("capture API", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.recentEvents[0].id).toBe("evt_api_1");
+  });
+});
+
+describe("recent attempts API", () => {
+  it("returns recent attempts after a materialized page event", async () => {
+    const events = await import("@/app/api/capture/events/route");
+    await events.POST(requestWithEvent(validEvent()));
+    const recent = await import("@/app/api/attempts/recent/route");
+
+    const response = await recent.GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.recentAttempts).toHaveLength(1);
+    expect(body.recentAttempts[0]).toMatchObject({
+      id: "attempt_evt_api_1",
+      result: "draft",
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+    });
   });
 });
