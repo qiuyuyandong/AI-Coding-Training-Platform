@@ -1,3 +1,4 @@
+import { AttemptStatusPanel } from "./AttemptStatusPanel";
 import { CaptureStatusPanel } from "./CaptureStatusPanel";
 
 type TrainingWorkspaceProps = {
@@ -20,6 +21,7 @@ export function TrainingWorkspace({ platform, externalId }: TrainingWorkspacePro
         </a>
       </section>
       <CaptureStatusPanel />
+      <AttemptStatusPanel />
     </>
   );
 }
