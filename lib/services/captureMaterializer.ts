@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { pageDetectedEventToAttemptDraft, submissionEventToAttemptUpdate, type CaptureEvent } from "@/lib/capture/events";
 import {
   createDraftAttemptFromCapture,
+  findAttemptById,
   findAttemptBySourceEventId,
   findOpenAttemptByProblem,
   updateAttemptFromCapture,
@@ -14,7 +15,7 @@ export type MaterializedAttemptResult = {
 };
 
 export function materializeCaptureEvent(db: Database.Database, event: CaptureEvent): MaterializedAttemptResult {
-  const existing = findAttemptBySourceEventId(db, event.id);
+  const existing = findAttemptBySourceEventId(db, event.id) ?? findAttemptById(db, `attempt_${event.id}`);
   if (existing !== null) return { attemptId: existing.id, attemptStatus: existing.result };
 
   if (event.type === "PAGE_DETECTED" || event.type === "TRAINING_STARTED") {
@@ -48,7 +49,7 @@ export function materializeCaptureEvent(db: Database.Database, event: CaptureEve
         problemTitle: draft.problemTitle,
         canonicalUrl: draft.canonicalUrl,
         startedAt: draft.startedAt,
-        sourceEventId: `${event.id}:draft`,
+        sourceEventId: event.id,
         now: new Date().toISOString(),
       });
     const completed = updateAttemptFromCapture(db, {
@@ -57,7 +58,6 @@ export function materializeCaptureEvent(db: Database.Database, event: CaptureEve
       verdict: update.verdict,
       language: update.language,
       endedAt: update.endedAt,
-      sourceEventId: event.id,
       now: new Date().toISOString(),
     });
     return { attemptId: completed.id, attemptStatus: completed.result };
@@ -72,7 +72,6 @@ export function materializeCaptureEvent(db: Database.Database, event: CaptureEve
       result: "stuck",
       verdict: "Training ended",
       endedAt: event.occurredAt,
-      sourceEventId: event.id,
       now: new Date().toISOString(),
     });
     return { attemptId: completed.id, attemptStatus: completed.result };

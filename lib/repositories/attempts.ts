@@ -36,7 +36,6 @@ export type CompleteAttemptInput = {
   readonly verdict: string;
   readonly language?: string;
   readonly endedAt: string;
-  readonly sourceEventId: string;
   readonly now: string;
 };
 
@@ -62,6 +61,11 @@ function fromRow(row: AttemptRow): TrainingAttempt {
 
 export function findAttemptBySourceEventId(db: Database.Database, sourceEventId: string): TrainingAttempt | null {
   const row = db.prepare<string, AttemptRow>("SELECT * FROM training_attempts WHERE source_event_id = ?").get(sourceEventId);
+  return row === undefined ? null : fromRow(row);
+}
+
+export function findAttemptById(db: Database.Database, id: string): TrainingAttempt | null {
+  const row = db.prepare<string, AttemptRow>("SELECT * FROM training_attempts WHERE id = ?").get(id);
   return row === undefined ? null : fromRow(row);
 }
 
@@ -97,12 +101,11 @@ export function updateAttemptFromCapture(db: Database.Database, input: CompleteA
         verdict = @verdict,
         language = @language,
         ended_at = @endedAt,
-        source_event_id = @sourceEventId,
         updated_at = @now
     WHERE id = @attemptId
   `).run({ ...input, language: input.language ?? null });
-  const row = db.prepare<string, AttemptRow>("SELECT * FROM training_attempts WHERE id = ?").get(input.attemptId);
-  return row === undefined ? failAttemptLookup(input.attemptId) : fromRow(row);
+  const updated = findAttemptById(db, input.attemptId);
+  return updated ?? failAttemptLookup(input.attemptId);
 }
 
 export function listRecentAttempts(db: Database.Database, limit = 10): TrainingAttempt[] {
