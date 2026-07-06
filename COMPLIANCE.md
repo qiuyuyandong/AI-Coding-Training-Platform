@@ -35,3 +35,11 @@ Materialized attempts remain local-first:
 - `source_event_id` links a local attempt to its originating capture event for idempotent replay without storing browser secrets;
 - Coach and Growth pages read from the local SQLite database and do not send training records to external services;
 - the loop records user-visible page/submission outcomes, not hidden platform data, cookies, or full commercial problem statements.
+
+## Phase 2.3 Coach Intelligence
+
+Coach and Growth analysis remains local-only:
+
+- deterministic rules compute summaries, signals, recommendations, rates, and distributions from local `training_attempts` rows;
+- recommendations cite local attempt IDs as evidence and do not infer hidden platform state;
+- no external LLM, cloud analytics service, or third-party API receives attempts, verdicts, reflections, code, cookies, or platform session data.

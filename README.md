@@ -19,9 +19,12 @@ npm install
 npm run dev
 npm run typecheck
 npm run test
+npm run e2e
 npm run extension:build
 npm run build
 ```
+
+`npm run e2e` uses Playwright `webServer` to start and stop the local Next.js server automatically. Do not start a separate long-running `npm run dev` or `npm run start` shell for this smoke QA path.
 
 ## Browser Extension
 
@@ -48,3 +51,11 @@ Run migrations before exercising the loop:
 npm run db:migrate
 npm run dev
 ```
+
+## Coach and Growth Insights
+
+Phase 2.3 keeps coaching local and deterministic:
+
+- `/coach` reads recent local attempts and renders summary, evidence-backed signals, and next-step recommendations;
+- `/growth` renders local result distribution, completion/pass rates, and recent activity;
+- insights are computed from SQLite attempts only, with no external model or network call.
