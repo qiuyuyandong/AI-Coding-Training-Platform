@@ -43,9 +43,6 @@ export function upsertProblem(db: Database.Database, problem: Problem): void {
       canonical_url = excluded.canonical_url,
       tags_json = excluded.tags_json,
       difficulty = excluded.difficulty,
-      status = excluded.status,
-      content_mode = excluded.content_mode,
-      training_mode = excluded.training_mode,
       updated_at = excluded.updated_at
   `).run({ ...parsed, tagsJson: JSON.stringify(parsed.tags) });
 }

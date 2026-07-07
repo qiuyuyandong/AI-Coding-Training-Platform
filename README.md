@@ -56,6 +56,7 @@ Run migrations before exercising the loop:
 
 ```powershell
 npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
