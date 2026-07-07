@@ -111,6 +111,44 @@ describe("materializeCaptureEvent", () => {
     }
   });
 
+  it("keeps an open draft in progress when submission is detected before a verdict", () => {
+    const db = openTestDatabase();
+    try {
+      const draft = materializeCaptureEvent(db, event({ id: "evt_1" }));
+      const submitted = materializeCaptureEvent(
+        db,
+        event({ id: "evt_2", type: "SUBMISSION_DETECTED", payload: { action: "submit_clicked" } }),
+      );
+
+      expect(submitted).toEqual({ attemptId: draft.attemptId, attemptStatus: "draft" });
+      expect(db.prepare("SELECT result, verdict FROM training_attempts").get()).toEqual({
+        result: "draft",
+        verdict: null,
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("updates an open draft to partial from a partial verdict event", () => {
+    const db = openTestDatabase();
+    try {
+      const draft = materializeCaptureEvent(db, event({ id: "evt_1" }));
+      const completed = materializeCaptureEvent(
+        db,
+        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
+      );
+
+      expect(completed).toEqual({ attemptId: draft.attemptId, attemptStatus: "partial" });
+      expect(db.prepare("SELECT result, verdict FROM training_attempts").get()).toEqual({
+        result: "partial",
+        verdict: "Time Limit Exceeded",
+      });
+    } finally {
+      db.close();
+    }
+  });
+
   it("preserves the originating source_event_id after a verdict update", () => {
     const db = openTestDatabase();
     try {

@@ -37,7 +37,6 @@ export function materializeCaptureEvent(db: Database.Database, event: CaptureEve
   }
 
   if (event.type === "SUBMISSION_DETECTED" || event.type === "VERDICT_UPDATED") {
-    const update = submissionEventToAttemptUpdate(event);
     const draft = pageDetectedEventToAttemptDraft(event);
     const open = findOpenAttemptByProblem(db, draft.platform, draft.problemExternalId);
     const attempt =
@@ -52,6 +51,11 @@ export function materializeCaptureEvent(db: Database.Database, event: CaptureEve
         sourceEventId: event.id,
         now: new Date().toISOString(),
       });
+    if (event.type === "SUBMISSION_DETECTED" && event.payload.verdict === undefined) {
+      return { attemptId: attempt.id, attemptStatus: attempt.result };
+    }
+
+    const update = submissionEventToAttemptUpdate(event);
     const completed = updateAttemptFromCapture(db, {
       attemptId: attempt.id,
       result: update.result,
