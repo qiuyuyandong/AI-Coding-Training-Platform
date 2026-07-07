@@ -76,6 +76,18 @@ describe("capture event attempt conversion", () => {
     });
   });
 
+  it("marks compile errors as failed", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "Compile Error" } }),
+    );
+
+    expect(update).toEqual({
+      result: "failed",
+      verdict: "Compile Error",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
   it("marks runtime-like verdicts as partial progress", () => {
     const update = submissionEventToAttemptUpdate(
       event({ type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
@@ -84,6 +96,66 @@ describe("capture event attempt conversion", () => {
     expect(update).toEqual({
       result: "partial",
       verdict: "Time Limit Exceeded",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
+  it("marks runtime errors as partial progress", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "Runtime Error" } }),
+    );
+
+    expect(update).toEqual({
+      result: "partial",
+      verdict: "Runtime Error",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
+  it("marks memory limit verdicts as partial progress", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "Memory Limit Exceeded" } }),
+    );
+
+    expect(update).toEqual({
+      result: "partial",
+      verdict: "Memory Limit Exceeded",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
+  it("marks Chinese accepted verdicts as passed", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "答案正确" } }),
+    );
+
+    expect(update).toEqual({
+      result: "passed",
+      verdict: "答案正确",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
+  it("marks Chinese timeout verdicts as partial progress", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "运行超时" } }),
+    );
+
+    expect(update).toEqual({
+      result: "partial",
+      verdict: "运行超时",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
+  it("does not treat unrelated words containing re as runtime errors", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "Review requested" } }),
+    );
+
+    expect(update).toEqual({
+      result: "failed",
+      verdict: "Review requested",
       endedAt: "2026-07-06T00:00:00.000Z",
     });
   });

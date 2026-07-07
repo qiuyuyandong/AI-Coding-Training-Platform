@@ -76,16 +76,21 @@ function explicitAttemptResult(value: unknown): AttemptUpdate["result"] | null {
 function classifyVerdict(verdict: string): AttemptUpdate["result"] {
   const normalized = verdict.toLowerCase();
   if (normalized.includes("partial") || normalized.includes("partially") || normalized.includes("部分")) return "partial";
-  if (normalized.includes("accepted") || normalized === "ac") return "passed";
+  if (normalized.includes("accepted") || hasVerdictToken(normalized, "ac") || verdict.includes("答案正确") || verdict.includes("通过")) return "passed";
+  if (verdict.includes("运行超时") || verdict.includes("超出时间限制") || verdict.includes("内存超限") || verdict.includes("超出内存限制") || verdict.includes("段错误")) return "partial";
   if (
     normalized.includes("time limit") ||
     normalized.includes("memory limit") ||
     normalized.includes("runtime") ||
-    normalized.includes("tle") ||
-    normalized.includes("mle") ||
-    normalized.includes("re")
+    hasVerdictToken(normalized, "tle") ||
+    hasVerdictToken(normalized, "mle") ||
+    hasVerdictToken(normalized, "re")
   ) {
     return "partial";
   }
   return "failed";
+}
+
+function hasVerdictToken(text: string, token: string): boolean {
+  return text.split(/[^a-z]+/u).includes(token);
 }
