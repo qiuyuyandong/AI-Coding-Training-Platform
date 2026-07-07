@@ -80,6 +80,42 @@ describe("detectVerdictFromDocument", () => {
     expect(detectVerdictFromDocument("nowcoder", document)).toEqual({ verdict: "Partially Accepted" });
   });
 
+  it("detects NowCoder Chinese accepted verdict text", () => {
+    document.body.innerHTML = '<div class="result">答案正确</div>';
+
+    expect(detectVerdictFromDocument("nowcoder", document)).toEqual({ verdict: "Accepted" });
+  });
+
+  it("detects NowCoder Chinese wrong-answer verdict text", () => {
+    document.body.innerHTML = '<div class="judge-result">答案错误</div>';
+
+    expect(detectVerdictFromDocument("nowcoder", document)).toEqual({ verdict: "Wrong Answer" });
+  });
+
+  it("detects NowCoder Chinese compile-error verdict text", () => {
+    document.body.innerHTML = '<div class="submission-result">编译错误</div>';
+
+    expect(detectVerdictFromDocument("nowcoder", document)).toEqual({ verdict: "Compile Error" });
+  });
+
+  it("detects Luogu Chinese time-limit verdict text", () => {
+    document.body.innerHTML = '<span class="record-status">运行超时</span>';
+
+    expect(detectVerdictFromDocument("luogu", document)).toEqual({ verdict: "Time Limit Exceeded" });
+  });
+
+  it("detects Luogu Chinese memory-limit verdict text", () => {
+    document.body.innerHTML = '<span class="submission-status">内存超限</span>';
+
+    expect(detectVerdictFromDocument("luogu", document)).toEqual({ verdict: "Memory Limit Exceeded" });
+  });
+
+  it("detects Luogu Chinese runtime-error verdict text", () => {
+    document.body.innerHTML = '<span class="status">段错误</span>';
+
+    expect(detectVerdictFromDocument("luogu", document)).toEqual({ verdict: "Runtime Error" });
+  });
+
   it("detects Luogu accepted verdict text", () => {
     document.body.innerHTML = '<span class="status">Accepted</span>';
 

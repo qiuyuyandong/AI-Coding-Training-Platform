@@ -77,14 +77,20 @@ function textFromSelectors(pageDocument: Document, selectors: readonly string[])
 function verdictFromText(text: string): DetectedVerdict | null {
   const normalized = text.toLowerCase();
   if (normalized.includes("partially accepted") || text.includes("部分通过")) return { verdict: "Partially Accepted" };
-  if (normalized.includes("time limit exceeded") || normalized.includes("tle")) return { verdict: "Time Limit Exceeded" };
-  if (normalized.includes("memory limit exceeded") || normalized.includes("mle")) return { verdict: "Memory Limit Exceeded" };
-  if (normalized.includes("runtime error") || normalized.includes(" re ")) return { verdict: "Runtime Error" };
-  if (normalized.includes("wrong answer") || hasVerdictToken(normalized, "wa")) return { verdict: "Wrong Answer" };
-  if (normalized.includes("compile error") || normalized.includes("compilation error") || hasVerdictToken(normalized, "ce")) {
+  if (normalized.includes("time limit exceeded") || hasVerdictToken(normalized, "tle") || text.includes("运行超时") || text.includes("超出时间限制")) {
+    return { verdict: "Time Limit Exceeded" };
+  }
+  if (normalized.includes("memory limit exceeded") || hasVerdictToken(normalized, "mle") || text.includes("内存超限") || text.includes("超出内存限制")) {
+    return { verdict: "Memory Limit Exceeded" };
+  }
+  if (normalized.includes("runtime error") || hasVerdictToken(normalized, "re") || text.includes("段错误")) return { verdict: "Runtime Error" };
+  if (normalized.includes("wrong answer") || hasVerdictToken(normalized, "wa") || text.includes("答案错误") || text.includes("格式错误")) {
+    return { verdict: "Wrong Answer" };
+  }
+  if (normalized.includes("compile error") || normalized.includes("compilation error") || hasVerdictToken(normalized, "ce") || text.includes("编译错误") || text.includes("编译失败")) {
     return { verdict: "Compile Error" };
   }
-  if (normalized.includes("accepted") || hasVerdictToken(normalized, "ac")) return { verdict: "Accepted" };
+  if (normalized.includes("accepted") || hasVerdictToken(normalized, "ac") || text.includes("答案正确")) return { verdict: "Accepted" };
   return null;
 }
 
