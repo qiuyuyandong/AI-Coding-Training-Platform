@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-06
+Last updated: 2026-07-07
 
 ## Setup
 
@@ -28,6 +28,8 @@ npm run extension:build
 ```
 
 Load `extension/dist` as an unpacked Chrome extension. The popup can enable/disable capture and shows queue/success/error status.
+
+Verdict capture is expected to detect visible accepted, wrong-answer, compile-error, runtime-error, time-limit, memory-limit, and partial verdict text. English verdict tokens and Chinese verdict labels are normalized before being sent to the local app.
 
 ## Verification
 
@@ -74,5 +76,6 @@ Stop the stale process before rerunning e2e. Avoid starting manual long-running 
 2. Confirm capture is enabled in the extension popup.
 3. Open `/training?platform=leetcode&externalId=two-sum` and a supported original problem page.
 4. Check `CaptureStatusPanel` for recent events and `AttemptStatusPanel` for materialized attempts.
+5. If the page is visible but the attempt stays in `draft`, inspect whether the platform's visible verdict text is covered by `extension/src/platforms.ts` and `tests/unit/extensionPlatforms.test.ts`.
 
 Network errors are retryable. Invalid 400 responses are dropped to avoid retry loops.

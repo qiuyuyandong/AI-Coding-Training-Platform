@@ -43,3 +43,12 @@ Coach and Growth analysis remains local-only:
 - deterministic rules compute summaries, signals, recommendations, rates, and distributions from local `training_attempts` rows;
 - recommendations cite local attempt IDs as evidence and do not infer hidden platform state;
 - no external LLM, cloud analytics service, or third-party API receives attempts, verdicts, reflections, code, cookies, or platform session data.
+
+## Phase 3.0 Verdict Capture Loop
+
+Verdict capture keeps using the browser session without extracting the browser session:
+
+- the extension reads visible verdict text only and normalizes it into local verdict labels such as accepted, wrong answer, compile error, runtime error, time limit, memory limit, or partial;
+- Chinese verdict labels are treated the same way as English visible verdict tokens and are reduced to local attempt results before storage;
+- repeated verdict events are replay/idempotency safeguards for local attempts, not a reason to store hidden page state;
+- no cookies, session tokens, localStorage secrets, hidden platform data, full statements, code submissions, or external services are added to the capture loop.

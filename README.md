@@ -45,12 +45,14 @@ Load `extension/dist` as an unpacked extension in Chrome. Keep the local app run
 
 ## Training Records Loop
 
-Phase 2.2 turns captured browser events into local training attempts:
+The training loop turns captured browser events into local training attempts:
 
-- `/training?platform=leetcode&externalId=two-sum` opens the original problem and shows capture plus attempt status;
+- `/training?platform=leetcode&externalId=two-sum&title=Two%20Sum` opens the original problem and shows capture plus problem-specific attempt status;
 - `/api/capture/events` stores extension events and materializes the matching local attempt;
 - `/api/attempts/recent` returns recent attempts for the training workspace;
 - `/coach` and `/growth` read the same local attempts to show empty-state or rule-based feedback.
+
+Phase 3.0 hardens verdict capture: the extension maps visible Accepted/Wrong Answer/Compile Error/runtime/time/memory/partial verdict text into local results, including Chinese verdict labels, and repeated verdict events do not duplicate completed attempts.
 
 Run migrations before exercising the loop:
 

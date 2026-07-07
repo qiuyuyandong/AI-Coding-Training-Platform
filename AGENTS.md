@@ -1,13 +1,14 @@
 # Agent Handoff Guide
 
-This project is a local-first AI coding training platform. It is currently on branch `feature/v1-followup` with Phase 2.3 Coach Intelligence implemented.
+This project is a local-first AI coding training platform. It is currently on branch `feature/v1-followup` with Phase 3.0 Verdict Capture Loop hardening implemented.
 
 ## Current shape
 
 - Next.js App Router application with SQLite persistence through `better-sqlite3`.
 - Chrome MV3 extension source lives under `extension/src`; build output is generated under ignored `extension/dist`.
-- Capture events enter through `POST /api/capture/events`, are stored locally, and are materialized into `training_attempts`.
-- `/training` shows capture and attempt status; `/coach` and `/growth` read local attempts and render deterministic insights.
+- Capture events enter through `POST /api/capture/events`, are stored locally, and are materialized into `training_attempts` with verdict replay/idempotency safeguards.
+- The Chrome extension detects supported problem pages and visible verdict text, including English verdict tokens plus Chinese verdict labels used by NowCoder/Luogu-style UIs.
+- `/training` shows capture and problem-specific attempt status; `/coach` and `/growth` read local attempts and render deterministic insights.
 - Playwright e2e smoke tests own the local browser QA server lifecycle through `playwright.config.ts`.
 
 ## Commands

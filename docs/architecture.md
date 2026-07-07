@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-06
+Last updated: 2026-07-07
 
 ## Overview
 
@@ -17,7 +17,7 @@ Chrome MV3 extension
 → /training, /coach, /growth
 ```
 
-The browser extension detects supported problem pages and visible verdict state. It queues events in Chrome local storage and retries localhost delivery according to the transport rules in `extension/src/transport.ts`.
+The browser extension detects supported problem pages and visible verdict state. It normalizes English verdict tokens and Chinese verdict labels into local verdict events, queues events in Chrome local storage, and retries localhost delivery according to the transport rules in `extension/src/transport.ts`.
 
 ## App routes
 
@@ -52,11 +52,12 @@ The SQLite schema is defined by migrations under `lib/db/migrations`.
 | `capture_events` | Raw local browser capture events. |
 | `training_attempts` | Materialized local training facts used by Coach/Growth. |
 
-`training_attempts.source_event_id` links a local attempt to a capture event for idempotent replay. Repeated capture events should not create duplicate attempts.
+`training_attempts.source_event_id` links a local attempt to its originating page/training capture event. Replayed page events reuse the same attempt, and replayed verdict events are matched by problem, verdict, and end timestamp so they do not create duplicate completed attempts.
 
 ## Service boundaries
 
 - `lib/capture/events.ts` owns capture event validation and conversion helpers.
+- `extension/src/platforms.ts` owns pure platform page/verdict detection, including supported English and Chinese verdict text patterns.
 - `lib/repositories/**` owns SQLite row mapping and persistence helpers.
 - `lib/services/captureMaterializer.ts` converts capture events into attempt state transitions.
 - `lib/services/coachAnalysis.ts` turns attempts into deterministic Coach signals and recommendations.
