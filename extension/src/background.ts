@@ -1,10 +1,10 @@
-import { enqueueCaptureEvent, isCaptureMessage, isQueueItem, planQueueAfterFlush, type CaptureQueueItem, type FlushResult } from "./transport";
+import { DEFAULT_CAPTURE_ENDPOINT, enqueueCaptureEvent, isCaptureMessage, isQueueItem, planQueueAfterFlush, readCaptureEndpoint, type CaptureQueueItem, type FlushResult } from "./transport";
 
 const STORAGE_KEYS = ["captureEnabled", "eventQueue"] as const;
 const FLUSH_ALARM_NAME = "flushCaptureQueue";
 
 chrome.runtime.onInstalled.addListener(() => {
-  void chrome.storage.local.set({ captureEnabled: true, eventQueue: [] });
+  void chrome.storage.local.set({ captureEnabled: true, eventQueue: [], captureEndpoint: DEFAULT_CAPTURE_ENDPOINT });
   void chrome.alarms.create(FLUSH_ALARM_NAME, { periodInMinutes: 1 });
 });
 
@@ -27,20 +27,20 @@ async function enqueueAndFlush(event: CaptureQueueItem["event"]): Promise<void> 
 }
 
 async function flushQueue(): Promise<void> {
-  const state = await chrome.storage.local.get(["eventQueue"]);
+  const state = await chrome.storage.local.get(["eventQueue", "captureEndpoint"]);
   const queue = readQueue(state.eventQueue);
   const [head] = queue;
 
   if (head === undefined) return;
 
-  const result = await postCaptureEvent(head.event);
+  const result = await postCaptureEvent(head.event, readCaptureEndpoint(state.captureEndpoint));
   const plan = planQueueAfterFlush(queue, result);
   await chrome.storage.local.set(plan);
 }
 
-async function postCaptureEvent(event: CaptureQueueItem["event"]): Promise<FlushResult> {
+async function postCaptureEvent(event: CaptureQueueItem["event"], endpoint: string): Promise<FlushResult> {
   try {
-    const response = await fetch("http://localhost:3000/api/capture/events", {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(event),
@@ -72,4 +72,3 @@ async function readErrorBody(response: Response): Promise<string> {
 function readQueue(value: unknown): readonly CaptureQueueItem[] {
   return Array.isArray(value) ? value.filter(isQueueItem) : [];
 }
-

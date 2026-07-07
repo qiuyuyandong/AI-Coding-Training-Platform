@@ -6,6 +6,7 @@ import {
   isCaptureMessage,
   isQueueItem,
   planQueueAfterFlush,
+  readCaptureEndpoint,
   type CaptureQueueItem,
 } from "@/extension/src/transport";
 import type { CaptureEvent } from "@/lib/capture/events";
@@ -46,6 +47,20 @@ describe("enqueueCaptureEvent", () => {
     expect(next).toHaveLength(CAPTURE_QUEUE_LIMIT);
     expect(next.at(-1)?.event.id).toBe("evt_new");
     expect(next[0]?.event.id).toBe("evt_1");
+  });
+});
+
+describe("readCaptureEndpoint", () => {
+  it("uses localhost when no endpoint is configured", () => {
+    expect(readCaptureEndpoint(undefined)).toBe("http://localhost:3000/api/capture/events");
+  });
+
+  it("uses configured HTTP endpoints", () => {
+    expect(readCaptureEndpoint("http://127.0.0.1:3001/api/capture/events")).toBe("http://127.0.0.1:3001/api/capture/events");
+  });
+
+  it("falls back to localhost for malformed endpoints", () => {
+    expect(readCaptureEndpoint("not a url")).toBe("http://localhost:3000/api/capture/events");
   });
 });
 

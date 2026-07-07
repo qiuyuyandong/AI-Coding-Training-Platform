@@ -3,6 +3,7 @@ import { CaptureEventSchema, type CaptureEvent } from "@/lib/capture/events";
 
 export const CAPTURE_QUEUE_LIMIT = 100;
 export const MAX_RETRY_ATTEMPTS = 3;
+export const DEFAULT_CAPTURE_ENDPOINT = "http://localhost:3000/api/capture/events";
 
 export type CaptureMessage = { readonly type: "CAPTURE_EVENT"; readonly event: CaptureEvent };
 
@@ -42,6 +43,19 @@ export function isQueueItem(value: unknown): value is CaptureQueueItem {
 
 export function enqueueCaptureEvent(queue: readonly CaptureQueueItem[], event: CaptureEvent): readonly CaptureQueueItem[] {
   return [...queue, { event, attempts: 0 }].slice(-CAPTURE_QUEUE_LIMIT);
+}
+
+export function readCaptureEndpoint(value: unknown): string {
+  if (typeof value !== "string") return DEFAULT_CAPTURE_ENDPOINT;
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return DEFAULT_CAPTURE_ENDPOINT;
+    return url.toString();
+  } catch (error) {
+    if (error instanceof TypeError) return DEFAULT_CAPTURE_ENDPOINT;
+    throw error;
+  }
 }
 
 export function planQueueAfterFlush(queue: readonly CaptureQueueItem[], result: FlushResult): QueuePlan {

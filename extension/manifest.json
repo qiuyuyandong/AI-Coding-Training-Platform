@@ -20,6 +20,8 @@
     {
       "matches": [
         "https://leetcode.com/problems/*",
+        "https://leetcode.com/problems/*/description/*",
+        "https://leetcode.com/problems/*/submissions/*",
         "https://www.nowcoder.com/*",
         "https://www.luogu.com.cn/*",
         "https://codeforces.com/problemset/problem/*",
