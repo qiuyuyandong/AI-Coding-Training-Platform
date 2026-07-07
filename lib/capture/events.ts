@@ -46,10 +46,46 @@ export function submissionEventToAttemptUpdate(event: CaptureEvent): AttemptUpda
   const parsed = CaptureEventSchema.parse(event);
   const verdict = String(parsed.payload.verdict ?? "Unknown");
   const language = parsed.payload.language === undefined ? undefined : String(parsed.payload.language);
-  return {
-    result: verdict.toLowerCase().includes("accepted") ? "passed" : "failed",
+  const result = explicitAttemptResult(parsed.payload.result) ?? classifyVerdict(verdict);
+  const base = {
+    result,
     verdict,
-    language,
     endedAt: parsed.occurredAt,
   };
+
+  if (language === undefined) return base;
+
+  return {
+    ...base,
+    language,
+  };
+}
+
+function explicitAttemptResult(value: unknown): AttemptUpdate["result"] | null {
+  switch (value) {
+    case "passed":
+    case "failed":
+    case "partial":
+    case "stuck":
+      return value;
+    default:
+      return null;
+  }
+}
+
+function classifyVerdict(verdict: string): AttemptUpdate["result"] {
+  const normalized = verdict.toLowerCase();
+  if (normalized.includes("partial") || normalized.includes("partially") || normalized.includes("部分")) return "partial";
+  if (normalized.includes("accepted") || normalized === "ac") return "passed";
+  if (
+    normalized.includes("time limit") ||
+    normalized.includes("memory limit") ||
+    normalized.includes("runtime") ||
+    normalized.includes("tle") ||
+    normalized.includes("mle") ||
+    normalized.includes("re")
+  ) {
+    return "partial";
+  }
+  return "failed";
 }

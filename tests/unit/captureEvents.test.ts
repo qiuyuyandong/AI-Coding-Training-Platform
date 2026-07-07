@@ -76,6 +76,30 @@ describe("capture event attempt conversion", () => {
     });
   });
 
+  it("marks runtime-like verdicts as partial progress", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
+    );
+
+    expect(update).toEqual({
+      result: "partial",
+      verdict: "Time Limit Exceeded",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
+  it("uses an explicit payload result when the detector supplies one", () => {
+    const update = submissionEventToAttemptUpdate(
+      event({ type: "VERDICT_UPDATED", payload: { verdict: "Partially Accepted", result: "partial" } }),
+    );
+
+    expect(update).toEqual({
+      result: "partial",
+      verdict: "Partially Accepted",
+      endedAt: "2026-07-06T00:00:00.000Z",
+    });
+  });
+
   it("uses Unknown when a verdict payload is missing", () => {
     const update = submissionEventToAttemptUpdate(
       event({ type: "VERDICT_UPDATED", payload: {} }),
