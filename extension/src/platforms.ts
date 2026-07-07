@@ -1,4 +1,4 @@
-type Platform = "leetcode" | "nowcoder" | "luogu" | "codeforces" | "atcoder";
+export type Platform = "leetcode" | "nowcoder" | "luogu" | "codeforces" | "atcoder";
 
 export type DetectableLocation = Pick<Location, "href" | "hostname" | "pathname">;
 
@@ -7,6 +7,10 @@ export type DetectedProblem = {
   problemExternalId: string;
   problemTitle: string;
   canonicalUrl: string;
+};
+
+export type DetectedVerdict = {
+  readonly verdict: string;
 };
 
 export function detectProblemFromLocation(location: DetectableLocation, documentTitle: string): DetectedProblem | null {
@@ -35,4 +39,55 @@ export function detectProblemFromLocation(location: DetectableLocation, document
   }
 
   return null;
+}
+
+export function detectVerdictFromDocument(platform: Platform, pageDocument: Document): DetectedVerdict | null {
+  const text = candidateTextForPlatform(platform, pageDocument);
+  return verdictFromText(text);
+}
+
+function candidateTextForPlatform(platform: Platform, pageDocument: Document): string {
+  switch (platform) {
+    case "leetcode":
+      return textFromSelectors(pageDocument, [
+        '[data-e2e-locator="submission-result"]',
+        '[data-cy="submission-result"]',
+        ".text-green-s",
+        ".text-red-s",
+        "body",
+      ]);
+    case "codeforces":
+      return textFromSelectors(pageDocument, [".status-cell", "td.status-small", ".verdict-accepted", "body"]);
+    case "atcoder":
+      return textFromSelectors(pageDocument, ["#judge-status", ".waiting-judge", "td", "body"]);
+    case "nowcoder":
+      return textFromSelectors(pageDocument, [".result", ".submission-result", ".judge-result", "body"]);
+    case "luogu":
+      return textFromSelectors(pageDocument, [".status", ".record-status", ".submission-status", "body"]);
+  }
+}
+
+function textFromSelectors(pageDocument: Document, selectors: readonly string[]): string {
+  return selectors
+    .flatMap((selector) => Array.from(pageDocument.querySelectorAll(selector)))
+    .map((element) => element.textContent ?? "")
+    .join("\n");
+}
+
+function verdictFromText(text: string): DetectedVerdict | null {
+  const normalized = text.toLowerCase();
+  if (normalized.includes("partially accepted") || text.includes("部分通过")) return { verdict: "Partially Accepted" };
+  if (normalized.includes("time limit exceeded") || normalized.includes("tle")) return { verdict: "Time Limit Exceeded" };
+  if (normalized.includes("memory limit exceeded") || normalized.includes("mle")) return { verdict: "Memory Limit Exceeded" };
+  if (normalized.includes("runtime error") || normalized.includes(" re ")) return { verdict: "Runtime Error" };
+  if (normalized.includes("wrong answer") || hasVerdictToken(normalized, "wa")) return { verdict: "Wrong Answer" };
+  if (normalized.includes("compile error") || normalized.includes("compilation error") || hasVerdictToken(normalized, "ce")) {
+    return { verdict: "Compile Error" };
+  }
+  if (normalized.includes("accepted") || hasVerdictToken(normalized, "ac")) return { verdict: "Accepted" };
+  return null;
+}
+
+function hasVerdictToken(text: string, token: string): boolean {
+  return text.split(/[^a-z]+/u).includes(token);
 }

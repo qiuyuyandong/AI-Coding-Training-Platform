@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectProblemFromLocation, type DetectableLocation } from "@/extension/src/platforms";
+import { detectProblemFromLocation, detectVerdictFromDocument, type DetectableLocation } from "@/extension/src/platforms";
 
 function asLocation(url: string): DetectableLocation {
   const parsedUrl = new URL(url);
@@ -52,5 +52,43 @@ describe("detectProblemFromLocation", () => {
 
   it("returns null for unsupported hosts", () => {
     expect(detectProblemFromLocation(asLocation("https://example.com/problems/two-sum"), "Two Sum")).toBeNull();
+  });
+});
+
+describe("detectVerdictFromDocument", () => {
+  it("detects LeetCode accepted verdict text", () => {
+    document.body.innerHTML = '<div data-e2e-locator="submission-result">Accepted</div>';
+
+    expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Accepted" });
+  });
+
+  it("detects Codeforces wrong-answer verdict text", () => {
+    document.body.innerHTML = '<td class="status-cell">Wrong answer on test 2</td>';
+
+    expect(detectVerdictFromDocument("codeforces", document)).toEqual({ verdict: "Wrong Answer" });
+  });
+
+  it("detects AtCoder time-limit verdict text", () => {
+    document.body.innerHTML = '<span id="judge-status">TLE</span>';
+
+    expect(detectVerdictFromDocument("atcoder", document)).toEqual({ verdict: "Time Limit Exceeded" });
+  });
+
+  it("detects NowCoder partial verdict text", () => {
+    document.body.innerHTML = '<div class="result">部分通过</div>';
+
+    expect(detectVerdictFromDocument("nowcoder", document)).toEqual({ verdict: "Partially Accepted" });
+  });
+
+  it("detects Luogu accepted verdict text", () => {
+    document.body.innerHTML = '<span class="status">Accepted</span>';
+
+    expect(detectVerdictFromDocument("luogu", document)).toEqual({ verdict: "Accepted" });
+  });
+
+  it("returns null when no verdict text is visible", () => {
+    document.body.innerHTML = "<main>Problem statement</main>";
+
+    expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
   });
 });
