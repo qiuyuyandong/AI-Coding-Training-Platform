@@ -13,8 +13,7 @@ export default function GrowthPage() {
       <main className="mx-auto max-w-4xl px-6 py-10">
         <h1 className="text-3xl font-semibold">Growth</h1>
         <p className="mt-3 text-slate-600">
-          Growth summarizes attempts, streaks, tag performance, verdicts, and review completion from local training
-          data.
+          Growth summarizes local attempts, completion/pass rates, result distribution, and recent activity.
         </p>
         {attempts.length === 0 ? (
           <p className="mt-4 text-slate-600">
