@@ -39,6 +39,13 @@ export type CompleteAttemptInput = {
   readonly now: string;
 };
 
+export type FindCompletedAttemptInput = {
+  readonly platform: string;
+  readonly problemExternalId: string;
+  readonly verdict: string;
+  readonly endedAt: string;
+};
+
 export type UpdateAttemptReflectionInput = {
   readonly attemptId: string;
   readonly reflection: string;
@@ -84,6 +91,22 @@ export function findOpenAttemptByProblem(db: Database.Database, platform: string
       LIMIT 1
     `)
     .get(platform, problemExternalId);
+  return row === undefined ? null : fromRow(row);
+}
+
+export function findCompletedAttemptByCaptureUpdate(db: Database.Database, input: FindCompletedAttemptInput): TrainingAttempt | null {
+  const row = db
+    .prepare<FindCompletedAttemptInput, AttemptRow>(`
+      SELECT * FROM training_attempts
+      WHERE platform = @platform
+        AND problem_external_id = @problemExternalId
+        AND verdict = @verdict
+        AND ended_at = @endedAt
+        AND result != 'draft'
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `)
+    .get(input);
   return row === undefined ? null : fromRow(row);
 }
 

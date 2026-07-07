@@ -187,6 +187,31 @@ describe("materializeCaptureEvent", () => {
     }
   });
 
+  it("replays VERDICT_UPDATED without duplicating or changing the completed attempt", () => {
+    const db = openTestDatabase();
+    try {
+      materializeCaptureEvent(db, event({ id: "evt_1", type: "PAGE_DETECTED" }));
+      const firstVerdict = materializeCaptureEvent(
+        db,
+        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
+      );
+      const replay = materializeCaptureEvent(
+        db,
+        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
+      );
+
+      expect(firstVerdict).toEqual({ attemptId: "attempt_evt_1", attemptStatus: "partial" });
+      expect(replay).toEqual(firstVerdict);
+      expect(db.prepare("SELECT COUNT(*) AS count FROM training_attempts").get()).toEqual({ count: 1 });
+      expect(db.prepare("SELECT result, verdict FROM training_attempts").get()).toEqual({
+        result: "partial",
+        verdict: "Time Limit Exceeded",
+      });
+    } finally {
+      db.close();
+    }
+  });
+
   it("creates and completes an attempt when verdict arrives before a draft", () => {
     const db = openTestDatabase();
     try {

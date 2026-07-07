@@ -109,6 +109,40 @@ describe("capture API", () => {
     }
   });
 
+  it("updates the draft attempt to partial for runtime-like verdict events", async () => {
+    const { POST } = await import("@/app/api/capture/events/route");
+
+    const pageResponse = await POST(requestWithEvent(validEvent()));
+    expect(pageResponse.status).toBe(200);
+
+    const verdictResponse = await POST(
+      requestWithEvent(
+        validEvent({
+          id: "evt_verdict_partial_1",
+          type: "VERDICT_UPDATED",
+          payload: { verdict: "Time Limit Exceeded" },
+        }),
+      ),
+    );
+    const verdictBody = await verdictResponse.json();
+
+    expect(verdictResponse.status).toBe(200);
+    expect(verdictBody.attemptId).toBe("attempt_evt_api_1");
+    expect(verdictBody.attemptStatus).toBe("partial");
+
+    const verifyDb = openDatabase();
+    try {
+      expect(rowCount(verifyDb, "capture_events")).toBe(2);
+      expect(rowCount(verifyDb, "training_attempts")).toBe(1);
+      const row = verifyDb
+        .prepare<[], { result: string; verdict: string | null }>("SELECT result, verdict FROM training_attempts")
+        .get();
+      expect(row).toEqual({ result: "partial", verdict: "Time Limit Exceeded" });
+    } finally {
+      verifyDb.close();
+    }
+  });
+
   it("updates attempt reflection and returns it in recent attempts", async () => {
     const { POST } = await import("@/app/api/capture/events/route");
     await POST(requestWithEvent(validEvent()));

@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { pageDetectedEventToAttemptDraft, submissionEventToAttemptUpdate, type CaptureEvent } from "@/lib/capture/events";
 import {
   createDraftAttemptFromCapture,
+  findCompletedAttemptByCaptureUpdate,
   findAttemptById,
   findAttemptBySourceEventId,
   findOpenAttemptByProblem,
@@ -39,6 +40,19 @@ export function materializeCaptureEvent(db: Database.Database, event: CaptureEve
   if (event.type === "SUBMISSION_DETECTED" || event.type === "VERDICT_UPDATED") {
     const draft = pageDetectedEventToAttemptDraft(event);
     const open = findOpenAttemptByProblem(db, draft.platform, draft.problemExternalId);
+    const update = event.type === "SUBMISSION_DETECTED" && event.payload.verdict === undefined
+      ? null
+      : submissionEventToAttemptUpdate(event);
+    const completedReplay = update === null
+      ? null
+      : findCompletedAttemptByCaptureUpdate(db, {
+        platform: draft.platform,
+        problemExternalId: draft.problemExternalId,
+        verdict: update.verdict,
+        endedAt: update.endedAt,
+      });
+    if (completedReplay !== null) return { attemptId: completedReplay.id, attemptStatus: completedReplay.result };
+
     const attempt =
       open ??
       createDraftAttemptFromCapture(db, {
@@ -55,7 +69,7 @@ export function materializeCaptureEvent(db: Database.Database, event: CaptureEve
       return { attemptId: attempt.id, attemptStatus: attempt.result };
     }
 
-    const update = submissionEventToAttemptUpdate(event);
+    if (update === null) return { attemptId: attempt.id, attemptStatus: attempt.result };
     const completed = updateAttemptFromCapture(db, {
       attemptId: attempt.id,
       result: update.result,
