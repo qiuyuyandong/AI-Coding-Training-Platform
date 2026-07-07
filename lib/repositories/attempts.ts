@@ -39,6 +39,12 @@ export type CompleteAttemptInput = {
   readonly now: string;
 };
 
+export type UpdateAttemptReflectionInput = {
+  readonly attemptId: string;
+  readonly reflection: string;
+  readonly now: string;
+};
+
 function fromRow(row: AttemptRow): TrainingAttempt {
   return TrainingAttemptSchema.parse({
     id: row.id,
@@ -111,6 +117,16 @@ export function updateAttemptFromCapture(db: Database.Database, input: CompleteA
 export function listRecentAttempts(db: Database.Database, limit = 10): TrainingAttempt[] {
   const rows = db.prepare<number, AttemptRow>("SELECT * FROM training_attempts ORDER BY updated_at DESC LIMIT ?").all(limit);
   return rows.map(fromRow);
+}
+
+export function updateAttemptReflection(db: Database.Database, input: UpdateAttemptReflectionInput): TrainingAttempt | null {
+  db.prepare(`
+    UPDATE training_attempts
+    SET reflection = @reflection,
+        updated_at = @now
+    WHERE id = @attemptId
+  `).run(input);
+  return findAttemptById(db, input.attemptId);
 }
 
 function failAttemptLookup(id: string): never {

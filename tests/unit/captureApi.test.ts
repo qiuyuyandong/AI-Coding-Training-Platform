@@ -109,6 +109,57 @@ describe("capture API", () => {
     }
   });
 
+  it("updates attempt reflection and returns it in recent attempts", async () => {
+    const { POST } = await import("@/app/api/capture/events/route");
+    await POST(requestWithEvent(validEvent()));
+    await POST(requestWithEvent(validEvent({ id: "evt_verdict_1", type: "VERDICT_UPDATED", payload: { verdict: "Accepted" } })));
+    const reflection = await import("@/app/api/attempts/[id]/reflection/route");
+
+    const response = await reflection.PATCH(
+      new Request("http://localhost/api/attempts/attempt_evt_api_1/reflection", {
+        method: "PATCH",
+        body: JSON.stringify({ reflection: "Missed the hash-map invariant on the first pass." }),
+      }),
+      { params: Promise.resolve({ id: "attempt_evt_api_1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.attempt.reflection).toBe("Missed the hash-map invariant on the first pass.");
+
+    const recent = await import("@/app/api/attempts/recent/route");
+    const recentBody = await (await recent.GET()).json();
+    expect(recentBody.recentAttempts[0].reflection).toBe("Missed the hash-map invariant on the first pass.");
+  });
+
+  it("rejects empty attempt reflections", async () => {
+    const reflection = await import("@/app/api/attempts/[id]/reflection/route");
+
+    const response = await reflection.PATCH(
+      new Request("http://localhost/api/attempts/missing/reflection", {
+        method: "PATCH",
+        body: JSON.stringify({ reflection: "   " }),
+      }),
+      { params: Promise.resolve({ id: "missing" }) },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 404 when updating reflection for a missing attempt", async () => {
+    const reflection = await import("@/app/api/attempts/[id]/reflection/route");
+
+    const response = await reflection.PATCH(
+      new Request("http://localhost/api/attempts/missing/reflection", {
+        method: "PATCH",
+        body: JSON.stringify({ reflection: "Review binary search bounds." }),
+      }),
+      { params: Promise.resolve({ id: "missing" }) },
+    );
+
+    expect(response.status).toBe(404);
+  });
+
   it("does not duplicate attempts on replayed events", async () => {
     const { POST } = await import("@/app/api/capture/events/route");
 
