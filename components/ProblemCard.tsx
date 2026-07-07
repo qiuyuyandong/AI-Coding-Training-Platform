@@ -1,3 +1,4 @@
+import React from "react";
 import type { Problem } from "@/lib/domain/problem";
 
 export function ProblemCard({ problem }: { problem: Problem }) {
