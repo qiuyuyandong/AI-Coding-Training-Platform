@@ -2,17 +2,21 @@ import { AttemptStatusPanel } from "./AttemptStatusPanel";
 import { CaptureStatusPanel } from "./CaptureStatusPanel";
 
 type TrainingWorkspaceProps = {
-  platform: string;
-  externalId: string;
+  readonly platform: string;
+  readonly externalId: string;
+  readonly title?: string;
 };
 
-export function TrainingWorkspace({ platform, externalId }: TrainingWorkspaceProps) {
+export function TrainingWorkspace({ platform, externalId, title }: TrainingWorkspaceProps) {
   const url = buildPlatformUrl(platform, externalId);
+  const displayTitle = title ?? externalId;
+
   return (
     <>
       <section className="rounded-xl border border-slate-200 bg-white p-6">
         <p className="text-sm uppercase tracking-wide text-slate-500">{platform}</p>
-        <h1 className="mt-2 text-2xl font-semibold">{externalId}</h1>
+        <h1 className="mt-2 text-2xl font-semibold">{displayTitle}</h1>
+        {title && <p className="mt-1 text-sm text-slate-500">Problem ID: {externalId}</p>}
         <p className="mt-3 text-slate-600">
           This V1 workspace opens the original platform and waits for the browser extension to return page/submission events.
         </p>
@@ -21,7 +25,7 @@ export function TrainingWorkspace({ platform, externalId }: TrainingWorkspacePro
         </a>
       </section>
       <CaptureStatusPanel />
-      <AttemptStatusPanel />
+      <AttemptStatusPanel platform={platform} externalId={externalId} />
     </>
   );
 }

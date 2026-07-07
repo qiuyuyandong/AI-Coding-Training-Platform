@@ -9,7 +9,12 @@ type AttemptsResponse = {
   readonly error?: string;
 };
 
-export function AttemptStatusPanel() {
+type AttemptStatusPanelProps = {
+  readonly platform: string;
+  readonly externalId: string;
+};
+
+export function AttemptStatusPanel({ platform, externalId }: AttemptStatusPanelProps) {
   const [state, setState] = useState<AttemptsResponse>({ ok: true, recentAttempts: [] });
   const [reflection, setReflection] = useState("");
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -42,7 +47,9 @@ export function AttemptStatusPanel() {
     };
   }, []);
 
-  const latest = state.recentAttempts[0];
+  const latest = state.recentAttempts.find(
+    (attempt) => attempt.platform === platform && attempt.problemExternalId === externalId,
+  );
 
   useEffect(() => {
     setReflection(latest?.reflection ?? "");
@@ -76,7 +83,7 @@ export function AttemptStatusPanel() {
       )}
       {state.ok && !latest && (
         <p className="mt-2 text-slate-600">
-          No training attempts yet. Open an original problem with capture enabled.
+          No training attempts for this problem yet. Open the original problem with capture enabled.
         </p>
       )}
       {latest && (
