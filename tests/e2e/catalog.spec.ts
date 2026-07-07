@@ -60,5 +60,6 @@ test.describe("Catalog smoke", () => {
 
     await expect(page.getByRole("navigation").getByRole("link", { name: "Problems" })).toBeVisible();
     await expect(page.getByRole("navigation").getByRole("link", { name: "Growth" })).toBeVisible();
+    await expect(page.getByRole("navigation").getByRole("link", { name: "Compliance" })).toBeVisible();
   });
 });
