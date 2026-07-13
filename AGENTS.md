@@ -1,6 +1,8 @@
 # Agent Handoff Guide
 
-This project is a local-first AI coding training platform. It is currently on branch `feature/v1-followup` with Phase 3.0 Verdict Capture Loop hardening implemented.
+This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup` with the historical Phase 3.0 Verdict Capture Loop hardening implemented; the active product roadmap now labels the codebase Pre-V0.
+
+`IDEA.md` and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` define the future V0/V0.5/V1/Public Beta direction. `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud SaaS as the eventual target but explicitly defers implementation until the Phase 7 gate.
 
 ## Current shape
 
@@ -24,7 +26,7 @@ npm run extension:build
 npm run build
 ```
 
-For browser smoke QA, prefer `npm run e2e`. Do not start a separate long-running `npm run dev` or `npm run start` shell unless you are doing manual interactive debugging.
+For browser smoke QA, Playwright owns the server lifecycle; do not start a separate long-running server. Until Phase 0A is implemented, never run `npm run e2e` without first pointing `TRAINING_DB_PATH` at a disposable database because current tests can mutate the default file.
 
 ## Git discipline
 
@@ -44,6 +46,8 @@ For browser smoke QA, prefer `npm run e2e`. Do not start a separate long-running
 - Do not read cookies, session tokens, hidden platform data, localStorage tokens, passwords, or full commercial problem statements.
 - Do not add external LLM, analytics, sync, or third-party API calls for attempts, verdicts, code, reflections, or capture data without a new explicit design decision.
 - Capture and analysis remain local-only by default.
+
+These are current implementation boundaries, not a permanent rejection of the approved cloud target. Future implementation must follow the active Phase plan and ADR; do not introduce cloud/AI behavior merely because it appears in the product vision.
 
 ## Useful docs
 

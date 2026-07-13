@@ -1,6 +1,8 @@
 # App Design System
 
-The V1 training platform is a **local-first, quiet training command center**. The interface favors restrained surfaces, slate neutrals, and short labels so that captured training data — not chrome — carries attention. The style below is extracted directly from the current `app/**` and `components/**` code; it exists to keep new UI consistent with what is already shipped.
+The current Pre-V0 training prototype is a **local-first, quiet training command center**. The interface favors restrained surfaces, slate neutrals, and short labels so that captured training data — not chrome — carries attention. The style below is extracted directly from the current `app/**` and `components/**` code; it exists to keep current UI changes consistent.
+
+This is an as-built visual guide, not a permanent constraint on the planned layered knowledge graph, career map, or learning dashboard. Those surfaces require a separate prototype/design pass after their product behavior is ready.
 
 ## Aesthetic direction
 

@@ -1,10 +1,12 @@
 # Architecture
 
-Last updated: 2026-07-07
+Last updated: 2026-07-13
 
 ## Overview
 
 The app is a local-first unified OJ training memory system. It opens original problem pages through deep links, receives user-visible browser capture events from a user-installed extension, stores local training records in SQLite, and renders deterministic Coach/Growth insights from those records.
+
+This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. Accounts, cloud sync, hosted AI, VS Code capture, and multi-tenant storage are not implemented today.
 
 ## Runtime modules
 
@@ -68,3 +70,5 @@ Pages should not duplicate Coach/Growth decision logic. They should read attempt
 ## QA lifecycle
 
 `playwright.config.ts` starts `npm run dev -- -p 3000` through Playwright `webServer` for e2e tests. `tests/e2e/**` is excluded from Vitest in `vitest.config.ts`, so `npm run test` and `npm run e2e` are separate gates.
+
+Pre-V0 limitation: Playwright does not yet enforce a disposable `TRAINING_DB_PATH`, and non-CI runs may reuse an existing port-3000 server. Follow the temporary-database warning in `docs/runbook.md`; Phase 0A is planned to make isolation automatic.

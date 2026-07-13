@@ -1,15 +1,17 @@
 # Compliance Notes
 
+This file describes the **current Pre-V0 local implementation**. It is not the privacy policy for the planned hosted Public Beta. Cloud accounts, code-snapshot upload, platform-funded AI, retention, deletion, and provider disclosure require the separate Phase 7 contract in `IDEA.md` and `docs/superpowers/plans/2026-07-13-phase-7-public-beta-cloud.md`.
+
 The product uses this rule: use browser session, do not extract browser session.
 
-Allowed in V1:
+Allowed in the current implementation:
 
 - store problem IDs, titles, tags, difficulty, source URLs, and user training records;
 - open original OJ pages through deep links;
 - detect user-visible page and submission events through a user-installed browser extension;
 - keep captured training records local by default.
 
-Not allowed in V1:
+Not allowed in the current implementation:
 
 - bypass login, captcha, paywalls, anti-bot systems, or access controls;
 - store platform passwords;

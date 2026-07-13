@@ -1,23 +1,28 @@
 # AI Coding Training Platform
 
-V1 is a unified OJ entry and local training memory system.
+This repository currently contains a **Pre-V0 local OJ capture prototype**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet reached that scope.
 
 It provides:
 
-- unified problem metadata search;
+- a small problem-metadata catalog;
 - deep links to original OJ problem pages;
 - a Chrome extension that detects user-visible training events;
 - local capture APIs;
 - local attempts, Coach, and Growth pages.
 
-V1 does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
+The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
 
 ## Project Docs
 
+- `IDEA.md` is the canonical product definition, V0/V0.5/V1 scope, and current decision record.
+- `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` maps vertical releases to engineering Phases and exit gates.
+- `docs/superpowers/README.md` distinguishes active plans from historical Phase-numbered prototype documents.
 - `docs/architecture.md` explains the current app, extension, API, SQLite, and Coach/Growth flow.
 - `docs/runbook.md` contains setup, verification, and troubleshooting steps.
 - `DESIGN.md` defines the quiet slate/white UI system used by app pages and panels.
 - `COMPLIANCE.md` documents local-first privacy and platform-boundary rules.
+
+`README.md`, `docs/architecture.md`, `docs/runbook.md`, and `COMPLIANCE.md` describe the current local implementation. `IDEA.md` and the roadmap describe the approved target direction, including the later hosted Public Beta; do not treat target features as already implemented.
 
 ## Commands
 
@@ -30,6 +35,8 @@ npm run e2e
 npm run extension:build
 npm run build
 ```
+
+Known Pre-V0 safety issue: Playwright does not yet force a disposable database. Do **not** run `npm run e2e` with valuable data in the default `training-platform.sqlite`; set `TRAINING_DB_PATH` to a disposable database first. Phase 0A makes this isolation automatic.
 
 `npm run e2e` uses Playwright `webServer` to start and stop the local Next.js server automatically. Do not start a separate long-running `npm run dev` or `npm run start` shell for this smoke QA path.
 
