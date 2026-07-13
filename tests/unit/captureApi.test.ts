@@ -1,9 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openDatabase } from "@/lib/db/client";
+import { applyMigrations } from "@/lib/db/migrations";
 import type { CaptureEvent } from "@/lib/capture/events";
 
 let tempDir = "";
@@ -13,11 +14,7 @@ beforeEach(() => {
   process.env.TRAINING_DB_PATH = join(tempDir, "test.sqlite");
   const db = openDatabase();
   try {
-    const migrations = ["0001_initial.sql", "0002_attempt_capture_source.sql"];
-    for (const name of migrations) {
-      const sql = readFileSync(join(process.cwd(), "lib", "db", "migrations", name), "utf8");
-      db.exec(sql);
-    }
+    applyMigrations(db, { now: () => "2026-07-11T00:00:00.000Z" });
   } finally {
     db.close();
   }
