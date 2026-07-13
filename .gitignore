@@ -36,6 +36,9 @@ next-env.d.ts
 *.sqlite-journal
 *.db
 
+# test runtime data
+/.tmp/playwright/
+
 # codegraph
 .codegraph/
 
