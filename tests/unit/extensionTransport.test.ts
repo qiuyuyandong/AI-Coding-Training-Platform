@@ -86,6 +86,16 @@ describe("planQueueAfterFlush", () => {
     expect(result.lastCaptureError).toContain("bad payload");
   });
 
+  it("drops conflicting events instead of retrying them forever", () => {
+    const result = planQueueAfterFlush(
+      [{ event: event("evt_1"), attempts: 0 }],
+      { status: 409, error: "event id conflicts with an existing payload" },
+    );
+
+    expect(result.queue).toEqual([]);
+    expect(result.lastCaptureError).toContain("conflicts");
+  });
+
   it("keeps retryable failures", () => {
     const result = planQueueAfterFlush([{ event: event("evt_1"), attempts: 0 }], { status: 500, error: "server failed" });
 
@@ -167,6 +177,20 @@ describe("isQueueItem", () => {
 
   it("rejects items with an invalid event payload", () => {
     expect(isQueueItem({ event: { id: "evt_1" }, attempts: 0 })).toBe(false);
+  });
+
+  it("rejects queued V1 events after the protocol cutover", () => {
+    expect(isQueueItem({
+      event: {
+        id: "evt_v1",
+        type: "PAGE_DETECTED",
+        platform: "leetcode",
+        problemExternalId: "two-sum",
+        occurredAt: "2026-07-06T00:00:00.000Z",
+        payload: {},
+      },
+      attempts: 0,
+    })).toBe(false);
   });
 
   it("rejects items with non-number attempts", () => {

@@ -17,6 +17,7 @@ export type CaptureQueueItem = z.infer<typeof CaptureQueueItemSchema>;
 export type FlushResult =
   | { readonly status: 200 }
   | { readonly status: 400; readonly error: string }
+  | { readonly status: 409; readonly error: string }
   | { readonly status: 500; readonly error: string }
   | { readonly status: "network_error"; readonly error: string };
 
@@ -67,8 +68,9 @@ export function planQueueAfterFlush(queue: readonly CaptureQueueItem[], result: 
     return { queue: rest, lastSuccessfulCaptureAt: new Date().toISOString() };
   }
 
-  if (result.status === 400) {
-    return { queue: rest, lastCaptureError: `Validation error: ${result.error}` };
+  if (result.status === 400 || result.status === 409) {
+    const prefix = result.status === 400 ? "Validation error" : "Conflict";
+    return { queue: rest, lastCaptureError: `${prefix}: ${result.error}` };
   }
 
   if (head === undefined) return { queue };
