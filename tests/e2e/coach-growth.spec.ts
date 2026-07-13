@@ -14,7 +14,9 @@ test.describe("Coach and Growth smoke", () => {
     await page.goto("/growth");
 
     await expect(page.getByRole("heading", { name: "Growth" })).toBeVisible();
-    await expect(page.getByText("No attempt data yet", { exact: true }).or(page.getByRole("heading", { name: "Result distribution" }))).toBeVisible();
+    const emptyState = page.getByText(/No attempt data yet\./);
+    const populatedState = page.getByRole("heading", { name: "Result distribution" });
+    await expect(emptyState.or(populatedState)).toBeVisible();
   });
 
   test("training workspace records a reflection for the latest attempt", async ({ page, request }) => {
