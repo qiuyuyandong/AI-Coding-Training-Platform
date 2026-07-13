@@ -7,6 +7,8 @@ const NOW = "2026-07-06T12:00:00.000Z";
 function attempt(overrides: Partial<TrainingAttempt>): TrainingAttempt {
   return {
     id: "attempt_1",
+    captureSessionId: "session_1",
+    submissionId: "submission_1",
     platform: "leetcode",
     problemExternalId: "two-sum",
     problemTitle: "Two Sum",

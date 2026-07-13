@@ -1,99 +1,107 @@
 import type Database from "better-sqlite3";
-import { pageDetectedEventToAttemptDraft, submissionEventToAttemptUpdate, type CaptureEvent } from "@/lib/capture/events";
+import { captureEventFingerprint } from "@/lib/capture/fingerprint";
 import {
-  createDraftAttemptFromCapture,
-  findCompletedAttemptByCaptureUpdate,
-  findAttemptById,
-  findAttemptBySourceEventId,
-  findOpenAttemptByProblem,
-  updateAttemptFromCapture,
-} from "@/lib/repositories/attempts";
+  CaptureEventSchema,
+  type CaptureEvent,
+} from "@/lib/capture/protocol";
 import type { AttemptResult } from "@/lib/domain/training";
+import {
+  findAttemptBySubmissionId,
+  saveTrainingAttempt,
+} from "@/lib/repositories/attempts";
+import {
+  findCaptureEventFingerprint,
+  insertCaptureEvent,
+} from "@/lib/repositories/captureEvents";
+import {
+  findTrainingSessionById,
+  saveTrainingSession,
+} from "@/lib/repositories/trainingSessions";
+import {
+  CaptureConflictError,
+  transitionCaptureState,
+} from "./captureTransition";
 
-export type MaterializedAttemptResult = {
+export type CaptureIngestResult = {
+  readonly eventId: string;
+  readonly captureSessionId: string;
   readonly attemptId?: string;
   readonly attemptStatus?: AttemptResult;
+  readonly replayed: boolean;
 };
 
-export function materializeCaptureEvent(db: Database.Database, event: CaptureEvent): MaterializedAttemptResult {
-  const existing = findAttemptBySourceEventId(db, event.id) ?? findAttemptById(db, `attempt_${event.id}`);
-  if (existing !== null) return { attemptId: existing.id, attemptStatus: existing.result };
+export type CaptureIngestOptions = {
+  readonly now?: () => string;
+};
 
-  if (event.type === "PAGE_DETECTED" || event.type === "TRAINING_STARTED") {
-    const draft = pageDetectedEventToAttemptDraft(event);
-    const open = findOpenAttemptByProblem(db, draft.platform, draft.problemExternalId);
-    if (open !== null) return { attemptId: open.id, attemptStatus: open.result };
-
-    const attempt = createDraftAttemptFromCapture(db, {
-      id: `attempt_${event.id}`,
-      platform: draft.platform,
-      problemExternalId: draft.problemExternalId,
-      problemTitle: draft.problemTitle,
-      canonicalUrl: draft.canonicalUrl,
-      startedAt: draft.startedAt,
-      sourceEventId: event.id,
-      now: new Date().toISOString(),
-    });
-    return { attemptId: attempt.id, attemptStatus: attempt.result };
-  }
-
-  if (event.type === "SUBMISSION_DETECTED" || event.type === "VERDICT_UPDATED") {
-    const draft = pageDetectedEventToAttemptDraft(event);
-    const open = findOpenAttemptByProblem(db, draft.platform, draft.problemExternalId);
-    const update = event.type === "SUBMISSION_DETECTED" && event.payload.verdict === undefined
-      ? null
-      : submissionEventToAttemptUpdate(event);
-    const completedReplay = update === null
-      ? null
-      : findCompletedAttemptByCaptureUpdate(db, {
-        platform: draft.platform,
-        problemExternalId: draft.problemExternalId,
-        verdict: update.verdict,
-        endedAt: update.endedAt,
-      });
-    if (completedReplay !== null) return { attemptId: completedReplay.id, attemptStatus: completedReplay.result };
-
-    const attempt =
-      open ??
-      createDraftAttemptFromCapture(db, {
-        id: `attempt_${event.id}`,
-        platform: draft.platform,
-        problemExternalId: draft.problemExternalId,
-        problemTitle: draft.problemTitle,
-        canonicalUrl: draft.canonicalUrl,
-        startedAt: draft.startedAt,
-        sourceEventId: event.id,
-        now: new Date().toISOString(),
-      });
-    if (event.type === "SUBMISSION_DETECTED" && event.payload.verdict === undefined) {
-      return { attemptId: attempt.id, attemptStatus: attempt.result };
+export function ingestCaptureEvent(
+  db: Database.Database,
+  event: CaptureEvent,
+  options: CaptureIngestOptions = {},
+): CaptureIngestResult {
+  const parsed = CaptureEventSchema.parse(event);
+  const now = options.now ?? (() => new Date().toISOString());
+  const transaction = db.transaction(() => {
+    const fingerprint = captureEventFingerprint(parsed);
+    const existingFingerprint = findCaptureEventFingerprint(db, parsed.id);
+    if (existingFingerprint !== null) {
+      if (existingFingerprint !== fingerprint) {
+        throw new CaptureConflictError(
+          `Capture event ${parsed.id} conflicts with its stored payload`,
+        );
+      }
+      return replayResult(db, parsed);
     }
 
-    if (update === null) return { attemptId: attempt.id, attemptStatus: attempt.result };
-    const completed = updateAttemptFromCapture(db, {
-      attemptId: attempt.id,
-      result: update.result,
-      verdict: update.verdict,
-      language: update.language,
-      endedAt: update.endedAt,
-      now: new Date().toISOString(),
-    });
-    return { attemptId: completed.id, attemptStatus: completed.result };
-  }
+    const session = findTrainingSessionById(db, parsed.captureSessionId);
+    const attempt = "submissionId" in parsed
+      ? findAttemptBySubmissionId(db, parsed.submissionId)
+      : null;
+    const receivedAt = now();
+    const transition = transitionCaptureState(
+      { session, attempt },
+      parsed,
+      receivedAt,
+    );
 
-  if (event.type === "TRAINING_ENDED") {
-    const draft = pageDetectedEventToAttemptDraft(event);
-    const open = findOpenAttemptByProblem(db, draft.platform, draft.problemExternalId);
-    if (open === null) return {};
-    const completed = updateAttemptFromCapture(db, {
-      attemptId: open.id,
-      result: "stuck",
-      verdict: "Training ended",
-      endedAt: event.occurredAt,
-      now: new Date().toISOString(),
-    });
-    return { attemptId: completed.id, attemptStatus: completed.result };
-  }
+    insertCaptureEvent(db, parsed, fingerprint, receivedAt);
+    saveTrainingSession(db, transition.session);
+    if (transition.attempt !== undefined) {
+      saveTrainingAttempt(db, transition.attempt);
+    }
+    return transitionResult(parsed, transition.attempt, false);
+  });
+  return transaction();
+}
 
-  return {};
+function replayResult(
+  db: Database.Database,
+  event: CaptureEvent,
+): CaptureIngestResult {
+  const session = findTrainingSessionById(db, event.captureSessionId);
+  if (session === null) {
+    throw new Error(`Capture session missing for replayed event ${event.id}`);
+  }
+  const attempt = "submissionId" in event
+    ? findAttemptBySubmissionId(db, event.submissionId)
+    : null;
+  return transitionResult(event, attempt ?? undefined, true);
+}
+
+function transitionResult(
+  event: CaptureEvent,
+  attempt: ReturnType<typeof findAttemptBySubmissionId> | undefined,
+  replayed: boolean,
+): CaptureIngestResult {
+  const base = {
+    eventId: event.id,
+    captureSessionId: event.captureSessionId,
+    replayed,
+  };
+  if (attempt === undefined || attempt === null) return base;
+  return {
+    ...base,
+    attemptId: attempt.id,
+    attemptStatus: attempt.result,
+  };
 }

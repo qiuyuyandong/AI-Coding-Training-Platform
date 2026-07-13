@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { CaptureEventSchema } from "@/lib/capture/events";
 import { openDatabase } from "@/lib/db/client";
-import { saveCaptureEvent } from "@/lib/repositories/captureEvents";
-import { materializeCaptureEvent } from "@/lib/services/captureMaterializer";
+import { ingestCaptureEvent } from "@/lib/services/captureMaterializer";
+import { CaptureConflictError } from "@/lib/services/captureTransition";
 
 export async function POST(request: Request) {
   const body = await readJsonBody(request);
@@ -14,12 +14,12 @@ export async function POST(request: Request) {
 
   const db = openDatabase();
   try {
-    const result = db.transaction(() => {
-      saveCaptureEvent(db, parsed.data);
-      return materializeCaptureEvent(db, parsed.data);
-    })();
-    return NextResponse.json({ ok: true, eventId: parsed.data.id, ...result });
+    const result = ingestCaptureEvent(db, parsed.data);
+    return NextResponse.json({ ok: true, ...result });
   } catch (error) {
+    if (error instanceof CaptureConflictError) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 409 });
+    }
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Failed to save capture event" }, { status: 500 });
   } finally {
     db.close();

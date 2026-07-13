@@ -1,295 +1,338 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { describe, expect, it } from "vitest";
-import type { CaptureEvent } from "@/lib/capture/events";
-import { AttemptResultSchema } from "@/lib/domain/training";
-import { materializeCaptureEvent } from "@/lib/services/captureMaterializer";
+import { afterEach, describe, expect, it } from "vitest";
+import type {
+  CaptureEvent,
+  SessionEndedEvent,
+  SessionStartedEvent,
+  SubmissionObservedEvent,
+  VerdictObservedEvent,
+} from "@/lib/capture/protocol";
+import { applyMigrations } from "@/lib/db/migrations";
+import type { TrainingAttempt, TrainingSession } from "@/lib/domain/training";
+import {
+  CaptureConflictError,
+  transitionCaptureState,
+} from "@/lib/services/captureTransition";
+import { ingestCaptureEvent } from "@/lib/services/captureMaterializer";
 
-function openTestDatabase(): Database.Database {
-  const db = new Database(join(mkdtempSync(join(tmpdir(), "training-loop-")), "test.sqlite"));
-  db.exec(`
-    CREATE TABLE training_attempts (
-      id TEXT PRIMARY KEY,
-      platform TEXT NOT NULL,
-      problem_external_id TEXT NOT NULL,
-      problem_title TEXT NOT NULL,
-      canonical_url TEXT NOT NULL,
-      started_at TEXT NOT NULL,
-      ended_at TEXT,
-      result TEXT NOT NULL,
-      verdict TEXT,
-      language TEXT,
-      duration_minutes INTEGER,
-      reflection TEXT,
-      source_event_id TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    CREATE UNIQUE INDEX idx_training_attempts_source_event_id
-      ON training_attempts(source_event_id)
-      WHERE source_event_id IS NOT NULL;
-    CREATE INDEX idx_training_attempts_problem_open
-      ON training_attempts(platform, problem_external_id, result, updated_at);
-  `);
-  return db;
-}
+const tempDirs: string[] = [];
+const NOW = "2026-07-14T01:00:00.000Z";
 
-function event(overrides: Partial<CaptureEvent> = {}): CaptureEvent {
+const baseEvent = {
+  schemaVersion: 2 as const,
+  captureSessionId: "session_1",
+  installationId: "installation_1",
+  adapterVersion: "leetcode@0.1.0",
+  parserVersion: "verdict@0.1.0",
+  pageOrigin: "https://leetcode.com",
+  provenanceLevel: "extension_unpaired" as const,
+  platform: "leetcode" as const,
+  problemExternalId: "two-sum",
+  problemTitle: "Two Sum",
+  canonicalUrl: "https://leetcode.com/problems/two-sum/",
+};
+
+function sessionStarted(
+  overrides: Partial<SessionStartedEvent> = {},
+): SessionStartedEvent {
   return {
-    id: "evt_1",
-    type: "PAGE_DETECTED",
-    platform: "leetcode",
-    problemExternalId: "two-sum",
-    problemTitle: "Two Sum",
-    canonicalUrl: "https://leetcode.com/problems/two-sum/",
-    occurredAt: "2026-07-06T00:00:00.000Z",
-    payload: {},
+    ...baseEvent,
+    id: "evt_session_1",
+    type: "SESSION_STARTED",
+    occurredAt: "2026-07-14T00:00:00.000Z",
+    payload: { source: "content_script" },
     ...overrides,
   };
 }
 
-describe("materializeCaptureEvent", () => {
-  it("creates a draft attempt from PAGE_DETECTED", () => {
-    const db = openTestDatabase();
-    try {
-      const result = materializeCaptureEvent(db, event());
+function submissionObserved(
+  submissionId: string,
+  overrides: Partial<SubmissionObservedEvent> = {},
+): SubmissionObservedEvent {
+  return {
+    ...baseEvent,
+    id: `evt_${submissionId}`,
+    type: "SUBMISSION_OBSERVED",
+    submissionId,
+    occurredAt: "2026-07-14T00:01:00.000Z",
+    payload: { action: "submit_clicked" },
+    ...overrides,
+  };
+}
 
-      expect(result.attemptId).toBeDefined();
-      expect(result.attemptId).toMatch(/^attempt_/);
-      expect(result.attemptStatus).toBe("draft");
-      expect(db.prepare("SELECT COUNT(*) AS count FROM training_attempts").get()).toEqual({ count: 1 });
-    } finally {
-      db.close();
-    }
+function verdictObserved(
+  submissionId: string,
+  verdict = "Wrong Answer",
+  overrides: Partial<VerdictObservedEvent> = {},
+): VerdictObservedEvent {
+  return {
+    ...baseEvent,
+    id: `evt_verdict_${submissionId}`,
+    type: "VERDICT_OBSERVED",
+    submissionId,
+    occurredAt: "2026-07-14T00:02:00.000Z",
+    payload: { verdict },
+    ...overrides,
+  };
+}
+
+function sessionEnded(
+  overrides: Partial<SessionEndedEvent> = {},
+): SessionEndedEvent {
+  return {
+    ...baseEvent,
+    id: "evt_session_end_1",
+    type: "SESSION_ENDED",
+    occurredAt: "2026-07-14T00:10:00.000Z",
+    payload: { endReason: "pagehide" },
+    ...overrides,
+  };
+}
+
+function session(): TrainingSession {
+  return {
+    id: "session_1",
+    installationId: "installation_1",
+    platform: "leetcode",
+    problemExternalId: "two-sum",
+    problemTitle: "Two Sum",
+    canonicalUrl: "https://leetcode.com/problems/two-sum/",
+    provenanceLevel: "extension_unpaired",
+    startedAt: "2026-07-14T00:00:00.000Z",
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+}
+
+function draftAttempt(): TrainingAttempt {
+  return {
+    id: "attempt_submission_1",
+    captureSessionId: "session_1",
+    submissionId: "submission_1",
+    platform: "leetcode",
+    problemExternalId: "two-sum",
+    problemTitle: "Two Sum",
+    canonicalUrl: "https://leetcode.com/problems/two-sum/",
+    startedAt: "2026-07-14T00:01:00.000Z",
+    result: "draft",
+    submissionEventId: "evt_submission_1",
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+}
+
+function openDatabase(): Database.Database {
+  const directory = mkdtempSync(join(tmpdir(), "capture-v2-"));
+  tempDirs.push(directory);
+  const db = new Database(join(directory, "test.sqlite"));
+  applyMigrations(db, { now: () => NOW });
+  return db;
+}
+
+afterEach(() => {
+  for (const directory of tempDirs.splice(0)) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+describe("transitionCaptureState", () => {
+  it("creates a completed attempt when verdict arrives before submission", () => {
+    const transition = transitionCaptureState(
+      { session: session(), attempt: null },
+      verdictObserved("submission_1", "Accepted"),
+      NOW,
+    );
+
+    expect(transition.attempt).toMatchObject({
+      submissionId: "submission_1",
+      result: "passed",
+      verdict: "Accepted",
+    });
   });
 
-  it("creates a draft attempt from TRAINING_STARTED", () => {
-    const db = openTestDatabase();
-    try {
-      const result = materializeCaptureEvent(db, event({ id: "evt_1", type: "TRAINING_STARTED" }));
+  it("does not let a later-arriving submission event revert a completed attempt", () => {
+    const completed = transitionCaptureState(
+      { session: session(), attempt: null },
+      verdictObserved("submission_1", "Accepted"),
+      NOW,
+    ).attempt;
+    expect(completed).toBeDefined();
+    if (completed === undefined) return;
 
-      expect(result.attemptId).toBe("attempt_evt_1");
-      expect(result.attemptStatus).toBe("draft");
-      expect(
-        db.prepare("SELECT COUNT(*) AS count FROM training_attempts WHERE result = 'draft'").get(),
-      ).toEqual({ count: 1 });
-    } finally {
-      db.close();
-    }
+    const transition = transitionCaptureState(
+      { session: session(), attempt: completed },
+      submissionObserved("submission_1", {
+        occurredAt: "2026-07-14T00:01:00.000Z",
+      }),
+      NOW,
+    );
+
+    expect(transition.attempt).toMatchObject({
+      result: "passed",
+      startedAt: "2026-07-14T00:01:00.000Z",
+    });
   });
 
-  it("reuses an open draft for repeated page detection", () => {
-    const db = openTestDatabase();
-    try {
-      const first = materializeCaptureEvent(db, event({ id: "evt_1" }));
-      const second = materializeCaptureEvent(db, event({ id: "evt_2" }));
+  it("ignores a verdict older than the projected verdict", () => {
+    const current: TrainingAttempt = {
+      ...draftAttempt(),
+      result: "passed",
+      verdict: "Accepted",
+      endedAt: "2026-07-14T00:05:00.000Z",
+      verdictEventId: "evt_verdict_new",
+    };
 
-      expect(second.attemptId).toBe(first.attemptId);
-      expect(db.prepare("SELECT COUNT(*) AS count FROM training_attempts").get()).toEqual({ count: 1 });
-    } finally {
-      db.close();
-    }
+    const transition = transitionCaptureState(
+      { session: session(), attempt: current },
+      verdictObserved("submission_1", "Wrong Answer", {
+        id: "evt_verdict_old",
+        occurredAt: "2026-07-14T00:04:00.000Z",
+      }),
+      NOW,
+    );
+
+    expect(transition.attempt).toMatchObject({
+      result: "passed",
+      verdict: "Accepted",
+      verdictEventId: "evt_verdict_new",
+    });
   });
 
-  it("updates an open draft from a verdict event", () => {
-    const db = openTestDatabase();
-    try {
-      const draft = materializeCaptureEvent(db, event({ id: "evt_1" }));
-      const completed = materializeCaptureEvent(
-        db,
-        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Accepted", language: "TypeScript" } }),
-      );
+  it("closes a session without changing a draft attempt", () => {
+    const transition = transitionCaptureState(
+      { session: session(), attempt: draftAttempt() },
+      sessionEnded(),
+      NOW,
+    );
 
-      expect(completed).toEqual({ attemptId: draft.attemptId, attemptStatus: "passed" });
-      expect(
-        db.prepare("SELECT result, verdict, language FROM training_attempts").get(),
-      ).toEqual({ result: "passed", verdict: "Accepted", language: "TypeScript" });
-    } finally {
-      db.close();
-    }
+    expect(transition.session).toMatchObject({
+      endedAt: "2026-07-14T00:10:00.000Z",
+      endReason: "pagehide",
+    });
+    expect(transition.attempt).toBeUndefined();
   });
 
-  it("keeps an open draft in progress when submission is detected before a verdict", () => {
-    const db = openTestDatabase();
-    try {
-      const draft = materializeCaptureEvent(db, event({ id: "evt_1" }));
-      const submitted = materializeCaptureEvent(
-        db,
-        event({ id: "evt_2", type: "SUBMISSION_DETECTED", payload: { action: "submit_clicked" } }),
-      );
-
-      expect(submitted).toEqual({ attemptId: draft.attemptId, attemptStatus: "draft" });
-      expect(db.prepare("SELECT result, verdict FROM training_attempts").get()).toEqual({
-        result: "draft",
-        verdict: null,
-      });
-    } finally {
-      db.close();
-    }
+  it("rejects a session ID reused for another problem", () => {
+    expect(() =>
+      transitionCaptureState(
+        { session: session(), attempt: null },
+        sessionStarted({
+          problemExternalId: "valid-parentheses",
+          problemTitle: "Valid Parentheses",
+          canonicalUrl: "https://leetcode.com/problems/valid-parentheses/",
+        }),
+        NOW,
+      ),
+    ).toThrow(CaptureConflictError);
   });
 
-  it("updates an open draft to partial from a partial verdict event", () => {
-    const db = openTestDatabase();
-    try {
-      const draft = materializeCaptureEvent(db, event({ id: "evt_1" }));
-      const completed = materializeCaptureEvent(
-        db,
-        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
-      );
-
-      expect(completed).toEqual({ attemptId: draft.attemptId, attemptStatus: "partial" });
-      expect(db.prepare("SELECT result, verdict FROM training_attempts").get()).toEqual({
-        result: "partial",
-        verdict: "Time Limit Exceeded",
-      });
-    } finally {
-      db.close();
-    }
+  it("rejects a new submission occurring after session end", () => {
+    const endedSession: TrainingSession = {
+      ...session(),
+      endedAt: "2026-07-14T00:10:00.000Z",
+      endReason: "pagehide",
+    };
+    expect(() =>
+      transitionCaptureState(
+        { session: endedSession, attempt: null },
+        submissionObserved("submission_late", {
+          occurredAt: "2026-07-14T00:11:00.000Z",
+        }),
+        NOW,
+      ),
+    ).toThrow(CaptureConflictError);
   });
+});
 
-  it("preserves the originating source_event_id after a verdict update", () => {
-    const db = openTestDatabase();
+describe("ingestCaptureEvent", () => {
+  it("keeps identical verdicts as separate attempts when submission IDs differ", () => {
+    const db = openDatabase();
     try {
-      materializeCaptureEvent(db, event({ id: "evt_1", type: "PAGE_DETECTED" }));
-      materializeCaptureEvent(
-        db,
-        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Accepted" } }),
-      );
-
-      const row = db
-        .prepare<string, { source_event_id: string }>("SELECT source_event_id FROM training_attempts WHERE id = ?")
-        .get("attempt_evt_1");
-
-      expect(row).toEqual({ source_event_id: "evt_1" });
-    } finally {
-      db.close();
-    }
-  });
-
-  it("replays PAGE_DETECTED after a verdict update without duplicating", () => {
-    const db = openTestDatabase();
-    try {
-      materializeCaptureEvent(db, event({ id: "evt_1", type: "PAGE_DETECTED" }));
-      materializeCaptureEvent(
-        db,
-        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Accepted" } }),
-      );
-
-      const replay = materializeCaptureEvent(db, event({ id: "evt_1", type: "PAGE_DETECTED" }));
-
-      expect(replay.attemptId).toBe("attempt_evt_1");
-      expect(replay.attemptStatus).toBe("passed");
-      expect(db.prepare("SELECT COUNT(*) AS count FROM training_attempts").get()).toEqual({ count: 1 });
-    } finally {
-      db.close();
-    }
-  });
-
-  it("replays VERDICT_UPDATED without duplicating or changing the completed attempt", () => {
-    const db = openTestDatabase();
-    try {
-      materializeCaptureEvent(db, event({ id: "evt_1", type: "PAGE_DETECTED" }));
-      const firstVerdict = materializeCaptureEvent(
-        db,
-        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
-      );
-      const replay = materializeCaptureEvent(
-        db,
-        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
-      );
-
-      expect(firstVerdict).toEqual({ attemptId: "attempt_evt_1", attemptStatus: "partial" });
-      expect(replay).toEqual(firstVerdict);
-      expect(db.prepare("SELECT COUNT(*) AS count FROM training_attempts").get()).toEqual({ count: 1 });
-      expect(db.prepare("SELECT result, verdict FROM training_attempts").get()).toEqual({
-        result: "partial",
-        verdict: "Time Limit Exceeded",
-      });
-    } finally {
-      db.close();
-    }
-  });
-
-  it("creates and completes an attempt when verdict arrives before a draft", () => {
-    const db = openTestDatabase();
-    try {
-      const completed = materializeCaptureEvent(
-        db,
-        event({ id: "evt_1", type: "SUBMISSION_DETECTED", payload: { verdict: "Wrong Answer" } }),
-      );
-
-      expect(completed.attemptId).toBe("attempt_evt_1");
-      expect(completed.attemptStatus).toBe("failed");
-      expect(
-        db.prepare("SELECT COUNT(*) AS count FROM training_attempts WHERE result = 'failed'").get(),
-      ).toEqual({ count: 1 });
-    } finally {
-      db.close();
-    }
-  });
-
-  it("does not duplicate attempts for the same source event", () => {
-    const db = openTestDatabase();
-    try {
-      const first = materializeCaptureEvent(db, event({ id: "evt_1" }));
-      const second = materializeCaptureEvent(db, event({ id: "evt_1" }));
-
-      expect(second).toEqual(first);
-      expect(db.prepare("SELECT COUNT(*) AS count FROM training_attempts").get()).toEqual({ count: 1 });
-    } finally {
-      db.close();
-    }
-  });
-
-  it("marks an open draft as stuck on TRAINING_ENDED", () => {
-    const db = openTestDatabase();
-    try {
-      const draft = materializeCaptureEvent(db, event({ id: "evt_1", type: "PAGE_DETECTED" }));
-      const ended = materializeCaptureEvent(db, event({ id: "evt_2", type: "TRAINING_ENDED" }));
-
-      expect(ended.attemptId).toBe(draft.attemptId);
-      expect(ended.attemptStatus).toBe("stuck");
-      expect(db.prepare("SELECT result, verdict FROM training_attempts").get()).toEqual({
-        result: "stuck",
-        verdict: "Training ended",
-      });
-    } finally {
-      db.close();
-    }
-  });
-
-  it("returns empty for TRAINING_ENDED with no open draft", () => {
-    const db = openTestDatabase();
-    try {
-      const ended = materializeCaptureEvent(db, event({ id: "evt_1", type: "TRAINING_ENDED" }));
-
-      expect(ended).toEqual({});
-      expect(db.prepare("SELECT COUNT(*) AS count FROM training_attempts").get()).toEqual({ count: 0 });
-    } finally {
-      db.close();
-    }
-  });
-
-  it("persists result values accepted by AttemptResultSchema", () => {
-    const db = openTestDatabase();
-    try {
-      materializeCaptureEvent(db, event({ id: "evt_1", type: "PAGE_DETECTED" }));
-      materializeCaptureEvent(
-        db,
-        event({ id: "evt_2", type: "VERDICT_UPDATED", payload: { verdict: "Accepted" } }),
-      );
-
-      const rows = db.prepare<[], { result: string }>("SELECT result FROM training_attempts").all();
-
-      expect(rows).toHaveLength(1);
-      for (const row of rows) {
-        expect(() => AttemptResultSchema.parse(row.result)).not.toThrow();
-        expect(AttemptResultSchema.parse(row.result)).toBe("passed");
+      ingest(db, sessionStarted());
+      for (const submissionId of ["submission_1", "submission_2"]) {
+        ingest(db, submissionObserved(submissionId));
+        ingest(db, verdictObserved(submissionId));
       }
+
+      const attempts = db
+        .prepare<[], { readonly submission_id: string; readonly verdict: string }>(
+          "SELECT submission_id, verdict FROM training_attempts ORDER BY submission_id",
+        )
+        .all();
+      expect(attempts).toEqual([
+        { submission_id: "submission_1", verdict: "Wrong Answer" },
+        { submission_id: "submission_2", verdict: "Wrong Answer" },
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("treats exact event replay as idempotent", () => {
+    const db = openDatabase();
+    try {
+      const first = ingest(db, sessionStarted());
+      const replay = ingest(db, sessionStarted());
+
+      expect(first.replayed).toBe(false);
+      expect(replay.replayed).toBe(true);
+      expect(rowCount(db, "capture_events")).toBe(1);
+      expect(rowCount(db, "training_sessions")).toBe(1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("rejects a changed payload under an existing event ID", () => {
+    const db = openDatabase();
+    try {
+      ingest(db, sessionStarted());
+      expect(() =>
+        ingest(
+          db,
+          sessionStarted({
+            problemTitle: "Changed title",
+          }),
+        ),
+      ).toThrow(CaptureConflictError);
+      expect(rowCount(db, "capture_events")).toBe(1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("rolls a conflicting projection back with its raw event", () => {
+    const db = openDatabase();
+    try {
+      ingest(db, sessionStarted());
+      const conflicting: SessionStartedEvent = sessionStarted({
+        id: "evt_conflict",
+        problemExternalId: "valid-parentheses",
+        problemTitle: "Valid Parentheses",
+        canonicalUrl: "https://leetcode.com/problems/valid-parentheses/",
+      });
+
+      expect(() => ingest(db, conflicting)).toThrow(CaptureConflictError);
+      expect(
+        db.prepare<string, { readonly count: number }>(
+          "SELECT COUNT(*) AS count FROM capture_events WHERE id = ?",
+        ).get("evt_conflict"),
+      ).toEqual({ count: 0 });
     } finally {
       db.close();
     }
   });
 });
+
+function ingest(db: Database.Database, event: CaptureEvent) {
+  return ingestCaptureEvent(db, event, { now: () => NOW });
+}
+
+function rowCount(db: Database.Database, table: string): number {
+  return db
+    .prepare<[], { readonly count: number }>(`SELECT COUNT(*) AS count FROM ${table}`)
+    .get()?.count ?? 0;
+}

@@ -13,8 +13,15 @@ import type { CaptureEvent } from "@/lib/capture/events";
 
 function event(id: string): CaptureEvent {
   return {
+    schemaVersion: 2,
     id,
-    type: "PAGE_DETECTED",
+    type: "SESSION_STARTED",
+    captureSessionId: "session_1",
+    installationId: "installation_1",
+    adapterVersion: "leetcode@0.1.0",
+    parserVersion: "verdict@0.1.0",
+    pageOrigin: "https://leetcode.com",
+    provenanceLevel: "extension_unpaired",
     platform: "leetcode",
     problemExternalId: "two-sum",
     problemTitle: "Two Sum",
