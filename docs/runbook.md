@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 ## Setup
 
@@ -9,7 +9,7 @@ npm install
 npm run db:migrate
 ```
 
-The default SQLite database is `training-platform.sqlite`. For isolated runs, set `TRAINING_DB_PATH` before running migrations or tests that open the database.
+The default development database is `training-platform.sqlite`. Set `TRAINING_DB_PATH` for any manual isolated run. Playwright does this automatically and exclusively uses `.tmp/playwright/training-platform.sqlite`.
 
 ## Development
 
@@ -44,28 +44,17 @@ npm run extension:build
 npm run build
 ```
 
-Pre-V0 warning: the current Playwright configuration does not yet guarantee a disposable SQLite database, and catalog tests can mutate their target. Never run `npm run e2e` against valuable data in the default `training-platform.sqlite`. Set `TRAINING_DB_PATH` to a disposable migrated database first; Phase 0A will automate creation and cleanup.
-
-Temporary safe workflow (also confirm no existing server is listening on port 3000, because local Playwright may reuse it):
-
-```powershell
-$tempDir = Join-Path $env:TEMP ("ai-training-e2e-" + [guid]::NewGuid().ToString("N"))
-New-Item -ItemType Directory -Path $tempDir | Out-Null
-$env:TRAINING_DB_PATH = Join-Path $tempDir "e2e.sqlite"
-npm run db:migrate
-npm run e2e
-Remove-Item Env:TRAINING_DB_PATH
-```
-
-Delete `$tempDir` only after checking that it is the generated temporary directory and the test has stopped. The planned Phase 0A lifecycle removes this manual burden.
-
-`npm run e2e` owns the Next.js server lifecycle through Playwright `webServer`. Prefer this for browser smoke QA instead of opening a separate long-running `npm run dev` or `npm run start` shell.
+`npm run e2e` owns the Next.js server and an isolated SQLite lifecycle. It deletes and recreates `.tmp/playwright`, applies every repository migration, runs tests serially against that database, then removes it during global teardown. A process already listening on port 3000 is treated as an error; stop it rather than reusing an unknown server or database.
 
 ## Troubleshooting
 
 ### Vitest collects Playwright tests
 
 Expected state: `vitest.config.ts` excludes `tests/e2e/**`. If `npm run test` reports `Playwright Test did not expect test.describe() to be called here`, restore that exclusion.
+
+### E2E database cleanup did not finish
+
+Expected state after `npm run e2e`: `.tmp/playwright` does not exist. If an interrupted run leaves it behind, first confirm no Playwright-owned Next.js process is running, then remove only the resolved `<workspace>/.tmp/playwright` directory. Never delete or replace `training-platform.sqlite` while cleaning test data.
 
 ### Playwright browser is missing
 

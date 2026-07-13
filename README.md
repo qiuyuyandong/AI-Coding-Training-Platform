@@ -36,9 +36,7 @@ npm run extension:build
 npm run build
 ```
 
-Known Pre-V0 safety issue: Playwright does not yet force a disposable database. Do **not** run `npm run e2e` with valuable data in the default `training-platform.sqlite`; set `TRAINING_DB_PATH` to a disposable database first. Phase 0A makes this isolation automatic.
-
-`npm run e2e` uses Playwright `webServer` to start and stop the local Next.js server automatically. Do not start a separate long-running `npm run dev` or `npm run start` shell for this smoke QA path.
+`npm run e2e` creates a freshly migrated database at `.tmp/playwright/training-platform.sqlite`, starts and stops its own Next.js server, and removes the disposable database afterward. It never reuses a server on port 3000 and never writes to the default `training-platform.sqlite`.
 
 ## Browser Extension
 
