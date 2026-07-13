@@ -1,4 +1,5 @@
 import {
+  copyFileSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -47,7 +48,8 @@ describe("applyMigrations", () => {
       ).filter((name) => name.endsWith(".sql")).length;
 
       expect(migrationCount).toEqual({ count: expectedMigrationCount });
-      expect(attemptColumns).toContain("source_event_id");
+      expect(attemptColumns).toContain("capture_session_id");
+      expect(attemptColumns).toContain("submission_id");
     } finally {
       db.close();
     }
@@ -85,4 +87,99 @@ describe("applyMigrations", () => {
       db.close();
     }
   });
+
+  it("cuts synthetic V1 capture data over to an empty V2 schema", () => {
+    const directory = makeTempDir("migration-v2-cutover-");
+    const oldMigrationsDir = join(directory, "old-migrations");
+    const db = new Database(join(directory, "test.sqlite"));
+    mkdirSync(oldMigrationsDir);
+    for (const name of ["0001_initial.sql", "0002_attempt_capture_source.sql"]) {
+      copyFileSync(
+        join(process.cwd(), "lib", "db", "migrations", name),
+        join(oldMigrationsDir, name),
+      );
+    }
+
+    try {
+      applyMigrations(db, {
+        migrationsDir: oldMigrationsDir,
+        now: () => "2026-07-14T00:00:00.000Z",
+      });
+      db.prepare(`
+        INSERT INTO problems (
+          id, platform, external_id, title, canonical_url, tags_json, difficulty,
+          status, content_mode, training_mode, created_at, updated_at
+        ) VALUES (
+          'problem_1', 'leetcode', 'two-sum', 'Two Sum',
+          'https://leetcode.com/problems/two-sum/', '[]', 'easy', 'active',
+          'metadata_only', 'original_platform',
+          '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z'
+        )
+      `).run();
+      db.prepare(`
+        INSERT INTO capture_events (
+          id, type, platform, problem_external_id, problem_title, canonical_url,
+          occurred_at, payload_json
+        ) VALUES (
+          'evt_e2e_1', 'PAGE_DETECTED', 'leetcode', 'two-sum', 'Two Sum',
+          'https://leetcode.com/problems/two-sum/',
+          '2026-07-14T00:00:00.000Z', '{"source":"e2e"}'
+        )
+      `).run();
+      db.prepare(`
+        INSERT INTO training_attempts (
+          id, platform, problem_external_id, problem_title, canonical_url,
+          started_at, result, source_event_id, created_at, updated_at
+        ) VALUES (
+          'attempt_evt_e2e_1', 'leetcode', 'two-sum', 'Two Sum',
+          'https://leetcode.com/problems/two-sum/',
+          '2026-07-14T00:00:00.000Z', 'draft', 'evt_e2e_1',
+          '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z'
+        )
+      `).run();
+
+      applyMigrations(db, { now: () => "2026-07-14T00:01:00.000Z" });
+
+      expect(countRows(db, "capture_events")).toBe(0);
+      expect(countRows(db, "training_attempts")).toBe(0);
+      expect(countRows(db, "training_sessions")).toBe(0);
+      expect(countRows(db, "problems")).toBe(1);
+
+      db.prepare(`
+        INSERT INTO training_sessions (
+          id, installation_id, platform, problem_external_id, problem_title,
+          canonical_url, provenance_level, started_at, ended_at, end_reason,
+          created_at, updated_at
+        ) VALUES (
+          'session_open', 'installation_1', 'leetcode', 'two-sum', 'Two Sum',
+          'https://leetcode.com/problems/two-sum/', 'extension_unpaired',
+          '2026-07-14T00:00:00.000Z', NULL, NULL,
+          '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z'
+        )
+      `).run();
+      expect(countRows(db, "training_sessions")).toBe(1);
+      expect(() =>
+        db.prepare(`
+          INSERT INTO training_sessions (
+            id, installation_id, platform, problem_external_id, problem_title,
+            canonical_url, provenance_level, started_at, ended_at, end_reason,
+            created_at, updated_at
+          ) VALUES (
+            'session_invalid', 'installation_1', 'leetcode', 'two-sum', 'Two Sum',
+            'https://leetcode.com/problems/two-sum/', 'extension_unpaired',
+            '2026-07-14T00:00:00.000Z', '2026-07-14T00:02:00.000Z', NULL,
+            '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z'
+          )
+        `).run(),
+      ).toThrow();
+    } finally {
+      db.close();
+    }
+  });
 });
+
+function countRows(db: Database.Database, table: string): number {
+  return db
+    .prepare<[], { readonly count: number }>(`SELECT COUNT(*) AS count FROM ${table}`)
+    .get()?.count ?? 0;
+}

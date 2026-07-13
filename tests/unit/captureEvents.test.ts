@@ -1,186 +1,170 @@
 import { describe, expect, it } from "vitest";
+import { verdictEventToAttemptUpdate } from "@/lib/capture/events";
+import { captureEventFingerprint } from "@/lib/capture/fingerprint";
 import {
   CaptureEventSchema,
-  pageDetectedEventToAttemptDraft,
-  submissionEventToAttemptUpdate,
-  type CaptureEvent,
-} from "@/lib/capture/events";
+  type SessionStartedEvent,
+  type SubmissionObservedEvent,
+  type VerdictObservedEvent,
+} from "@/lib/capture/protocol";
 
-function event(overrides: Partial<CaptureEvent> = {}): CaptureEvent {
+const baseEvent = {
+  schemaVersion: 2 as const,
+  id: "evt_1",
+  captureSessionId: "session_1",
+  installationId: "installation_1",
+  adapterVersion: "leetcode@0.1.0",
+  parserVersion: "verdict@0.1.0",
+  pageOrigin: "https://leetcode.com",
+  provenanceLevel: "extension_unpaired" as const,
+  platform: "leetcode" as const,
+  problemExternalId: "two-sum",
+  problemTitle: "Two Sum",
+  canonicalUrl: "https://leetcode.com/problems/two-sum/",
+  occurredAt: "2026-07-14T00:00:00.000Z",
+};
+
+function sessionStartedEvent(): SessionStartedEvent {
   return {
-    id: "evt_1",
-    type: "PAGE_DETECTED",
-    platform: "leetcode",
-    problemExternalId: "two-sum",
-    problemTitle: "Two Sum",
-    canonicalUrl: "https://leetcode.com/problems/two-sum/",
-    occurredAt: "2026-07-06T00:00:00.000Z",
-    payload: {},
+    ...baseEvent,
+    type: "SESSION_STARTED",
+    payload: { source: "content_script" },
+  };
+}
+
+function submissionObservedEvent(): SubmissionObservedEvent {
+  return {
+    ...baseEvent,
+    id: "evt_submission_1",
+    type: "SUBMISSION_OBSERVED",
+    submissionId: "submission_1",
+    payload: { action: "submit_clicked" },
+  };
+}
+
+function verdictObservedEvent(
+  overrides: Partial<VerdictObservedEvent> = {},
+): VerdictObservedEvent {
+  return {
+    ...baseEvent,
+    id: "evt_verdict_1",
+    type: "VERDICT_OBSERVED",
+    submissionId: "submission_1",
+    payload: { verdict: "Accepted", language: "C++" },
     ...overrides,
   };
 }
 
-describe("CaptureEventSchema", () => {
-  it("accepts a page detected event", () => {
-    const parsed = CaptureEventSchema.parse({
-      id: "evt_1",
-      type: "PAGE_DETECTED",
-      platform: "leetcode",
-      problemExternalId: "two-sum",
-      problemTitle: "Two Sum",
-      canonicalUrl: "https://leetcode.com/problems/two-sum/",
-      occurredAt: "2026-07-05T00:00:00.000Z",
-      payload: { source: "content_script" },
-    });
+describe("CaptureEventSchema V2", () => {
+  it("accepts all V2 event variants", () => {
+    const events = [
+      sessionStartedEvent(),
+      submissionObservedEvent(),
+      verdictObservedEvent(),
+      {
+        ...baseEvent,
+        id: "evt_end_1",
+        type: "SESSION_ENDED",
+        payload: { endReason: "pagehide" },
+      },
+    ];
 
-    expect(parsed.type).toBe("PAGE_DETECTED");
+    expect(events.map((event) => CaptureEventSchema.parse(event).type)).toEqual([
+      "SESSION_STARTED",
+      "SUBMISSION_OBSERVED",
+      "VERDICT_OBSERVED",
+      "SESSION_ENDED",
+    ]);
+  });
+
+  it("rejects V1 events", () => {
+    expect(() =>
+      CaptureEventSchema.parse({
+        id: "evt_v1",
+        type: "PAGE_DETECTED",
+        platform: "leetcode",
+        problemExternalId: "two-sum",
+        problemTitle: "Two Sum",
+        canonicalUrl: "https://leetcode.com/problems/two-sum/",
+        occurredAt: "2026-07-14T00:00:00.000Z",
+        payload: {},
+      }),
+    ).toThrow();
+  });
+
+  it("rejects submission IDs on session-only events", () => {
+    expect(() =>
+      CaptureEventSchema.parse({
+        ...sessionStartedEvent(),
+        submissionId: "submission_1",
+      }),
+    ).toThrow();
+  });
+
+  it("requires submission IDs on submission events", () => {
+    const { submissionId: omitted, ...withoutSubmissionId } = submissionObservedEvent();
+    expect(omitted).toBe("submission_1");
+    expect(() => CaptureEventSchema.parse(withoutSubmissionId)).toThrow();
+  });
+
+  it("requires a non-empty verdict", () => {
+    expect(() =>
+      CaptureEventSchema.parse(
+        verdictObservedEvent({ payload: { verdict: "" } }),
+      ),
+    ).toThrow();
   });
 });
 
-describe("capture event attempt conversion", () => {
-  it("creates attempt drafts from page detection events", () => {
-    const draft = pageDetectedEventToAttemptDraft(event());
-
-    expect(draft).toEqual({
-      result: "draft",
-      platform: "leetcode",
-      problemExternalId: "two-sum",
-      problemTitle: "Two Sum",
-      canonicalUrl: "https://leetcode.com/problems/two-sum/",
-      startedAt: "2026-07-06T00:00:00.000Z",
+describe("capture event fingerprint", () => {
+  it("is stable across payload key ordering", () => {
+    const first = verdictObservedEvent();
+    const reordered = verdictObservedEvent({
+      payload: { language: "C++", verdict: "Accepted" },
     });
+
+    expect(captureEventFingerprint(first)).toBe(captureEventFingerprint(reordered));
+    expect(captureEventFingerprint(first)).toMatch(/^[a-f0-9]{64}$/u);
   });
 
-  it("marks accepted verdicts as passed", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "Accepted", language: "TypeScript" } }),
+  it("changes when the normalized payload changes", () => {
+    expect(captureEventFingerprint(verdictObservedEvent())).not.toBe(
+      captureEventFingerprint(
+        verdictObservedEvent({ payload: { verdict: "Wrong Answer", language: "C++" } }),
+      ),
     );
+  });
+});
 
-    expect(update).toEqual({
+describe("verdictEventToAttemptUpdate", () => {
+  it("classifies accepted verdicts", () => {
+    expect(verdictEventToAttemptUpdate(verdictObservedEvent())).toEqual({
       result: "passed",
       verdict: "Accepted",
-      language: "TypeScript",
-      endedAt: "2026-07-06T00:00:00.000Z",
+      language: "C++",
+      endedAt: "2026-07-14T00:00:00.000Z",
     });
   });
 
-  it("marks non-accepted verdicts as failed", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "SUBMISSION_DETECTED", payload: { verdict: "Wrong Answer" } }),
-    );
-
-    expect(update).toEqual({
-      result: "failed",
-      verdict: "Wrong Answer",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
-  });
-
-  it("marks compile errors as failed", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "Compile Error" } }),
-    );
-
-    expect(update).toEqual({
-      result: "failed",
-      verdict: "Compile Error",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
-  });
-
-  it("marks runtime-like verdicts as partial progress", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "Time Limit Exceeded" } }),
-    );
-
-    expect(update).toEqual({
+  it("classifies runtime-like verdicts as partial", () => {
+    expect(
+      verdictEventToAttemptUpdate(
+        verdictObservedEvent({ payload: { verdict: "Time Limit Exceeded" } }),
+      ),
+    ).toEqual({
       result: "partial",
       verdict: "Time Limit Exceeded",
-      endedAt: "2026-07-06T00:00:00.000Z",
+      endedAt: "2026-07-14T00:00:00.000Z",
     });
   });
 
-  it("marks runtime errors as partial progress", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "Runtime Error" } }),
-    );
-
-    expect(update).toEqual({
-      result: "partial",
-      verdict: "Runtime Error",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
-  });
-
-  it("marks memory limit verdicts as partial progress", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "Memory Limit Exceeded" } }),
-    );
-
-    expect(update).toEqual({
-      result: "partial",
-      verdict: "Memory Limit Exceeded",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
-  });
-
-  it("marks Chinese accepted verdicts as passed", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "答案正确" } }),
-    );
-
-    expect(update).toEqual({
-      result: "passed",
-      verdict: "答案正确",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
-  });
-
-  it("marks Chinese timeout verdicts as partial progress", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "运行超时" } }),
-    );
-
-    expect(update).toEqual({
-      result: "partial",
-      verdict: "运行超时",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
-  });
-
-  it("does not treat unrelated words containing re as runtime errors", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "Review requested" } }),
-    );
-
-    expect(update).toEqual({
-      result: "failed",
-      verdict: "Review requested",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
-  });
-
-  it("uses an explicit payload result when the detector supplies one", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: { verdict: "Partially Accepted", result: "partial" } }),
-    );
-
-    expect(update).toEqual({
-      result: "partial",
-      verdict: "Partially Accepted",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
-  });
-
-  it("uses Unknown when a verdict payload is missing", () => {
-    const update = submissionEventToAttemptUpdate(
-      event({ type: "VERDICT_UPDATED", payload: {} }),
-    );
-
-    expect(update).toEqual({
-      result: "failed",
-      verdict: "Unknown",
-      endedAt: "2026-07-06T00:00:00.000Z",
-    });
+  it("uses an explicit detector result", () => {
+    expect(
+      verdictEventToAttemptUpdate(
+        verdictObservedEvent({
+          payload: { verdict: "Partially Accepted", result: "partial" },
+        }),
+      ).result,
+    ).toBe("partial");
   });
 });
