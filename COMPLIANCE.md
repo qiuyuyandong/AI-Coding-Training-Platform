@@ -25,7 +25,8 @@ The browser extension is local-first and user-controlled:
 
 - capture can be disabled from the popup;
 - queued events stay in Chrome local storage until sent to the local app;
-- invalid events are dropped after a 400 response to avoid retry loops;
+- invalid events and permanent event-ID conflicts are dropped after a 400/409 response to avoid retry loops;
+- `installationId` is a logical correlation value, not a user identity, credential, or security boundary;
 - no cookies, session tokens, passwords, or hidden platform data are read or uploaded;
 - commercial platform full statements remain out of scope unless explicitly licensed or manually entered by the user.
 
@@ -46,11 +47,16 @@ Coach and Growth analysis remains local-only:
 - recommendations cite local attempt IDs as evidence and do not infer hidden platform state;
 - no external LLM, cloud analytics service, or third-party API receives attempts, verdicts, reflections, code, cookies, or platform session data.
 
-## Phase 3.0 Verdict Capture Loop
+## Capture Protocol V2
 
 Verdict capture keeps using the browser session without extracting the browser session:
 
 - the extension reads visible verdict text only and normalizes it into local verdict labels such as accepted, wrong answer, compile error, runtime error, time limit, memory limit, or partial;
 - Chinese verdict labels are treated the same way as English visible verdict tokens and are reduced to local attempt results before storage;
-- repeated verdict events are replay/idempotency safeguards for local attempts, not a reason to store hidden page state;
+- each full page load has a local capture session and each submission has its own attempt identity;
+- `SESSION_ENDED` is optional and sessions may legitimately retain a null `ended_at`;
+- raw events and their projections are committed together; exact replay is idempotent and conflicting event-ID reuse is rejected;
+- the one-time V1 cutover discards old local capture rows and queued extension events, with the extension recording its discarded queue count;
 - no cookies, session tokens, localStorage secrets, hidden platform data, full statements, code submissions, or external services are added to the capture loop.
+
+SPA route capture and authenticated localhost transport are explicitly deferred. The V2 E2E boundary verifies isolation across independent full page loads only.

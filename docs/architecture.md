@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 ## Overview
 
@@ -12,14 +12,15 @@ This document describes the current implementation. The accepted future product 
 
 ```text
 Chrome MV3 extension
-→ POST /api/capture/events
-→ capture_events SQLite table
-→ capture materializer
-→ training_attempts SQLite table
-→ /training, /coach, /growth
+-> POST /api/capture/events
+-> one SQLite transaction: capture_events + deterministic projection
+-> training_sessions + training_attempts
+-> /training, /coach, /growth
 ```
 
-The browser extension detects supported problem pages and visible verdict state. It normalizes English verdict tokens and Chinese verdict labels into local verdict events, queues events in Chrome local storage, and retries localhost delivery according to the transport rules in `extension/src/transport.ts`.
+The browser extension detects supported problem pages and visible verdict state. Each full problem-page load creates a capture session; each submit observation creates a submission. It normalizes English verdict tokens and Chinese verdict labels into local verdict events, queues V2 events in Chrome local storage, and retries localhost delivery according to `extension/src/transport.ts`.
+
+`installationId` is a persistent logical correlation value only. It does not authenticate the extension or authorize requests. Localhost credential authentication is deferred. SPA route transitions are also deferred; the current protocol and E2E gate cover independent full page loads.
 
 ## App routes
 
@@ -37,7 +38,7 @@ The browser extension detects supported problem pages and visible verdict state.
 
 | API | Role |
 |---|---|
-| `POST /api/capture/events` | Validates `CaptureEvent`, saves it, materializes the matching attempt, and returns attempt status. |
+| `POST /api/capture/events` | Validates a V2 event and atomically saves the raw event plus deterministic session/attempt projection. Exact replay succeeds; a reused ID with different content returns 409. |
 | `GET /api/capture/status` | Returns recent capture events for `CaptureStatusPanel`. |
 | `GET /api/attempts/recent` | Returns recent materialized attempts for `AttemptStatusPanel`. |
 | `GET /api/problems` | Lists local problem metadata. |
@@ -51,17 +52,22 @@ The SQLite schema is defined by migrations under `lib/db/migrations`.
 |---|---|
 | `schema_migrations` | Applied migration tracking. |
 | `problems` | Metadata-only local problem records. |
-| `capture_events` | Raw local browser capture events. |
-| `training_attempts` | Materialized local training facts used by Coach/Growth. |
+| `capture_events` | Raw local V2 browser events with a stable payload fingerprint. |
+| `training_sessions` | One logical problem-page session; `ended_at` is nullable because `SESSION_ENDED` is best effort. |
+| `training_attempts` | One row per `submission_id`, used by Training, Coach, and Growth. |
 
-`training_attempts.source_event_id` links a local attempt to its originating page/training capture event. Replayed page events reuse the same attempt, and replayed verdict events are matched by problem, verdict, and end timestamp so they do not create duplicate completed attempts.
+Raw event insertion and projection run in the same SQLite transaction. Event identity is content-sensitive: the same `eventId` and fingerprint is an idempotent replay, while the same `eventId` with a different payload is a conflict. Verdicts may arrive before submissions, multiple submissions remain distinct within one session, and a missing session-end event is valid.
+
+Migration `0003_capture_sessions_and_submissions.sql` is a deliberate V1 cutover: it drops legacy capture events and attempts while preserving problem metadata. The extension similarly discards its old V1 queue once and stores the discard timestamp and count.
 
 ## Service boundaries
 
-- `lib/capture/events.ts` owns capture event validation and conversion helpers.
+- `lib/capture/protocol.ts` owns the browser-safe V2 event contract and stable serialization.
+- `lib/capture/fingerprint.ts` owns the server-only SHA-256 event fingerprint.
 - `extension/src/platforms.ts` owns pure platform page/verdict detection, including supported English and Chinese verdict text patterns.
 - `lib/repositories/**` owns SQLite row mapping and persistence helpers.
-- `lib/services/captureMaterializer.ts` converts capture events into attempt state transitions.
+- `lib/services/captureTransition.ts` owns pure deterministic session/attempt transitions.
+- `lib/services/captureMaterializer.ts` owns the raw-event-plus-projection transaction.
 - `lib/services/coachAnalysis.ts` turns attempts into deterministic Coach signals and recommendations.
 - `lib/services/growthStats.ts` turns attempts into Growth metrics and recent activity.
 
@@ -71,4 +77,4 @@ Pages should not duplicate Coach/Growth decision logic. They should read attempt
 
 `playwright.config.ts` starts `npm run dev -- -p 3000` through Playwright `webServer` for e2e tests. `tests/e2e/**` is excluded from Vitest in `vitest.config.ts`, so `npm run test` and `npm run e2e` are separate gates.
 
-Pre-V0 limitation: Playwright does not yet enforce a disposable `TRAINING_DB_PATH`, and non-CI runs may reuse an existing port-3000 server. Follow the temporary-database warning in `docs/runbook.md`; Phase 0A is planned to make isolation automatic.
+Playwright enforces a disposable `TRAINING_DB_PATH`, refuses to reuse an existing port-3000 server, and removes `.tmp/playwright` during teardown. The V2 double-problem scenario uses separate `page.goto` navigations to verify full-load isolation; it does not claim SPA navigation coverage.

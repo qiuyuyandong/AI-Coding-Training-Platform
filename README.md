@@ -7,7 +7,7 @@ It provides:
 - a small problem-metadata catalog;
 - deep links to original OJ problem pages;
 - a Chrome extension that detects user-visible training events;
-- local capture APIs;
+- a session- and submission-aware local capture API;
 - local attempts, Coach, and Growth pages.
 
 The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
@@ -53,11 +53,13 @@ Load `extension/dist` as an unpacked extension in Chrome. Keep the local app run
 The training loop turns captured browser events into local training attempts:
 
 - `/training?platform=leetcode&externalId=two-sum&title=Two%20Sum` opens the original problem and shows capture plus problem-specific attempt status;
-- `/api/capture/events` stores extension events and materializes the matching local attempt;
+- `/api/capture/events` stores each V2 raw event and its deterministic session/attempt projection in one SQLite transaction;
 - `/api/attempts/recent` returns recent attempts for the training workspace;
 - `/coach` and `/growth` read the same local attempts to show empty-state or rule-based feedback.
 
-Phase 3.0 hardens verdict capture: the extension maps visible Accepted/Wrong Answer/Compile Error/runtime/time/memory/partial verdict text into local results, including Chinese verdict labels, and repeated verdict events do not duplicate completed attempts.
+Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per full problem-page load, and a `submissionId` per observed submission. Sessions may remain open when the optional `SESSION_ENDED` signal is not delivered. Exact event replay is idempotent; reusing an `eventId` with different content returns HTTP 409. The current double-problem E2E covers independent full page loads only, not SPA route transitions.
+
+The V2 cutover intentionally discards legacy V1 capture rows and queued extension events. The extension records the one-time queue discard count and logs it locally. `installationId` is metadata, not authentication; localhost credentials are deferred to a later phase.
 
 Run migrations before exercising the loop:
 
