@@ -48,6 +48,9 @@ next-env.d.ts
 # superpowers visual companion
 .superpowers/
 
+# isolated implementation worktrees
+.worktrees/
+
 # editor
 .vscode/
 .idea/
