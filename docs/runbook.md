@@ -31,7 +31,11 @@ Load `extension/dist` as an unpacked Chrome extension. The popup can enable/disa
 
 Verdict capture is expected to detect visible accepted, wrong-answer, compile-error, runtime-error, time-limit, memory-limit, and partial verdict text. English verdict tokens and Chinese verdict labels are normalized before being sent to the local app.
 
-Capture protocol V2 creates one logical session per full supported problem-page load and one attempt per observed submission. A `SESSION_ENDED` event is best effort, so an open session with no `ended_at` is expected after browser shutdown or extension interruption. SPA route transitions are not covered yet; reload or open the next problem as a full page load.
+Capture protocol V2 creates one logical session per observed problem visit and one attempt per observed submission. Same-problem SPA routes retain the current session; navigation to a different problem emits `SESSION_ENDED(spa_navigation)` before the new `SESSION_STARTED`. Location observation combines `popstate`, `hashchange`, DOM reconciliation, and a 500 ms URL poll fallback.
+
+`pagehide` delivery remains best effort, so an open session with no `ended_at` is expected after browser shutdown or extension interruption. If a hidden/BFCache page is shown again, the extension starts a fresh observed session.
+
+Queue delivery is FIFO and serialized. One drain batch handles at most 25 events. Network errors and retryable 500 responses preserve the queue head and stop; permanent 400/409 responses and 500 responses at the retry cap drop that head and continue.
 
 On the first V2 extension startup, any queued V1 events are discarded once. Chrome local storage records `discardedLegacyEventCount` and `legacyQueueDiscardedAt`, and the service worker logs the discarded count. This is separate from authentication: `installationId` is only a correlation identifier, and no localhost credential exists in this phase.
 
@@ -87,3 +91,5 @@ Stop the stale process before rerunning e2e. Avoid starting manual long-running 
 5. If the page is visible but the attempt stays in `draft`, inspect whether the platform's visible verdict text is covered by `extension/src/platforms.ts` and `tests/unit/extensionPlatforms.test.ts`.
 
 Network errors are retryable. Invalid 400 responses and permanent 409 event-ID conflicts are dropped to avoid retry loops. If a 409 occurs, inspect whether one producer reused an `eventId` for different event content.
+
+If SPA capture appears stale, confirm the URL changes in the address bar and inspect the content-script console for `[capture-v2]` errors. Unit tests cover both route-event-first and DOM-mutation-first transitions, but platform-specific DOM readiness remains experimental until one adapter receives fixture certification.

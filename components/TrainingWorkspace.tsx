@@ -18,7 +18,7 @@ export function TrainingWorkspace({ platform, externalId, title }: TrainingWorks
         <h1 className="mt-2 text-2xl font-semibold">{displayTitle}</h1>
         {title && <p className="mt-1 text-sm text-slate-500">Problem ID: {externalId}</p>}
         <p className="mt-3 text-slate-600">
-          Open the original platform in a full page load. The browser extension keeps each visible problem session and submission isolated in the local capture record.
+          Open the original platform. The browser extension keeps each visible problem session and submission isolated across full loads and supported SPA route changes.
         </p>
         <a className="mt-5 inline-block rounded-lg bg-slate-950 px-4 py-2 text-white" href={url} target="_blank" rel="noreferrer">
           Open original problem

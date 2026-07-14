@@ -57,7 +57,11 @@ The training loop turns captured browser events into local training attempts:
 - `/api/attempts/recent` returns recent attempts for the training workspace;
 - `/coach` and `/growth` read the same local attempts to show empty-state or rule-based feedback.
 
-Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per full problem-page load, and a `submissionId` per observed submission. Sessions may remain open when the optional `SESSION_ENDED` signal is not delivered. Exact event replay is idempotent; reusing an `eventId` with different content returns HTTP 409. The current double-problem E2E covers independent full page loads only, not SPA route transitions.
+Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per observed problem visit, and a `submissionId` per observed submission. Same-problem SPA routes retain the active session; navigation to another problem emits the old-session end before the new-session start. Sessions may remain open when the optional `SESSION_ENDED` signal is not delivered. Exact event replay is idempotent; reusing an `eventId` with different content returns HTTP 409.
+
+The extension owns its queue through one serialized executor and drains events FIFO in batches of at most 25. Permanent 400/409 failures are dropped, while network and retryable server failures preserve the head for a later alarm or capture event.
+
+Extension unit tests cover SPA observation and queue concurrency directly. Playwright does not load the unpacked MV3 extension, so its SPA-shaped test validates the resulting end/start sequence through the API, SQLite projections, and problem-specific training UI. No adapter is yet certified production-ready.
 
 The V2 cutover intentionally discards legacy V1 capture rows and queued extension events. The extension records the one-time queue discard count and logs it locally. `installationId` is metadata, not authentication; localhost credentials are deferred to a later phase.
 

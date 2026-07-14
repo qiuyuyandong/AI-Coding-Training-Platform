@@ -18,9 +18,13 @@ Chrome MV3 extension
 -> /training, /coach, /growth
 ```
 
-The browser extension detects supported problem pages and visible verdict state. Each full problem-page load creates a capture session; each submit observation creates a submission. It normalizes English verdict tokens and Chinese verdict labels into local verdict events, queues V2 events in Chrome local storage, and retries localhost delivery according to `extension/src/transport.ts`.
+The browser extension detects supported problem pages and visible verdict state. A problem visit creates a capture session; same-problem SPA routes retain it, while navigation to another problem ends the old session before starting the next. Each submit observation creates a submission. The extension normalizes English verdict tokens and Chinese verdict labels into local verdict events and stores V2 events in Chrome local storage.
 
-`installationId` is a persistent logical correlation value only. It does not authenticate the extension or authorize requests. Localhost credential authentication is deferred. SPA route transitions are also deferred; the current protocol and E2E gate cover independent full page loads.
+`extension/src/contentRuntime.ts` owns testable SPA/page lifecycle decisions. `content.ts` adapts Chrome `popstate`, `hashchange`, DOM mutations, `pagehide`, `pageshow`, and a 500 ms URL poll fallback. The mutation following a changed problem identity skips verdict scanning unless an explicit submit establishes current-page evidence, reducing stale-verdict cross-linking.
+
+`extension/src/serializedWork.ts` keeps initialization, enqueue, and drain jobs ordered. `extension/src/queueDrain.ts` reads the latest queue before every head and drains FIFO in batches of at most 25. Permanent failures are removed; network and retryable server failures keep the head and stop the batch.
+
+`installationId` is a persistent logical correlation value only. It does not authenticate the extension or authorize requests. Localhost credential authentication and trusted provenance remain deferred to Phase 0B3. No platform adapter is yet certified production-ready.
 
 ## App routes
 
@@ -65,6 +69,9 @@ Migration `0003_capture_sessions_and_submissions.sql` is a deliberate V1 cutover
 - `lib/capture/protocol.ts` owns the browser-safe V2 event contract and stable serialization.
 - `lib/capture/fingerprint.ts` owns the server-only SHA-256 event fingerprint.
 - `extension/src/platforms.ts` owns pure platform page/verdict detection, including supported English and Chinese verdict text patterns.
+- `extension/src/pageLifecycle.ts` owns pure problem-session lifecycle transitions.
+- `extension/src/contentRuntime.ts` owns capture decisions independently of Chrome globals.
+- `extension/src/queueDrain.ts` and `extension/src/serializedWork.ts` own ordered queue delivery.
 - `lib/repositories/**` owns SQLite row mapping and persistence helpers.
 - `lib/services/captureTransition.ts` owns pure deterministic session/attempt transitions.
 - `lib/services/captureMaterializer.ts` owns the raw-event-plus-projection transaction.
@@ -77,4 +84,4 @@ Pages should not duplicate Coach/Growth decision logic. They should read attempt
 
 `playwright.config.ts` starts `npm run dev -- -p 3000` through Playwright `webServer` for e2e tests. `tests/e2e/**` is excluded from Vitest in `vitest.config.ts`, so `npm run test` and `npm run e2e` are separate gates.
 
-Playwright enforces a disposable `TRAINING_DB_PATH`, refuses to reuse an existing port-3000 server, and removes `.tmp/playwright` during teardown. The V2 double-problem scenario uses separate `page.goto` navigations to verify full-load isolation; it does not claim SPA navigation coverage.
+Playwright enforces a disposable `TRAINING_DB_PATH`, refuses to reuse an existing port-3000 server, and removes `.tmp/playwright` during teardown. Extension unit tests cover actual SPA runtime decisions. Playwright does not load the unpacked MV3 extension; its SPA-shaped scenario validates the resulting end/start event sequence through the API, SQLite, and problem-specific UI.

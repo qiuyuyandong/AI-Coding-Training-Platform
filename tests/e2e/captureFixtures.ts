@@ -27,6 +27,12 @@ type CaptureFixtureInput =
       readonly submissionId: string;
       readonly verdict: string;
       readonly occurredAt: string;
+    }
+  | {
+      readonly type: "SESSION_ENDED";
+      readonly eventId: string;
+      readonly endReason: "spa_navigation" | "pagehide" | "capture_disabled";
+      readonly occurredAt: string;
     };
 
 export function captureEvent(
@@ -62,6 +68,13 @@ export function captureEvent(
       type: input.type,
       submissionId: input.submissionId,
       payload: { action: "submit_clicked" },
+    };
+  }
+  if (input.type === "SESSION_ENDED") {
+    return {
+      ...base,
+      type: input.type,
+      payload: { endReason: input.endReason },
     };
   }
   return {

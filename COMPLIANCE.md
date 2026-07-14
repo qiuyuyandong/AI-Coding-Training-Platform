@@ -35,7 +35,7 @@ The browser extension is local-first and user-controlled:
 Materialized attempts remain local-first:
 
 - capture events are reduced to training metadata such as platform, external problem ID, title, URL, result, and timestamps;
-- `source_event_id` links a local attempt to its originating capture event for idempotent replay without storing browser secrets;
+- `submission_event_id` and `verdict_event_id` link an attempt to its visible capture evidence without storing browser secrets;
 - Coach and Growth pages read from the local SQLite database and do not send training records to external services;
 - the loop records user-visible page/submission outcomes, not hidden platform data, cookies, or full commercial problem statements.
 
@@ -53,10 +53,12 @@ Verdict capture keeps using the browser session without extracting the browser s
 
 - the extension reads visible verdict text only and normalizes it into local verdict labels such as accepted, wrong answer, compile error, runtime error, time limit, memory limit, or partial;
 - Chinese verdict labels are treated the same way as English visible verdict tokens and are reduced to local attempt results before storage;
-- each full page load has a local capture session and each submission has its own attempt identity;
+- each observed problem visit has a local capture session, same-problem SPA routes retain it, and each submission has its own attempt identity;
 - `SESSION_ENDED` is optional and sessions may legitimately retain a null `ended_at`;
 - raw events and their projections are committed together; exact replay is idempotent and conflicting event-ID reuse is rejected;
 - the one-time V1 cutover discards old local capture rows and queued extension events, with the extension recording its discarded queue count;
 - no cookies, session tokens, localStorage secrets, hidden platform data, full statements, code submissions, or external services are added to the capture loop.
 
-SPA route capture and authenticated localhost transport are explicitly deferred. The V2 E2E boundary verifies isolation across independent full page loads only.
+SPA observation uses URL/browser lifecycle signals and visible DOM mutations only; it does not patch page code, read hidden routing state, or add Chrome navigation permissions. Extension unit tests cover SPA decisions, while Playwright validates the downstream event sequence without claiming to load the unpacked MV3 extension.
+
+Authenticated localhost transport and trusted provenance remain explicitly deferred to Phase 0B3. `installationId` is still untrusted correlation metadata.
