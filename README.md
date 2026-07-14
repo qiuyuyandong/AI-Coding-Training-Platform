@@ -8,7 +8,8 @@ It provides:
 - deep links to original OJ problem pages;
 - a Chrome extension that detects user-visible training events;
 - a paired, session- and submission-aware local capture API;
-- local attempts, Coach, and Growth pages.
+- captured and manually entered local attempts, with traceable corrections and logical voiding;
+- Coach and Growth pages that use active attempts by default.
 
 The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
 
@@ -57,7 +58,10 @@ The training loop turns captured browser events into local training attempts:
 - `/training?platform=leetcode&externalId=two-sum&title=Two%20Sum` opens the original problem and shows capture plus problem-specific attempt status;
 - `/api/capture/events` stores each V2 raw event and its deterministic session/attempt projection in one SQLite transaction;
 - `/api/attempts/recent` accepts an explicit bounded limit and optional `platform` + `externalId` scope; the training workspace requests only its current problem;
+- `POST /api/attempts` creates a server-labelled manual attempt; correction and void endpoints require an expected revision and a reason;
 - `/coach` and `/growth` read the same local attempts to show empty-state or rule-based feedback.
+
+The Training workspace labels each attempt as `Automatic capture` or `Manual entry`. Corrections can change only result, language, duration, reflection, start time, or end time. They update the current row and append scalar old/new values in one transaction; they never create another attempt. Voiding is idempotent and traceable. Active Training, Coach, and Growth queries exclude voided rows by default.
 
 Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per observed problem visit, and a `submissionId` per observed submission. Same-problem SPA routes retain the active session; navigation to another problem emits the old-session end before the new-session start. Sessions may remain open when the optional `SESSION_ENDED` signal is not delivered. Exact event replay is idempotent; reusing an `eventId` with different content returns HTTP 409.
 
@@ -83,3 +87,4 @@ Phase 0C1 keeps query semantics explicit while coaching remains local and determ
 - `/growth` computes all-time counts, distribution, and rates in SQLite, then renders only the latest five activity rows;
 - canonical problem identity is normalized at capture, catalog, query, and link boundaries so platform case/URL variants do not split one problem;
 - insights are computed from SQLite attempts only, with no external model or network call.
+- manually entered attempts participate in the same active Growth and Coach query ranges as captured attempts; recent Growth activity shows the source label.

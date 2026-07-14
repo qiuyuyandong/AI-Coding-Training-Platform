@@ -81,5 +81,7 @@ describe("buildGrowthStats", () => {
 
     expect(stats.totalAttempts).toBe(60);
     expect(stats.recentActivity.map((item) => item.id)).toEqual(["attempt_5", "attempt_4", "attempt_3", "attempt_2", "attempt_1"]);
+    expect(stats.recentActivity.every((item) => item.recordSource === "capture"))
+      .toBe(true);
   });
 });

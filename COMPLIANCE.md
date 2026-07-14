@@ -10,6 +10,7 @@ Allowed in the current implementation:
 - open original OJ pages through deep links;
 - detect user-visible page and submission events through a user-installed browser extension;
 - keep captured training records local by default.
+- create and correct metadata-only manual training records locally.
 
 Not allowed in the current implementation:
 
@@ -48,6 +49,15 @@ Coach and Growth analysis remains local-only:
 - deterministic rules compute summaries, signals, recommendations, rates, and distributions from local `training_attempts` rows;
 - recommendations cite local attempt IDs as evidence and do not infer hidden platform state;
 - no external LLM, cloud analytics service, or third-party API receives attempts, verdicts, reflections, code, cookies, or platform session data.
+
+## Phase 0C2 Manual Records and Corrections
+
+- the server assigns `capture` or `manual` from the write entry point; the label is provenance metadata, not security identity;
+- manual records do not fabricate capture sessions, submissions, event IDs, verdict evidence, or extension credentials;
+- corrections store only changed field names, scalar old/new values, a reason, revision, and timestamp;
+- correction history is not an attempt and never contributes to Training, Coach, or Growth counts;
+- voiding preserves the local row and lightweight history while removing it from default product queries;
+- no snapshots, generic JSON diffs, full statements, page HTML, user code, cookies, or session tokens are added.
 
 ## Capture Protocol V2
 

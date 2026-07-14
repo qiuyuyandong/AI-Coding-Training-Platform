@@ -17,6 +17,11 @@ Chrome MV3 extension
 -> one SQLite transaction: capture_events + deterministic projection
 -> training_sessions + training_attempts
 -> /training, /coach, /growth
+
+Manual Training form
+-> same-origin POST /api/attempts
+-> training_attempts(record_source = manual)
+-> /training, /coach, /growth
 ```
 
 The browser extension detects supported problem pages and visible verdict state. A problem visit creates a capture session; same-problem SPA routes retain it, while navigation to another problem ends the old session before starting the next. Each submit observation creates a submission. The extension normalizes English verdict tokens and Chinese verdict labels into local verdict events and stores V2 events in Chrome local storage.
@@ -50,6 +55,10 @@ The service worker stores the long-lived credential in trusted-only Chrome local
 | `POST /api/capture/installations/:id/revoke` | Same-origin management endpoint that revokes an installation. |
 | `GET /api/capture/status` | Returns recent capture events for `CaptureStatusPanel`. |
 | `GET /api/attempts/recent` | Returns explicitly limited materialized attempts, optionally scoped by the paired `platform` and `externalId` query parameters. |
+| `POST /api/attempts` | Creates one manual attempt and assigns its source on the server. |
+| `PATCH /api/attempts/:id` | Corrects whitelisted business fields with optimistic revision checking and a required reason. |
+| `GET /api/attempts/:id/corrections` | Returns lightweight scalar correction history, including void history. |
+| `POST /api/attempts/:id/void` | Logically voids an attempt with idempotent replay semantics. |
 | `GET /api/problems` | Lists local problem metadata. |
 | `GET /api/sources` | Lists local source metadata. |
 
@@ -63,7 +72,8 @@ The SQLite schema is defined by migrations under `lib/db/migrations`.
 | `problems` | Metadata-only local problem records. |
 | `capture_events` | Raw local V2 browser events with a stable payload fingerprint. |
 | `training_sessions` | One logical problem-page session; `ended_at` is nullable because `SESSION_ENDED` is best effort. |
-| `training_attempts` | One row per `submission_id`, used by Training, Coach, and Growth. |
+| `training_attempts` | One current attempt row. Captured rows retain session/submission identity; manual rows have no synthetic capture identity. Source, revision, and optional void metadata are stored directly. |
+| `attempt_corrections` | One scalar old/new row per actually changed field, grouped by correction ID and reason. It is audit metadata, never another attempt. |
 | `capture_installations` | Hashed credential, version, state, and audit timestamps for logical extension installations. |
 | `capture_pairing_codes` | Hashed, expiring, one-time codes optionally scoped to an installation rotation. |
 
@@ -72,6 +82,8 @@ Raw event insertion and projection run in the same SQLite transaction. Event ide
 Migration `0003_capture_sessions_and_submissions.sql` is a deliberate V1 cutover: it drops legacy capture events and attempts while preserving problem metadata. The extension similarly discards its old V1 queue once and stores the discard timestamp and count.
 
 Migration `0004_capture_credentials.sql` preserves all V2 sessions, events, and attempts, adds credential tables, and permits both `extension_unpaired` and `extension_paired` provenance. Authentication, raw insertion, projection, and installation last-seen update share one outer transaction.
+
+Migration `0005_attempt_manual_corrections.sql` rebuilds only `training_attempts` to add server-owned `record_source`, optimistic `revision`, nullable capture identity for manual rows, and paired void metadata. It copies every existing V2 attempt as active `capture` data, then adds `attempt_corrections`. It does not clear sessions or raw events.
 
 ## Service boundaries
 
@@ -88,10 +100,12 @@ Migration `0004_capture_credentials.sql` preserves all V2 sessions, events, and 
 - `lib/services/canonicalProblemUrl.ts` owns platform-specific problem identity and canonical URL normalization.
 - `lib/services/coachAnalysis.ts` turns attempts into deterministic Coach signals and recommendations.
 - `lib/services/growthStats.ts` combines full-dataset SQL aggregates with a separately bounded recent-activity list.
+- `lib/services/manualAttempts.ts` creates manual attempts without fabricating capture sessions or submissions.
+- `lib/services/attemptCorrections.ts` validates the correction whitelist and owns transactional current-value/history writes plus idempotent voiding.
 
 Pages should not duplicate Coach/Growth decision logic. They should read attempts, call the service, render the returned model, and close the database.
 
-Attempt repository queries require an explicit limit between 1 and 100. Problem scope uses normalized `(platform, externalId)` identity. Time windows are lower-bound inclusive and upper-bound exclusive. Growth counts every eligible row through SQL aggregation, including drafts in total attempts but excluding drafts from the pass-rate denominator; its activity list is independently limited to five. Coach intentionally analyzes only the latest 50 attempts and labels that window in the UI.
+Attempt repository queries require an explicit limit between 1 and 100 and exclude `voided_at` rows unless a correction/diagnostic path explicitly requests them. Problem scope uses normalized `(platform, externalId)` identity. Time windows are lower-bound inclusive and upper-bound exclusive. Growth counts every active eligible row through SQL aggregation, including drafts in total attempts but excluding drafts from the pass-rate denominator; its activity list is independently limited to five. Coach intentionally analyzes only the latest 50 active attempts and labels that window in the UI.
 
 ## QA lifecycle
 

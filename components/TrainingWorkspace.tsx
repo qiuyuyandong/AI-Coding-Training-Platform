@@ -1,5 +1,6 @@
 import { AttemptStatusPanel } from "./AttemptStatusPanel";
 import { CaptureStatusPanel } from "./CaptureStatusPanel";
+import { ManualAttemptPanel } from "./ManualAttemptPanel";
 import { PlatformSchema } from "@/lib/domain/source";
 import {
   CanonicalProblemUrlError,
@@ -34,6 +35,12 @@ export function TrainingWorkspace({ platform, externalId, title }: TrainingWorks
           </a>
         )}
       </section>
+      <ManualAttemptPanel
+        platform={platform}
+        externalId={externalId}
+        problemTitle={displayTitle}
+        canonicalUrl={url}
+      />
       <CaptureStatusPanel />
       <AttemptStatusPanel platform={platform} externalId={externalId} />
     </>

@@ -49,7 +49,9 @@ export default function GrowthPage() {
                 {stats.recentActivity.map((item) => (
                   <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-3">
                     <p className="font-medium text-slate-900">{item.problemTitle}</p>
-                    <p className="mt-1 text-sm text-slate-600">{item.platform} · {item.result}</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {item.platform} · {item.result} · {sourceLabel(item.recordSource)}
+                    </p>
                     <p className="mt-2 text-xs text-slate-500">Updated: {item.updatedAt}</p>
                   </div>
                 ))}
@@ -62,6 +64,10 @@ export default function GrowthPage() {
   } finally {
     db.close();
   }
+}
+
+function sourceLabel(source: "capture" | "manual"): string {
+  return source === "capture" ? "Automatic capture" : "Manual entry";
 }
 
 function MetricCard({ label, value }: { readonly label: string; readonly value: string }) {

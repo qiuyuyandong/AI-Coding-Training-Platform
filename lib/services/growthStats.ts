@@ -7,6 +7,7 @@ export type GrowthActivityItem = {
   readonly id: string;
   readonly problemTitle: string;
   readonly platform: TrainingAttempt["platform"];
+  readonly recordSource: TrainingAttempt["recordSource"];
   readonly result: AttemptResult;
   readonly updatedAt: string;
 };
@@ -40,6 +41,7 @@ export function buildGrowthStats(
         id: attempt.id,
         problemTitle: attempt.problemTitle,
         platform: attempt.platform,
+        recordSource: attempt.recordSource,
         result: attempt.result,
         updatedAt: attempt.updatedAt,
       })),

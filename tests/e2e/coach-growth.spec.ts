@@ -86,11 +86,13 @@ test.describe("Coach and Growth smoke", () => {
     const attemptPanel = page.locator("section").filter({ has: page.getByRole("heading", { name: "Training attempt" }) });
     await expect(attemptPanel).toContainText("Two Sum");
     await expect(attemptPanel).not.toContainText("Valid Parentheses");
-    await page.getByLabel("Reflection").fill("Used a hash map after checking the brute-force invariant.");
-    await page.getByRole("button", { name: "Save reflection" }).click();
+    await expect(attemptPanel).toContainText("Automatic capture");
+    await page.getByLabel("Corrected reflection").fill("Used a hash map after checking the brute-force invariant.");
+    await page.getByLabel("Correction reason").fill("Add the missing reflection.");
+    await page.getByRole("button", { name: "Save correction" }).click();
 
-    await expect(page.getByText("Reflection saved")).toBeVisible();
-    await expect(page.locator("p").filter({ hasText: "Used a hash map after checking the brute-force invariant." })).toBeVisible();
+    await expect(page.getByText("Correction saved")).toBeVisible();
+    await expect(attemptPanel).toContainText("Add the missing reflection.");
   });
 
   test("training workspace shows partial verdict state for the current attempt", async ({ page, request }) => {
@@ -115,7 +117,7 @@ test.describe("Coach and Growth smoke", () => {
 
     const attemptPanel = page.locator("section").filter({ has: page.getByRole("heading", { name: "Training attempt" }) });
     await expect(attemptPanel).toContainText("partial");
-    await expect(attemptPanel).toContainText("Verdict: Time Limit Exceeded");
+    await expect(attemptPanel).toContainText("Verdict evidence: Time Limit Exceeded");
   });
 
   test("keeps problem lookup isolated and reports complete analytics beyond display windows", async ({ page }) => {
@@ -187,5 +189,69 @@ test.describe("Coach and Growth smoke", () => {
 
     await page.goto("/coach");
     await expect(page.getByText("Latest 50 attempts reviewed: 50")).toBeVisible();
+  });
+
+  test("manual fallback can be corrected, audited, and voided without adding attempts", async ({ page }) => {
+    const db = new Database(E2E_DB_PATH);
+    let activeBefore = 0;
+    let allBefore = 0;
+    try {
+      activeBefore = db.prepare<[], { readonly count: number }>(
+        "SELECT COUNT(*) AS count FROM training_attempts WHERE voided_at IS NULL",
+      ).get()?.count ?? 0;
+      allBefore = db.prepare<[], { readonly count: number }>(
+        "SELECT COUNT(*) AS count FROM training_attempts",
+      ).get()?.count ?? 0;
+    } finally {
+      db.close();
+    }
+
+    await page.goto("/training?platform=leetcode&externalId=manual-fallback-e2e&title=Manual%20Fallback%20E2E");
+    await page.getByLabel("Manual result").selectOption("failed");
+    await page.getByLabel("Language").fill("TypeScript");
+    await page.getByLabel("Duration (minutes)").fill("25");
+    await page.getByLabel("Reflection", { exact: true }).fill("Recorded after capture was unavailable.");
+    await page.getByRole("button", { name: "Record manual attempt" }).click();
+
+    await expect(page.getByText("Manual attempt recorded")).toBeVisible();
+    const attemptPanel = page.locator("section").filter({ has: page.getByRole("heading", { name: "Training attempt" }) });
+    await expect(attemptPanel).toContainText("Manual entry");
+    await expect(attemptPanel).toContainText("failed");
+
+    await page.goto("/growth");
+    const totals = page.locator("section").filter({ has: page.getByRole("heading", { name: "All-time totals" }) });
+    await expect(totals).toContainText(`Attempts${activeBefore + 1}`);
+    await expect(page.getByText(/Manual entry/).first()).toBeVisible();
+    await page.goto("/coach");
+    await expect(page.getByText(`Latest 50 attempts reviewed: ${Math.min(activeBefore + 1, 50)}`)).toBeVisible();
+
+    await page.goto("/training?platform=leetcode&externalId=manual-fallback-e2e&title=Manual%20Fallback%20E2E");
+    await page.getByLabel("Corrected result").selectOption("passed");
+    await page.getByLabel("Correction reason").fill("Verified the accepted result.");
+    await page.getByRole("button", { name: "Save correction" }).click();
+    await expect(page.getByText("Correction saved")).toBeVisible();
+    await expect(attemptPanel).toContainText("Verified the accepted result.");
+    await expect(attemptPanel).toContainText("result: failed → passed");
+
+    const correctedDb = new Database(E2E_DB_PATH);
+    try {
+      const count = correctedDb.prepare<[], { readonly count: number }>(
+        "SELECT COUNT(*) AS count FROM training_attempts",
+      ).get()?.count ?? 0;
+      expect(count).toBe(allBefore + 1);
+    } finally {
+      correctedDb.close();
+    }
+
+    await page.getByLabel("Void reason").fill("Duplicate record entered during recovery.");
+    await page.getByRole("button", { name: "Void attempt" }).click();
+    await expect(page.getByText("Attempt voided")).toBeVisible();
+    await expect(attemptPanel).toContainText("No active training attempts");
+
+    await page.goto("/growth");
+    const totalsAfterVoid = page.locator("section").filter({ has: page.getByRole("heading", { name: "All-time totals" }) });
+    await expect(totalsAfterVoid).toContainText(`Attempts${activeBefore}`);
+    await page.goto("/coach");
+    await expect(page.getByText(`Latest 50 attempts reviewed: ${Math.min(activeBefore, 50)}`)).toBeVisible();
   });
 });
