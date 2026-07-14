@@ -38,6 +38,7 @@ next-env.d.ts
 
 # test runtime data
 /.tmp/playwright/
+/test-results/
 
 # codegraph
 .codegraph/
