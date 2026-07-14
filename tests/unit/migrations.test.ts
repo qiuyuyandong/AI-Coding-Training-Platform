@@ -176,6 +176,92 @@ describe("applyMigrations", () => {
       db.close();
     }
   });
+
+  it("preserves V2 capture rows while adding paired provenance and credentials", () => {
+    const directory = makeTempDir("migration-credentials-");
+    const oldMigrationsDir = join(directory, "old-migrations");
+    const db = new Database(join(directory, "test.sqlite"));
+    mkdirSync(oldMigrationsDir);
+    for (const name of [
+      "0001_initial.sql",
+      "0002_attempt_capture_source.sql",
+      "0003_capture_sessions_and_submissions.sql",
+    ]) {
+      copyFileSync(
+        join(process.cwd(), "lib", "db", "migrations", name),
+        join(oldMigrationsDir, name),
+      );
+    }
+
+    try {
+      applyMigrations(db, {
+        migrationsDir: oldMigrationsDir,
+        now: () => "2026-07-14T00:00:00.000Z",
+      });
+      db.exec(`
+        INSERT INTO training_sessions (
+          id, installation_id, platform, problem_external_id, problem_title,
+          canonical_url, provenance_level, started_at, ended_at, end_reason,
+          created_at, updated_at
+        ) VALUES (
+          'session_preserved', 'installation_1', 'leetcode', 'two-sum', 'Two Sum',
+          'https://leetcode.com/problems/two-sum/', 'extension_unpaired',
+          '2026-07-14T00:00:00.000Z', NULL, NULL,
+          '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z'
+        );
+        INSERT INTO capture_events (
+          id, schema_version, type, capture_session_id, submission_id,
+          installation_id, adapter_version, parser_version, page_origin,
+          provenance_level, platform, problem_external_id, problem_title,
+          canonical_url, occurred_at, payload_json, event_fingerprint, received_at
+        ) VALUES (
+          'event_preserved', 2, 'SUBMISSION_OBSERVED', 'session_preserved',
+          'submission_preserved', 'installation_1', 'test@0.2.0', 'test@0.2.0',
+          'https://leetcode.com', 'extension_unpaired', 'leetcode', 'two-sum',
+          'Two Sum', 'https://leetcode.com/problems/two-sum/',
+          '2026-07-14T00:01:00.000Z', '{"action":"submit_clicked"}',
+          'fingerprint', '2026-07-14T00:01:00.000Z'
+        );
+        INSERT INTO training_attempts (
+          id, capture_session_id, submission_id, platform, problem_external_id,
+          problem_title, canonical_url, started_at, result, submission_event_id,
+          created_at, updated_at
+        ) VALUES (
+          'attempt_preserved', 'session_preserved', 'submission_preserved',
+          'leetcode', 'two-sum', 'Two Sum',
+          'https://leetcode.com/problems/two-sum/',
+          '2026-07-14T00:01:00.000Z', 'draft', 'event_preserved',
+          '2026-07-14T00:01:00.000Z', '2026-07-14T00:01:00.000Z'
+        );
+      `);
+
+      applyMigrations(db, { now: () => "2026-07-14T00:02:00.000Z" });
+
+      expect(countRows(db, "training_sessions")).toBe(1);
+      expect(countRows(db, "capture_events")).toBe(1);
+      expect(countRows(db, "training_attempts")).toBe(1);
+      expect(countRows(db, "capture_installations")).toBe(0);
+      expect(
+        db.prepare<[], { readonly table: string }>(
+          "PRAGMA foreign_key_list(training_attempts)",
+        ).all().map((row) => row.table),
+      ).toContain("training_sessions");
+      expect(() => db.prepare(`
+        INSERT INTO training_sessions (
+          id, installation_id, platform, problem_external_id, problem_title,
+          canonical_url, provenance_level, started_at, ended_at, end_reason,
+          created_at, updated_at
+        ) VALUES (
+          'session_paired', 'installation_2', 'leetcode', 'three-sum', '3Sum',
+          'https://leetcode.com/problems/3sum/', 'extension_paired',
+          '2026-07-14T00:02:00.000Z', NULL, NULL,
+          '2026-07-14T00:02:00.000Z', '2026-07-14T00:02:00.000Z'
+        )
+      `).run()).not.toThrow();
+    } finally {
+      db.close();
+    }
+  });
 });
 
 function countRows(db: Database.Database, table: string): number {

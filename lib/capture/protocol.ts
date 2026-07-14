@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PlatformSchema } from "@/lib/domain/source";
+import { CaptureProvenanceLevelSchema } from "@/lib/domain/captureCredential";
 
 const BaseCaptureEventSchema = z.object({
   schemaVersion: z.literal(2),
@@ -9,7 +10,7 @@ const BaseCaptureEventSchema = z.object({
   adapterVersion: z.string().min(1),
   parserVersion: z.string().min(1),
   pageOrigin: z.string().url(),
-  provenanceLevel: z.literal("extension_unpaired"),
+  provenanceLevel: CaptureProvenanceLevelSchema,
   platform: PlatformSchema,
   problemExternalId: z.string().min(1),
   problemTitle: z.string().min(1),

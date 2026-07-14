@@ -15,7 +15,11 @@ const detected: DetectedProblem = {
   canonicalUrl: "https://leetcode.com/problems/two-sum/",
 };
 
-const context = { installationId: "installation_1" };
+const context = {
+  installationId: "installation_1",
+  captureEnabled: true,
+  provenanceLevel: "extension_unpaired" as const,
+};
 
 function idFactory() {
   const counts = new Map<CaptureIdKind, number>();
@@ -66,6 +70,18 @@ describe("capture session event lifecycle", () => {
 
     expect(first.event.submissionId).toBe("submission_1");
     expect(second.event.submissionId).toBe("submission_2");
+  });
+
+  it("marks sessions started after pairing as paired provenance", () => {
+    const started = startCaptureSession(
+      detected,
+      { ...context, provenanceLevel: "extension_paired" },
+      "2026-07-14T00:00:00.000Z",
+      idFactory(),
+    );
+
+    expect(started.event.provenanceLevel).toBe("extension_paired");
+    expect(started.state.provenanceLevel).toBe("extension_paired");
   });
 
   it("emits the same verdict again after a new submission", () => {

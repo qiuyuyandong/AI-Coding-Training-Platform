@@ -7,17 +7,17 @@ import type {
 } from "@/lib/capture/protocol";
 import type { CaptureRuntimeContext } from "./installation";
 import type { DetectedProblem } from "./platforms";
+import type { CaptureProvenanceLevel } from "@/lib/domain/captureCredential";
 
 export const ADAPTER_VERSION = "multi-platform@0.2.0";
 export const PARSER_VERSION = "visible-verdict@0.2.0";
-export const PROVENANCE_LEVEL = "extension_unpaired" as const;
-
 export type CaptureIdKind = "event" | "session" | "submission";
 export type CaptureIdFactory = (kind: CaptureIdKind) => string;
 
 export type CaptureSessionState = {
   readonly detected: DetectedProblem;
   readonly installationId: string;
+  readonly provenanceLevel: CaptureProvenanceLevel;
   readonly captureSessionId: string;
   readonly activeSubmissionId?: string;
   readonly lastVerdict?: string;
@@ -32,6 +32,7 @@ export function startCaptureSession(
   const state: CaptureSessionState = {
     detected,
     installationId: context.installationId,
+    provenanceLevel: context.provenanceLevel,
     captureSessionId: createId("session"),
   };
   return {
@@ -56,6 +57,7 @@ export function observeSubmission(
   const nextState: CaptureSessionState = {
     detected: state.detected,
     installationId: state.installationId,
+    provenanceLevel: state.provenanceLevel,
     captureSessionId: state.captureSessionId,
     activeSubmissionId: submissionId,
   };
@@ -126,7 +128,7 @@ function eventBase(
     adapterVersion: ADAPTER_VERSION,
     parserVersion: PARSER_VERSION,
     pageOrigin: new URL(state.detected.canonicalUrl).origin,
-    provenanceLevel: PROVENANCE_LEVEL,
+    provenanceLevel: state.provenanceLevel,
     platform: state.detected.platform,
     problemExternalId: state.detected.problemExternalId,
     problemTitle: state.detected.problemTitle,

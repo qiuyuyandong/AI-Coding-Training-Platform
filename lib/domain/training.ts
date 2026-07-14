@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PlatformSchema } from "./source";
+import { CaptureProvenanceLevelSchema } from "./captureCredential";
 
 export const AttemptResultSchema = z.enum([
   "draft",
@@ -24,7 +25,7 @@ export const TrainingSessionSchema = z.object({
   problemExternalId: z.string().min(1),
   problemTitle: z.string().min(1),
   canonicalUrl: z.string().url(),
-  provenanceLevel: z.literal("extension_unpaired"),
+  provenanceLevel: CaptureProvenanceLevelSchema,
   startedAt: z.string().datetime(),
   endedAt: z.string().datetime().optional(),
   endReason: SessionEndReasonSchema.optional(),

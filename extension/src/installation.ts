@@ -5,17 +5,21 @@ import {
   readCaptureEndpoint,
   type CaptureQueueItem,
 } from "./transport";
+import { CaptureProvenanceLevelSchema } from "@/lib/domain/captureCredential";
 
 export const CAPTURE_PROTOCOL_VERSION = 2 as const;
 
 export const CaptureRuntimeContextSchema = z.object({
   installationId: z.string().min(1),
+  captureEnabled: z.boolean(),
+  provenanceLevel: CaptureProvenanceLevelSchema,
 }).strict();
 
 export type CaptureRuntimeContext = z.infer<typeof CaptureRuntimeContextSchema>;
 
 export type ExtensionInitializationPlan = {
   readonly installationId: string;
+  readonly captureCredential?: string;
   readonly captureEnabled: boolean;
   readonly captureEndpoint: string;
   readonly captureProtocolVersion: 2;
@@ -46,6 +50,7 @@ export function planExtensionInitialization(
     : options.now;
   const base = {
     installationId,
+    captureCredential: readNonemptyString(stored.captureCredential),
     captureEnabled: stored.captureEnabled !== false,
     captureEndpoint: readCaptureEndpoint(
       stored.captureEndpoint ?? DEFAULT_CAPTURE_ENDPOINT,
@@ -63,7 +68,13 @@ export function planExtensionInitialization(
 export function runtimeContextFromPlan(
   plan: ExtensionInitializationPlan,
 ): CaptureRuntimeContext {
-  return { installationId: plan.installationId };
+  return {
+    installationId: plan.installationId,
+    captureEnabled: plan.captureEnabled,
+    provenanceLevel: plan.captureCredential === undefined
+      ? "extension_unpaired"
+      : "extension_paired",
+  };
 }
 
 function readNonnegativeInteger(value: unknown): number {

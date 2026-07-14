@@ -43,7 +43,11 @@ function createHarness(): RuntimeHarness {
   const counts = new Map<CaptureIdKind, number>();
   const events: CaptureEvent[] = [];
   const runtime = createCaptureContentRuntime({
-    context: { installationId: "installation_1" },
+    context: {
+      installationId: "installation_1",
+      captureEnabled: true,
+      provenanceLevel: "extension_unpaired",
+    },
     detectProblem: () => detected,
     detectVerdict: () => verdict,
     sendEvent: (event) => events.push(event),

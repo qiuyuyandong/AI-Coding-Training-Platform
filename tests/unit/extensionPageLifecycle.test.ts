@@ -6,7 +6,11 @@ import {
 import type { CaptureIdKind } from "@/extension/src/captureSession";
 import type { DetectedProblem } from "@/extension/src/platforms";
 
-const context = { installationId: "installation_1" };
+const context = {
+  installationId: "installation_1",
+  captureEnabled: true,
+  provenanceLevel: "extension_unpaired" as const,
+};
 const t0 = "2026-07-14T03:00:00.000Z";
 const t1 = "2026-07-14T03:01:00.000Z";
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CAPTURE_PROTOCOL_VERSION,
   planExtensionInitialization,
+  runtimeContextFromPlan,
 } from "@/extension/src/installation";
 
 const options = {
@@ -75,5 +76,24 @@ describe("planExtensionInitialization", () => {
         options,
       ).installationId,
     ).toBe("installation_existing");
+  });
+
+  it("reports paired provenance only when a credential exists", () => {
+    const unpaired = planExtensionInitialization({}, options);
+    const paired = planExtensionInitialization(
+      { captureCredential: "capture_secret", captureEnabled: false },
+      options,
+    );
+
+    expect(runtimeContextFromPlan(unpaired)).toEqual({
+      installationId: "installation_new",
+      captureEnabled: true,
+      provenanceLevel: "extension_unpaired",
+    });
+    expect(runtimeContextFromPlan(paired)).toEqual({
+      installationId: "installation_new",
+      captureEnabled: false,
+      provenanceLevel: "extension_paired",
+    });
   });
 });
