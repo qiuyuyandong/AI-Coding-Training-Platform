@@ -68,6 +68,34 @@ describe("problem catalog seed", () => {
       db.close();
     }
   });
+
+  it("normalizes catalog identity and canonical URL on write", async () => {
+    const { upsertProblem } = await import("@/lib/repositories/problems");
+    const db = openDatabase();
+    try {
+      upsertProblem(db, {
+        id: "prob_normalized",
+        platform: "leetcode",
+        externalId: "/TWO-SUM/",
+        title: "Two Sum",
+        canonicalUrl: "https://leetcode.com/problems/two-sum/description/?env=daily",
+        tags: [],
+        difficulty: "easy",
+        status: "not_started",
+        contentMode: "metadata_only",
+        trainingMode: "deep_link",
+        createdAt: "2026-07-14T00:00:00.000Z",
+        updatedAt: "2026-07-14T00:00:00.000Z",
+      });
+
+      expect(listProblems(db)[0]).toMatchObject({
+        externalId: "two-sum",
+        canonicalUrl: "https://leetcode.com/problems/two-sum/",
+      });
+    } finally {
+      db.close();
+    }
+  });
 });
 
 describe("catalog APIs", () => {

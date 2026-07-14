@@ -356,6 +356,45 @@ describe("capture API V2", () => {
     }
   });
 
+  it("rejects an invalid automatic problem identity without writing", async () => {
+    const response = await postEvent(sessionStarted({
+      platform: "codeforces",
+      problemExternalId: "invalid",
+      canonicalUrl: "https://codeforces.com/problemset/problem/invalid",
+    }));
+
+    expect(response.status).toBe(400);
+    const db = openDatabase();
+    try {
+      expect(rowCount(db, "capture_events")).toBe(0);
+      expect(rowCount(db, "training_sessions")).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("normalizes capture identity before storage", async () => {
+    const response = await postEvent(sessionStarted({
+      problemExternalId: "TWO-SUM",
+      canonicalUrl: "https://leetcode.com/problems/two-sum/description/?env=daily",
+    }));
+
+    expect(response.status).toBe(200);
+    const db = openDatabase();
+    try {
+      expect(db.prepare<[], {
+        readonly problem_external_id: string;
+        readonly canonical_url: string;
+      }>("SELECT problem_external_id, canonical_url FROM capture_events").get())
+        .toEqual({
+          problem_external_id: "two-sum",
+          canonical_url: "https://leetcode.com/problems/two-sum/",
+        });
+    } finally {
+      db.close();
+    }
+  });
+
   it("updates reflection and returns it in recent attempts", async () => {
     await postEvent(sessionStarted());
     await postEvent(submissionObserved());

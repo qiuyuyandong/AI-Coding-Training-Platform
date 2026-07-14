@@ -20,11 +20,31 @@ describe("detectProblemFromLocation", () => {
     });
   });
 
+  it("collapses LeetCode route and tracking variants to one canonical URL", () => {
+    expect(detectProblemFromLocation(
+      asLocation("https://leetcode.com/problems/Two-Sum/description/?envType=daily#solution"),
+      "Two Sum - LeetCode",
+    )).toMatchObject({
+      problemExternalId: "two-sum",
+      canonicalUrl: "https://leetcode.com/problems/two-sum/",
+    });
+  });
+
   it("detects Codeforces problem URLs", () => {
     expect(detectProblemFromLocation(asLocation("https://codeforces.com/problemset/problem/4/A"), "A. Watermelon")).toEqual({
       platform: "codeforces",
       problemExternalId: "4A",
       problemTitle: "A. Watermelon",
+      canonicalUrl: "https://codeforces.com/problemset/problem/4/A",
+    });
+  });
+
+  it("normalizes Codeforces index casing", () => {
+    expect(detectProblemFromLocation(
+      asLocation("https://codeforces.com/problemset/problem/4/a?locale=en"),
+      "A. Watermelon",
+    )).toMatchObject({
+      problemExternalId: "4A",
       canonicalUrl: "https://codeforces.com/problemset/problem/4/A",
     });
   });

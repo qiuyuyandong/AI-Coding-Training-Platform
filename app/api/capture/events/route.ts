@@ -14,6 +14,11 @@ import {
   authorizeCaptureInstallation,
   touchCaptureInstallation,
 } from "@/lib/services/captureCredentials";
+import {
+  CanonicalProblemUrlError,
+  canonicalProblemUrl,
+  normalizeProblemIdentity,
+} from "@/lib/services/canonicalProblemUrl";
 
 export async function POST(request: Request) {
   try {
@@ -25,15 +30,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Invalid capture event", issues: parsed.error.issues }, { status: 400 });
     }
 
+    const identity = normalizeProblemIdentity({
+      platform: parsed.data.platform,
+      externalId: parsed.data.problemExternalId,
+    });
+    const event = CaptureEventSchema.parse({
+      ...parsed.data,
+      problemExternalId: identity.externalId,
+      canonicalUrl: canonicalProblemUrl(identity, parsed.data.canonicalUrl),
+    });
+
     const db = openDatabase();
     try {
       const receivedAt = new Date().toISOString();
       const result = db.transaction(() => {
-        authorizeCaptureInstallation(db, credential, parsed.data.installationId);
-        const ingested = ingestCaptureEvent(db, parsed.data, {
+        authorizeCaptureInstallation(db, credential, event.installationId);
+        const ingested = ingestCaptureEvent(db, event, {
           now: () => receivedAt,
         });
-        touchCaptureInstallation(db, parsed.data.installationId, receivedAt);
+        touchCaptureInstallation(db, event.installationId, receivedAt);
         return ingested;
       })();
       return NextResponse.json({ ok: true, ...result });
@@ -46,6 +61,9 @@ export async function POST(request: Request) {
     }
     if (error instanceof CaptureCredentialAuthenticationError) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 401 });
+    }
+    if (error instanceof CanonicalProblemUrlError) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
     }
     if (error instanceof CaptureConflictError) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 409 });

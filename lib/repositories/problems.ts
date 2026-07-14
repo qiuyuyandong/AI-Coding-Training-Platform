@@ -1,5 +1,10 @@
 import type Database from "better-sqlite3";
 import { ProblemSchema, type Problem } from "@/lib/domain/problem";
+import { PlatformSchema } from "@/lib/domain/source";
+import {
+  canonicalProblemUrl,
+  normalizeProblemIdentity,
+} from "@/lib/services/canonicalProblemUrl";
 
 type ProblemRow = {
   id: string;
@@ -17,12 +22,16 @@ type ProblemRow = {
 };
 
 function fromRow(row: ProblemRow): Problem {
+  const identity = normalizeProblemIdentity({
+    platform: PlatformSchema.parse(row.platform),
+    externalId: row.external_id,
+  });
   return ProblemSchema.parse({
     id: row.id,
-    platform: row.platform,
-    externalId: row.external_id,
+    platform: identity.platform,
+    externalId: identity.externalId,
     title: row.title,
-    canonicalUrl: row.canonical_url,
+    canonicalUrl: canonicalProblemUrl(identity, row.canonical_url),
     tags: JSON.parse(row.tags_json) as string[],
     difficulty: row.difficulty,
     status: row.status,
@@ -35,6 +44,15 @@ function fromRow(row: ProblemRow): Problem {
 
 export function upsertProblem(db: Database.Database, problem: Problem): void {
   const parsed = ProblemSchema.parse(problem);
+  const identity = normalizeProblemIdentity({
+    platform: parsed.platform,
+    externalId: parsed.externalId,
+  });
+  const normalized = ProblemSchema.parse({
+    ...parsed,
+    externalId: identity.externalId,
+    canonicalUrl: canonicalProblemUrl(identity, parsed.canonicalUrl),
+  });
   db.prepare(`
     INSERT INTO problems (id, platform, external_id, title, canonical_url, tags_json, difficulty, status, content_mode, training_mode, created_at, updated_at)
     VALUES (@id, @platform, @externalId, @title, @canonicalUrl, @tagsJson, @difficulty, @status, @contentMode, @trainingMode, @createdAt, @updatedAt)
@@ -44,7 +62,7 @@ export function upsertProblem(db: Database.Database, problem: Problem): void {
       tags_json = excluded.tags_json,
       difficulty = excluded.difficulty,
       updated_at = excluded.updated_at
-  `).run({ ...parsed, tagsJson: JSON.stringify(parsed.tags) });
+  `).run({ ...normalized, tagsJson: JSON.stringify(normalized.tags) });
 }
 
 export function listProblems(db: Database.Database): Problem[] {

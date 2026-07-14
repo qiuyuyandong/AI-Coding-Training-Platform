@@ -1,3 +1,8 @@
+import {
+  canonicalProblemUrl,
+  normalizeProblemIdentity,
+} from "@/lib/services/canonicalProblemUrl";
+
 export type Platform = "leetcode" | "nowcoder" | "luogu" | "codeforces" | "atcoder";
 
 export type DetectableLocation = Pick<Location, "href" | "hostname" | "pathname">;
@@ -18,27 +23,64 @@ export function detectProblemFromLocation(location: DetectableLocation, document
   const title = documentTitle.replace(/ - .*$/, "").trim();
 
   if (location.hostname.includes("leetcode.com") && location.pathname.startsWith("/problems/")) {
-    return { platform: "leetcode", problemExternalId: location.pathname.split("/")[2] ?? title, problemTitle: title, canonicalUrl: url };
+    return detectedProblem(
+      { platform: "leetcode", externalId: location.pathname.split("/")[2] ?? title },
+      title,
+      url,
+    );
   }
 
   if (location.hostname.includes("codeforces.com") && location.pathname.includes("/problemset/problem/")) {
     const parts = location.pathname.split("/");
-    return { platform: "codeforces", problemExternalId: `${parts.at(-2) ?? ""}${parts.at(-1) ?? ""}`, problemTitle: title, canonicalUrl: url };
+    return detectedProblem(
+      { platform: "codeforces", externalId: `${parts.at(-2) ?? ""}${parts.at(-1) ?? ""}` },
+      title,
+      url,
+    );
   }
 
   if (location.hostname.includes("atcoder.jp") && location.pathname.includes("/tasks/")) {
-    return { platform: "atcoder", problemExternalId: location.pathname.split("/").at(-1) ?? title, problemTitle: title, canonicalUrl: url };
+    return detectedProblem(
+      { platform: "atcoder", externalId: location.pathname.split("/").at(-1) ?? title },
+      title,
+      url,
+    );
   }
 
   if (location.hostname.includes("nowcoder.com")) {
-    return { platform: "nowcoder", problemExternalId: location.pathname, problemTitle: title, canonicalUrl: url };
+    return detectedProblem(
+      { platform: "nowcoder", externalId: location.pathname },
+      title,
+      url,
+    );
   }
 
   if (location.hostname.includes("luogu.com.cn")) {
-    return { platform: "luogu", problemExternalId: location.pathname, problemTitle: title, canonicalUrl: url };
+    return detectedProblem(
+      { platform: "luogu", externalId: location.pathname },
+      title,
+      url,
+    );
   }
 
   return null;
+}
+
+function detectedProblem(
+  identity: { readonly platform: Platform; readonly externalId: string },
+  problemTitle: string,
+  observedUrl: string,
+): DetectedProblem {
+  const normalized = normalizeProblemIdentity(identity);
+  if (normalized.platform === "manual") {
+    throw new Error("Manual problems are not detected by the extension");
+  }
+  return {
+    platform: normalized.platform,
+    problemExternalId: normalized.externalId,
+    problemTitle,
+    canonicalUrl: canonicalProblemUrl(normalized, observedUrl),
+  };
 }
 
 export function detectVerdictFromDocument(platform: Platform, pageDocument: Document): DetectedVerdict | null {
