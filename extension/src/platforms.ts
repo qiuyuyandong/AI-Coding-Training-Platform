@@ -5,6 +5,58 @@ import {
 
 export type Platform = "leetcode" | "nowcoder" | "luogu" | "codeforces" | "atcoder";
 
+export type PlatformAdapterStatus = "production" | "experimental" | "disabled";
+
+export type PlatformAdapterRecord = {
+  readonly status: PlatformAdapterStatus;
+  readonly label: string;
+  readonly selectors: readonly string[];
+};
+
+export const PLATFORM_ADAPTERS: Record<Platform, PlatformAdapterRecord> = {
+  leetcode: {
+    status: "experimental",
+    label: "LeetCode",
+    selectors: [
+      '[data-e2e-locator="submission-result"]',
+      '[data-cy="submission-result"]',
+      ".text-green-s",
+      ".text-red-s",
+      "body",
+    ],
+  },
+  codeforces: {
+    status: "experimental",
+    label: "Codeforces",
+    selectors: [".status-cell", "td.status-small", ".verdict-accepted", "body"],
+  },
+  atcoder: {
+    status: "experimental",
+    label: "AtCoder",
+    selectors: ["#judge-status", ".waiting-judge", "td", "body"],
+  },
+  nowcoder: {
+    status: "experimental",
+    label: "NowCoder",
+    selectors: [".result", ".submission-result", ".judge-result", "body"],
+  },
+  luogu: {
+    status: "experimental",
+    label: "Luogu",
+    selectors: [".status", ".record-status", ".submission-status", "body"],
+  },
+};
+
+export function getPlatformAdapterStatus(platform: Platform): PlatformAdapterStatus {
+  return PLATFORM_ADAPTERS[platform].status;
+}
+
+export function getProductionPlatforms(): Platform[] {
+  return (Object.keys(PLATFORM_ADAPTERS) as Platform[]).filter(
+    (p) => PLATFORM_ADAPTERS[p].status === "production",
+  );
+}
+
 export type DetectableLocation = Pick<Location, "href" | "hostname" | "pathname">;
 
 export type DetectedProblem = {
@@ -89,24 +141,7 @@ export function detectVerdictFromDocument(platform: Platform, pageDocument: Docu
 }
 
 function candidateTextForPlatform(platform: Platform, pageDocument: Document): string {
-  switch (platform) {
-    case "leetcode":
-      return textFromSelectors(pageDocument, [
-        '[data-e2e-locator="submission-result"]',
-        '[data-cy="submission-result"]',
-        ".text-green-s",
-        ".text-red-s",
-        "body",
-      ]);
-    case "codeforces":
-      return textFromSelectors(pageDocument, [".status-cell", "td.status-small", ".verdict-accepted", "body"]);
-    case "atcoder":
-      return textFromSelectors(pageDocument, ["#judge-status", ".waiting-judge", "td", "body"]);
-    case "nowcoder":
-      return textFromSelectors(pageDocument, [".result", ".submission-result", ".judge-result", "body"]);
-    case "luogu":
-      return textFromSelectors(pageDocument, [".status", ".record-status", ".submission-status", "body"]);
-  }
+  return textFromSelectors(pageDocument, [...PLATFORM_ADAPTERS[platform].selectors]);
 }
 
 function textFromSelectors(pageDocument: Document, selectors: readonly string[]): string {

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { detectProblemFromLocation, detectVerdictFromDocument, type DetectableLocation } from "@/extension/src/platforms";
+import {
+  detectProblemFromLocation,
+  detectVerdictFromDocument,
+  type DetectableLocation,
+  getPlatformAdapterStatus,
+  getProductionPlatforms,
+  PLATFORM_ADAPTERS,
+} from "@/extension/src/platforms";
 
 function asLocation(url: string): DetectableLocation {
   const parsedUrl = new URL(url);
@@ -146,5 +153,27 @@ describe("detectVerdictFromDocument", () => {
     document.body.innerHTML = "<main>Problem statement</main>";
 
     expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
+  });
+});
+
+describe("adapter status registry", () => {
+  it("initially has no production platform (certification gate must decide)", () => {
+    expect(getProductionPlatforms()).toEqual([]);
+  });
+
+  it("every currently enabled platform is experimental or disabled", () => {
+    for (const platform of ["leetcode", "nowcoder", "codeforces", "atcoder", "luogu"] as const) {
+      const status = getPlatformAdapterStatus(platform);
+      expect(["experimental", "disabled"]).toContain(status);
+    }
+  });
+
+  it("every platform has an adapter record with label and selectors", () => {
+    for (const record of Object.values(PLATFORM_ADAPTERS)) {
+      expect(typeof record.label).toBe("string");
+      expect(record.label.length).toBeGreaterThan(0);
+      expect(Array.isArray(record.selectors)).toBe(true);
+      expect(record.selectors.length).toBeGreaterThan(0);
+    }
   });
 });
