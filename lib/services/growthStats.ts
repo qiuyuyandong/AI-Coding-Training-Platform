@@ -1,4 +1,5 @@
 import type { AttemptResult, TrainingAttempt } from "@/lib/domain/training";
+import type { AttemptAggregate } from "@/lib/repositories/attempts";
 
 export type ResultDistribution = Record<AttemptResult, number>;
 
@@ -20,34 +21,19 @@ export type GrowthStats = {
   readonly recentActivity: readonly GrowthActivityItem[];
 };
 
-const EMPTY_DISTRIBUTION: ResultDistribution = {
-  draft: 0,
-  passed: 0,
-  failed: 0,
-  partial: 0,
-  stuck: 0,
-};
-
-export function buildGrowthStats(attempts: readonly TrainingAttempt[]): GrowthStats {
-  const resultDistribution = attempts.reduce<ResultDistribution>(
-    (distribution, attempt) => ({
-      ...distribution,
-      [attempt.result]: distribution[attempt.result] + 1,
-    }),
-    EMPTY_DISTRIBUTION,
-  );
-  const totalAttempts = attempts.length;
-  const completedAttempts = totalAttempts - resultDistribution.draft;
-  const passedAttempts = resultDistribution.passed;
-
+export function buildGrowthStats(
+  aggregate: AttemptAggregate,
+  recentAttempts: readonly TrainingAttempt[],
+): GrowthStats {
   return {
-    totalAttempts,
-    completedAttempts,
-    passedAttempts,
-    completionRate: totalAttempts === 0 ? 0 : completedAttempts / totalAttempts,
-    passRate: completedAttempts === 0 ? 0 : passedAttempts / completedAttempts,
-    resultDistribution,
-    recentActivity: [...attempts]
+    ...aggregate,
+    completionRate: aggregate.totalAttempts === 0
+      ? 0
+      : aggregate.completedAttempts / aggregate.totalAttempts,
+    passRate: aggregate.completedAttempts === 0
+      ? 0
+      : aggregate.passedAttempts / aggregate.completedAttempts,
+    recentActivity: [...recentAttempts]
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       .slice(0, 5)
       .map((attempt) => ({

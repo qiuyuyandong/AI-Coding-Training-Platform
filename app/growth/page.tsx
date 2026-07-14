@@ -1,5 +1,5 @@
 import { openDatabase } from "@/lib/db/client";
-import { listRecentAttempts } from "@/lib/repositories/attempts";
+import { aggregateAttempts, listAttempts } from "@/lib/repositories/attempts";
 import { buildGrowthStats } from "@/lib/services/growthStats";
 
 export const dynamic = "force-dynamic";
@@ -7,21 +7,23 @@ export const dynamic = "force-dynamic";
 export default function GrowthPage() {
   const db = openDatabase();
   try {
-    const attempts = listRecentAttempts(db, 50);
-    const stats = buildGrowthStats(attempts);
+    const aggregate = aggregateAttempts(db, {});
+    const recentAttempts = listAttempts(db, { limit: 5 });
+    const stats = buildGrowthStats(aggregate, recentAttempts);
     return (
       <main className="mx-auto max-w-4xl px-6 py-10">
         <h1 className="text-3xl font-semibold">Growth</h1>
         <p className="mt-3 text-slate-600">
-          Growth summarizes local attempts, completion/pass rates, result distribution, and recent activity.
+          Growth summarizes all local attempts, completion/pass rates, result distribution, and recent activity.
         </p>
-        {attempts.length === 0 ? (
+        {stats.totalAttempts === 0 ? (
           <p className="mt-4 text-slate-600">
             No attempt data yet. Captured sessions will appear here after Phase 2.2 materializes them.
           </p>
         ) : (
           <>
             <section className="mt-6 grid gap-3 sm:grid-cols-5">
+              <h2 className="sr-only">All-time totals</h2>
               <MetricCard label="Attempts" value={stats.totalAttempts.toString()} />
               <MetricCard label="Completed" value={stats.completedAttempts.toString()} />
               <MetricCard label="Passed" value={stats.passedAttempts.toString()} />
@@ -42,7 +44,7 @@ export default function GrowthPage() {
             </section>
 
             <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-              <h2 className="font-semibold text-slate-950">Recent activity</h2>
+              <h2 className="font-semibold text-slate-950">Latest 5 attempts</h2>
               <div className="mt-3 space-y-3">
                 {stats.recentActivity.map((item) => (
                   <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-3">

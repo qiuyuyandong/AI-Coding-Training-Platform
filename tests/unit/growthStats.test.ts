@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { TrainingAttempt } from "@/lib/domain/training";
+import type { AttemptAggregate } from "@/lib/repositories/attempts";
 import { buildGrowthStats } from "@/lib/services/growthStats";
+
+const EMPTY_AGGREGATE: AttemptAggregate = {
+  totalAttempts: 0,
+  completedAttempts: 0,
+  passedAttempts: 0,
+  resultDistribution: { draft: 0, passed: 0, failed: 0, partial: 0, stuck: 0 },
+};
 
 function attempt(overrides: Partial<TrainingAttempt>): TrainingAttempt {
   return {
@@ -21,7 +29,7 @@ function attempt(overrides: Partial<TrainingAttempt>): TrainingAttempt {
 
 describe("buildGrowthStats", () => {
   it("returns zero rates and empty distribution for no attempts", () => {
-    const stats = buildGrowthStats([]);
+    const stats = buildGrowthStats(EMPTY_AGGREGATE, []);
 
     expect(stats.totalAttempts).toBe(0);
     expect(stats.completedAttempts).toBe(0);
@@ -33,7 +41,13 @@ describe("buildGrowthStats", () => {
   });
 
   it("counts partial as completed and draft as not completed", () => {
-    const stats = buildGrowthStats([
+    const aggregate: AttemptAggregate = {
+      totalAttempts: 5,
+      completedAttempts: 4,
+      passedAttempts: 1,
+      resultDistribution: { draft: 1, passed: 1, failed: 1, partial: 1, stuck: 1 },
+    };
+    const stats = buildGrowthStats(aggregate, [
       attempt({ id: "draft_1", result: "draft" }),
       attempt({ id: "passed_1", result: "passed" }),
       attempt({ id: "failed_1", result: "failed" }),
@@ -50,13 +64,20 @@ describe("buildGrowthStats", () => {
   });
 
   it("sorts recent activity by updatedAt descending and limits to five", () => {
-    const stats = buildGrowthStats(Array.from({ length: 6 }, (_, index) => attempt({
+    const recent = Array.from({ length: 6 }, (_, index) => attempt({
       id: `attempt_${index}`,
       problemTitle: `Problem ${index}`,
       result: "passed",
       updatedAt: `2026-07-06T10:0${index}:00.000Z`,
-    })));
+    }));
+    const stats = buildGrowthStats({
+      totalAttempts: 60,
+      completedAttempts: 55,
+      passedAttempts: 30,
+      resultDistribution: { draft: 5, passed: 30, failed: 15, partial: 5, stuck: 5 },
+    }, recent);
 
+    expect(stats.totalAttempts).toBe(60);
     expect(stats.recentActivity.map((item) => item.id)).toEqual(["attempt_5", "attempt_4", "attempt_3", "attempt_2", "attempt_1"]);
   });
 });

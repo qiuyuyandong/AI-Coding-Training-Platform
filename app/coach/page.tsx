@@ -1,5 +1,5 @@
 import { openDatabase } from "@/lib/db/client";
-import { listRecentAttempts } from "@/lib/repositories/attempts";
+import { listAttempts } from "@/lib/repositories/attempts";
 import { buildCoachAnalysis } from "@/lib/services/coachAnalysis";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function CoachPage() {
   const db = openDatabase();
   try {
-    const attempts = listRecentAttempts(db, 50);
+    const attempts = listAttempts(db, { limit: 50 });
     const analysis = buildCoachAnalysis(attempts, new Date().toISOString());
     return (
       <main className="mx-auto max-w-4xl px-6 py-10">
@@ -19,7 +19,7 @@ export default function CoachPage() {
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-sm uppercase tracking-wide text-slate-500">Local coach summary</p>
           <p className="mt-2 text-slate-700">{analysis.summary}</p>
-          <p className="mt-2 text-xs text-slate-500">Recent attempts reviewed: {analysis.recentWindowSize}</p>
+          <p className="mt-2 text-xs text-slate-500">Latest 50 attempts reviewed: {analysis.recentWindowSize}</p>
         </section>
 
         <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">

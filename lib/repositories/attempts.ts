@@ -155,13 +155,6 @@ export function saveTrainingAttempt(
   });
 }
 
-export function listRecentAttempts(
-  db: Database.Database,
-  limit: number,
-): TrainingAttempt[] {
-  return listAttempts(db, { limit });
-}
-
 export function listAttempts(
   db: Database.Database,
   query: ListAttemptsQuery,

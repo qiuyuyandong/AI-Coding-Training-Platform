@@ -24,7 +24,8 @@ export function AttemptStatusPanel({ platform, externalId }: AttemptStatusPanelP
 
     async function loadAttempts(): Promise<void> {
       try {
-        const response = await fetch("/api/attempts/recent", { cache: "no-store" });
+        const search = new URLSearchParams({ platform, externalId, limit: "1" });
+        const response = await fetch(`/api/attempts/recent?${search.toString()}`, { cache: "no-store" });
         const body: AttemptsResponse = await response.json();
         if (!cancelled) setState(body);
       } catch (error) {
@@ -45,11 +46,9 @@ export function AttemptStatusPanel({ platform, externalId }: AttemptStatusPanelP
       cancelled = true;
       window.clearInterval(id);
     };
-  }, []);
+  }, [platform, externalId]);
 
-  const latest = state.recentAttempts.find(
-    (attempt) => attempt.platform === platform && attempt.problemExternalId === externalId,
-  );
+  const latest = state.recentAttempts[0];
 
   useEffect(() => {
     setReflection(latest?.reflection ?? "");

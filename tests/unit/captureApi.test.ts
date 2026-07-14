@@ -417,8 +417,57 @@ describe("capture API V2", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).attempt.reflection).toContain("hash-map");
     const recent = await import("@/app/api/attempts/recent/route");
-    const recentBody = await (await recent.GET()).json();
+    const recentBody = await (await recent.GET(new Request(
+      "http://localhost/api/attempts/recent?platform=leetcode&externalId=two-sum&limit=1",
+    ))).json();
     expect(recentBody.recentAttempts[0].reflection).toContain("hash-map");
+  });
+
+  it("returns the latest attempt inside the requested problem scope", async () => {
+    await postEvent(sessionStarted());
+    await postEvent(submissionObserved());
+    await postEvent(verdictObserved());
+
+    for (let index = 0; index < 11; index += 1) {
+      const captureSessionId = `session_other_${index}`;
+      const externalId = `other-${index}`;
+      const canonicalUrl = `https://leetcode.com/problems/${externalId}/`;
+      await postEvent(sessionStarted({
+        id: `evt_session_other_${index}`,
+        captureSessionId,
+        problemExternalId: externalId,
+        problemTitle: `Other ${index}`,
+        canonicalUrl,
+        occurredAt: `2026-07-14T01:${index.toString().padStart(2, "0")}:00.000Z`,
+      }));
+      await postEvent(submissionObserved(`submission_other_${index}`, {
+        captureSessionId,
+        problemExternalId: externalId,
+        problemTitle: `Other ${index}`,
+        canonicalUrl,
+        occurredAt: `2026-07-14T01:${index.toString().padStart(2, "0")}:30.000Z`,
+      }));
+    }
+
+    const recent = await import("@/app/api/attempts/recent/route");
+    const response = await recent.GET(new Request(
+      "http://localhost/api/attempts/recent?platform=leetcode&externalId=TWO-SUM&limit=1",
+    ));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.recentAttempts).toHaveLength(1);
+    expect(body.recentAttempts[0].problemExternalId).toBe("two-sum");
+  });
+
+  it("rejects an incomplete recent-attempt problem scope", async () => {
+    const recent = await import("@/app/api/attempts/recent/route");
+    const response = await recent.GET(new Request(
+      "http://localhost/api/attempts/recent?platform=leetcode",
+    ));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ ok: false, recentAttempts: [] });
   });
 
   it("returns recent V2 capture status", async () => {
