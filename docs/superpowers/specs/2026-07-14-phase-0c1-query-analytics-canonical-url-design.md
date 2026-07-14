@@ -131,4 +131,3 @@ Coach intentionally remains a bounded heuristic over `listAttempts(db, { limit: 
 - invalid scope parameters silently become a global query;
 - exact capture replay or the 0B authenticated transaction regresses;
 - E2E mutates the default database.
-

@@ -56,7 +56,7 @@ The training loop turns captured browser events into local training attempts:
 
 - `/training?platform=leetcode&externalId=two-sum&title=Two%20Sum` opens the original problem and shows capture plus problem-specific attempt status;
 - `/api/capture/events` stores each V2 raw event and its deterministic session/attempt projection in one SQLite transaction;
-- `/api/attempts/recent` returns recent attempts for the training workspace;
+- `/api/attempts/recent` accepts an explicit bounded limit and optional `platform` + `externalId` scope; the training workspace requests only its current problem;
 - `/coach` and `/growth` read the same local attempts to show empty-state or rule-based feedback.
 
 Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per observed problem visit, and a `submissionId` per observed submission. Same-problem SPA routes retain the active session; navigation to another problem emits the old-session end before the new-session start. Sessions may remain open when the optional `SESSION_ENDED` signal is not delivered. Exact event replay is idempotent; reusing an `eventId` with different content returns HTTP 409.
@@ -77,8 +77,9 @@ npm run dev
 
 ## Coach and Growth Insights
 
-Phase 2.3 keeps coaching local and deterministic:
+Phase 0C1 keeps query semantics explicit while coaching remains local and deterministic:
 
-- `/coach` reads recent local attempts and renders summary, evidence-backed signals, and next-step recommendations;
-- `/growth` renders local result distribution, completion/pass rates, and recent activity;
+- `/coach` analyzes and labels its latest-50-attempt window;
+- `/growth` computes all-time counts, distribution, and rates in SQLite, then renders only the latest five activity rows;
+- canonical problem identity is normalized at capture, catalog, query, and link boundaries so platform case/URL variants do not split one problem;
 - insights are computed from SQLite attempts only, with no external model or network call.

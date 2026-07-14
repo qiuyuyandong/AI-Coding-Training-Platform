@@ -49,7 +49,7 @@ The service worker stores the long-lived credential in trusted-only Chrome local
 | `POST /api/capture/pair` | Consumes a one-time code and returns a fresh installation credential once. |
 | `POST /api/capture/installations/:id/revoke` | Same-origin management endpoint that revokes an installation. |
 | `GET /api/capture/status` | Returns recent capture events for `CaptureStatusPanel`. |
-| `GET /api/attempts/recent` | Returns recent materialized attempts for `AttemptStatusPanel`. |
+| `GET /api/attempts/recent` | Returns explicitly limited materialized attempts, optionally scoped by the paired `platform` and `externalId` query parameters. |
 | `GET /api/problems` | Lists local problem metadata. |
 | `GET /api/sources` | Lists local source metadata. |
 
@@ -85,10 +85,13 @@ Migration `0004_capture_credentials.sql` preserves all V2 sessions, events, and 
 - `lib/services/captureTransition.ts` owns pure deterministic session/attempt transitions.
 - `lib/services/captureMaterializer.ts` owns the raw-event-plus-projection transaction.
 - `lib/services/captureCredentials.ts` owns pairing, rotation, revocation, authorization, and high-entropy secret hashing.
+- `lib/services/canonicalProblemUrl.ts` owns platform-specific problem identity and canonical URL normalization.
 - `lib/services/coachAnalysis.ts` turns attempts into deterministic Coach signals and recommendations.
-- `lib/services/growthStats.ts` turns attempts into Growth metrics and recent activity.
+- `lib/services/growthStats.ts` combines full-dataset SQL aggregates with a separately bounded recent-activity list.
 
 Pages should not duplicate Coach/Growth decision logic. They should read attempts, call the service, render the returned model, and close the database.
+
+Attempt repository queries require an explicit limit between 1 and 100. Problem scope uses normalized `(platform, externalId)` identity. Time windows are lower-bound inclusive and upper-bound exclusive. Growth counts every eligible row through SQL aggregation, including drafts in total attempts but excluding drafts from the pass-rate denominator; its activity list is independently limited to five. Coach intentionally analyzes only the latest 50 attempts and labels that window in the UI.
 
 ## QA lifecycle
 

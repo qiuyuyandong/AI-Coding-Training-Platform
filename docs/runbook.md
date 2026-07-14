@@ -11,6 +11,8 @@ npm run db:migrate
 
 The default development database is `training-platform.sqlite`. Set `TRAINING_DB_PATH` for any manual isolated run. Playwright does this automatically and exclusively uses `.tmp/playwright/training-platform.sqlite`.
 
+Problem identities are normalized before persistence and lookup. Use the platform's external ID rather than a full URL: for example `two-sum`, `1915A`, `abc350_a`, or `P1000`. Training lookup is problem-scoped even when many newer attempts exist. Growth totals are all-time SQL aggregates, while its visible activity list is the latest five and Coach is the latest 50.
+
 ## Development
 
 ```powershell
@@ -55,6 +57,8 @@ npm run build
 ```
 
 `npm run e2e` owns the Next.js server and an isolated SQLite lifecycle. It deletes and recreates `.tmp/playwright`, applies every repository migration, runs tests serially against that database, then removes it during global teardown. A process already listening on port 3000 is treated as an error; stop it rather than reusing an unknown server or database.
+
+The Coach/Growth E2E fixture writes more rows than either display window and asserts three separate contracts: Training still finds an older scoped problem, Growth totals match the complete database count while showing five activity rows, and Coach reports its 50-attempt analysis window.
 
 ## Troubleshooting
 

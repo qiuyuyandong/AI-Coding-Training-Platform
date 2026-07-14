@@ -1,9 +1,13 @@
 import { expect, test } from "@playwright/test";
+import Database from "better-sqlite3";
+import { saveTrainingAttempt } from "../../lib/repositories/attempts";
+import { saveTrainingSession } from "../../lib/repositories/trainingSessions";
 import {
   captureEvent,
   postCaptureEvents,
   type CaptureProblemFixture,
 } from "./captureFixtures";
+import { E2E_DB_PATH } from "./database";
 
 const validParentheses: CaptureProblemFixture = {
   captureSessionId: "session_e2e_reflect_other",
@@ -112,5 +116,74 @@ test.describe("Coach and Growth smoke", () => {
     const attemptPanel = page.locator("section").filter({ has: page.getByRole("heading", { name: "Training attempt" }) });
     await expect(attemptPanel).toContainText("partial");
     await expect(attemptPanel).toContainText("Verdict: Time Limit Exceeded");
+  });
+
+  test("keeps problem lookup isolated and reports complete analytics beyond display windows", async ({ page }) => {
+    const db = new Database(E2E_DB_PATH);
+    let expectedTotal = 0;
+    try {
+      const seed = db.transaction(() => {
+        for (let index = 0; index < 61; index += 1) {
+          const suffix = index.toString().padStart(2, "0");
+          const externalId = index === 0 ? "query-correctness-target" : `query-other-${suffix}`;
+          const title = index === 0 ? "Query Correctness Target" : `Query Other ${suffix}`;
+          const timestamp = new Date(Date.UTC(2026, 6, 8, 0, index)).toISOString();
+          const sessionId = `session_query_${suffix}`;
+          saveTrainingSession(db, {
+            id: sessionId,
+            installationId: "installation_e2e",
+            platform: "leetcode",
+            problemExternalId: externalId,
+            problemTitle: title,
+            canonicalUrl: `https://leetcode.com/problems/${externalId}/`,
+            provenanceLevel: "extension_paired",
+            startedAt: timestamp,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          });
+          saveTrainingAttempt(db, {
+            id: `attempt_query_${suffix}`,
+            captureSessionId: sessionId,
+            submissionId: `submission_query_${suffix}`,
+            platform: "leetcode",
+            problemExternalId: externalId,
+            problemTitle: title,
+            canonicalUrl: `https://leetcode.com/problems/${externalId}/`,
+            startedAt: timestamp,
+            result: index % 3 === 0 ? "failed" : "passed",
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          });
+        }
+      });
+      seed();
+      expectedTotal = db.prepare<[], { readonly count: number }>(
+        "SELECT COUNT(*) AS count FROM training_attempts",
+      ).get()?.count ?? 0;
+    } finally {
+      db.close();
+    }
+
+    await page.goto(
+      "/training?platform=leetcode&externalId=QUERY-CORRECTNESS-TARGET&title=Query%20Correctness%20Target",
+    );
+    const attemptPanel = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Training attempt" }),
+    });
+    await expect(attemptPanel).toContainText("Query Correctness Target");
+    await expect(attemptPanel).not.toContainText("Query Other");
+
+    await page.goto("/growth");
+    const totals = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "All-time totals" }),
+    });
+    await expect(totals).toContainText(`Attempts${expectedTotal}`);
+    const latest = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Latest 5 attempts" }),
+    });
+    await expect(latest.locator(":scope > div > div")).toHaveCount(5);
+
+    await page.goto("/coach");
+    await expect(page.getByText("Latest 50 attempts reviewed: 50")).toBeVisible();
   });
 });
