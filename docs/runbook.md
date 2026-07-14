@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 ## Setup
 
@@ -60,7 +60,23 @@ npm run extension:build
 npm run build
 ```
 
-`npm run e2e` owns the Next.js server and an isolated SQLite lifecycle. It deletes and recreates `.tmp/playwright`, applies every repository migration, runs tests serially against that database, then removes it during global teardown. A process already listening on port 3000 is treated as an error; stop it rather than reusing an unknown server or database.
+`npm run test` currently runs 234 tests (233 pass, 1 capability skip). The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. Named test files of interest:
+
+| File | Tests | Role |
+|---|---|---|
+| `tests/unit/extensionPlatforms.test.ts` | 23 | Adapter registry (status types, no production platforms) |
+| `tests/unit/luoguFixtureLoader.test.ts` | 14 | Characterizes every fixture against detection functions |
+| `tests/unit/platformCertification.test.ts` | 13 | Read-only certification gate (on-disk BLOCKED + synthetic CERTIFIED) |
+| `tests/unit/e2eDatabase.test.ts` | 7 + 1 skip | lstat-safe teardown (6 mandatory junction tests pass; 1 symlink skip expected) |
+
+To run fixture loader or certification gate in isolation:
+
+```powershell
+npm run test -- tests/unit/luoguFixtureLoader.test.ts
+npm run test -- tests/unit/platformCertification.test.ts
+```
+
+`npm run e2e` owns the Next.js server and an isolated SQLite lifecycle. It deletes and recreates `.tmp/playwright`, applies every repository migration, runs 16 tests serially against that database, then removes it during global teardown. E2E cleanup uses an `lstatSync`-based safe walker (`tests/e2e/database.ts`) that handles symlinks, junctions, and broken reparse points. A process already listening on port 3000 is treated as an error; stop it rather than reusing an unknown server or database.
 
 The Coach/Growth E2E fixture writes more rows than either display window and asserts three separate contracts: Training still finds an older scoped problem, Growth totals match the complete database count while showing five activity rows, and Coach reports its 50-attempt analysis window.
 
@@ -72,9 +88,13 @@ The manual fallback E2E creates one isolated manual attempt, verifies source dis
 
 Expected state: `vitest.config.ts` excludes `tests/e2e/**`. If `npm run test` reports `Playwright Test did not expect test.describe() to be called here`, restore that exclusion.
 
+### One unit test is skipped ("file-symlink escape test BLOCKED: EPERM")
+
+This is expected on Windows without Developer Mode. The test `tests/unit/e2eDatabase.test.ts` probes whether the system can create file symlinks without elevation. The `lstatSync`-based cleanup walker's junction and broken-junction tests all pass regardless. This skip does not indicate a problem.
+
 ### E2E database cleanup did not finish
 
-Expected state after `npm run e2e`: `.tmp/playwright` does not exist. If an interrupted run leaves it behind, first confirm no Playwright-owned Next.js process is running, then remove only the resolved `<workspace>/.tmp/playwright` directory. Never delete or replace `training-platform.sqlite` while cleaning test data.
+Expected state after `npm run e2e`: `.tmp/playwright` does not exist. If an interrupted run leaves it behind, first confirm no Playwright-owned Next.js process is running, then remove only the resolved `<workspace>/.tmp/playwright` directory. The E2E teardown walker uses `lstatSync`-based deletion that removes symlinks and junctions as leaves without following their targets, then the parent directory. Never delete or replace `training-platform.sqlite` while cleaning test data.
 
 ### Playwright browser is missing
 

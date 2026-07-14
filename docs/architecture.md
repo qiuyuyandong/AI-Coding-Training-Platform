@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 ## Overview
 
@@ -30,7 +30,9 @@ The browser extension detects supported problem pages and visible verdict state.
 
 `extension/src/serializedWork.ts` keeps initialization, enqueue, and drain jobs ordered. `extension/src/queueDrain.ts` reads the latest queue before every head and drains FIFO in batches of at most 25. Permanent failures are removed; network and retryable server failures keep the head and stop the batch. Authentication failures keep the head without consuming retry budget.
 
-The service worker stores the long-lived credential in trusted-only Chrome local storage; content scripts receive only installation ID, capture-enabled state, and provenance. `installationId` remains a logical correlation value. A separate random bearer credential authorizes writes and is bound to that ID by the server. Explicit web origins are rejected, but Origin is defense in depth rather than identity. No platform adapter is yet certified production-ready.
+The service worker stores the long-lived credential in trusted-only Chrome local storage; content scripts receive only installation ID, capture-enabled state, and provenance. `installationId` remains a logical correlation value. A separate random bearer credential authorizes writes and is bound to that ID by the server. Explicit web origins are rejected, but Origin is defense in depth rather than identity.
+
+Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with three status levels: `production`, `experimental`, `disabled`. All five supported platforms (LeetCode, NowCoder, Codeforces, AtCoder, Luogu) are `experimental`; no `production` adapter exists. A Luogu DOM fixture corpus (`tests/fixtures/luogu/`) with evidence-tier metadata and a certification gate (`tests/unit/platformCertification.test.ts`) enforce that promotion requires publicly verified verdict DOM. Because Luogu's record/verdict pages require authentication, the gate is BLOCKED, and the blocker is documented in `work/reports/luogu-adapter-blocker.json`.
 
 ## App routes
 
@@ -103,6 +105,7 @@ Migration `0005_attempt_manual_corrections.sql` rebuilds only `training_attempts
 - `lib/services/growthStats.ts` combines full-dataset SQL aggregates with a separately bounded recent-activity list.
 - `lib/services/manualAttempts.ts` creates manual attempts without fabricating capture sessions or submissions.
 - `lib/services/attemptCorrections.ts` validates the correction whitelist and owns transactional current-value/history writes plus idempotent voiding.
+- `tests/helpers/luoguFixtureMetadata.ts` owns the canonical `EvidenceTier` type, Zod fixture-metadata schema, and deterministic directory loading for the Luogu DOM fixture corpus.
 
 Pages should not duplicate Coach/Growth decision logic. They should read attempts, call the service, render the returned model, and close the database.
 
@@ -112,6 +115,8 @@ Attempt repository queries require an explicit limit between 1 and 100 and exclu
 
 `playwright.config.ts` starts `npm run dev -- -p 3000` through Playwright `webServer` for e2e tests. `tests/e2e/**` is excluded from Vitest in `vitest.config.ts`, so `npm run test` and `npm run e2e` are separate gates.
 
-Playwright enforces a disposable `TRAINING_DB_PATH`, refuses to reuse an existing port-3000 server, and removes `.tmp/playwright` during teardown. Extension unit tests cover actual SPA runtime decisions. Playwright does not load the unpacked MV3 extension; its SPA-shaped scenario validates the resulting end/start event sequence through the API, SQLite, and problem-specific UI.
+Playwright enforces a disposable `TRAINING_DB_PATH`, refuses to reuse an existing port-3000 server, and removes `.tmp/playwright` during teardown. E2E database cleanup uses an `lstatSync`-based safe walker that handles symlinks, junctions, and broken reparse points without following their targets. A corresponding unit test suite (`tests/unit/e2eDatabase.test.ts`) exercises junction/symlink scenarios; one file-symlink capability test is skipped under EPERM (standard on Windows without Developer Mode), while all mandatory junction tests pass.
+
+Extension unit tests cover actual SPA runtime decisions. Playwright does not load the unpacked MV3 extension; its SPA-shaped scenario validates the resulting end/start event sequence through the API, SQLite, and problem-specific UI.
 
 The localhost credential protects the HTTP ingestion boundary, not a compromised host. A process able to modify SQLite or the Chrome profile is outside this Pre-V0 boundary.

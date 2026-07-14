@@ -67,7 +67,9 @@ Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per
 
 The extension owns its queue through one serialized executor and drains events FIFO in batches of at most 25. Permanent 400/409/413/415 failures are dropped, while network and retryable server failures preserve the head. A 401 preserves the queue and retry budget until the extension is paired again.
 
-Extension unit tests cover SPA observation and queue concurrency directly. Playwright does not load the unpacked MV3 extension, so its SPA-shaped test validates the resulting end/start sequence through the API, SQLite projections, and problem-specific training UI. No adapter is yet certified production-ready.
+Extension unit tests cover SPA observation and queue concurrency directly. Playwright does not load the unpacked MV3 extension, so its SPA-shaped test validates the resulting end/start sequence through the API, SQLite projections, and problem-specific training UI.
+
+Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with status levels `production`, `experimental`, or `disabled`. All five supported platforms (LeetCode, NowCoder, Codeforces, AtCoder, Luogu) are currently `experimental`; no adapter is production-ready. A Luogu DOM fixture corpus (`tests/fixtures/luogu/`) with an evidence-tier metadata system and a certification gate (`tests/unit/platformCertification.test.ts`) enforce that promotion to `production` requires publicly verified verdict DOM. Because Luogu's record pages require authentication, the gate is BLOCKED and the blocker is documented in `work/reports/luogu-adapter-blocker.json`.
 
 The V2 cutover intentionally discarded legacy V1 capture rows and queued extension events. The extension records the one-time queue discard count and logs it locally. Existing V2 events remain intact when credential migration 0004 is applied; events observed before pairing keep `extension_unpaired` provenance even if delivered after pairing.
 
