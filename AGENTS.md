@@ -1,6 +1,6 @@
 # Agent Handoff Guide
 
-This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, and 0C1-0C2 are implemented, while the active product roadmap still labels the codebase Pre-V0.
+This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), and 0C1-0C2 are implemented, while the active product roadmap still labels the codebase Pre-V0.
 
 `IDEA.md` and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` define the future V0/V0.5/V1/Public Beta direction. `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud SaaS as the eventual target but explicitly defers implementation until the Phase 7 gate.
 
@@ -9,9 +9,11 @@ This repository currently implements a local-first AI coding training prototype.
 - Next.js App Router application with SQLite persistence through `better-sqlite3`.
 - Chrome MV3 extension source lives under `extension/src`; build output is generated under ignored `extension/dist`.
 - Paired capture events enter through `POST /api/capture/events`; raw events and deterministic session/attempt projections are written in one transaction with content-sensitive replay safeguards.
-- The Chrome extension detects supported problem pages and visible verdict text, including English verdict tokens plus Chinese verdict labels used by NowCoder/Luogu-style UIs.
+- The Chrome extension detects supported problem pages and visible verdict text, including English verdict tokens plus Chinese verdict labels used by NowCoder/Luogu-style UIs. A formal `PLATFORM_ADAPTERS` registry in `extension/src/platforms.ts` declares each platform's readiness as `experimental`, `production`, or `disabled`. Currently all five platforms (LeetCode, NowCoder, Codeforces, AtCoder, Luogu) are `experimental`; no production adapter exists.
 - `/training` supports automatic and manual attempts, optimistic corrections, correction history, and logical voiding. Capture identity fields remain immutable.
 - `/training`, `/coach`, and `/growth` use active, non-voided attempts by default; Growth labels automatic and manual sources.
+- A Luogu DOM fixture corpus lives under `tests/fixtures/luogu/` with an evidence-tier metadata system. The certification gate (`tests/unit/platformCertification.test.ts`) enforces that a platform may be promoted to `production` only when publicly verified verdict DOM exists. Because no public Luogu verdict page is accessible without authentication, the gate remains BLOCKED and the certification artifact (`work/reports/luogu-adapter-certification.json`) records the terminal blocked state.
+- E2E database teardown uses `lstatSync`-based safe deletion (handles symlinks, junctions, and broken reparse points). One file-symlink capability test is skipped under EPERM; all mandatory junction tests pass.
 - Playwright e2e smoke tests own the local browser QA server lifecycle through `playwright.config.ts`.
 
 ## Commands
@@ -61,5 +63,6 @@ These are current implementation boundaries, not a permanent rejection of the ap
 ## Current handoff
 
 - Phase 0C2 completed on 2026-07-14 and is merged at `983e10a`.
-- Do not re-execute the completed 0A-0C2 atomic plans; they are retained as implementation records.
-- Remaining Phase 0 work is the production-adapter fixture/certification slice and Phase 0D engineering gates, including adding the documented lint command.
+- Phase 0B4 (Luogu adapter certification) executed on 2026-07-14 with BLOCKED terminal state. The certification gate confirmed no production adapter exists. The blocker artifact (`work/reports/luogu-adapter-blocker.json`) documents the missing public verdict DOM as the reason.
+- Do not re-execute the completed 0A-0C2 and 0B4 atomic plans; they are retained as implementation records.
+- Remaining Phase 0 work is Phase 0D engineering gates, including adding the documented lint command. Re-attempt production-adapter certification requires a publicly accessible Luogu page with verdict DOM or a new design decision to accept characterization-only evidence.
