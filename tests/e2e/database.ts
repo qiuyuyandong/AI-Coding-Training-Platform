@@ -2,11 +2,14 @@ import { mkdirSync, rmSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { applyMigrations } from "../../lib/db/migrations";
+import { hashCaptureSecret } from "../../lib/services/captureCredentials";
+import { saveCaptureInstallation } from "../../lib/repositories/captureInstallations";
 
 const WORKSPACE_TEMP_ROOT = resolve(process.cwd(), ".tmp");
 
 export const E2E_ROOT = resolve(WORKSPACE_TEMP_ROOT, "playwright");
 export const E2E_DB_PATH = resolve(E2E_ROOT, "training-platform.sqlite");
+export const E2E_CAPTURE_CREDENTIAL = "capture_e2e_fixed_credential";
 
 function assertSafeE2eRoot(): void {
   const relativePath = relative(WORKSPACE_TEMP_ROOT, E2E_ROOT);
@@ -33,6 +36,13 @@ export function prepareE2eDatabase(): void {
   const db = new Database(E2E_DB_PATH);
   try {
     applyMigrations(db, { now: () => "2026-07-11T00:00:00.000Z" });
+    saveCaptureInstallation(db, {
+      installationId: "installation_e2e",
+      credentialHash: hashCaptureSecret(E2E_CAPTURE_CREDENTIAL),
+      credentialVersion: 1,
+      status: "active",
+      createdAt: "2026-07-11T00:00:00.000Z",
+    });
   } finally {
     db.close();
   }

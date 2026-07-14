@@ -1,5 +1,6 @@
 import type { APIRequestContext } from "@playwright/test";
 import type { CaptureEvent } from "../../lib/capture/protocol";
+import { E2E_CAPTURE_CREDENTIAL } from "./database";
 
 export type CaptureProblemFixture = {
   readonly captureSessionId: string;
@@ -47,7 +48,7 @@ export function captureEvent(
     adapterVersion: "e2e@0.2.0",
     parserVersion: "e2e-visible-verdict@0.2.0",
     pageOrigin: new URL(problem.canonicalUrl).origin,
-    provenanceLevel: "extension_unpaired" as const,
+    provenanceLevel: "extension_paired" as const,
     platform: problem.platform,
     problemExternalId: problem.problemExternalId,
     problemTitle: problem.problemTitle,
@@ -90,7 +91,10 @@ export async function postCaptureEvents(
   events: readonly CaptureEvent[],
 ): Promise<void> {
   for (const event of events) {
-    const response = await request.post("/api/capture/events", { data: event });
+    const response = await request.post("/api/capture/events", {
+      data: event,
+      headers: { authorization: `Bearer ${E2E_CAPTURE_CREDENTIAL}` },
+    });
     if (!response.ok()) {
       throw new Error(
         `Capture event ${event.id} failed with ${response.status()}: ${await response.text()}`,

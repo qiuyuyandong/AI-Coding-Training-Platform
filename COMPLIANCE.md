@@ -25,8 +25,10 @@ The browser extension is local-first and user-controlled:
 
 - capture can be disabled from the popup;
 - queued events stay in Chrome local storage until sent to the local app;
-- invalid events and permanent event-ID conflicts are dropped after a 400/409 response to avoid retry loops;
-- `installationId` is a logical correlation value, not a user identity, credential, or security boundary;
+- invalid events and permanent event-ID conflicts are dropped after a 400/409/413/415 response to avoid retry loops;
+- authentication failures retain queued events so the owner can re-pair without losing evidence;
+- `installationId` is a logical correlation value, not a user identity or credential; a separate random credential authorizes local writes;
+- the long-lived credential is stored only in trusted extension contexts, while the app stores its hash;
 - no cookies, session tokens, passwords, or hidden platform data are read or uploaded;
 - commercial platform full statements remain out of scope unless explicitly licensed or manually entered by the user.
 
@@ -61,4 +63,4 @@ Verdict capture keeps using the browser session without extracting the browser s
 
 SPA observation uses URL/browser lifecycle signals and visible DOM mutations only; it does not patch page code, read hidden routing state, or add Chrome navigation permissions. Extension unit tests cover SPA decisions, while Playwright validates the downstream event sequence without claiming to load the unpacked MV3 extension.
 
-Authenticated localhost transport and trusted provenance remain explicitly deferred to Phase 0B3. `installationId` is still untrusted correlation metadata.
+Authenticated localhost transport uses a deliberate one-time pairing code, a hashed install-scoped bearer credential, and owner-controlled rotation/revocation. Explicit web origins, non-JSON media types, and bodies over 64 KiB are rejected. `Origin` is only defense in depth, and host filesystem/browser-profile compromise remains outside this local boundary. `installationId` is still correlation metadata rather than security identity.

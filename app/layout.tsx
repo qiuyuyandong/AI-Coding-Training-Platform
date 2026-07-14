@@ -8,6 +8,7 @@ const links = [
   ["Growth", "/growth"],
   ["Sources", "/sources"],
   ["Compliance", "/compliance"],
+  ["Settings", "/settings"],
 ] as const;
 
 export default function RootLayout({ children }: { children: ReactNode }) {

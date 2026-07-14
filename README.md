@@ -7,7 +7,7 @@ It provides:
 - a small problem-metadata catalog;
 - deep links to original OJ problem pages;
 - a Chrome extension that detects user-visible training events;
-- a session- and submission-aware local capture API;
+- a paired, session- and submission-aware local capture API;
 - local attempts, Coach, and Growth pages.
 
 The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
@@ -48,6 +48,8 @@ npm run extension:build
 
 Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000` so the extension can post capture events to `/api/capture/events`.
 
+Before the first capture, open `/settings`, create a ten-minute pairing code, and paste it into the extension popup. The app stores only a hash of the long-lived credential. `/settings` can issue a targeted rotation code or revoke an installation; `installationId` remains correlation metadata and is not itself authorization.
+
 ## Training Records Loop
 
 The training loop turns captured browser events into local training attempts:
@@ -59,11 +61,11 @@ The training loop turns captured browser events into local training attempts:
 
 Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per observed problem visit, and a `submissionId` per observed submission. Same-problem SPA routes retain the active session; navigation to another problem emits the old-session end before the new-session start. Sessions may remain open when the optional `SESSION_ENDED` signal is not delivered. Exact event replay is idempotent; reusing an `eventId` with different content returns HTTP 409.
 
-The extension owns its queue through one serialized executor and drains events FIFO in batches of at most 25. Permanent 400/409 failures are dropped, while network and retryable server failures preserve the head for a later alarm or capture event.
+The extension owns its queue through one serialized executor and drains events FIFO in batches of at most 25. Permanent 400/409/413/415 failures are dropped, while network and retryable server failures preserve the head. A 401 preserves the queue and retry budget until the extension is paired again.
 
 Extension unit tests cover SPA observation and queue concurrency directly. Playwright does not load the unpacked MV3 extension, so its SPA-shaped test validates the resulting end/start sequence through the API, SQLite projections, and problem-specific training UI. No adapter is yet certified production-ready.
 
-The V2 cutover intentionally discards legacy V1 capture rows and queued extension events. The extension records the one-time queue discard count and logs it locally. `installationId` is metadata, not authentication; localhost credentials are deferred to a later phase.
+The V2 cutover intentionally discarded legacy V1 capture rows and queued extension events. The extension records the one-time queue discard count and logs it locally. Existing V2 events remain intact when credential migration 0004 is applied; events observed before pairing keep `extension_unpaired` provenance even if delivered after pairing.
 
 Run migrations before exercising the loop:
 

@@ -36,6 +36,15 @@ export function findCaptureInstallation(
   return row === undefined ? null : installationFromRow(row);
 }
 
+export function listCaptureInstallations(
+  db: Database.Database,
+): readonly CaptureInstallation[] {
+  return db.prepare<[], InstallationRow>(`
+    SELECT * FROM capture_installations
+    ORDER BY created_at DESC, installation_id ASC
+  `).all().map(installationFromRow);
+}
+
 export function findActiveCaptureInstallationByCredential(
   db: Database.Database,
   credentialHash: string,
