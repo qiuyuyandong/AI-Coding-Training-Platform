@@ -85,10 +85,23 @@ const AttemptTimeWindowSchema = z.object({
   updatedBefore: z.string().datetime().optional(),
 });
 
-export type UpdateAttemptReflectionInput = {
+export type AttemptCorrectionUpdateInput = {
   readonly attemptId: string;
-  readonly reflection: string;
-  readonly now: string;
+  readonly expectedRevision: number;
+  readonly updatedAt: string;
+  readonly result: AttemptResult;
+  readonly language: string | null;
+  readonly durationMinutes: number | null;
+  readonly reflection: string | null;
+  readonly startedAt: string;
+  readonly endedAt: string | null;
+};
+
+export type MarkAttemptVoidedInput = {
+  readonly attemptId: string;
+  readonly expectedRevision: number;
+  readonly voidedAt: string;
+  readonly voidReason: string;
 };
 
 export function findAttemptById(
@@ -247,17 +260,40 @@ export function aggregateAttempts(
   };
 }
 
-export function updateAttemptReflection(
+export function updateAttemptCorrectionFields(
   db: Database.Database,
-  input: UpdateAttemptReflectionInput,
-): TrainingAttempt | null {
-  db.prepare(`
+  input: AttemptCorrectionUpdateInput,
+): number {
+  return db.prepare(`
     UPDATE training_attempts
-    SET reflection = @reflection,
-        updated_at = @now
+    SET result = @result,
+        language = @language,
+        duration_minutes = @durationMinutes,
+        reflection = @reflection,
+        started_at = @startedAt,
+        ended_at = @endedAt,
+        revision = revision + 1,
+        updated_at = @updatedAt
     WHERE id = @attemptId
-  `).run(input);
-  return findAttemptById(db, input.attemptId);
+      AND revision = @expectedRevision
+      AND voided_at IS NULL
+  `).run(input).changes;
+}
+
+export function markAttemptVoided(
+  db: Database.Database,
+  input: MarkAttemptVoidedInput,
+): number {
+  return db.prepare(`
+    UPDATE training_attempts
+    SET voided_at = @voidedAt,
+        void_reason = @voidReason,
+        revision = revision + 1,
+        updated_at = @voidedAt
+    WHERE id = @attemptId
+      AND revision = @expectedRevision
+      AND voided_at IS NULL
+  `).run(input).changes;
 }
 
 function fromRow(row: AttemptRow): TrainingAttempt {

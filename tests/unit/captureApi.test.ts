@@ -395,19 +395,27 @@ describe("capture API V2", () => {
     }
   });
 
-  it("updates reflection and returns it in recent attempts", async () => {
+  it("records a reasoned reflection correction and returns it in recent attempts", async () => {
     await postEvent(sessionStarted());
     await postEvent(submissionObserved());
     await postEvent(verdictObserved());
-    const reflection = await import("@/app/api/attempts/[id]/reflection/route");
+    const correction = await import("@/app/api/attempts/[id]/route");
 
-    const response = await reflection.PATCH(
+    const response = await correction.PATCH(
       new Request(
-        "http://localhost/api/attempts/attempt_submission_api_1/reflection",
+        "http://localhost/api/attempts/attempt_submission_api_1",
         {
           method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost",
+          },
           body: JSON.stringify({
-            reflection: "Missed the hash-map invariant on the first pass.",
+            expectedRevision: 1,
+            reason: "Added the missing reflection.",
+            changes: {
+              reflection: "Missed the hash-map invariant on the first pass.",
+            },
           }),
         },
       ),
