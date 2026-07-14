@@ -1,0 +1,27 @@
+{
+  "planStatus": "BLOCKED",
+  "blockerType": "missing_public_verdict_dom",
+  "blockingReasons": [
+    "No fixture qualifies as evidenceTier \"verified-public-dom\": production requires at least one fixture with non-null verdictExpected and non-empty selector provenance proving actual public verdict DOM was observed."
+  ],
+  "fixtureCoverage": {
+    "total": 4,
+    "publicContentAccessible": 3,
+    "verifiedPublicDom": 0,
+    "characterizationDerived": 1
+  },
+  "luoguStatus": "experimental",
+  "blockedAt": "2026-07-14T00:00:00.000Z",
+  "blockedAtBasis": "deterministic; derived from gateDate (2026-07-14) which itself is grounded in fixture metadata captureDate per certification-gate-verdict.json#gateSource.dateBasis",
+  "unblockCondition": "Acquire at least one publicly accessible Luogu page containing .status, .record-status, or .submission-status elements with verdict text, without authentication. Create a fixture with evidenceTier=verified-public-dom and a non-null verdictExpected in tests/fixtures/luogu/. Re-run Task 0 Steps 0.3-0.5, then Tasks 2-7.",
+  "task4aExecuted": false,
+  "task4aSkipReason": "Task 3 gate returned BLOCKED. Task 4a promotion condition (gate == CERTIFIED) is not satisfied. Per plan fork rule, BLOCKED path executes 4b only and leaves Luogu at experimental.",
+  "sourceArtifact": {
+    "path": "work/reports/certification-gate-verdict.json",
+    "gateVerdict": "BLOCKED",
+    "gateDate": "2026-07-14",
+    "sha256": "fb43595b6b7cebe528f33f0e7a8fbcf6c71244ad6c0c421ecc0d7b56986ae570",
+    "luoguCurrentStatusInGate": "experimental"
+  },
+  "scopeStatement": "Task 4b only. Tasks 0-3 evidence already produced (untracked tests/fixtures/luogu/*, tests/helpers/luoguFixtureMetadata.ts, tests/unit/luoguFixtureLoader.test.ts, tests/unit/platformCertification.test.ts, work/reports/certification-gate-verdict.json). Tasks 5-7 are out of scope for this artifact. No registry, plan, fixture, helper, test, or E2E files were modified. Plan is NOT complete; terminal state is BLOCKED."
+}

@@ -1,0 +1,175 @@
+{
+  "planName": "phase-0b4-luogu-adapter-certification",
+  "terminalState": "BLOCKED",
+  "luoguStatus": "experimental",
+  "productionPlatforms": [],
+  "adapterVersion": "multi-platform@0.2.0",
+  "adapterVersionSource": {
+    "constantName": "ADAPTER_VERSION",
+    "importPath": "extension/src/captureSession.ts",
+    "value": "multi-platform@0.2.0",
+    "sourceFileSha256": "17ff7f1c5c298d47e08f23f1c007cd5f34062344b32a94086e2342757530c407"
+  },
+  "certificationDate": "2026-07-14",
+  "dateBasis": "fixture metadata captureDate",
+  "fixtureCoverage": {
+    "total": 4,
+    "publicContentAccessible": 3,
+    "verifiedPublicDom": 0,
+    "characterizationDerived": 1
+  },
+  "blockers": [
+    "No fixture qualifies as evidenceTier \"verified-public-dom\": production requires at least one fixture with non-null verdictExpected and non-empty selector provenance proving actual public verdict DOM was observed."
+  ],
+  "nonProductionPlatforms": {
+    "leetcode": "experimental",
+    "codeforces": "experimental",
+    "atcoder": "experimental",
+    "nowcoder": "experimental"
+  },
+  "nonProductionPlatformsOrdering": {
+    "rule": "registry-insertion-order-excluding-luogu",
+    "platformOrder": [
+      "leetcode",
+      "codeforces",
+      "atcoder",
+      "nowcoder"
+    ]
+  },
+  "platformAdapters": [
+    {
+      "platform": "leetcode",
+      "status": "experimental",
+      "label": "LeetCode",
+      "selectorCount": 5
+    },
+    {
+      "platform": "codeforces",
+      "status": "experimental",
+      "label": "Codeforces",
+      "selectorCount": 4
+    },
+    {
+      "platform": "atcoder",
+      "status": "experimental",
+      "label": "AtCoder",
+      "selectorCount": 4
+    },
+    {
+      "platform": "nowcoder",
+      "status": "experimental",
+      "label": "NowCoder",
+      "selectorCount": 4
+    },
+    {
+      "platform": "luogu",
+      "status": "experimental",
+      "label": "Luogu",
+      "selectorCount": 4
+    }
+  ],
+  "fixtureEvidenceSummaries": [
+    {
+      "fixtureName": "no-verdict-problem",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P1001",
+      "captureDate": "2026-07-14",
+      "evidenceTier": "characterization-derived",
+      "purpose": "detectVerdictFromDocument",
+      "verdictExpected": null,
+      "problemExpected": null,
+      "selectors": [],
+      "authenticated": false,
+      "sanitized": true,
+      "captureMethod": "characterization-derived — no verdict DOM was observed on the publicly accessible problem page. The only verified content is the title via Jina Reader API. This fixture represents the expected behavior when no .status/.record-status/.submission-status element is present on a Luogu page. It is NOT verified-against-public-DOM. Body/selector structure was not observed; no captured DOM exists.",
+      "certifyingEvidence": false
+    },
+    {
+      "fixtureName": "problem-b3619",
+      "sourceUrl": "https://www.luogu.com.cn/problem/B3619",
+      "captureDate": "2026-07-14",
+      "evidenceTier": "public-content-accessible",
+      "purpose": "detectProblemFromLocation",
+      "verdictExpected": null,
+      "problemExpected": {
+        "platform": "luogu",
+        "externalId": "B3619"
+      },
+      "selectors": [],
+      "authenticated": false,
+      "sanitized": true,
+      "captureMethod": "Jina Reader API (r.jina.ai) — returned rendered Markdown/text via public HTTP fetch. Title 'B3619 10 进制转 x 进制' extracted from response. Raw DOM not available (Luogu requires SPA/JS; CDP unavailable). No body/selector structure observed.",
+      "certifyingEvidence": false
+    },
+    {
+      "fixtureName": "problem-cf-1a",
+      "sourceUrl": "https://www.luogu.com.cn/problem/CF_1A",
+      "captureDate": "2026-07-14",
+      "evidenceTier": "public-content-accessible",
+      "purpose": "detectProblemFromLocation",
+      "verdictExpected": null,
+      "problemExpected": {
+        "platform": "luogu",
+        "externalId": "CF_1A"
+      },
+      "selectors": [],
+      "authenticated": false,
+      "sanitized": true,
+      "captureMethod": "Jina Reader API (r.jina.ai) — returned rendered Markdown/text via public HTTP fetch. Title 'CF1A Theatre Square' extracted from response. Raw DOM not available (Luogu requires SPA/JS; CDP unavailable). Replaces AT_abc001_a which returned HTTP 404 from Luogu.",
+      "certifyingEvidence": false
+    },
+    {
+      "fixtureName": "problem-p1001",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P1001",
+      "captureDate": "2026-07-14",
+      "evidenceTier": "public-content-accessible",
+      "purpose": "detectProblemFromLocation",
+      "verdictExpected": null,
+      "problemExpected": {
+        "platform": "luogu",
+        "externalId": "P1001"
+      },
+      "selectors": [],
+      "authenticated": false,
+      "sanitized": true,
+      "captureMethod": "Jina Reader API (r.jina.ai) — returned rendered Markdown/text via public HTTP fetch. Title 'P1001 A+B Problem' extracted from response. Raw DOM not available (Luogu requires SPA/JS; CDP unavailable). No body/selector structure observed.",
+      "certifyingEvidence": false
+    }
+  ],
+  "unblockInstructions": "Acquire at least one publicly accessible Luogu page containing .status, .record-status, or .submission-status elements with verdict text, without authentication. Create a fixture with evidenceTier=verified-public-dom and a non-null verdictExpected in tests/fixtures/luogu/. Re-run Task 0 Steps 0.3-0.5, then Tasks 2-7.",
+  "sourceArtifactHashes": [
+    {
+      "path": "work/reports/certification-gate-verdict.json",
+      "sha256": "fb43595b6b7cebe528f33f0e7a8fbcf6c71244ad6c0c421ecc0d7b56986ae570",
+      "role": "gate-verdict"
+    },
+    {
+      "path": "work/reports/luogu-adapter-blocker.json",
+      "sha256": "ed5174160a084a3f26c4a2decc6d2b2643733c007c20a3a991a99d7d4561b566",
+      "role": "blocker"
+    },
+    {
+      "path": "extension/src/platforms.ts",
+      "sha256": "85678a74802a290a4c6a0c9a8bc92f1734a019f08fcca02192841627fbdad7c9",
+      "role": "registry"
+    },
+    {
+      "path": "tests/helpers/luoguFixtureMetadata.ts",
+      "sha256": "8d0e95174fcb247b30aa5bafa2a2ecc75d0bc85d451aa633dda15ec475130053",
+      "role": "fixture-metadata-module"
+    },
+    {
+      "path": "extension/src/captureSession.ts",
+      "sha256": "17ff7f1c5c298d47e08f23f1c007cd5f34062344b32a94086e2342757530c407",
+      "role": "adapter-version-constant"
+    }
+  ],
+  "consistencyAssertions": {
+    "terminalStateMatchesGate": true,
+    "blockerPreserved": true,
+    "luoguNotProductionWhileBlocked": true,
+    "verifiedPublicDomIsZero": true,
+    "productionPlatformsAreEmpty": true,
+    "noFixtureOrSyntheticEvidenceFlippedTerminalState": true
+  },
+  "scopeStatement": "Task 6 itself created or modified exactly one file in the repository: work/reports/luogu-adapter-certification.json. The Phase 0B4 working tree also contains pre-existing modifications from earlier tasks that are out of scope for Task 6: (a) Task5 E2E capture-pipeline additions — tests/e2e/captureFixtures.ts, tests/e2e/capture-luogu-problem.spec.ts; (b) pre-existing teardown/database safety changes — .gitignore, tests/e2e/database.ts, tests/unit/e2eDatabase.test.ts; (c) Task1 registry work — extension/src/platforms.ts, tests/unit/extensionPlatforms.test.ts; (d) Task1b/2/3 helpers and tests — tests/helpers/luoguFixtureMetadata.ts, tests/fixtures/luogu/, tests/unit/luoguFixtureLoader.test.ts, tests/unit/platformCertification.test.ts; (e) the Phase 0B4 plan — docs/superpowers/plans/2026-07-14-phase-0b4-luogu-adapter-certification.md; (f) the work/reports/ folder containing prior Task0/3/4b artifacts (certification-gate-verdict.json, luogu-adapter-blocker.json, luogu-public-accessibility.txt). None of those were created or modified by Task 6; they are documented here for truthful lineage only. Luogu remains experimental. Plan is NOT complete; terminal state is BLOCKED with blockers preserved."
+}

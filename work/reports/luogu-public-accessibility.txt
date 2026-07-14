@@ -1,0 +1,113 @@
+=== Luogu Public Accessibility Report ===
+Date: 2026-07-14
+Task: Phase 0B4 Task 0 — Luogu DOM Fixture Corpus Acquisition
+Branch: feature/v1-followup (HEAD: a9060e4)
+Status: PARTIAL/BLOCKED
+
+=== ACCESSIBILITY PROBE RESULTS ===
+
+01. https://www.luogu.com.cn/problem/P1001
+    Direct HTTP:            302 redirect loop (nginx, requires SPA/JS)
+    Jina Reader API:        HTTP 200, 4317 bytes
+    Content accessible:     YES — title "P1001 A+B Problem" extracted
+    DOM accessible:         NO  — Jina returns rendered Markdown/text, not raw DOM
+    Observation tier:       public-content-accessible (title verified, DOM unobserved)
+
+02. https://www.luogu.com.cn/problem/B3619
+    Direct HTTP:            302 redirect loop
+    Jina Reader API:        HTTP 200, 1092 bytes
+    Content accessible:     YES — title "B3619 10 进制转 x 进制" extracted
+    DOM accessible:         NO  — Markdown/text only
+    Observation tier:       public-content-accessible
+
+03. https://www.luogu.com.cn/problem/AT_abc001_a
+    Jina Reader API:        HTTP 200, 1842 bytes
+    Content accessible:     NO  — Luogu returned 404 error page ("Error - 洛谷")
+    DOM accessible:         NO
+    Observation tier:       not-found
+    Replacement:            https://www.luogu.com.cn/problem/CF_1A
+
+04. https://www.luogu.com.cn/problem/CF_1A
+    Jina Reader API:        HTTP 200, 1211 bytes
+    Content accessible:     YES — title "CF1A Theatre Square" extracted
+    DOM accessible:         NO  — Markdown/text only
+    Observation tier:       public-content-accessible
+
+05. https://www.luogu.com.cn/record/list?pid=P1001
+    Jina Reader API:        HTTP 200, 1091 bytes
+    Content accessible:     NO  — login wall ("登录账号 - Luogu Account")
+    DOM accessible:         NO
+    Observation tier:       authentication-required
+
+=== DISTINCTION: CONTENT ACCESSIBILITY vs DOM ACCESSIBILITY ===
+
+"Content accessible" means: the page returned HTTP 200 to a public request and some
+human-readable content was extractable (e.g., problem title via Jina markdown).
+
+"DOM accessible" means: the raw HTML DOM was captured and analyzed, including
+specific CSS selectors (.status, .record-status, .submission-status),
+element hierarchy, and text node structure.
+
+This task found public CONTENT but no public DOM. Every problem page returned
+rendered Markdown/text through Jina but not raw HTML DOM. No record page was
+accessible without authentication.
+
+=== CDP STATUS ===
+
+Chrome remote debugging: NOT ENABLED
+CDP proxy:              could not connect
+Impact:                 Live browser DOM capture not possible
+
+=== FIXTURES CREATED (4 retained) ===
+
+tests/fixtures/luogu/
+  problem-p1001.html + .meta.json    [tier: public-content-accessible]
+  problem-b3619.html + .meta.json    [tier: public-content-accessible]
+  problem-cf-1a.html + .meta.json     [tier: public-content-accessible]
+  no-verdict-problem.html + .meta.json [tier: characterization-derived]
+  readme.md
+
+Each .html file contains only a <title> element — the sole markup confirmed by
+the Jina Reader API response. No body, selector, or structural DOM was observed.
+
+=== FIXTURES OMITTED (8 verdict pairs) ===
+
+The following verdict fixtures were REQUIRED by the plan but OMITTED because
+public verdict DOM was unavailable and the Commander hard rule forbids fabrication:
+
+  verdict-accepted, verdict-accepted-chinese, verdict-wa, verdict-re,
+  verdict-tle, verdict-mle, verdict-ce, verdict-partial
+
+The plan's Step 0.4 characterization fallback (authenticated: true,
+"synthesized from known Luogu UI patterns") was attempted but rejected.
+Omission is the correct outcome per the task's MUST NOT rule:
+"Do not fabricate or synthesize verdict DOM."
+
+=== PRODUCTION CERTIFICATION STATUS ===
+
+  URL detection (detectProblemFromLocation):
+    3 title-level fixtures, all public-content-accessible
+    → PARTIAL — URL hostname/pathname can be verified, but HTML body/selectors unobserved
+
+  Verdict detection (detectVerdictFromDocument):
+    0 verdict fixtures (omitted)
+    → BLOCKED — no public verdict DOM evidence
+
+  Overall: productionCertification: BLOCKED
+
+  Missing evidence:
+    - Publicly accessible Luogu record page DOM containing .status element
+      with any of: Accepted, 答案正确, Wrong Answer, 答案错误, Runtime Error,
+      段错误, Time Limit Exceeded, 运行超时, Memory Limit Exceeded, 内存超限,
+      Compile Error, 编译错误, Partially Accepted, 部分通过
+
+=== BROWSER CLEANUP ===
+
+No CDP browser tabs were created (CDP unavailable). No cleanup needed.
+
+=== SCOPE VERIFICATION ===
+
+Only tests/fixtures/luogu/ and work/reports/luogu-public-accessibility.txt were
+created. No tracked files modified. See git status for confirmation.
+
+=== END OF REPORT ===
