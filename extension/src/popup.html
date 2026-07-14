@@ -11,6 +11,18 @@
         Capture endpoint
         <input id="captureEndpoint" type="url" style="box-sizing: border-box; margin-top: 4px; width: 100%;" />
       </label>
+      <section style="border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 12px; padding: 10px;">
+        <strong style="display: block; font-size: 12px; margin-bottom: 6px;">Local pairing</strong>
+        <p id="pairingState" style="font-size: 12px; margin: 0 0 8px;">Not paired</p>
+        <form id="pairingForm">
+          <label style="display: block; font-size: 12px;">
+            One-time pairing code
+            <input id="pairingCode" required autocomplete="off" style="box-sizing: border-box; margin-top: 4px; width: 100%;" />
+          </label>
+          <button id="pairButton" type="submit" style="margin-top: 8px;">Pair extension</button>
+        </form>
+        <p id="pairingResult" role="status" style="font-size: 12px; margin: 8px 0 0;"></p>
+      </section>
       <dl style="display: grid; grid-template-columns: 90px 1fr; gap: 6px; font-size: 12px;">
         <dt>Queue</dt><dd id="queueLength">0</dd>
         <dt>Last success</dt><dd id="lastSuccess">Never</dd>

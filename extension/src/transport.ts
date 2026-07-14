@@ -16,7 +16,11 @@ export type CaptureQueueItem = z.infer<typeof CaptureQueueItemSchema>;
 
 export type FlushResult =
   | { readonly status: 200 }
+  | { readonly status: 401; readonly error: string }
+  | { readonly status: 403; readonly error: string }
   | { readonly status: 400; readonly error: string }
+  | { readonly status: 413; readonly error: string }
+  | { readonly status: 415; readonly error: string }
   | { readonly status: 409; readonly error: string }
   | { readonly status: 500; readonly error: string }
   | { readonly status: "network_error"; readonly error: string };
@@ -59,6 +63,18 @@ export function readCaptureEndpoint(value: unknown): string {
   }
 }
 
+export function captureRequestHeaders(
+  credential: unknown,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (typeof credential === "string" && credential.startsWith("capture_")) {
+    headers.authorization = `Bearer ${credential}`;
+  }
+  return headers;
+}
+
 export function planQueueAfterFlush(queue: readonly CaptureQueueItem[], result: FlushResult): QueuePlan {
   if (queue.length === 0) return { queue };
 
@@ -68,8 +84,18 @@ export function planQueueAfterFlush(queue: readonly CaptureQueueItem[], result: 
     return { queue: rest, lastSuccessfulCaptureAt: new Date().toISOString() };
   }
 
-  if (result.status === 400 || result.status === 409) {
-    const prefix = result.status === 400 ? "Validation error" : "Conflict";
+  if (result.status === 401 || result.status === 403) {
+    const prefix = result.status === 401 ? "Pairing required" : "Origin rejected";
+    return { queue, lastCaptureError: `${prefix}: ${result.error}` };
+  }
+
+  if (
+    result.status === 400
+    || result.status === 409
+    || result.status === 413
+    || result.status === 415
+  ) {
+    const prefix = result.status === 409 ? "Conflict" : "Validation error";
     return { queue: rest, lastCaptureError: `${prefix}: ${result.error}` };
   }
 

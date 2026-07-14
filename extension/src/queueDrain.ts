@@ -56,5 +56,6 @@ function isRetryBlocked(
   result: FlushResult,
 ): boolean {
   if (result.status === "network_error") return true;
+  if (result.status === 401 || result.status === 403) return true;
   return result.status === 500 && plan.queue.length === previousQueue.length;
 }

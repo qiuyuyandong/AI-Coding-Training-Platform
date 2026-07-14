@@ -3,6 +3,7 @@ import {
   CAPTURE_QUEUE_LIMIT,
   MAX_RETRY_ATTEMPTS,
   enqueueCaptureEvent,
+  captureRequestHeaders,
   isCaptureMessage,
   isQueueItem,
   planQueueAfterFlush,
@@ -71,6 +72,18 @@ describe("readCaptureEndpoint", () => {
   });
 });
 
+describe("captureRequestHeaders", () => {
+  it("adds bearer authorization only for capture credentials", () => {
+    expect(captureRequestHeaders("capture_secret")).toEqual({
+      "content-type": "application/json",
+      authorization: "Bearer capture_secret",
+    });
+    expect(captureRequestHeaders(undefined)).toEqual({
+      "content-type": "application/json",
+    });
+  });
+});
+
 describe("planQueueAfterFlush", () => {
   it("removes delivered events", () => {
     const result = planQueueAfterFlush([{ event: event("evt_1"), attempts: 0 }], { status: 200 });
@@ -84,6 +97,18 @@ describe("planQueueAfterFlush", () => {
 
     expect(result.queue).toEqual([]);
     expect(result.lastCaptureError).toContain("bad payload");
+  });
+
+  it("retains authentication failures without consuming retry budget", () => {
+    const queue = [{ event: event("evt_1"), attempts: 2 }];
+    const result = planQueueAfterFlush(queue, {
+      status: 401,
+      error: "not authorized",
+    });
+
+    expect(result.queue).toEqual(queue);
+    expect(result.queue[0]?.attempts).toBe(2);
+    expect(result.lastCaptureError).toContain("Pairing required");
   });
 
   it("drops conflicting events instead of retrying them forever", () => {

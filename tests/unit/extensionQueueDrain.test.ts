@@ -134,6 +134,23 @@ describe("capture queue drain", () => {
     expect(harness.queue()[0]).toMatchObject({ attempts: 1 });
   });
 
+  it("retains FIFO order and stops on authentication failure", async () => {
+    const harness = createHarness(
+      [item("evt_1", 2), item("evt_2")],
+      [{ status: 401, error: "pairing required" }],
+    );
+
+    const outcome = await drainCaptureQueue(harness.dependencies);
+
+    expect(outcome).toEqual({ reason: "blocked", processed: 1 });
+    expect(harness.sent).toEqual(["evt_1"]);
+    expect(harness.queue().map((queued) => queued.event.id)).toEqual([
+      "evt_1",
+      "evt_2",
+    ]);
+    expect(harness.queue()[0]?.attempts).toBe(2);
+  });
+
   it("returns batch_limit with later events still queued", async () => {
     const harness = createHarness([item("evt_1"), item("evt_2"), item("evt_3")], []);
 

@@ -14,14 +14,11 @@ void run().catch((error: unknown) => {
 });
 
 async function run(): Promise<void> {
-  const settings = await chrome.storage.local.get(["captureEnabled"]);
-  if (settings.captureEnabled === false) return;
-
   const contextResult: unknown = await chrome.runtime.sendMessage({
     type: "GET_CAPTURE_CONTEXT",
   });
   const parsedContext = CaptureRuntimeContextSchema.safeParse(contextResult);
-  if (!parsedContext.success) return;
+  if (!parsedContext.success || !parsedContext.data.captureEnabled) return;
 
   const runtime = createCaptureContentRuntime({
     context: parsedContext.data,

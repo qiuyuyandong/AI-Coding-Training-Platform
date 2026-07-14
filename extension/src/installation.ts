@@ -77,6 +77,18 @@ export function runtimeContextFromPlan(
   };
 }
 
+export function runtimeContextFromStored(
+  stored: Record<string, unknown>,
+): CaptureRuntimeContext {
+  return CaptureRuntimeContextSchema.parse({
+    installationId: stored.installationId,
+    captureEnabled: stored.captureEnabled !== false,
+    provenanceLevel: readNonemptyString(stored.captureCredential) === undefined
+      ? "extension_unpaired"
+      : "extension_paired",
+  });
+}
+
 function readNonnegativeInteger(value: unknown): number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0
     ? value
