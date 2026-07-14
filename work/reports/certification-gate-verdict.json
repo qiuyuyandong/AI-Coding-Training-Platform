@@ -1,0 +1,26 @@
+{
+  "gateVerdict": "BLOCKED",
+  "blockingReasons": [
+    "No fixture qualifies as evidenceTier \"verified-public-dom\": production requires at least one fixture with non-null verdictExpected and non-empty selector provenance proving actual public verdict DOM was observed."
+  ],
+  "fixtureCoverage": {
+    "total": 4,
+    "publicContentAccessible": 3,
+    "verifiedPublicDom": 0,
+    "characterizationDerived": 1
+  },
+  "fixtureNames": [
+    "no-verdict-problem",
+    "problem-b3619",
+    "problem-cf-1a",
+    "problem-p1001"
+  ],
+  "luoguCurrentStatus": "experimental",
+  "gateDate": "2026-07-14",
+  "gateSource": {
+    "planTask": "docs/superpowers/plans/2026-07-14-phase-0b4-luogu-adapter-certification.md#Task-3",
+    "fixtureMetadataGlob": "tests/fixtures/luogu/*.meta.json",
+    "adapterRegistry": "extension/src/platforms.ts",
+    "dateBasis": "fixture metadata captureDate"
+  }
+}
