@@ -11,8 +11,14 @@ import type {
   SubmissionObservedEvent,
   VerdictObservedEvent,
 } from "@/lib/capture/protocol";
+import {
+  issueCapturePairingCode,
+  pairCaptureInstallation,
+  revokeCaptureInstallation,
+} from "@/lib/services/captureCredentials";
 
 let tempDir = "";
+let captureCredential = "";
 
 const baseEvent = {
   schemaVersion: 2 as const,
@@ -34,6 +40,11 @@ beforeEach(() => {
   const db = openDatabase();
   try {
     applyMigrations(db, { now: () => "2026-07-14T00:00:00.000Z" });
+    const pairing = issueCapturePairingCode(db);
+    captureCredential = pairCaptureInstallation(db, {
+      code: pairing.code,
+      installationId: baseEvent.installationId,
+    }).credential;
   } finally {
     db.close();
   }
@@ -88,9 +99,27 @@ function verdictObserved(
   };
 }
 
-function requestWithBody(body: unknown): Request {
+function requestWithBody(
+  body: unknown,
+  options: {
+    readonly credential?: string | null;
+    readonly contentType?: string;
+    readonly origin?: string;
+  } = {},
+): Request {
+  const credential = options.credential === undefined
+    ? captureCredential
+    : options.credential;
+  const headers = new Headers({
+    "content-type": options.contentType ?? "application/json",
+  });
+  if (credential !== null) {
+    headers.set("authorization", `Bearer ${credential}`);
+  }
+  if (options.origin !== undefined) headers.set("origin", options.origin);
   return new Request("http://localhost/api/capture/events", {
     method: "POST",
+    headers,
     body: JSON.stringify(body),
   });
 }
@@ -101,6 +130,100 @@ async function postEvent(event: CaptureEvent) {
 }
 
 describe("capture API V2", () => {
+  it("rejects missing, mismatched, and revoked credentials without writing", async () => {
+    const { POST } = await import("@/app/api/capture/events/route");
+    const missing = await POST(requestWithBody(sessionStarted(), { credential: null }));
+    const mismatch = await POST(requestWithBody(
+      sessionStarted({ installationId: "installation_other" }),
+    ));
+
+    const db = openDatabase();
+    try {
+      revokeCaptureInstallation(db, baseEvent.installationId);
+    } finally {
+      db.close();
+    }
+    const revoked = await POST(requestWithBody(sessionStarted()));
+
+    expect(missing.status).toBe(401);
+    expect(mismatch.status).toBe(401);
+    expect(revoked.status).toBe(401);
+    const verificationDb = openDatabase();
+    try {
+      expect(rowCount(verificationDb, "capture_events")).toBe(0);
+      expect(rowCount(verificationDb, "training_sessions")).toBe(0);
+    } finally {
+      verificationDb.close();
+    }
+  });
+
+  it("rejects media type, body size, and explicit web origins", async () => {
+    const { POST } = await import("@/app/api/capture/events/route");
+    expect((await POST(requestWithBody(sessionStarted(), {
+      contentType: "text/plain",
+    }))).status).toBe(415);
+    expect((await POST(requestWithBody({ value: "x".repeat(70_000) }))).status)
+      .toBe(413);
+    expect((await POST(requestWithBody(sessionStarted(), {
+      origin: "https://leetcode.com",
+    }))).status).toBe(403);
+  });
+
+  it("creates a pairing code, pairs, rotates, and revokes through the API", async () => {
+    const pairingCodes = await import("@/app/api/capture/pairing-codes/route");
+    const pair = await import("@/app/api/capture/pair/route");
+    const revoke = await import("@/app/api/capture/installations/[id]/revoke/route");
+    const firstCodeResponse = await pairingCodes.POST(new Request(
+      "http://localhost/api/capture/pairing-codes",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: "{}",
+      },
+    ));
+    const firstCode: unknown = await firstCodeResponse.json();
+    expect(firstCodeResponse.status).toBe(200);
+    expect(firstCode).toMatchObject({ ok: true });
+    if (
+      typeof firstCode !== "object"
+      || firstCode === null
+      || !("code" in firstCode)
+      || typeof firstCode.code !== "string"
+    ) {
+      throw new Error("Pairing-code response did not contain a code");
+    }
+    const installationId = "installation_api_new";
+    const pairResponse = await pair.POST(new Request(
+      "http://localhost/api/capture/pair",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: firstCode.code, installationId }),
+      },
+    ));
+    expect(pairResponse.status).toBe(200);
+
+    const rotationResponse = await pairingCodes.POST(new Request(
+      "http://localhost/api/capture/pairing-codes",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: JSON.stringify({ targetInstallationId: installationId }),
+      },
+    ));
+    expect(rotationResponse.status).toBe(200);
+    const revokeResponse = await revoke.POST(
+      new Request(`http://localhost/api/capture/installations/${installationId}/revoke`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: "{}",
+      }),
+      { params: Promise.resolve({ id: installationId }) },
+    );
+    expect(revokeResponse.status).toBe(200);
+    expect(await revokeResponse.json()).toMatchObject({ status: "revoked" });
+  });
+
   it("creates an open session without inventing an attempt", async () => {
     const response = await postEvent(sessionStarted());
     const body = await response.json();
