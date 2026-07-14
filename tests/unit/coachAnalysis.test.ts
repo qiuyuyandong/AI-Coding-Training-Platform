@@ -15,6 +15,8 @@ function attempt(overrides: Partial<TrainingAttempt>): TrainingAttempt {
     canonicalUrl: "https://leetcode.com/problems/two-sum/",
     startedAt: "2026-07-06T10:00:00.000Z",
     result: "draft",
+    recordSource: "capture",
+    revision: 1,
     createdAt: "2026-07-06T10:00:00.000Z",
     updatedAt: "2026-07-06T10:00:00.000Z",
     ...overrides,

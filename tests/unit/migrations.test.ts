@@ -262,6 +262,104 @@ describe("applyMigrations", () => {
       db.close();
     }
   });
+
+  it("preserves V2 attempts while adding manual source and correction storage", () => {
+    const directory = makeTempDir("migration-manual-corrections-");
+    const oldMigrationsDir = join(directory, "old-migrations");
+    const db = new Database(join(directory, "test.sqlite"));
+    mkdirSync(oldMigrationsDir);
+    for (const name of [
+      "0001_initial.sql",
+      "0002_attempt_capture_source.sql",
+      "0003_capture_sessions_and_submissions.sql",
+      "0004_capture_credentials.sql",
+    ]) {
+      copyFileSync(
+        join(process.cwd(), "lib", "db", "migrations", name),
+        join(oldMigrationsDir, name),
+      );
+    }
+
+    try {
+      applyMigrations(db, {
+        migrationsDir: oldMigrationsDir,
+        now: () => "2026-07-14T00:00:00.000Z",
+      });
+      db.exec(`
+        INSERT INTO training_sessions (
+          id, installation_id, platform, problem_external_id, problem_title,
+          canonical_url, provenance_level, started_at, created_at, updated_at
+        ) VALUES (
+          'session_preserved_0c2', 'installation_0c2', 'leetcode', 'two-sum',
+          'Two Sum', 'https://leetcode.com/problems/two-sum/',
+          'extension_paired', '2026-07-14T00:00:00.000Z',
+          '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z'
+        );
+        INSERT INTO capture_events (
+          id, schema_version, type, capture_session_id, submission_id,
+          installation_id, adapter_version, parser_version, page_origin,
+          provenance_level, platform, problem_external_id, problem_title,
+          canonical_url, occurred_at, payload_json, event_fingerprint, received_at
+        ) VALUES (
+          'event_submission_0c2', 2, 'SUBMISSION_OBSERVED',
+          'session_preserved_0c2', 'submission_preserved_0c2',
+          'installation_0c2', 'test@0.2.0', 'test@0.2.0',
+          'https://leetcode.com', 'extension_paired', 'leetcode', 'two-sum',
+          'Two Sum', 'https://leetcode.com/problems/two-sum/',
+          '2026-07-14T00:01:00.000Z', '{"action":"submit_clicked"}',
+          'fingerprint_0c2', '2026-07-14T00:01:00.000Z'
+        );
+        INSERT INTO training_attempts (
+          id, capture_session_id, submission_id, platform, problem_external_id,
+          problem_title, canonical_url, started_at, ended_at, result, verdict,
+          language, duration_minutes, reflection, submission_event_id,
+          verdict_event_id, created_at, updated_at
+        ) VALUES (
+          'attempt_preserved_0c2', 'session_preserved_0c2',
+          'submission_preserved_0c2', 'leetcode', 'two-sum', 'Two Sum',
+          'https://leetcode.com/problems/two-sum/',
+          '2026-07-14T00:01:00.000Z', '2026-07-14T00:02:00.000Z',
+          'failed', 'Wrong Answer', 'cpp', 1, 'Keep this reflection',
+          'event_submission_0c2', 'event_verdict_0c2',
+          '2026-07-14T00:01:00.000Z', '2026-07-14T00:02:00.000Z'
+        );
+      `);
+
+      applyMigrations(db, { now: () => "2026-07-14T00:03:00.000Z" });
+
+      expect(db.prepare<[], {
+        readonly id: string;
+        readonly capture_session_id: string;
+        readonly submission_id: string;
+        readonly result: string;
+        readonly reflection: string;
+        readonly record_source: string;
+        readonly revision: number;
+        readonly voided_at: string | null;
+        readonly void_reason: string | null;
+      }>(`
+        SELECT id, capture_session_id, submission_id, result, reflection,
+          record_source, revision, voided_at, void_reason
+        FROM training_attempts
+      `).get()).toEqual({
+        id: "attempt_preserved_0c2",
+        capture_session_id: "session_preserved_0c2",
+        submission_id: "submission_preserved_0c2",
+        result: "failed",
+        reflection: "Keep this reflection",
+        record_source: "capture",
+        revision: 1,
+        voided_at: null,
+        void_reason: null,
+      });
+      expect(countRows(db, "capture_events")).toBe(1);
+      expect(countRows(db, "training_sessions")).toBe(1);
+      expect(countRows(db, "training_attempts")).toBe(1);
+      expect(countRows(db, "attempt_corrections")).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
 });
 
 function countRows(db: Database.Database, table: string): number {

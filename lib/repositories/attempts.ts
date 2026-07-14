@@ -14,8 +14,9 @@ import {
 
 type AttemptRow = {
   readonly id: string;
-  readonly capture_session_id: string;
-  readonly submission_id: string;
+  readonly capture_session_id: string | null;
+  readonly submission_id: string | null;
+  readonly record_source: string;
   readonly platform: string;
   readonly problem_external_id: string;
   readonly problem_title: string;
@@ -29,6 +30,9 @@ type AttemptRow = {
   readonly reflection: string | null;
   readonly submission_event_id: string | null;
   readonly verdict_event_id: string | null;
+  readonly revision: number;
+  readonly voided_at: string | null;
+  readonly void_reason: string | null;
   readonly created_at: string;
   readonly updated_at: string;
 };
@@ -92,6 +96,18 @@ export function findAttemptById(
   id: string,
 ): TrainingAttempt | null {
   const row = db
+    .prepare<string, AttemptRow>(
+      "SELECT * FROM training_attempts WHERE id = ? AND voided_at IS NULL",
+    )
+    .get(id);
+  return row === undefined ? null : fromRow(row);
+}
+
+export function findAttemptByIdIncludingVoided(
+  db: Database.Database,
+  id: string,
+): TrainingAttempt | null {
+  const row = db
     .prepare<string, AttemptRow>("SELECT * FROM training_attempts WHERE id = ?")
     .get(id);
   return row === undefined ? null : fromRow(row);
@@ -116,19 +132,20 @@ export function saveTrainingAttempt(
   const parsed = normalizeAttempt(TrainingAttemptSchema.parse(attempt));
   db.prepare(`
     INSERT INTO training_attempts (
-      id, capture_session_id, submission_id, platform, problem_external_id,
+      id, capture_session_id, submission_id, record_source, platform, problem_external_id,
       problem_title, canonical_url, started_at, ended_at, result, verdict,
       language, duration_minutes, reflection, submission_event_id,
-      verdict_event_id, created_at, updated_at
+      verdict_event_id, revision, voided_at, void_reason, created_at, updated_at
     ) VALUES (
-      @id, @captureSessionId, @submissionId, @platform, @problemExternalId,
+      @id, @captureSessionId, @submissionId, @recordSource, @platform, @problemExternalId,
       @problemTitle, @canonicalUrl, @startedAt, @endedAt, @result, @verdict,
       @language, @durationMinutes, @reflection, @submissionEventId,
-      @verdictEventId, @createdAt, @updatedAt
+      @verdictEventId, @revision, @voidedAt, @voidReason, @createdAt, @updatedAt
     )
     ON CONFLICT(id) DO UPDATE SET
       capture_session_id = excluded.capture_session_id,
       submission_id = excluded.submission_id,
+      record_source = excluded.record_source,
       platform = excluded.platform,
       problem_external_id = excluded.problem_external_id,
       problem_title = excluded.problem_title,
@@ -142,9 +159,14 @@ export function saveTrainingAttempt(
       reflection = excluded.reflection,
       submission_event_id = excluded.submission_event_id,
       verdict_event_id = excluded.verdict_event_id,
+      revision = excluded.revision,
+      voided_at = excluded.voided_at,
+      void_reason = excluded.void_reason,
       updated_at = excluded.updated_at
   `).run({
     ...parsed,
+    captureSessionId: parsed.captureSessionId ?? null,
+    submissionId: parsed.submissionId ?? null,
     endedAt: parsed.endedAt ?? null,
     verdict: parsed.verdict ?? null,
     language: parsed.language ?? null,
@@ -152,6 +174,8 @@ export function saveTrainingAttempt(
     reflection: parsed.reflection ?? null,
     submissionEventId: parsed.submissionEventId ?? null,
     verdictEventId: parsed.verdictEventId ?? null,
+    voidedAt: parsed.voidedAt ?? null,
+    voidReason: parsed.voidReason ?? null,
   });
 }
 
@@ -165,6 +189,7 @@ export function listAttempts(
     SELECT *
     FROM training_attempts
     WHERE (@platform IS NULL OR platform = @platform)
+      AND voided_at IS NULL
       AND (@externalId IS NULL OR problem_external_id = @externalId)
       AND (@updatedFrom IS NULL OR updated_at >= @updatedFrom)
       AND (@updatedBefore IS NULL OR updated_at < @updatedBefore)
@@ -195,7 +220,8 @@ export function aggregateAttempts(
       COALESCE(SUM(CASE WHEN result = 'partial' THEN 1 ELSE 0 END), 0) AS partial_attempts,
       COALESCE(SUM(CASE WHEN result = 'stuck' THEN 1 ELSE 0 END), 0) AS stuck_attempts
     FROM training_attempts
-    WHERE (@updatedFrom IS NULL OR updated_at >= @updatedFrom)
+    WHERE voided_at IS NULL
+      AND (@updatedFrom IS NULL OR updated_at >= @updatedFrom)
       AND (@updatedBefore IS NULL OR updated_at < @updatedBefore)
   `).get(parameters);
   if (row === undefined) {
@@ -237,8 +263,9 @@ export function updateAttemptReflection(
 function fromRow(row: AttemptRow): TrainingAttempt {
   return normalizeAttempt(TrainingAttemptSchema.parse({
     id: row.id,
-    captureSessionId: row.capture_session_id,
-    submissionId: row.submission_id,
+    captureSessionId: row.capture_session_id ?? undefined,
+    submissionId: row.submission_id ?? undefined,
+    recordSource: row.record_source,
     platform: row.platform,
     problemExternalId: row.problem_external_id,
     problemTitle: row.problem_title,
@@ -252,6 +279,9 @@ function fromRow(row: AttemptRow): TrainingAttempt {
     reflection: row.reflection ?? undefined,
     submissionEventId: row.submission_event_id ?? undefined,
     verdictEventId: row.verdict_event_id ?? undefined,
+    revision: row.revision,
+    voidedAt: row.voided_at ?? undefined,
+    voidReason: row.void_reason ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));

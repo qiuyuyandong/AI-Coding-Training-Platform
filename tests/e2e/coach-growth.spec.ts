@@ -151,6 +151,8 @@ test.describe("Coach and Growth smoke", () => {
             canonicalUrl: `https://leetcode.com/problems/${externalId}/`,
             startedAt: timestamp,
             result: index % 3 === 0 ? "failed" : "passed",
+            recordSource: "capture",
+            revision: 1,
             createdAt: timestamp,
             updatedAt: timestamp,
           });

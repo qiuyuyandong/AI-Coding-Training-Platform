@@ -1,7 +1,11 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { applyMigrations } from "@/lib/db/migrations";
-import type { AttemptResult, TrainingAttempt } from "@/lib/domain/training";
+import {
+  TrainingAttemptSchema,
+  type AttemptResult,
+  type TrainingAttempt,
+} from "@/lib/domain/training";
 import {
   aggregateAttempts,
   findLatestAttempt,
@@ -139,6 +143,55 @@ describe("attempt repository queries", () => {
       },
     });
   });
+
+  it("enforces capture/manual identity and timestamp invariants", () => {
+    expect(TrainingAttemptSchema.safeParse(attempt({
+      recordSource: "manual",
+      captureSessionId: undefined,
+      submissionId: undefined,
+      submissionEventId: undefined,
+      verdictEventId: undefined,
+      verdict: undefined,
+    })).success).toBe(true);
+    expect(TrainingAttemptSchema.safeParse(attempt({
+      recordSource: "manual",
+    })).success).toBe(false);
+    expect(TrainingAttemptSchema.safeParse(attempt({
+      endedAt: "2026-07-13T23:59:59.000Z",
+    })).success).toBe(false);
+    expect(TrainingAttemptSchema.safeParse(attempt({
+      voidedAt: "2026-07-14T01:00:00.000Z",
+    })).success).toBe(false);
+  });
+
+  it("excludes voided attempts from default list, latest, and aggregate queries", () => {
+    saveTrainingAttempt(db, attempt({
+      id: "attempt_active",
+      submissionId: "submission_active",
+      result: "passed",
+      updatedAt: "2026-07-14T01:00:00.000Z",
+    }));
+    saveTrainingAttempt(db, attempt({
+      id: "attempt_voided",
+      submissionId: "submission_voided",
+      result: "failed",
+      voidedAt: "2026-07-14T03:00:00.000Z",
+      voidReason: "Wrong problem association",
+      revision: 2,
+      updatedAt: "2026-07-14T03:00:00.000Z",
+    }));
+
+    expect(listAttempts(db, { limit: 10 }).map((item) => item.id))
+      .toEqual(["attempt_active"]);
+    expect(findLatestAttempt(db, {
+      platform: "leetcode",
+      externalId: "two-sum",
+    })?.id).toBe("attempt_active");
+    expect(aggregateAttempts(db, {})).toMatchObject({
+      totalAttempts: 1,
+      passedAttempts: 1,
+    });
+  });
 });
 
 function attempt(overrides: Partial<TrainingAttempt>): TrainingAttempt {
@@ -152,6 +205,8 @@ function attempt(overrides: Partial<TrainingAttempt>): TrainingAttempt {
     canonicalUrl: "https://leetcode.com/problems/two-sum/",
     startedAt: "2026-07-14T00:00:00.000Z",
     result: "passed",
+    recordSource: "capture",
+    revision: 1,
     createdAt: "2026-07-14T00:00:00.000Z",
     updatedAt: "2026-07-14T00:00:00.000Z",
     ...overrides,

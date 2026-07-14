@@ -118,6 +118,8 @@ function draftAttempt(): TrainingAttempt {
     canonicalUrl: "https://leetcode.com/problems/two-sum/",
     startedAt: "2026-07-14T00:01:00.000Z",
     result: "draft",
+    recordSource: "capture",
+    revision: 1,
     submissionEventId: "evt_submission_1",
     createdAt: NOW,
     updatedAt: NOW,
@@ -148,6 +150,8 @@ describe("transitionCaptureState", () => {
 
     expect(transition.attempt).toMatchObject({
       submissionId: "submission_1",
+      recordSource: "capture",
+      revision: 1,
       result: "passed",
       verdict: "Accepted",
     });
