@@ -1,0 +1,13 @@
+{
+  "fixtureName": "problem-b3619",
+  "sourceUrl": "https://www.luogu.com.cn/problem/B3619",
+  "captureDate": "2026-07-14",
+  "captureMethod": "Jina Reader API (r.jina.ai) — returned rendered Markdown/text via public HTTP fetch. Title 'B3619 10 进制转 x 进制' extracted from response. Raw DOM not available (Luogu requires SPA/JS; CDP unavailable). No body/selector structure observed.",
+  "purpose": "detectProblemFromLocation — URL-based problem platform detection with letter-prefix variant",
+  "selectors": [],
+  "authenticated": false,
+  "sanitized": true,
+  "evidenceTier": "public-content-accessible",
+  "verdictExpected": null,
+  "problemExpected": { "platform": "luogu", "externalId": "B3619" }
+}

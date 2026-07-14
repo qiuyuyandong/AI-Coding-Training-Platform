@@ -1,0 +1,13 @@
+{
+  "fixtureName": "problem-p1001",
+  "sourceUrl": "https://www.luogu.com.cn/problem/P1001",
+  "captureDate": "2026-07-14",
+  "captureMethod": "Jina Reader API (r.jina.ai) — returned rendered Markdown/text via public HTTP fetch. Title 'P1001 A+B Problem' extracted from response. Raw DOM not available (Luogu requires SPA/JS; CDP unavailable). No body/selector structure observed.",
+  "purpose": "detectProblemFromLocation — URL-based problem platform detection via luogu.com.cn hostname and pathname",
+  "selectors": [],
+  "authenticated": false,
+  "sanitized": true,
+  "evidenceTier": "public-content-accessible",
+  "verdictExpected": null,
+  "problemExpected": { "platform": "luogu", "externalId": "P1001" }
+}
