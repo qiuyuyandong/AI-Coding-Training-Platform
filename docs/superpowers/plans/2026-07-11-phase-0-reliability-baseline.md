@@ -1,6 +1,6 @@
 # Phase 0 Trustworthy Capture and Analytics Delivery Plan
 
-**Status:** In progress on 2026-07-14. Phase 0A, 0B1-0B3, and 0C1-0C2 are complete; production-adapter certification and Phase 0D remain.
+**Status:** In progress on 2026-07-15. Phase 0A, 0B1-0B3, 0B4 (BLOCKED), and 0C1-0C2 are complete. Phase 0D remains. Production-adapter certification was attempted in Phase 0B4 and BLOCKED (no public Luogu verdict DOM); re-certification requires a new design decision or publicly accessible verdict page.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:writing-plans to expand each subphase, superpowers:test-driven-development during implementation, and superpowers:verification-before-completion before closing Phase 0.
 
@@ -119,7 +119,7 @@ Phase 0 is complete only when all are true:
 - [ ] `/training` shows the current problem’s attempt, not a globally recent attempt.
 - [ ] Growth totals use full aggregates and recent metrics declare their window.
 - [ ] One canonical URL implementation is used everywhere.
-- [ ] One adapter is explicitly production-ready against its fixture/manual matrix; every other adapter is visibly experimental or disabled.
+- [ ] One adapter is explicitly production-ready against its fixture/manual matrix; every other adapter is visibly experimental or disabled. (Phase 0B4 attempted Luogu certification but BLOCKED on missing public verdict DOM.)
 - [ ] A learner can record or correct a session when automatic capture fails, without erasing the original provenance.
 - [ ] Fresh and upgrade migrations pass in temporary databases.
 - [ ] Lint, unit, type, E2E, extension, and production build gates all pass.

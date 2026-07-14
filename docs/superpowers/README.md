@@ -11,10 +11,11 @@ This directory contains both active product planning and historical implementati
    - [`plans/2026-07-14-phase-0b1-capture-session-protocol.md`](plans/2026-07-14-phase-0b1-capture-session-protocol.md)
    - [`plans/2026-07-14-phase-0b2-spa-queue-reliability.md`](plans/2026-07-14-phase-0b2-spa-queue-reliability.md)
    - [`plans/2026-07-14-phase-0b3-localhost-credential.md`](plans/2026-07-14-phase-0b3-localhost-credential.md)
+   - [`plans/2026-07-14-phase-0b4-luogu-adapter-certification.md`](plans/2026-07-14-phase-0b4-luogu-adapter-certification.md) — BLOCKED (no public verdict DOM); Luogu remains experimental
    - [`plans/2026-07-14-phase-0c1-query-analytics-canonical-url.md`](plans/2026-07-14-phase-0c1-query-analytics-canonical-url.md)
    - [`plans/2026-07-14-phase-0c2-manual-attempt-corrections.md`](plans/2026-07-14-phase-0c2-manual-attempt-corrections.md)
 4. Active remaining and future capability plans:
-   - [`plans/2026-07-11-phase-0-reliability-baseline.md`](plans/2026-07-11-phase-0-reliability-baseline.md) — production-adapter certification and Phase 0D remain.
+   - [`plans/2026-07-11-phase-0-reliability-baseline.md`](plans/2026-07-11-phase-0-reliability-baseline.md) — Phase 0D remains; production-adapter re-certification requires a new design decision or public verdict DOM.
    - [`plans/2026-07-11-phase-1-curriculum-resource-catalog.md`](plans/2026-07-11-phase-1-curriculum-resource-catalog.md)
    - [`plans/2026-07-11-phase-2-goals-diagnosis-planning.md`](plans/2026-07-11-phase-2-goals-diagnosis-planning.md)
    - [`plans/2026-07-11-phase-3-evidence-mastery-review.md`](plans/2026-07-11-phase-3-evidence-mastery-review.md)
@@ -23,7 +24,7 @@ This directory contains both active product planning and historical implementati
    - [`plans/2026-07-11-phase-6-pilot-calibration.md`](plans/2026-07-11-phase-6-pilot-calibration.md)
    - [`plans/2026-07-13-phase-7-public-beta-cloud.md`](plans/2026-07-13-phase-7-public-beta-cloud.md)
 
-Phase 0A through 0C2 are implemented and retained as execution records. Before implementing the remaining Phase 0 work or another capability package, write a new atomic plan against the then-current repository rather than treating a completed plan or delivery overview as line-by-line instructions.
+Phase 0A through 0C2 and Phase 0B4 (BLOCKED) are implemented and retained as execution records. Before implementing the remaining Phase 0 work or another capability package, write a new atomic plan against the then-current repository rather than treating a completed plan or delivery overview as line-by-line instructions.
 
 ## Historical records
 

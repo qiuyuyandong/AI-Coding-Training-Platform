@@ -207,7 +207,7 @@ Exit gate:
 
 | Phase | Capability outcome | First release that consumes it | Status | Detailed plan |
 |---|---|---|---|---|
-| 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | In progress; 0A, 0B1-0B3 and 0C1-0C2 complete; production adapter and 0D remain | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
+| 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | In progress; 0A, 0B1-0B3, 0B4 (BLOCKED) and 0C1-0C2 complete; Phase 0D remains; production-adapter recertification requires new decision or public verdict DOM | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
 | 1 | Versioned common-foundation graph, career summaries and reviewed resources | V0 | Planned | [Phase 1](./2026-07-11-phase-1-curriculum-resource-catalog.md) |
 | 2 | Goal, diagnosis, bounded daily planning and replanning | V0 | Planned | [Phase 2](./2026-07-11-phase-2-goals-diagnosis-planning.md) |
 | 3 | Auditable evidence, five-level ability projection and review | V0 thin slice; V0.5 deepens | Planned | [Phase 3](./2026-07-11-phase-3-evidence-mastery-review.md) |
