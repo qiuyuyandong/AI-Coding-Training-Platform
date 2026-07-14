@@ -4,11 +4,12 @@ import {
   type CaptureRuntimeContext,
   type ExtensionInitializationPlan,
 } from "./installation";
+import { drainCaptureQueue } from "./queueDrain";
+import { createSerializedWorkExecutor } from "./serializedWork";
 import {
   enqueueCaptureEvent,
   isCaptureMessage,
   isQueueItem,
-  planQueueAfterFlush,
   readCaptureEndpoint,
   type CaptureQueueItem,
   type FlushResult,
@@ -26,7 +27,12 @@ const INITIALIZATION_STORAGE_KEYS = [
 const FLUSH_ALARM_NAME = "flushCaptureQueue";
 
 const initialization = initializeExtension();
-let captureWork: Promise<void> = initialization.then(() => undefined);
+const executor = createSerializedWorkExecutor(
+  initialization.then(() => undefined),
+  (error) => {
+    console.error("[capture-v2] queue operation failed", error);
+  },
+);
 
 chrome.runtime.onInstalled.addListener(() => {
   void initialization;
@@ -45,13 +51,13 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   }
 
   if (!isCaptureMessage(message)) return false;
-  scheduleCaptureWork(() => enqueueAndFlush(message.event));
+  executor.schedule(() => enqueueAndFlush(message.event));
   return false;
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === FLUSH_ALARM_NAME) {
-    scheduleCaptureWork(flushQueue);
+    executor.schedule(flushQueue);
   }
 });
 
@@ -86,14 +92,6 @@ function initializationStorage(plan: ExtensionInitializationPlan): Record<string
   return stored;
 }
 
-function scheduleCaptureWork(work: () => Promise<void>): void {
-  captureWork = captureWork
-    .then(work)
-    .catch((error: unknown) => {
-      console.error("[capture-v2] queue operation failed", error);
-    });
-}
-
 async function enqueueAndFlush(event: CaptureQueueItem["event"]): Promise<void> {
   const state = await chrome.storage.local.get(["captureEnabled", "eventQueue"]);
   if (state.captureEnabled === false) return;
@@ -104,18 +102,23 @@ async function enqueueAndFlush(event: CaptureQueueItem["event"]): Promise<void> 
 }
 
 async function flushQueue(): Promise<void> {
-  const state = await chrome.storage.local.get(["eventQueue", "captureEndpoint"]);
-  const queue = readQueue(state.eventQueue);
-  const [head] = queue;
+  const outcome = await drainCaptureQueue({
+    readQueue: async () => {
+      const state = await chrome.storage.local.get(["eventQueue"]);
+      return readQueue(state.eventQueue);
+    },
+    send: async (event) => {
+      const state = await chrome.storage.local.get(["captureEndpoint"]);
+      return postCaptureEvent(event, readCaptureEndpoint(state.captureEndpoint));
+    },
+    persist: async (plan) => {
+      await chrome.storage.local.set(plan);
+    },
+  });
 
-  if (head === undefined) return;
-
-  const result = await postCaptureEvent(
-    head.event,
-    readCaptureEndpoint(state.captureEndpoint),
-  );
-  const plan = planQueueAfterFlush(queue, result);
-  await chrome.storage.local.set(plan);
+  if (outcome.reason === "batch_limit") {
+    executor.schedule(flushQueue);
+  }
 }
 
 async function postCaptureEvent(
