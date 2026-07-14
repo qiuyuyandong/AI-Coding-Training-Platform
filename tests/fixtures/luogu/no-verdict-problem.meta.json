@@ -1,0 +1,13 @@
+{
+  "fixtureName": "no-verdict-problem",
+  "sourceUrl": "https://www.luogu.com.cn/problem/P1001",
+  "captureDate": "2026-07-14",
+  "captureMethod": "characterization-derived — no verdict DOM was observed on the publicly accessible problem page. The only verified content is the title via Jina Reader API. This fixture represents the expected behavior when no .status/.record-status/.submission-status element is present on a Luogu page. It is NOT verified-against-public-DOM. Body/selector structure was not observed; no captured DOM exists.",
+  "purpose": "detectVerdictFromDocument — negative case: no verdict element present, expect null",
+  "selectors": [],
+  "authenticated": false,
+  "sanitized": true,
+  "evidenceTier": "characterization-derived",
+  "verdictExpected": null,
+  "problemExpected": null
+}

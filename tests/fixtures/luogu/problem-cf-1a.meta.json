@@ -1,0 +1,13 @@
+{
+  "fixtureName": "problem-cf-1a",
+  "sourceUrl": "https://www.luogu.com.cn/problem/CF_1A",
+  "captureDate": "2026-07-14",
+  "captureMethod": "Jina Reader API (r.jina.ai) — returned rendered Markdown/text via public HTTP fetch. Title 'CF1A Theatre Square' extracted from response. Raw DOM not available (Luogu requires SPA/JS; CDP unavailable). Replaces AT_abc001_a which returned HTTP 404 from Luogu.",
+  "purpose": "detectProblemFromLocation — URL-based detection for letter-prefix external ID variant",
+  "selectors": [],
+  "authenticated": false,
+  "sanitized": true,
+  "evidenceTier": "public-content-accessible",
+  "verdictExpected": null,
+  "problemExpected": { "platform": "luogu", "externalId": "CF_1A" }
+}
