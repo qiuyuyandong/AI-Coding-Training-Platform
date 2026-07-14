@@ -1,27 +1,21 @@
-import {
-  endCaptureSession,
-  observeSubmission,
-  observeVerdict,
-  startCaptureSession,
-  type CaptureIdFactory,
-  type CaptureSessionState,
-} from "./captureSession";
+import { type CaptureIdFactory } from "./captureSession";
+import { createCaptureContentRuntime } from "./contentRuntime";
 import { CaptureRuntimeContextSchema } from "./installation";
 import {
   detectProblemFromLocation,
   detectVerdictFromDocument,
-  type DetectedProblem,
 } from "./platforms";
 import type { CaptureEvent } from "@/lib/capture/protocol";
 
-void run();
+const NAVIGATION_POLL_MS = 500;
+
+void run().catch((error: unknown) => {
+  console.error("[capture-v2] content runtime failed", error);
+});
 
 async function run(): Promise<void> {
   const settings = await chrome.storage.local.get(["captureEnabled"]);
   if (settings.captureEnabled === false) return;
-
-  const detected = detectProblemFromLocation(window.location, document.title);
-  if (!detected) return;
 
   const contextResult: unknown = await chrome.runtime.sendMessage({
     type: "GET_CAPTURE_CONTEXT",
@@ -29,80 +23,77 @@ async function run(): Promise<void> {
   const parsedContext = CaptureRuntimeContextSchema.safeParse(contextResult);
   if (!parsedContext.success) return;
 
-  const started = startCaptureSession(
-    detected,
-    parsedContext.data,
-    new Date().toISOString(),
-    createCaptureId,
-  );
-  let sessionState = started.state;
-  sendCaptureEvent(started.event);
+  const runtime = createCaptureContentRuntime({
+    context: parsedContext.data,
+    detectProblem: () => detectProblemFromLocation(
+      window.location,
+      document.title,
+    ),
+    detectVerdict: (platform) => detectVerdictFromDocument(platform, document),
+    sendEvent: sendCaptureEvent,
+    now: () => new Date().toISOString(),
+    createId: createCaptureId,
+  });
 
-  observeSubmissions(() => sessionState, (next) => {
-    sessionState = next;
-  });
-  observeVerdicts(detected, () => sessionState, (next) => {
-    sessionState = next;
-  });
-  window.addEventListener("pagehide", () => {
-    sendCaptureEvent(
-      endCaptureSession(
-        sessionState,
-        "pagehide",
-        new Date().toISOString(),
-        createCaptureId,
-      ),
-    );
-  });
-}
+  let lastHref = window.location.href;
+  let pollId: number | undefined;
+  let observer: MutationObserver | undefined;
 
-function observeSubmissions(
-  getState: () => CaptureSessionState,
-  setState: (state: CaptureSessionState) => void,
-): void {
+  function observeLocation(): boolean {
+    if (window.location.href === lastHref) return false;
+    lastHref = window.location.href;
+    runtime.locationObserved();
+    return true;
+  }
+
+  function startWatchers(): void {
+    if (pollId === undefined) {
+      pollId = window.setInterval(observeLocation, NAVIGATION_POLL_MS);
+    }
+    if (observer !== undefined || document.body === null) return;
+
+    observer = new MutationObserver(() => {
+      observeLocation();
+      runtime.documentMutated();
+    });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  }
+
+  function stopWatchers(): void {
+    if (pollId !== undefined) {
+      window.clearInterval(pollId);
+      pollId = undefined;
+    }
+    observer?.disconnect();
+    observer = undefined;
+  }
+
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
     const text = target.textContent?.toLowerCase() ?? "";
     if (!text.includes("submit") && !text.includes("提交")) return;
-
-    const observed = observeSubmission(
-      getState(),
-      new Date().toISOString(),
-      createCaptureId,
-    );
-    setState(observed.state);
-    sendCaptureEvent(observed.event);
+    runtime.submissionObserved();
   });
-}
-
-function observeVerdicts(
-  detected: DetectedProblem,
-  getState: () => CaptureSessionState,
-  setState: (state: CaptureSessionState) => void,
-): void {
-  const publishVerdict = (): void => {
-    const verdict = detectVerdictFromDocument(detected.platform, document);
-    if (verdict === null) return;
-
-    const observed = observeVerdict(
-      getState(),
-      verdict.verdict,
-      new Date().toISOString(),
-      createCaptureId,
-    );
-    setState(observed.state);
-    if (observed.event !== undefined) sendCaptureEvent(observed.event);
-  };
-
-  publishVerdict();
-  const observer = new MutationObserver(publishVerdict);
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    characterData: true,
+  window.addEventListener("popstate", observeLocation);
+  window.addEventListener("hashchange", observeLocation);
+  window.addEventListener("pagehide", () => {
+    runtime.pageHidden();
+    stopWatchers();
   });
+  window.addEventListener("pageshow", () => {
+    lastHref = window.location.href;
+    runtime.pageShown();
+    startWatchers();
+  });
+
+  runtime.start();
+  startWatchers();
 }
 
 function sendCaptureEvent(event: CaptureEvent): void {
