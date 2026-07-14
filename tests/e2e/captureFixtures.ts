@@ -1,10 +1,11 @@
 import type { APIRequestContext } from "@playwright/test";
 import type { CaptureEvent } from "../../lib/capture/protocol";
+import type { Platform } from "../../extension/src/platforms";
 import { E2E_CAPTURE_CREDENTIAL } from "./database";
 
 export type CaptureProblemFixture = {
   readonly captureSessionId: string;
-  readonly platform: "leetcode";
+  readonly platform: Platform;
   readonly problemExternalId: string;
   readonly problemTitle: string;
   readonly canonicalUrl: string;
