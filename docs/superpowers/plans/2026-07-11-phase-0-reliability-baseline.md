@@ -1,5 +1,7 @@
 # Phase 0 Trustworthy Capture and Analytics Delivery Plan
 
+**Status:** In progress on 2026-07-14. Phase 0A, 0B1-0B3, and 0C1-0C2 are complete; production-adapter certification and Phase 0D remain.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:writing-plans to expand each subphase, superpowers:test-driven-development during implementation, and superpowers:verification-before-completion before closing Phase 0.
 
 **Goal:** Make the current capture, attempt, and analytics loop safe enough that later planning and AI features never reason over contaminated or incorrectly merged training data.
@@ -50,7 +52,7 @@ Work packages:
 - [ ] Replace broad “five supported platforms” claims with per-adapter states (`production`, `experimental`, `disabled`); build a real-page/DOM fixture set for the first production candidate, Luogu, before freezing it.
 - [ ] Add a Playwright scenario with two problems and multiple submissions proving attempts are neither lost nor cross-linked.
 
-Historical records without session/submission identity receive explicit `legacy_` synthetic identifiers and low-confidence provenance. They must not be presented as newly observed high-confidence submissions.
+The approved 0B1 V2 cutover superseded the earlier compatibility proposal: known V1 capture rows and queued V1 events were discarded once, with the extension recording the cleanup time and discarded count. Existing V2 data is preserved by later migrations.
 
 ### 0C — Query and analytics correctness
 
@@ -109,7 +111,7 @@ Phase 0 is complete only when all are true:
 
 - [ ] E2E does not create, migrate, seed, hash-change, or delete the default database.
 - [ ] Replayed events are idempotent, while two real submissions with the same verdict remain two submissions.
-- [ ] Queued V1 events survive the protocol upgrade for one compatibility window and legacy records are visibly distinguished.
+- [x] Queued V1 events are discarded once under the approved cutover, with cleanup time and discarded count recorded.
 - [ ] Events from two pages or sessions never materialize into the wrong attempt.
 - [ ] Unpaired requests cannot create trusted browser events; credential rotation invalidates the previous credential.
 - [ ] Closing or hiding a page does not invent a verdict.

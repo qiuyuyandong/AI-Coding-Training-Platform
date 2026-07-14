@@ -27,15 +27,16 @@ Available today:
 - metadata-only problem links and source registry;
 - a local Next.js + SQLite app;
 - an MV3 extension that detects broad problem-page and visible verdict signals;
-- raw capture events, materialized attempts, rule-based Coach and basic Growth pages;
-- unit tests, limited Playwright smoke tests and extension build scripts.
+- isolated Playwright databases and reusable migrations;
+- V2 session/submission identity, SPA lifecycle handling, serialized queue delivery, and localhost pairing credentials;
+- raw capture events plus same-transaction projections, scoped attempt queries, canonical URLs, full Growth aggregates, and explicit Coach windows;
+- manual attempts, visible source labels, optimistic correction history, and logical voiding;
+- unit tests, Playwright smoke tests, extension builds, and production builds.
 
 Not yet trustworthy or present:
 
-- isolated Playwright databases;
-- reliable session/submission identity, SPA navigation and queue ordering;
 - one production-quality OJ adapter;
-- manual training fallback and code snapshots;
+- code snapshots;
 - learner profile, graph, plans, evidence levels, review or projects;
 - VS Code integration, real AI provider, accounts or cloud storage.
 
@@ -206,7 +207,7 @@ Exit gate:
 
 | Phase | Capability outcome | First release that consumes it | Status | Detailed plan |
 |---|---|---|---|---|
-| 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | Planned; 0A atomic plan exists | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
+| 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | In progress; 0A, 0B1-0B3 and 0C1-0C2 complete; production adapter and 0D remain | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
 | 1 | Versioned common-foundation graph, career summaries and reviewed resources | V0 | Planned | [Phase 1](./2026-07-11-phase-1-curriculum-resource-catalog.md) |
 | 2 | Goal, diagnosis, bounded daily planning and replanning | V0 | Planned | [Phase 2](./2026-07-11-phase-2-goals-diagnosis-planning.md) |
 | 3 | Auditable evidence, five-level ability projection and review | V0 thin slice; V0.5 deepens | Planned | [Phase 3](./2026-07-11-phase-3-evidence-mastery-review.md) |
@@ -241,13 +242,12 @@ Content research may run in parallel with Phase 0, but imports and personalized 
 
 ## 8. Near-Term Execution Order
 
-1. Implement the existing [Phase 0A atomic plan](./2026-07-11-phase-0a-e2e-data-safety.md).
-2. Expand and execute Phase 0B session/submission protocol, SPA lifecycle, queue serialization and localhost provenance.
-3. Complete Phase 0C query/aggregation/canonical URL correctness and Phase 0D lint/CI/documentation parity.
-4. Write one V0 vertical-slice design and atomic implementation plan spanning only the required Phase 1/2/3/5 tasks.
-5. Publish the first 12–18 nodes and manual task flow; do not wait for an encyclopedia.
-6. Run one week of self-use, fix blocking friction, then run a two-week roommate trial.
-7. Only after the V0 report, freeze the V0.5 OJ adapter and code-snapshot contract.
+1. Complete the production-adapter feasibility/fixture/certification slice still open in Phase 0B.
+2. Execute Phase 0D lint, CI, migration-matrix, extension parity, and final documentation work.
+3. Write one V0 vertical-slice design and atomic implementation plan spanning only the required Phase 1/2/3/5 tasks.
+4. Publish the first 12–18 nodes and manual task flow; do not wait for an encyclopedia.
+5. Run one week of self-use, fix blocking friction, then run a two-week roommate trial.
+6. Only after the V0 report, freeze the V0.5 OJ adapter and code-snapshot contract.
 
 ## 9. Common Delivery Loop
 

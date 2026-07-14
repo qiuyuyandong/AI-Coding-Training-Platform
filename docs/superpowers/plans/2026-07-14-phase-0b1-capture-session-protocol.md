@@ -1,5 +1,7 @@
 # Phase 0B1 Capture Session Protocol Implementation Plan
 
+**Status:** Completed and verified on 2026-07-14; retained as an implementation record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the V1 problem/verdict heuristic with a V2 session/submission protocol that preserves distinct submissions, rejects conflicting replays, and never treats page lifecycle as an attempt result.

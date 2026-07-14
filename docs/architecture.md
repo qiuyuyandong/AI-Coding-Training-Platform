@@ -60,6 +60,7 @@ The service worker stores the long-lived credential in trusted-only Chrome local
 | `GET /api/attempts/:id/corrections` | Returns lightweight scalar correction history, including void history. |
 | `POST /api/attempts/:id/void` | Logically voids an attempt with idempotent replay semantics. |
 | `GET /api/problems` | Lists local problem metadata. |
+| `POST /api/problems/seed` | Local development helper that seeds the small problem catalog. |
 | `GET /api/sources` | Lists local source metadata. |
 
 ## Data model

@@ -1,5 +1,9 @@
 # Phase 0C2 Manual Attempts and Traceable Corrections Design
 
+**Date:** 2026-07-14
+
+**Status:** Implemented and verified on 2026-07-14
+
 ## Outcome and scope
 
 Phase 0C2 completes the manual fallback promised by Phase 0C. A learner can add one local training attempt when browser capture is unavailable, correct a small allowlist of business fields with optimistic concurrency, inspect the changes, and logically void a bad attempt. Training, Growth, and Coach continue to use one `training_attempts` model and exclude voided rows by default.

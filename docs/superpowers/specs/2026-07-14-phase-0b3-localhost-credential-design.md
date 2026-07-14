@@ -1,6 +1,6 @@
 # Phase 0B3 Localhost Credential Design
 
-**Status:** Approved for implementation on 2026-07-14
+**Status:** Implemented and verified on 2026-07-14
 
 **Outcome:** Only a deliberately paired Chrome extension installation can write capture events to the localhost application, and the owner can rotate or revoke that installation from `/settings`.
 

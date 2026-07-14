@@ -1,6 +1,6 @@
 # Phase 0C1 Query, Analytics, and Canonical URL Design
 
-**Status:** Approved by the standing Phase 0 execution direction on 2026-07-14
+**Status:** Implemented and verified on 2026-07-14
 
 **Outcome:** Training pages select the correct problem attempt, Growth totals describe the full eligible dataset, recent views declare their row window, and every automatic problem link uses one canonical identity/URL implementation.
 

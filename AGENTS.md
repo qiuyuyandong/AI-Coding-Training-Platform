@@ -1,6 +1,6 @@
 # Agent Handoff Guide
 
-This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup` with the historical Phase 3.0 Verdict Capture Loop hardening implemented; the active product roadmap now labels the codebase Pre-V0.
+This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, and 0C1-0C2 are implemented, while the active product roadmap still labels the codebase Pre-V0.
 
 `IDEA.md` and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` define the future V0/V0.5/V1/Public Beta direction. `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud SaaS as the eventual target but explicitly defers implementation until the Phase 7 gate.
 
@@ -8,9 +8,10 @@ This repository currently implements a local-first AI coding training prototype.
 
 - Next.js App Router application with SQLite persistence through `better-sqlite3`.
 - Chrome MV3 extension source lives under `extension/src`; build output is generated under ignored `extension/dist`.
-- Capture events enter through `POST /api/capture/events`, are stored locally, and are materialized into `training_attempts` with verdict replay/idempotency safeguards.
+- Paired capture events enter through `POST /api/capture/events`; raw events and deterministic session/attempt projections are written in one transaction with content-sensitive replay safeguards.
 - The Chrome extension detects supported problem pages and visible verdict text, including English verdict tokens plus Chinese verdict labels used by NowCoder/Luogu-style UIs.
-- `/training` shows capture and problem-specific attempt status; `/coach` and `/growth` read local attempts and render deterministic insights.
+- `/training` supports automatic and manual attempts, optimistic corrections, correction history, and logical voiding. Capture identity fields remain immutable.
+- `/training`, `/coach`, and `/growth` use active, non-voided attempts by default; Growth labels automatic and manual sources.
 - Playwright e2e smoke tests own the local browser QA server lifecycle through `playwright.config.ts`.
 
 ## Commands
@@ -26,7 +27,7 @@ npm run extension:build
 npm run build
 ```
 
-For browser smoke QA, Playwright owns the server lifecycle; do not start a separate long-running server. Until Phase 0A is implemented, never run `npm run e2e` without first pointing `TRAINING_DB_PATH` at a disposable database because current tests can mutate the default file.
+For browser smoke QA, Playwright owns the server lifecycle; do not start a separate long-running server. Its prepare/teardown flow creates and removes `.tmp/playwright/training-platform.sqlite` and refuses to reuse a server on port 3000. For other migration or build checks, set `TRAINING_DB_PATH` to a disposable path when the default database must remain untouched.
 
 ## Git discipline
 
@@ -56,3 +57,9 @@ These are current implementation boundaries, not a permanent rejection of the ap
 - `DESIGN.md` — UI style rules for the quiet slate/white command-center interface.
 - `docs/architecture.md` — current code/data flow.
 - `docs/runbook.md` — setup, QA commands, and troubleshooting.
+
+## Current handoff
+
+- Phase 0C2 completed on 2026-07-14 and is merged at `983e10a`.
+- Do not re-execute the completed 0A-0C2 atomic plans; they are retained as implementation records.
+- Remaining Phase 0 work is the production-adapter fixture/certification slice and Phase 0D engineering gates, including adding the documented lint command.

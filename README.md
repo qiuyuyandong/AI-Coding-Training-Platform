@@ -81,10 +81,10 @@ npm run dev
 
 ## Coach and Growth Insights
 
-Phase 0C1 keeps query semantics explicit while coaching remains local and deterministic:
+Phase 0C keeps query semantics explicit while coaching remains local and deterministic:
 
 - `/coach` analyzes and labels its latest-50-attempt window;
 - `/growth` computes all-time counts, distribution, and rates in SQLite, then renders only the latest five activity rows;
 - canonical problem identity is normalized at capture, catalog, query, and link boundaries so platform case/URL variants do not split one problem;
-- insights are computed from SQLite attempts only, with no external model or network call.
+- insights are computed from SQLite attempts only, with no external model or network call;
 - manually entered attempts participate in the same active Growth and Coach query ranges as captured attempts; recent Growth activity shows the source label.

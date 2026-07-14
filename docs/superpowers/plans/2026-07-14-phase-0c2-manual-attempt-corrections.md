@@ -1,5 +1,7 @@
 # Phase 0C2 Manual Attempts and Traceable Corrections Implementation Plan
 
+**Status:** Completed, fully verified, and merged into `feature/v1-followup` on 2026-07-14 at `983e10a`; retained as an implementation record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add server-owned manual training attempts, narrow optimistic corrections, queryable change history, and idempotent logical voiding while preserving existing V2 capture data.

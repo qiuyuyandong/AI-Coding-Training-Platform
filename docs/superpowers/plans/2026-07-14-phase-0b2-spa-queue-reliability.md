@@ -1,5 +1,7 @@
 # Phase 0B2 SPA and Queue Reliability Implementation Plan
 
+**Status:** Completed and verified on 2026-07-14; retained as an implementation record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Keep capture sessions correct across SPA/page lifecycle changes and drain the extension queue serially in order without losing events.
