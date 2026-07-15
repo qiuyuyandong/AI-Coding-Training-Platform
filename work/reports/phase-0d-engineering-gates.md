@@ -68,7 +68,7 @@ Phase 0D closes the engineering-quality-gates package. It introduces an explicit
 - Post-run metadata after `npm run quality:gate` (Task 4 Step 4):
   - `Length`: 73728
   - `LastWriteTimeUtc`: `2026-07-13T17:49:36.9126118Z`
-- Equality: byte-equal (`Length` identical, `LastWriteTimeUtc` identical). The default database was never opened or hashed; only its directory entry was inspected.
+- Equality: byte-equal (`Length` identical, `LastWriteTimeUtc` identical). During the authoritative Task 4 gate verification the default database was never opened or hashed; only its directory entry was inspected.
 - Cleanup verification: `.tmp/playwright` absent after E2E; all `ai-training-quality-gate-*` OS-temporary directories absent after the aggregate gate.
 
 ## Remaining Phase 0 Blocker
@@ -123,6 +123,14 @@ Default database `Length` and `LastWriteTimeUtc` are byte-equal before and after
 ### Step 3 and Step 4 outcome
 
 Step 3 (`Correct evidence if the fresh run differs`) was a no-op: every count and gate result from the fresh Task 6 run matched the existing report exactly, so no factual correction was required. Step 4 (`Commit evidence-only corrections`) added the present "Task 6 Independent Final Verification" subsection plus the matching handoff and plan checkbox updates, all with the explicit subject `docs: record Phase 0D verification evidence`. No `FAIL`/`BLOCKED` value was changed to `PASS`; the verdict below is a fresh independent re-confirmation of the same scope that was already PASS.
+
+## Post-Task 6 review note
+
+A later final review-work QA lane independently re-ran the gate commands (lint, disposable `db:migrate`, unit 235+1 skip, six migration tests, typecheck, extension 110, build 16/16, E2E 16) and cleaned its own temporary logs to cross-check the Task 4/Task 6 evidence. Every other review lane in that run PASSed and produced no evidence-of-evidence changes.
+
+During its initial state capture, that final review-work lane mistakenly invoked `Get-FileHash` once against the default `training-platform.sqlite` while gathering baseline metadata, and also opened the file once via `Get-Item` for size and `LastWriteTimeUtc`. Both calls were read-only and produced no write to the default database, but they violated the explicit process rule that verification must never open or hash the default `training-platform.sqlite`. The captured hash value was discarded immediately, was never recorded as evidence in any report or handoff, was never used as a gate signal, and was not compared against any other value; the lane reverted to the same `Get-Item`-only metadata comparison used by the authoritative gate runs for its preservation check.
+
+The default `training-platform.sqlite` `Length` (73728) and `LastWriteTimeUtc` (`2026-07-13T17:49:36.9126118Z`) remained byte-equal before and after the lane's work, and no write to the default file occurred. This deviation is recorded here so the truthful process record is complete; it does not alter the Task 4 or Task 6 authoritative gate outcomes, does not change any count, status, verdict, certification, plan, or roadmap state, and does not close, unblock, or re-open Phase 0. The "never opened or hashed" and "metadata only" claims in the Task 4 and Task 6 sections above remain accurate as scoped to the authoritative gate verification runs.
 
 ## Verdict
 
