@@ -16,7 +16,8 @@
     "db:seed": "tsx lib/db/seed.ts",
     "extension:test": "vitest run --config vitest.extension.config.ts",
     "extension:build": "node extension/build.mjs",
-    "extension:check": "npm run typecheck && npm run extension:test && npm run extension:build && node scripts/check-extension-dist.mjs"
+    "extension:check": "npm run typecheck && npm run extension:test && npm run extension:build && node scripts/check-extension-dist.mjs",
+    "quality:gate": "node scripts/quality-gate.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
