@@ -43,9 +43,7 @@ describe("applyMigrations", () => {
         .prepare<[], { readonly name: string }>("PRAGMA table_info(training_attempts)")
         .all()
         .map((column) => column.name);
-      const expectedMigrationCount = readdirSync(
-        join(process.cwd(), "lib", "db", "migrations"),
-      ).filter((name) => name.endsWith(".sql")).length;
+      const expectedMigrationCount = repositoryMigrationNames().length;
 
       expect(migrationCount).toEqual({ count: expectedMigrationCount });
       expect(attemptColumns).toContain("capture_session_id");
@@ -360,10 +358,70 @@ describe("applyMigrations", () => {
       db.close();
     }
   });
+
+  it("upgrades every supported schema prefix to the current schema", () => {
+    const migrationNames = repositoryMigrationNames();
+
+    for (let prefixLength = 1; prefixLength < migrationNames.length; prefixLength += 1) {
+      const directory = makeTempDir(`migration-prefix-${prefixLength}-`);
+      const oldMigrationsDir = join(directory, "old-migrations");
+      const db = new Database(join(directory, "test.sqlite"));
+      copyMigrationPrefix(oldMigrationsDir, migrationNames, prefixLength);
+
+      try {
+        const options = { now: () => "2026-07-15T00:00:00.000Z" };
+        applyMigrations(db, { ...options, migrationsDir: oldMigrationsDir });
+        expect(appliedMigrationIds(db)).toEqual(migrationNames.slice(0, prefixLength));
+
+        applyMigrations(db, options);
+        expect(appliedMigrationIds(db)).toEqual(migrationNames);
+        expect(
+          db.prepare<[], { readonly table: string }>("PRAGMA foreign_key_check").all(),
+        ).toEqual([]);
+        expect(
+          db.prepare<[], { readonly quick_check: string }>("PRAGMA quick_check").get(),
+        ).toEqual({ quick_check: "ok" });
+
+        applyMigrations(db, options);
+        expect(appliedMigrationIds(db)).toEqual(migrationNames);
+      } finally {
+        db.close();
+      }
+    }
+  });
 });
 
 function countRows(db: Database.Database, table: string): number {
   return db
     .prepare<[], { readonly count: number }>(`SELECT COUNT(*) AS count FROM ${table}`)
     .get()?.count ?? 0;
+}
+
+function repositoryMigrationNames(): readonly string[] {
+  return readdirSync(join(process.cwd(), "lib", "db", "migrations"))
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+}
+
+function copyMigrationPrefix(
+  destination: string,
+  migrationNames: readonly string[],
+  count: number,
+): void {
+  mkdirSync(destination);
+  for (const name of migrationNames.slice(0, count)) {
+    copyFileSync(
+      join(process.cwd(), "lib", "db", "migrations", name),
+      join(destination, name),
+    );
+  }
+}
+
+function appliedMigrationIds(db: Database.Database): readonly string[] {
+  return db
+    .prepare<[], { readonly id: string }>(
+      "SELECT id FROM schema_migrations ORDER BY id",
+    )
+    .all()
+    .map((row) => row.id);
 }
