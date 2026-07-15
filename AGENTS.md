@@ -1,6 +1,6 @@
 # Agent Handoff Guide
 
-This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), and 0C1-0C2 are implemented, while the active product roadmap still labels the codebase Pre-V0.
+This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, and 0D are implemented, while the active product roadmap still labels the codebase Pre-V0. Phase 0 itself remains BLOCKED on production-adapter certification; only Phase 0D's engineering-gates package is closed.
 
 `IDEA.md` and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` define the future V0/V0.5/V1/Public Beta direction. `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud SaaS as the eventual target but explicitly defers implementation until the Phase 7 gate.
 
@@ -21,13 +21,17 @@ This repository currently implements a local-first AI coding training prototype.
 Use these commands for verification:
 
 ```powershell
+npm run lint
 npm run db:migrate
 npm run test
 npm run typecheck
 npm run e2e
-npm run extension:build
+npm run extension:check
 npm run build
+npm run quality:gate
 ```
+
+`npm run lint` runs the strict ESLint flat config. `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run quality:gate` runs the seven commands above in this exact order under an OS-temporary database and is the safe single verification.
 
 For browser smoke QA, Playwright owns the server lifecycle; do not start a separate long-running server. Its prepare/teardown flow creates and removes `.tmp/playwright/training-platform.sqlite` and refuses to reuse a server on port 3000. For other migration or build checks, set `TRAINING_DB_PATH` to a disposable path when the default database must remain untouched.
 
@@ -62,7 +66,7 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
+- Phase 0D engineering gates executed on 2026-07-15 and completed/verified. Commits in order: `b3c1993`, `d3a201f`, `e7c14b5` (Task 1 and corrections), `dca2236` (Task 2), `59a6ecc` (Task 3), `970a9bf` and `7cb6169` (Task 4 and link-safe correction). Phase 0D plan: `docs/superpowers/plans/2026-07-15-phase-0d-engineering-quality-gates.md`. Evidence: `work/reports/phase-0d-engineering-gates.md`.
 - Phase 0C2 completed on 2026-07-14 and is merged at `983e10a`.
-- Phase 0B4 (Luogu adapter certification) executed on 2026-07-14 with BLOCKED terminal state. The certification gate confirmed no production adapter exists. The blocker artifact (`work/reports/luogu-adapter-blocker.json`) documents the missing public verdict DOM as the reason.
-- Do not re-execute the completed 0A-0C2 and 0B4 atomic plans; they are retained as implementation records.
-- Remaining Phase 0 work is Phase 0D engineering gates, including adding the documented lint command. Re-attempt production-adapter certification requires a publicly accessible Luogu page with verdict DOM or a new design decision to accept characterization-only evidence.
+- Phase 0B4 (Luogu adapter certification) executed on 2026-07-14 with BLOCKED terminal state. The certification gate confirmed no production adapter exists. The blocker artifact (`work/reports/luogu-adapter-blocker.json`) documents the missing public verdict DOM as the reason. Re-attempting production-adapter certification requires a publicly accessible Luogu page with verdict DOM or a new design decision to accept characterization-only evidence.
+- Phase 0 remains BLOCKED on production-adapter certification. Do not re-execute the completed 0A-0C2 and 0B4 atomic plans; they are retained as implementation records. Do not start Phase 1 until the Phase 0 exit gate is satisfied or superseded by an explicit design decision.

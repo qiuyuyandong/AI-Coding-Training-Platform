@@ -27,15 +27,21 @@ The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem s
 
 ## Commands
 
+The documented verification commands are:
+
 ```powershell
 npm install
 npm run dev
+npm run lint
 npm run typecheck
 npm run test
 npm run e2e
-npm run extension:build
+npm run extension:check
 npm run build
+npm run quality:gate
 ```
+
+`npm run lint` runs the strict ESLint flat config (`eslint . --max-warnings=0`). `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run quality:gate` runs lint, a disposable migration, unit tests, typecheck, E2E, extension parity, and production build in that order using an OS-temporary database and is the safe all-in-one gate. Use it instead of running individual commands when you want one reproducible verification.
 
 `npm run e2e` creates a freshly migrated database at `.tmp/playwright/training-platform.sqlite`, starts and stops its own Next.js server, and removes the disposable database afterward. It never reuses a server on port 3000 and never writes to the default `training-platform.sqlite`.
 

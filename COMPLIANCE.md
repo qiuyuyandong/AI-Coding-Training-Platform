@@ -74,3 +74,12 @@ Verdict capture keeps using the browser session without extracting the browser s
 SPA observation uses URL/browser lifecycle signals and visible DOM mutations only; it does not patch page code, read hidden routing state, or add Chrome navigation permissions. Extension unit tests cover SPA decisions, while Playwright validates the downstream event sequence without claiming to load the unpacked MV3 extension.
 
 Authenticated localhost transport uses a deliberate one-time pairing code, a hashed install-scoped bearer credential, and owner-controlled rotation/revocation. Explicit web origins, non-JSON media types, and bodies over 64 KiB are rejected. `Origin` is only defense in depth, and host filesystem/browser-profile compromise remains outside this local boundary. `installationId` is still correlation metadata rather than security identity.
+
+## Phase 0D CI and Quality Gate Databases
+
+Disposable test and migration databases are owned by the verification stack, not by users:
+
+- `npm run e2e` writes only to `.tmp/playwright/training-platform.sqlite` and removes it during teardown; `npm run quality:gate` writes only to an OS-temporary `ai-training-quality-gate-*` directory and removes it in a `finally` block.
+- These databases contain only synthetic test fixtures and migration rows; they never hold production capture data, training records, attempts, manual reflections, credentials, or any user-derived content.
+- The default `training-platform.sqlite` at the repository root is the developer's local source of truth. The aggregate gate never opens, hashes, or migrates it; `npm run e2e` and `npm run quality:gate` are the only commands that own disposable databases.
+- GitHub Actions (`windows-latest`, Node 22) installs dependencies and Chromium, then runs only `npm run quality:gate`. CI does not deploy, expose secrets, upload database artifacts, or call external LLM, analytics, sync, OJ, or third-party APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner.

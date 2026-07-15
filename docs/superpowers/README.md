@@ -6,7 +6,7 @@ This directory contains both active product planning and historical implementati
 
 1. [`../../IDEA.md`](../../IDEA.md) — product definition, adopted decisions, V0/V0.5/V1/Public Beta scope.
 2. [`plans/2026-07-11-product-development-roadmap.md`](plans/2026-07-11-product-development-roadmap.md) — active release/Phase map and exit gates.
-3. Phase 0 implementation records completed through 0C2:
+3. Phase 0 implementation records completed through 0D:
    - [`plans/2026-07-11-phase-0a-e2e-data-safety.md`](plans/2026-07-11-phase-0a-e2e-data-safety.md)
    - [`plans/2026-07-14-phase-0b1-capture-session-protocol.md`](plans/2026-07-14-phase-0b1-capture-session-protocol.md)
    - [`plans/2026-07-14-phase-0b2-spa-queue-reliability.md`](plans/2026-07-14-phase-0b2-spa-queue-reliability.md)
@@ -14,8 +14,9 @@ This directory contains both active product planning and historical implementati
    - [`plans/2026-07-14-phase-0b4-luogu-adapter-certification.md`](plans/2026-07-14-phase-0b4-luogu-adapter-certification.md) — BLOCKED (no public verdict DOM); Luogu remains experimental
    - [`plans/2026-07-14-phase-0c1-query-analytics-canonical-url.md`](plans/2026-07-14-phase-0c1-query-analytics-canonical-url.md)
    - [`plans/2026-07-14-phase-0c2-manual-attempt-corrections.md`](plans/2026-07-14-phase-0c2-manual-attempt-corrections.md)
+   - [`plans/2026-07-15-phase-0d-engineering-quality-gates.md`](plans/2026-07-15-phase-0d-engineering-quality-gates.md) — Completed and fully verified on 2026-07-15; evidence: [`../../work/reports/phase-0d-engineering-gates.md`](../../work/reports/phase-0d-engineering-gates.md)
 4. Active remaining and future capability plans:
-   - [`plans/2026-07-11-phase-0-reliability-baseline.md`](plans/2026-07-11-phase-0-reliability-baseline.md) — Phase 0D remains; production-adapter re-certification requires a new design decision or public verdict DOM.
+   - [`plans/2026-07-11-phase-0-reliability-baseline.md`](plans/2026-07-11-phase-0-reliability-baseline.md) — Phase 0D execution record retained; production-adapter re-certification requires a new design decision or public verdict DOM.
    - [`plans/2026-07-11-phase-1-curriculum-resource-catalog.md`](plans/2026-07-11-phase-1-curriculum-resource-catalog.md)
    - [`plans/2026-07-11-phase-2-goals-diagnosis-planning.md`](plans/2026-07-11-phase-2-goals-diagnosis-planning.md)
    - [`plans/2026-07-11-phase-3-evidence-mastery-review.md`](plans/2026-07-11-phase-3-evidence-mastery-review.md)
@@ -24,7 +25,7 @@ This directory contains both active product planning and historical implementati
    - [`plans/2026-07-11-phase-6-pilot-calibration.md`](plans/2026-07-11-phase-6-pilot-calibration.md)
    - [`plans/2026-07-13-phase-7-public-beta-cloud.md`](plans/2026-07-13-phase-7-public-beta-cloud.md)
 
-Phase 0A through 0C2 and Phase 0B4 (BLOCKED) are implemented and retained as execution records. Before implementing the remaining Phase 0 work or another capability package, write a new atomic plan against the then-current repository rather than treating a completed plan or delivery overview as line-by-line instructions.
+Phase 0A through 0C2, Phase 0D, and Phase 0B4 (BLOCKED) are implemented and retained as execution records. Phase 0 itself remains BLOCKED on production-adapter certification. Before implementing another capability package, write a new atomic plan against the then-current repository rather than treating a completed plan or delivery overview as line-by-line instructions.
 
 ## Historical records
 

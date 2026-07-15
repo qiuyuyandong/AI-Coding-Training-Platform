@@ -52,13 +52,22 @@ On the first V2 extension startup, any queued V1 events are discarded once. Chro
 Use the full local gate before handoff:
 
 ```powershell
+npm run lint
 npm run db:migrate
 npm run test
 npm run typecheck
 npm run e2e
-npm run extension:build
+npm run extension:check
 npm run build
 ```
+
+`npm run quality:gate` runs all seven commands above in this exact order using an OS-temporary database, so it is the recommended single verification:
+
+```powershell
+npm run quality:gate
+```
+
+The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses a server on port 3000. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
 
 `npm run test` currently runs 234 tests (233 pass, 1 capability skip). The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. Named test files of interest:
 
@@ -81,6 +90,12 @@ npm run test -- tests/unit/platformCertification.test.ts
 The Coach/Growth E2E fixture writes more rows than either display window and asserts three separate contracts: Training still finds an older scoped problem, Growth totals match the complete database count while showing five activity rows, and Coach reports its 50-attempt analysis window.
 
 The manual fallback E2E creates one isolated manual attempt, verifies source display and Coach/Growth inclusion, corrects it without increasing the attempt count, reads its visible correction history, then voids it and verifies default-query exclusion.
+
+### Recovery
+
+- **Lint step failed inside `npm run quality:gate`.** Inspect the `eslint . --max-warnings=0` output, fix the named files without adding disable comments or downgrading rules, then rerun `npm run lint` directly before re-running the full gate. Do not skip a finding by reducing the severity.
+- **E2E cleanup was interrupted.** Confirm no Playwright-owned Next.js process is running (`Get-NetTCPConnection -LocalPort 3000 -State Listen`), then remove only the resolved `<workspace>/.tmp/playwright` directory. The Playwright teardown walker (`tests/e2e/database.ts`) handles symlinks and junctions as leaves; never delete or replace the default `training-platform.sqlite`.
+- **Quality-gate temporary directory was interrupted.** The runner creates an `ai-training-quality-gate-*` directory under `os.tmpdir()` and removes it in a `finally` block. If an interrupted run leaves one behind, remove only that matching directory under your OS temp path. The default `training-platform.sqlite` lives at the repository root and is never touched by the gate; an interrupted gate must not be cleaned up by deleting the default database.
 
 ## Troubleshooting
 

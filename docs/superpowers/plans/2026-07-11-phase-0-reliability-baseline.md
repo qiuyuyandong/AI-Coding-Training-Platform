@@ -1,6 +1,6 @@
 # Phase 0 Trustworthy Capture and Analytics Delivery Plan
 
-**Status:** In progress on 2026-07-15. Phase 0A, 0B1-0B3, 0B4 (BLOCKED), and 0C1-0C2 are complete. Phase 0D remains. Production-adapter certification was attempted in Phase 0B4 and BLOCKED (no public Luogu verdict DOM); re-certification requires a new design decision or publicly accessible verdict page.
+**Status:** In progress / BLOCKED on 2026-07-15. Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, and 0D are complete. Phase 0 itself remains BLOCKED on production-adapter certification; Phase 0D only closed the engineering-gates package. Production-adapter certification was attempted in Phase 0B4 and BLOCKED (no public Luogu verdict DOM); re-certification requires a new design decision or publicly accessible verdict page.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:writing-plans to expand each subphase, superpowers:test-driven-development during implementation, and superpowers:verification-before-completion before closing Phase 0.
 
@@ -79,11 +79,11 @@ Work packages:
 
 Work packages:
 
-- [ ] Add ESLint with strict project scripts and fix existing findings without suppressions.
-- [ ] Add migration tests for a fresh database, upgrade from each supported schema version, rollback on failure, and idempotent replay.
-- [ ] Add CI commands mirroring the documented local gate; do not add deployment or external data calls.
-- [ ] Add extension build/test parity and verify generated `extension/dist` stays ignored.
-- [ ] Update `README.md`, `docs/architecture.md`, `docs/runbook.md`, and `COMPLIANCE.md` with the final data flow and failure recovery.
+- [x] Add ESLint with strict project scripts and fix existing findings without suppressions.
+- [x] Add migration tests for a fresh database, upgrade from each supported schema version, rollback on failure, and idempotent replay.
+- [x] Add CI commands mirroring the documented local gate; do not add deployment or external data calls.
+- [x] Add extension build/test parity and verify generated `extension/dist` stays ignored.
+- [x] Update `README.md`, `docs/architecture.md`, `docs/runbook.md`, and `COMPLIANCE.md` with the final data flow and failure recovery.
 
 ## Required Tests
 
@@ -101,28 +101,31 @@ npm run db:migrate
 npm run test
 npm run typecheck
 npm run e2e
-npm run extension:build
+npm run extension:check
 npm run build
+npm run quality:gate
 ```
+
+`npm run quality:gate` runs the seven commands above in that exact order under an OS-temporary database and is the safe single verification.
 
 ## Exit Gate
 
 Phase 0 is complete only when all are true:
 
-- [ ] E2E does not create, migrate, seed, hash-change, or delete the default database.
-- [ ] Replayed events are idempotent, while two real submissions with the same verdict remain two submissions.
+- [x] E2E does not create, migrate, seed, hash-change, or delete the default database.
+- [x] Replayed events are idempotent, while two real submissions with the same verdict remain two submissions.
 - [x] Queued V1 events are discarded once under the approved cutover, with cleanup time and discarded count recorded.
-- [ ] Events from two pages or sessions never materialize into the wrong attempt.
-- [ ] Unpaired requests cannot create trusted browser events; credential rotation invalidates the previous credential.
-- [ ] Closing or hiding a page does not invent a verdict.
-- [ ] The extension drains queued events in order without losing events added during drain.
-- [ ] `/training` shows the current problem’s attempt, not a globally recent attempt.
-- [ ] Growth totals use full aggregates and recent metrics declare their window.
-- [ ] One canonical URL implementation is used everywhere.
+- [x] Events from two pages or sessions never materialize into the wrong attempt.
+- [x] Unpaired requests cannot create trusted browser events; credential rotation invalidates the previous credential.
+- [x] Closing or hiding a page does not invent a verdict.
+- [x] The extension drains queued events in order without losing events added during drain.
+- [x] `/training` shows the current problem’s attempt, not a globally recent attempt.
+- [x] Growth totals use full aggregates and recent metrics declare their window.
+- [x] One canonical URL implementation is used everywhere.
 - [ ] One adapter is explicitly production-ready against its fixture/manual matrix; every other adapter is visibly experimental or disabled. (Phase 0B4 attempted Luogu certification but BLOCKED on missing public verdict DOM.)
-- [ ] A learner can record or correct a session when automatic capture fails, without erasing the original provenance.
-- [ ] Fresh and upgrade migrations pass in temporary databases.
-- [ ] Lint, unit, type, E2E, extension, and production build gates all pass.
+- [x] A learner can record or correct a session when automatic capture fails, without erasing the original provenance.
+- [x] Fresh and upgrade migrations pass in temporary databases.
+- [x] Lint, unit, type, E2E, extension, and production build gates all pass.
 
 ## Risks and Controls
 

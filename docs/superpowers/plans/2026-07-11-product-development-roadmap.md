@@ -207,7 +207,7 @@ Exit gate:
 
 | Phase | Capability outcome | First release that consumes it | Status | Detailed plan |
 |---|---|---|---|---|
-| 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | In progress; 0A, 0B1-0B3, 0B4 (BLOCKED) and 0C1-0C2 complete; Phase 0D remains; production-adapter recertification requires new decision or public verdict DOM | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
+| 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | In progress / BLOCKED; 0A-0D executed; Phase 0 remains BLOCKED on production-adapter certification | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
 | 1 | Versioned common-foundation graph, career summaries and reviewed resources | V0 | Planned | [Phase 1](./2026-07-11-phase-1-curriculum-resource-catalog.md) |
 | 2 | Goal, diagnosis, bounded daily planning and replanning | V0 | Planned | [Phase 2](./2026-07-11-phase-2-goals-diagnosis-planning.md) |
 | 3 | Auditable evidence, five-level ability projection and review | V0 thin slice; V0.5 deepens | Planned | [Phase 3](./2026-07-11-phase-3-evidence-mastery-review.md) |
@@ -242,8 +242,8 @@ Content research may run in parallel with Phase 0, but imports and personalized 
 
 ## 8. Near-Term Execution Order
 
-1. Complete the production-adapter feasibility/fixture/certification slice still open in Phase 0B.
-2. Execute Phase 0D lint, CI, migration-matrix, extension parity, and final documentation work.
+1. Acquire a publicly accessible verdict DOM for an OJ candidate adapter or write a new design decision that explicitly accepts characterization-only evidence, then re-run the Phase 0B4 certification gate; Phase 0 remains BLOCKED until that gate returns CERTIFIED.
+2. Phase 0D engineering gates (lint, CI parity, migration matrix, extension parity, final documentation) are already executed and verified; do not re-execute them.
 3. Write one V0 vertical-slice design and atomic implementation plan spanning only the required Phase 1/2/3/5 tasks.
 4. Publish the first 12–18 nodes and manual task flow; do not wait for an encyclopedia.
 5. Run one week of self-use, fix blocking friction, then run a two-week roommate trial.
@@ -281,15 +281,17 @@ Every active work package follows this sequence:
 Run separately from the repository root:
 
 ```powershell
+npm run lint
 npm run db:migrate
 npm run test
 npm run typecheck
 npm run e2e
-npm run extension:build
+npm run extension:check
 npm run build
+npm run quality:gate
 ```
 
-Phase 0 must add lint and CI parity. After that, include `npm run lint` in every gate. E2E must first prove it is using a disposable database; until then, do not run it against valuable local data.
+`npm run quality:gate` runs the seven commands above in that exact order under an OS-temporary database and is the safe single verification. The Pre-V0 exit gate requires this aggregate gate plus the separate Phase 0B4 production-adapter certification condition. E2E must first prove it is using a disposable database; until then, do not run it against valuable local data.
 
 ## 12. Scope Control
 
