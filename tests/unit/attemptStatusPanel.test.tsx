@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+﻿import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TrainingAttempt } from "@/lib/domain/training";
@@ -27,11 +27,36 @@ function freshAttempt(): TrainingAttempt {
   return { ...baseAttempt, language: baseAttempt.language };
 }
 
-let pollCallback: (() => void) | undefined;
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function flushMicrotasks(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+// Captures the polling handler that AttemptStatusPanel schedules via
+// setInterval so the test can fire it deterministically inside act. The
+// production handler is the async refresh function, so the captured type
+// is `() => Promise<void>`; we still need a runtime guard before invoking
+// it because the spy may not have been called by the time we read it.
+let pollHandler: (() => Promise<void>) | undefined;
+let nextPollId = 0;
+
+function requirePollHandler(): () => Promise<void> {
+  if (pollHandler === undefined) {
+    throw new Error("expected setInterval to have captured a polling handler");
+  }
+  return pollHandler;
+}
 
 describe("AttemptStatusPanel polling resilience", () => {
   afterEach(() => {
-    pollCallback = undefined;
+    pollHandler = undefined;
+    nextPollId = 0;
     vi.restoreAllMocks();
   });
 
@@ -44,61 +69,88 @@ describe("AttemptStatusPanel polling resilience", () => {
       globalThis.fetch = fetchMock;
 
       let correctionsCallCount = 0;
-      fetchMock.mockImplementation(async (url: string | URL | Request) => {
-        const path = typeof url === "string" ? url : url instanceof URL ? url.pathname + url.search : url.url;
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const path =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.pathname + input.search
+              : input.url;
         if (path.includes("/corrections")) {
           correctionsCallCount += 1;
-          return {
-            ok: true,
-            json: async () => ({ ok: true, corrections: [] }),
-          } as Response;
+          return jsonResponse({ ok: true, corrections: [] });
         }
-        return {
-          ok: true,
-          json: async () => ({ ok: true, recentAttempts: [freshAttempt()] }),
-        } as Response;
+        return jsonResponse({ ok: true, recentAttempts: [freshAttempt()] });
       });
 
-      const setIntervalSpy = vi.spyOn(window, "setInterval").mockImplementation((handler: TimerHandler) => {
-        pollCallback = handler as () => void;
-        return 1 as unknown as ReturnType<typeof setInterval>;
+      const setIntervalMock = vi.fn((handler: TimerHandler): number => {
+        if (typeof handler === "function") {
+          pollHandler = handler as () => Promise<void>;
+        }
+        nextPollId += 1;
+        return nextPollId;
+      });
+      const originalSetInterval = window.setInterval;
+      Object.defineProperty(window, "setInterval", {
+        value: setIntervalMock,
+        writable: true,
+        configurable: true,
       });
 
       try {
         const { AttemptStatusPanel } = await import("@/components/AttemptStatusPanel");
-        render(<AttemptStatusPanel platform="leetcode" externalId="two-sum" />);
 
-        await vi.waitFor(() => {
-          expect(screen.getByText("Two Sum")).toBeTruthy();
-        }, { timeout: 5000 });
-        expect(setIntervalSpy).toHaveBeenCalledTimes(1);
-        expect(pollCallback).toBeDefined();
+        // Render inside act and flush microtasks so the mount effect's
+        // async refresh() finishes its setState inside the same act.
+        await act(async () => {
+          render(<AttemptStatusPanel platform="leetcode" externalId="two-sum" />);
+          await flushMicrotasks();
+        });
 
-        const reasonInput = screen.getByLabelText("Correction reason") as HTMLInputElement;
-        fireEvent.change(reasonInput, { target: { value: "fixed the result" } });
+        expect(setIntervalMock).toHaveBeenCalledTimes(1);
+        expect(screen.getByText("Two Sum")).toBeTruthy();
+
+        const reasonElement = screen.getByLabelText("Correction reason");
+        if (!(reasonElement instanceof HTMLInputElement)) {
+          throw new Error("expected the correction reason label to target an HTMLInputElement");
+        }
+        const reasonInput = reasonElement;
+
+        await act(async () => {
+          fireEvent.change(reasonInput, { target: { value: "fixed the result" } });
+        });
         expect(reasonInput.value).toBe("fixed the result");
 
         const correctionsBeforePoll = correctionsCallCount;
+        const handler = requirePollHandler();
 
-        // Fire the captured polling callback.
-        // With the buggy object-identity dependency, this triggers the sync
-        // effect on every render, which calls refreshCorrections → setState →
-        // re-render → new latest reference → effect fires again. The test
-        // catches this as an unbounded corrections fetch count.
-        pollCallback!();
+        // Fire the captured polling callback inside act so React flushes the
+        // resulting state updates before we observe the DOM. The mocked
+        // server returns a brand-new attempt object whose primitive fields
+        // (id, result, language, durationMinutes, reflection, startedAt,
+        // endedAt, revision) are identical to the previous one.
+        // AttemptStatusPanel mirrors `latest` into form state from a useEffect
+        // whose dependency list is those primitives, so an identical-primitive
+        // re-fetch must NOT re-fire the effect; otherwise it would clear the
+        // correction reason and re-fetch the corrections history.
+        await act(async () => {
+          await handler();
+          await flushMicrotasks();
+        });
 
-        // Let cascading effects settle
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // correctionsCallCount must be bounded — one initial call plus at most
-        // one for the poll-triggered sync. An unbounded count signals the
-        // infinite render loop caused by the object-identity dependency bug.
-        expect(correctionsCallCount - correctionsBeforePoll).toBeLessThan(5);
-
-        // The user's typed correction reason must survive the poll
-        expect(reasonInput.value).toBe("fixed the result");
+        // The poll must leave the user's typed correction reason intact and
+        // must not trigger an extra corrections fetch. Asserting on the form
+        // value is the deterministic observable for "the sync effect did not
+        // re-fire"; asserting on the corrections fetch count is the
+        // deterministic observable for "no cascading re-render storm strayed
+        // into refreshCorrections".
+        await waitFor(() => {
+          expect(reasonInput.value).toBe("fixed the result");
+        });
+        expect(correctionsCallCount).toBe(correctionsBeforePoll);
       } finally {
         globalThis.fetch = originalFetch;
+        window.setInterval = originalSetInterval;
       }
     },
   );
