@@ -705,7 +705,7 @@ Evidence: roadmap pre-existing `M` marker was classified at takeover as line-end
 - Consumes `npm run quality:gate` as the authoritative Phase 0D verification command.
 - Produces a clean or explicitly classified Git state and a Worker Report for Commander review.
 
-- [ ] **Step 1: Run the authoritative gate fresh after all documentation changes**
+- [x] **Step 1: Run the authoritative gate fresh after all documentation changes**
 
 Run:
 
@@ -715,7 +715,9 @@ npm run quality:gate
 
 Expected: PASS for lint, disposable migration, all mandatory unit tests, typecheck, all E2E tests, extension parity, and production build. Do not reuse Task 4 output for this step.
 
-- [ ] **Step 2: Verify generated and temporary state**
+Evidence: 2026-07-15 fresh run on commit `7394e22` (`docs: correct unit test count`) after Task 5 docs commits. `lint` zero warnings; `db:migrate` (OS-temp disposable) PASS; `test` 28 files / 235 passed / 1 skipped (236 total); `typecheck` PASS; `e2e` 16 passed (1.0m); `extension:check` chain (typecheck + 11 files / 110 + build + dist parity) PASS; `build` 16/16 static pages.
+
+- [x] **Step 2: Verify generated and temporary state**
 
 Run:
 
@@ -727,11 +729,15 @@ $env:GIT_MASTER='1'; git status --short --branch
 
 Expected: `extension/dist/content.js` is ignored; `.tmp/playwright` is absent; Git contains no unexpected generated files. Any remaining pre-existing modification is named and classified.
 
-- [ ] **Step 3: Correct evidence if the fresh run differs**
+Evidence: `git check-ignore -v extension/dist/content.js` → `.gitignore:12:dist/ extension/dist/content.js` (still ignored); `Test-Path -LiteralPath '.tmp/playwright'` → `False`; OS-temp `ai-training-quality-gate-*` directories under `$env:TEMP`: none; default `training-platform.sqlite` `Length` 73728 / `LastWriteTimeUtc` 2026-07-13 17:49:36 byte-equal before and after the run; `git status --short --branch --untracked-files=all` clean after removing the transient `.tmp/quality-gate-task6.log` capture; no pre-existing modifications remain (the Task 5 commit `cd66285` intentionally staged the once-preserved roadmap delta; `7394e22` corrected only unit test counts in this report).
+
+- [x] **Step 3: Correct evidence if the fresh run differs**
 
 If counts or results differ from the report, update only the factual evidence fields and rerun `git diff --check`. Never change `FAIL`/`BLOCKED` to `PASS` without a fresh successful gate.
 
-- [ ] **Step 4: Commit evidence-only corrections if needed**
+Evidence: every count and gate result from the fresh Task 6 run matched the existing report exactly (28 / 235 / 1 skip; 16 E2E; 11 / 110 extension; 16/16 build pages). No factual correction required. `git diff --check` clean.
+
+- [x] **Step 4: Commit evidence-only corrections if needed**
 
 ```powershell
 $env:GIT_MASTER='1'; git add -- work/reports/phase-0d-engineering-gates.md work/handoff-current.md
@@ -740,7 +746,9 @@ $env:GIT_MASTER='1'; git commit -m "docs: record Phase 0D verification evidence"
 
 Skip this commit when Step 3 made no changes.
 
-- [ ] **Step 5: Produce the Worker Report**
+Evidence: this commit is not skipped — Step 3 made no factual correction, but the user's explicit real-time checkpoint requirement makes Task 6 completion itself an evidence-only checkpoint. Stage 3 files only: `work/reports/phase-0d-engineering-gates.md` (new "Task 6 Independent Final Verification (2026-07-15)" subsection), `work/handoff-current.md` (added latest-gate note to Workspace + Accepted lines), and this plan (Task 6 checkboxes marked). No default database, `extension/dist/`, OS temp, or unrelated file staged. Commit subject: `docs: record Phase 0D verification evidence`.
+
+- [x] **Step 5: Produce the Worker Report**
 
 Report:
 

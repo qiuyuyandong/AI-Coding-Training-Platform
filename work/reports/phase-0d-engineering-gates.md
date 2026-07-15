@@ -75,6 +75,55 @@ Phase 0D closes the engineering-quality-gates package. It introduces an explicit
 
 Phase 0 itself is not complete. No adapter is certified `production`. The Phase 0B4 Luogu certification gate returned BLOCKED because no fixture qualifies as `evidenceTier="verified-public-dom"`. The blocker artifact is `work/reports/luogu-adapter-blocker.json`. Re-attempting production-adapter certification requires a publicly accessible OJ page with verdict DOM or a new design decision that explicitly accepts characterization-only evidence. Phase 0D's `PASS` verdict below is strictly limited to the engineering-gates package; it does not close Phase 0.
 
+## Task 6 Independent Final Verification (2026-07-15)
+
+Task 6 re-ran the authoritative `npm run quality:gate` end-to-end after the Task 5 documentation commits (`cd66285`, `7394e22`) to provide an independent, fresh verification record distinct from the Task 4 run captured above. No implementation, configuration, workflow, or roadmap files were modified by Task 6; only the evidence file and the plan checkboxes were updated after the run.
+
+### Pre-run state
+
+- Branch: `feature/v1-followup` at `7394e22` (`docs: correct unit test count`).
+- `git status --short --branch --untracked-files=all`: clean.
+- `git check-ignore -v extension/dist/content.js`: `.gitignore:12:dist/ extension/dist/content.js` (dist still ignored).
+- `Test-Path -LiteralPath '.tmp/playwright'`: `False`.
+- OS-temporary `ai-training-quality-gate-*` directories under `$env:TEMP`: none present.
+- Default `training-platform.sqlite` (metadata only, never opened/hashed):
+  - `Length`: 73728
+  - `LastWriteTimeUtc`: 2026-07-13 17:49:36
+
+### Fresh `npm run quality:gate` results
+
+| Stage | Result |
+| --- | --- |
+| `lint` (`eslint . --max-warnings=0`) | PASS, zero warnings |
+| `db:migrate` (disposable OS-temp DB) | PASS |
+| `test` (`vitest run --passWithNoTests`) | 28 files passed, 235 tests passed, 1 skipped (236 total) |
+| `typecheck` (`tsc --noEmit`) | PASS |
+| `e2e` (`playwright test`) | 16 passed (1.0m) |
+| `extension:check` → `typecheck` | PASS |
+| `extension:check` → `extension:test` | 11 files passed, 110 tests passed |
+| `extension:check` → `extension:build` | PASS, regenerated `content.js`, `background.js`, `popup.js`, manifest, popup.html and source maps under `extension/dist` |
+| `extension:check` → `check-extension-dist.mjs` | PASS (parity + ignore check) |
+| `build` (`next build`) | PASS, 16/16 static pages generated |
+
+Every count matches the Task 4 evidence above exactly: 28 unit files / 235 passed / 1 skip (236 total), 16 E2E, 11 extension files / 110, 16/16 build pages.
+
+### Post-run state and default database preservation
+
+- Default `training-platform.sqlite` (metadata only):
+  - `Length`: 73728 — identical to pre-run
+  - `LastWriteTimeUtc`: 2026-07-13 17:49:36 — identical to pre-run
+- `git check-ignore -v extension/dist/content.js`: `.gitignore:12:dist/ extension/dist/content.js` (still ignored).
+- `Test-Path -LiteralPath '.tmp/playwright'`: `False`.
+- OS-temporary `ai-training-quality-gate-*` directories under `$env:TEMP`: none present.
+- `git status --short --branch --untracked-files=all`: clean (after removing the transient `.tmp/quality-gate-task6.log` capture used only to record this run's output).
+- `git diff --check`: clean.
+
+Default database `Length` and `LastWriteTimeUtc` are byte-equal before and after the fresh gate. The default `training-platform.sqlite` was inspected by directory entry only and was never opened or hashed.
+
+### Step 3 and Step 4 outcome
+
+Step 3 (`Correct evidence if the fresh run differs`) was a no-op: every count and gate result from the fresh Task 6 run matched the existing report exactly, so no factual correction was required. Step 4 (`Commit evidence-only corrections`) added the present "Task 6 Independent Final Verification" subsection plus the matching handoff and plan checkbox updates, all with the explicit subject `docs: record Phase 0D verification evidence`. No `FAIL`/`BLOCKED` value was changed to `PASS`; the verdict below is a fresh independent re-confirmation of the same scope that was already PASS.
+
 ## Verdict
 
 **PASS** — limited to Phase 0D engineering gates only. Phase 0 remains BLOCKED on production-adapter certification.

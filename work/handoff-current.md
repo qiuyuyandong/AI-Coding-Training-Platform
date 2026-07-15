@@ -5,6 +5,7 @@
 - Branch: `feature/v1-followup`
 - Worktree: repository root
 - Default database: preserved and not opened by Phase 0D verification
+- Latest independent quality-gate run: 2026-07-15 (Task 6), `npm run quality:gate` PASS with counts matching Task 4 (28 unit files / 235 passed / 1 skip; 16 E2E; 11 extension files / 110; 16/16 build pages); default `training-platform.sqlite` `Length` 73728 and `LastWriteTimeUtc` 2026-07-13 17:49:36 byte-equal before and after the run
 
 ## Current Phase
 
@@ -19,6 +20,7 @@
 - Disposable aggregate quality gate
 - Windows CI parity
 - Phase 0D documentation and evidence report
+- Task 6 independent final verification (2026-07-15) re-confirming the gate without changing counts
 
 ## In Flight
 
