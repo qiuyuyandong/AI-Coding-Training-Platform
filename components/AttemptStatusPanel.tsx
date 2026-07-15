@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type {
   AttemptCorrection,
   AttemptResult,
@@ -69,21 +69,30 @@ export function AttemptStatusPanel({ platform, externalId }: AttemptStatusPanelP
 
   const latest = state.recentAttempts[0];
 
+  const latestId = latest?.id;
+  const latestResult = latest?.result;
+  const latestLanguage = latest?.language;
+  const latestDurationMinutes = latest?.durationMinutes;
+  const latestReflection = latest?.reflection;
+  const latestStartedAt = latest?.startedAt;
+  const latestEndedAt = latest?.endedAt;
+  const latestRevision = latest?.revision;
+
   useEffect(() => {
-    if (latest === undefined) {
+    if (latestId === undefined) {
       setCorrections({ ok: true, corrections: [] });
       return;
     }
-    setResult(latest.result);
-    setLanguage(latest.language ?? "");
-    setDuration(latest.durationMinutes === undefined ? "" : String(latest.durationMinutes));
-    setReflection(latest.reflection ?? "");
-    setStartedAt(toLocalDateTime(latest.startedAt));
-    setEndedAt(latest.endedAt === undefined ? "" : toLocalDateTime(latest.endedAt));
+    setResult(latestResult);
+    setLanguage(latestLanguage ?? "");
+    setDuration(latestDurationMinutes === undefined ? "" : String(latestDurationMinutes));
+    setReflection(latestReflection ?? "");
+    setStartedAt(toLocalDateTime(latestStartedAt));
+    setEndedAt(latestEndedAt === undefined ? "" : toLocalDateTime(latestEndedAt));
     setCorrectionReason("");
     setVoidReason("");
-    void refreshCorrections(latest.id, setCorrections);
-  }, [latest, latest?.id, latest?.revision]);
+    void refreshCorrections(latestId, setCorrections);
+  }, [latestId, latestResult, latestLanguage, latestDurationMinutes, latestReflection, latestStartedAt, latestEndedAt, latestRevision]);
 
   async function saveCorrection(): Promise<void> {
     if (latest === undefined) return;
