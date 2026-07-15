@@ -3,7 +3,7 @@
 ## Workspace
 
 - Branch: `feature/v1-followup`
-- Worktree: repository root
+- Worktree: repository root; clean at this handoff
 - Default database: preserved during the authoritative Phase 0D Task 4 and Task 6 gate verification runs (metadata-only `Get-Item`; the default `training-platform.sqlite` was never opened or hashed by those runs)
 - Latest independent quality-gate run: 2026-07-15 (Task 6), `npm run quality:gate` PASS with counts matching Task 4 (28 unit files / 235 passed / 1 skip; 16 E2E; 11 extension files / 110; 16/16 build pages); default `training-platform.sqlite` `Length` 73728 and `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z byte-equal before and after the run
 - Final review-work QA hash deviation: a later final review-work QA lane once mistakenly invoked `Get-FileHash` on the default `training-platform.sqlite` during its initial state capture, violating the no-open/hash review process rule; the hash was discarded and never used as evidence, no write occurred, and default DB `Length` 73728 / `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z remained unchanged
@@ -12,6 +12,16 @@
 
 - Phase 0D: completed and verified
 - Phase 0: BLOCKED on production-adapter certification
+
+## Phase 0D Commit Chronology
+
+- Task 1 — strict lint gate and polling corrections: `b3c1993`, `d3a201f`, `e7c14b5`.
+- Task 2 — migration upgrade matrix: `dca2236`.
+- Task 3 — extension test/build/dist parity: `59a6ecc`.
+- Task 4 — aggregate quality gate, Windows CI, and link-safe cleanup correction: `970a9bf`, `7cb6169`.
+- Task 5 — operational docs/status reconciliation and unit-count correction: `cd66285`, `7394e22`.
+- Task 6 — independent final verification evidence: `1e3c950`.
+- Post-review evidence corrections: `71c6287`, `45b19a6`, `0ce73fb`. These corrections preserve that Task 4 and Task 6 used metadata-only `Get-Item`, while the later final review-work QA lane mistakenly used `Get-FileHash` once and then reverted to metadata-only comparison.
 
 ## Accepted
 

@@ -66,7 +66,15 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
-- Phase 0D engineering gates executed on 2026-07-15 and completed/verified. Commits in order: `b3c1993`, `d3a201f`, `e7c14b5` (Task 1 and corrections), `dca2236` (Task 2), `59a6ecc` (Task 3), `970a9bf` and `7cb6169` (Task 4 and link-safe correction). Phase 0D plan: `docs/superpowers/plans/2026-07-15-phase-0d-engineering-quality-gates.md`. Evidence: `work/reports/phase-0d-engineering-gates.md`.
+- Phase 0D engineering gates executed on 2026-07-15 and completed/verified. Authoritative commit chronology:
+  - Task 1 (strict lint gate and polling corrections): `b3c1993`, `d3a201f`, `e7c14b5`.
+  - Task 2 (migration upgrade matrix): `dca2236`.
+  - Task 3 (extension test/build/dist parity): `59a6ecc`.
+  - Task 4 (aggregate quality gate, Windows CI, and link-safe cleanup correction): `970a9bf`, `7cb6169`.
+  - Task 5 (operational docs/status reconciliation and unit-count correction): `cd66285`, `7394e22`.
+  - Task 6 (independent final verification evidence): `1e3c950`.
+  - Post-review evidence corrections: `71c6287`, `45b19a6`, `0ce73fb`. The authoritative Task 4 and Task 6 database-preservation checks used metadata-only `Get-Item`; a later final review-work QA lane mistakenly invoked `Get-FileHash` once, discarded the hash, made no write, and confirmed the same `Length` and `LastWriteTimeUtc`.
+  Phase 0D plan: `docs/superpowers/plans/2026-07-15-phase-0d-engineering-quality-gates.md`. Evidence: `work/reports/phase-0d-engineering-gates.md`. Current Commander state: `work/handoff-current.md`.
 - Phase 0C2 completed on 2026-07-14 and is merged at `983e10a`.
 - Phase 0B4 (Luogu adapter certification) executed on 2026-07-14 with BLOCKED terminal state. The certification gate confirmed no production adapter exists. The blocker artifact (`work/reports/luogu-adapter-blocker.json`) documents the missing public verdict DOM as the reason. Re-attempting production-adapter certification requires a publicly accessible Luogu page with verdict DOM or a new design decision to accept characterization-only evidence.
 - Phase 0 remains BLOCKED on production-adapter certification. Do not re-execute the completed 0A-0C2 and 0B4 atomic plans; they are retained as implementation records. Do not start Phase 1 until the Phase 0 exit gate is satisfied or superseded by an explicit design decision.

@@ -9,14 +9,15 @@ Phase 0D closes the engineering-quality-gates package. It introduces an explicit
 - Branch: `feature/v1-followup`
 - Tip commit before Task 1: `7526ead` (`docs: align Phase 0 planning status`)
 - Working tree at Task 5 takeover: `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` marked `M` (line-ending-only normalized diff); `docs/superpowers/plans/2026-07-15-phase-0d-engineering-quality-gates.md` untracked; `.tmp/playwright` absent; default `training-platform.sqlite` present with `Length: 73728` and `LastWriteTimeUtc: 2026-07-13T17:49:36.9126118Z`.
-- Phase 0D implementation commit history (Tasks 1-4):
-  - `b3c1993` `chore: add strict lint gate` (Task 1 baseline)
-  - `d3a201f` `fix: preserve attempt edits during polling` (Task 1 lint correction)
-  - `e7c14b5` `test: tighten polling regression harness` (Task 1 lint correction)
-  - `dca2236` `test: cover migration upgrade matrix` (Task 2)
-  - `59a6ecc` `test: add extension parity gate` (Task 3)
-  - `970a9bf` `ci: mirror Phase 0 quality gates` (Task 4 aggregate gate + Windows workflow)
-  - `7cb6169` `fix: make quality gate cleanup link-safe` (Task 4 post-commit correction)
+- Phase 0D commit chronology through the final post-review correction:
+  - Task 1 — `b3c1993` `chore: add strict lint gate`; `d3a201f` `fix: preserve attempt edits during polling`; `e7c14b5` `test: tighten polling regression harness`.
+  - Task 2 — `dca2236` `test: cover migration upgrade matrix`.
+  - Task 3 — `59a6ecc` `test: add extension parity gate`.
+  - Task 4 — `970a9bf` `ci: mirror Phase 0 quality gates`; `7cb6169` `fix: make quality gate cleanup link-safe`.
+  - Task 5 — `cd66285` `docs: close Phase 0D engineering gates`; `7394e22` `docs: correct unit test count`.
+  - Task 6 — `1e3c950` `docs: record Phase 0D verification evidence`.
+  - Post-review evidence corrections — `71c6287` `docs: correct final verification record`; `45b19a6` `docs: record final QA process deviation`; `0ce73fb` `docs: clarify QA database-read deviation`.
+- The post-review corrections do not replace the authoritative Task 4/Task 6 gate evidence: those database-preservation checks were metadata-only `Get-Item` comparisons. They record that one later final review-work QA lane mistakenly invoked `Get-FileHash` once, discarded the hash, made no write, and reverted to metadata-only comparison.
 
 ## Lint Gate
 
