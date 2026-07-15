@@ -729,7 +729,7 @@ $env:GIT_MASTER='1'; git status --short --branch
 
 Expected: `extension/dist/content.js` is ignored; `.tmp/playwright` is absent; Git contains no unexpected generated files. Any remaining pre-existing modification is named and classified.
 
-Evidence: `git check-ignore -v extension/dist/content.js` → `.gitignore:12:dist/ extension/dist/content.js` (still ignored); `Test-Path -LiteralPath '.tmp/playwright'` → `False`; OS-temp `ai-training-quality-gate-*` directories under `$env:TEMP`: none; default `training-platform.sqlite` `Length` 73728 / `LastWriteTimeUtc` 2026-07-13 17:49:36 byte-equal before and after the run; `git status --short --branch --untracked-files=all` clean after removing the transient `.tmp/quality-gate-task6.log` capture; no pre-existing modifications remain (the Task 5 commit `cd66285` intentionally staged the once-preserved roadmap delta; `7394e22` corrected only unit test counts in this report).
+Evidence: `git check-ignore -v extension/dist/content.js` → `.gitignore:12:dist/ extension/dist/content.js` (still ignored); `Test-Path -LiteralPath '.tmp/playwright'` → `False`; OS-temp `ai-training-quality-gate-*` directories under `$env:TEMP`: none; default `training-platform.sqlite` `Length` 73728 / `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z byte-equal before and after the run; `git status --short --branch --untracked-files=all` clean after removing the transient `.tmp/quality-gate-task6.log` capture; no pre-existing modifications remain (the Task 5 commit `cd66285` intentionally staged the once-preserved roadmap delta; `7394e22` corrected unit test counts in `docs/runbook.md`).
 
 - [x] **Step 3: Correct evidence if the fresh run differs**
 

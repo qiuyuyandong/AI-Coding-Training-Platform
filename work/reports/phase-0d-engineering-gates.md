@@ -77,7 +77,7 @@ Phase 0 itself is not complete. No adapter is certified `production`. The Phase 
 
 ## Task 6 Independent Final Verification (2026-07-15)
 
-Task 6 re-ran the authoritative `npm run quality:gate` end-to-end after the Task 5 documentation commits (`cd66285`, `7394e22`) to provide an independent, fresh verification record distinct from the Task 4 run captured above. No implementation, configuration, workflow, or roadmap files were modified by Task 6; only the evidence file and the plan checkboxes were updated after the run.
+Task 6 re-ran the authoritative `npm run quality:gate` end-to-end after the Task 5 documentation commits (`cd66285`, `7394e22`) to provide an independent, fresh verification record distinct from the Task 4 run captured above. No implementation, configuration, workflow, or roadmap files were modified by Task 6; only the evidence report, the handoff, and the plan checkboxes were updated after the run.
 
 ### Pre-run state
 
@@ -88,7 +88,7 @@ Task 6 re-ran the authoritative `npm run quality:gate` end-to-end after the Task
 - OS-temporary `ai-training-quality-gate-*` directories under `$env:TEMP`: none present.
 - Default `training-platform.sqlite` (metadata only, never opened/hashed):
   - `Length`: 73728
-  - `LastWriteTimeUtc`: 2026-07-13 17:49:36
+  - `LastWriteTimeUtc`: 2026-07-13T17:49:36.9126118Z
 
 ### Fresh `npm run quality:gate` results
 
@@ -111,7 +111,7 @@ Every count matches the Task 4 evidence above exactly: 28 unit files / 235 passe
 
 - Default `training-platform.sqlite` (metadata only):
   - `Length`: 73728 — identical to pre-run
-  - `LastWriteTimeUtc`: 2026-07-13 17:49:36 — identical to pre-run
+  - `LastWriteTimeUtc`: 2026-07-13T17:49:36.9126118Z — identical to pre-run
 - `git check-ignore -v extension/dist/content.js`: `.gitignore:12:dist/ extension/dist/content.js` (still ignored).
 - `Test-Path -LiteralPath '.tmp/playwright'`: `False`.
 - OS-temporary `ai-training-quality-gate-*` directories under `$env:TEMP`: none present.
