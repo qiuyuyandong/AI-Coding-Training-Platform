@@ -69,7 +69,7 @@ npm run quality:gate
 
 The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses a server on port 3000. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
 
-`npm run test` currently runs 234 tests (233 pass, 1 capability skip). The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. Named test files of interest:
+`npm run test` currently runs 236 tests (235 pass, 1 capability skip). The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. Named test files of interest:
 
 | File | Tests | Role |
 |---|---|---|
