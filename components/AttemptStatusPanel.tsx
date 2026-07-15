@@ -83,7 +83,7 @@ export function AttemptStatusPanel({ platform, externalId }: AttemptStatusPanelP
     setCorrectionReason("");
     setVoidReason("");
     void refreshCorrections(latest.id, setCorrections);
-  }, [latest?.id, latest?.revision]);
+  }, [latest, latest?.id, latest?.revision]);
 
   async function saveCorrection(): Promise<void> {
     if (latest === undefined) return;

@@ -102,13 +102,13 @@ export function readFixtureMeta(htmlFileName: string, fixturesDir: string = DEFA
   let raw: string;
   try {
     raw = readFileSync(metaPath, "utf8");
-  } catch (_cause) {
+  } catch {
     throw new FixtureMetadataError(metaPath, "missing sibling metadata file");
   }
   let parsedJson: unknown;
   try {
     parsedJson = JSON.parse(raw);
-  } catch (_cause) {
+  } catch {
     throw new FixtureMetadataError(metaPath, "metadata is not valid JSON");
   }
   const result = FixtureMetaSchema.safeParse(parsedJson);

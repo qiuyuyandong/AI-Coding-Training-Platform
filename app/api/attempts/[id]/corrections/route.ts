@@ -21,7 +21,7 @@ export async function GET(_request: Request, context: RouteContext) {
       ok: true,
       corrections: listAttemptCorrections(db, id),
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Failed to read attempt corrections", corrections: [] },
       { status: 500 },
