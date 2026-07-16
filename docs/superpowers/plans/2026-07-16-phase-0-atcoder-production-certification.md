@@ -168,7 +168,7 @@ T3 and T4 may be implemented in parallel only after T2 lands because both consum
 
 ### Wave 2 — Shared fixture contract
 
-- [ ] **T2. Extract a platform-scoped fixture metadata core without changing Luogu evidence**
+- [x] **T2. Extract a platform-scoped fixture metadata core without changing Luogu evidence**
 
   **Files:** create `tests/helpers/platformFixtureMetadata.ts`; update `tests/helpers/luoguFixtureMetadata.ts` into a compatibility wrapper preserving all existing export names/default Luogu directory; create `tests/helpers/atcoderFixtureMetadata.ts`; add/update `tests/unit/luoguFixtureLoader.test.ts`; create `tests/unit/extensionAtcoderFixtures.test.ts`.
 
