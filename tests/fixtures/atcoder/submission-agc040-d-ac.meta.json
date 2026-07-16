@@ -1,0 +1,13 @@
+{
+  "fixtureName": "submission-agc040-d-ac",
+  "sourceUrl": "https://atcoder.jp/contests/agc040/submissions/53759742?lang=en",
+  "captureDate": "2026-07-16",
+  "captureMethod": "Public unauthenticated HTTP GET via curl with browser-like headers (no cookies, no login, no JS). Submission title 'Submission #53759742 - AtCoder Grand Contest 040', task anchor href /contests/agc040/tasks/agc040_d (visible text 'D - Balance Beam'), and #judge-status cell (title='Accepted', visible text 'AC') extracted from the first-party response. Body retained after stripping all scripts, styles, forms, CSRF tokens, source code, problem text, user profile link, byte count, language, timestamp, navigation, sign-in/sign-up links, and unrelated chrome.",
+  "purpose": "detectVerdictFromDocument",
+  "selectors": ["#judge-status", "a[href='/contests/agc040/tasks/agc040_d']"],
+  "authenticated": false,
+  "sanitized": true,
+  "evidenceTier": "verified-public-dom",
+  "verdictExpected": {"verdict": "Accepted"},
+  "problemExpected": { "platform": "atcoder", "externalId": "agc040_d" }
+}

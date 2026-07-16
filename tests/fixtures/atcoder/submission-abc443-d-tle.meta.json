@@ -1,0 +1,13 @@
+{
+  "fixtureName": "submission-abc443-d-tle",
+  "sourceUrl": "https://atcoder.jp/contests/abc443/submissions/72918187?lang=en",
+  "captureDate": "2026-07-16",
+  "captureMethod": "Public unauthenticated HTTP GET via curl with browser-like headers (no cookies, no login, no JS). Submission title 'Submission #72918187 - Denso Create Programming Contest 2026 (AtCoder Beginner Contest 443)', task anchor href /contests/abc443/tasks/abc443_d (visible text 'D - Pawn Line'), and #judge-status cell (title='Time Limit Exceeded', visible text 'TLE') extracted from the first-party response. Body retained after stripping all scripts, styles, forms, CSRF tokens, source code, problem text, user profile link, byte count, language, timestamp, navigation, sign-in/sign-up links, and unrelated chrome.",
+  "purpose": "detectVerdictFromDocument",
+  "selectors": ["#judge-status", "a[href='/contests/abc443/tasks/abc443_d']"],
+  "authenticated": false,
+  "sanitized": true,
+  "evidenceTier": "verified-public-dom",
+  "verdictExpected": {"verdict": "Time Limit Exceeded"},
+  "problemExpected": { "platform": "atcoder", "externalId": "abc443_d" }
+}

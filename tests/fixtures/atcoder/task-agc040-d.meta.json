@@ -1,0 +1,13 @@
+{
+  "fixtureName": "task-agc040-d",
+  "sourceUrl": "https://atcoder.jp/contests/agc040/tasks/agc040_d?lang=en",
+  "captureDate": "2026-07-16",
+  "captureMethod": "Public unauthenticated HTTP GET via curl with browser-like headers (no cookies, no login, no JS). Title text 'D - Balance Beam' and task href /contests/agc040/tasks/agc040_d extracted from the first-party response. Body retained after stripping all scripts, styles, forms, CSRF tokens, source code, problem text, navigation, language switcher, sign-in/sign-up links, contest meta, and unrelated chrome.",
+  "purpose": "both",
+  "selectors": [],
+  "authenticated": false,
+  "sanitized": true,
+  "evidenceTier": "public-content-accessible",
+  "verdictExpected": null,
+  "problemExpected": { "platform": "atcoder", "externalId": "agc040_d" }
+}

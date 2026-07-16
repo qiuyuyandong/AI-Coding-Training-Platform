@@ -1,0 +1,13 @@
+{
+  "fixtureName": "submission-abc164-e-wa",
+  "sourceUrl": "https://atcoder.jp/contests/abc164/submissions/12438513?lang=en",
+  "captureDate": "2026-07-16",
+  "captureMethod": "Public unauthenticated HTTP GET via curl with browser-like headers (no cookies, no login, no JS). Submission title 'Submission #12438513 - AtCoder Beginner Contest 164', task anchor href /contests/abc164/tasks/abc164_e (visible text 'E - Two Currencies'), and #judge-status cell (title='Wrong Answer', visible text 'WA') extracted from the first-party response. Body retained after stripping all scripts, styles, forms, CSRF tokens, source code, problem text, user profile link, byte count, language, timestamp, navigation, sign-in/sign-up links, and unrelated chrome.",
+  "purpose": "detectVerdictFromDocument",
+  "selectors": ["#judge-status", "a[href='/contests/abc164/tasks/abc164_e']"],
+  "authenticated": false,
+  "sanitized": true,
+  "evidenceTier": "verified-public-dom",
+  "verdictExpected": {"verdict": "Wrong Answer"},
+  "problemExpected": { "platform": "atcoder", "externalId": "abc164_e" }
+}
