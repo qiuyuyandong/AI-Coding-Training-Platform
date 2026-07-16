@@ -2,7 +2,7 @@ import { type CaptureIdFactory } from "./captureSession";
 import { createCaptureContentRuntime } from "./contentRuntime";
 import { CaptureRuntimeContextSchema } from "./installation";
 import {
-  detectProblemFromLocation,
+  detectProblemFromPage,
   detectVerdictFromDocument,
 } from "./platforms";
 import type { CaptureEvent } from "@/lib/capture/protocol";
@@ -22,9 +22,9 @@ async function run(): Promise<void> {
 
   const runtime = createCaptureContentRuntime({
     context: parsedContext.data,
-    detectProblem: () => detectProblemFromLocation(
+    detectProblem: () => detectProblemFromPage(
       window.location,
-      document.title,
+      document,
     ),
     detectVerdict: (platform) => detectVerdictFromDocument(platform, document),
     sendEvent: sendCaptureEvent,
