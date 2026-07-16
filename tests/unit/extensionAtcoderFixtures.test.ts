@@ -3,14 +3,28 @@ import { tmpdir } from "node:os";
 import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  detectProblemFromPage,
+  type DetectableLocation,
+} from "@/extension/src/platforms";
+import {
   FixtureMetaSchema,
   FixtureMetadataError,
+  loadFixtureHtml,
   loadFixtureNames,
   loadFixtureMetadata,
   readFixtureMeta,
   isCertifyingEvidence,
   type FixtureMeta,
 } from "@/tests/helpers/atcoderFixtureMetadata";
+
+function asLocation(url: string): DetectableLocation {
+  const parsedUrl = new URL(url);
+  return {
+    href: parsedUrl.href,
+    hostname: parsedUrl.hostname,
+    pathname: parsedUrl.pathname,
+  };
+}
 
 const FIXTURES_DIR = join(process.cwd(), "tests", "fixtures", "atcoder");
 
@@ -154,108 +168,89 @@ describe("AtCoder isCertifyingEvidence", () => {
 });
 
 describe("AtCoder readFixtureMeta filesystem boundary", () => {
-  it("rejects cross-platform problemExpected.platform via real filesystem", () => {
-    const meta = {
-      fixtureName: "cross-platform-fixture",
-      sourceUrl: "https://atcoder.jp/contests/abc001/tasks/abc001_a",
-      captureDate: "2026-07-16",
-      captureMethod: "test",
-      evidenceTier: "verified-public-dom",
-      purpose: "detectVerdictFromDocument",
-      selectors: ["#judge-status"],
-      authenticated: false,
-      sanitized: true,
-      verdictExpected: { verdict: "Accepted" },
-      problemExpected: { platform: "luogu", externalId: "P1001" },
-    };
-    const json = JSON.stringify(meta);
-    const dir = mkdtempSync(join(tmpdir(), "atcoder-boundary-"));
-    let thrownError: unknown;
-    try {
-      writeFileSync(join(dir, "cross-platform-fixture.html"), "<html></html>", "utf8");
-      writeFileSync(join(dir, "cross-platform-fixture.meta.json"), json, "utf8");
+  const BASE_BOUNDARY_META = {
+    sourceUrl: "https://atcoder.jp/contests/abc001/tasks/abc001_a",
+    captureDate: "2026-07-16",
+    captureMethod: "test",
+    evidenceTier: "verified-public-dom" as const,
+    purpose: "detectVerdictFromDocument",
+    selectors: ["#judge-status"],
+    authenticated: false,
+    sanitized: true,
+    verdictExpected: { verdict: "Accepted" },
+  };
+  const BOUNDARY_CASES = [
+    ["cross-platform-fixture", { fixtureName: "cross-platform-fixture", problemExpected: { platform: "luogu", externalId: "P1001" } }, "problemExpected.platform"],
+    ["auth-true-fixture", { fixtureName: "auth-true-fixture", authenticated: true, problemExpected: null }, "authenticated"],
+    ["empty-selectors-fixture", { fixtureName: "empty-selectors-fixture", selectors: [], problemExpected: null }, "selectors"],
+  ] as const;
+  it.each(BOUNDARY_CASES)(
+    "[%s] rejects malformed metadata via real filesystem with typed error",
+    (fixtureName, override, expectedMessageContains) => {
+      const meta = { ...BASE_BOUNDARY_META, ...override };
+      const json = JSON.stringify(meta);
+      const dir = mkdtempSync(join(tmpdir(), "atcoder-boundary-"));
+      let thrownError: unknown;
       try {
-        readFixtureMeta("cross-platform-fixture.html", dir);
-        thrownError = null;
-      } catch (e) {
-        thrownError = e;
+        writeFileSync(join(dir, `${fixtureName}.html`), "<html></html>", "utf8");
+        writeFileSync(join(dir, `${fixtureName}.meta.json`), json, "utf8");
+        try {
+          readFixtureMeta(`${fixtureName}.html`, dir);
+          thrownError = null;
+        } catch (e) {
+          thrownError = e;
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
       }
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-    expect(thrownError).toBeInstanceOf(FixtureMetadataError);
-    if (thrownError instanceof FixtureMetadataError) {
-      expect(thrownError.message).toContain("problemExpected.platform");
-    }
-  });
+      expect(thrownError).toBeInstanceOf(FixtureMetadataError);
+      if (thrownError instanceof FixtureMetadataError) {
+        expect(thrownError.message).toContain(expectedMessageContains);
+      }
+    },
+  );
+});
 
-  it("rejects authenticated=true with verified-public-dom via real filesystem", () => {
-    const meta = {
-      fixtureName: "auth-true-fixture",
-      sourceUrl: "https://atcoder.jp/contests/abc001/tasks/abc001_a",
-      captureDate: "2026-07-16",
-      captureMethod: "test",
-      evidenceTier: "verified-public-dom",
-      purpose: "detectVerdictFromDocument",
-      selectors: ["#judge-status"],
-      authenticated: true,
-      sanitized: true,
-      verdictExpected: { verdict: "Accepted" },
-      problemExpected: null,
-    };
-    const json = JSON.stringify(meta);
-    const dir = mkdtempSync(join(tmpdir(), "atcoder-boundary-"));
-    let thrownError: unknown;
-    try {
-      writeFileSync(join(dir, "auth-true-fixture.html"), "<html></html>", "utf8");
-      writeFileSync(join(dir, "auth-true-fixture.meta.json"), json, "utf8");
-      try {
-        readFixtureMeta("auth-true-fixture.html", dir);
-        thrownError = null;
-      } catch (e) {
-        thrownError = e;
-      }
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-    expect(thrownError).toBeInstanceOf(FixtureMetadataError);
-    if (thrownError instanceof FixtureMetadataError) {
-      expect(thrownError.message).toContain("authenticated");
-    }
-  });
+describe("AtCoder page-aware detector against retained fixtures", () => {
+  const SUBMISSION_CASES: ReadonlyArray<readonly [
+    string,
+    string,
+    string,
+    string,
+  ]> = [
+    ["submission-agc040-d-ac", "https://atcoder.jp/contests/agc040/submissions/53759742", "agc040_d", "D - Balance Beam"],
+    ["submission-abc164-e-wa", "https://atcoder.jp/contests/abc164/submissions/12438513", "abc164_e", "E - Two Currencies"],
+    ["submission-abc443-d-tle", "https://atcoder.jp/contests/abc443/submissions/72918187", "abc443_d", "D - Pawn Line"],
+  ];
+  it.each(SUBMISSION_CASES)(
+    "[%s] resolves via page-aware detector to canonical task URL",
+    (fixtureName, submissionUrl, expectedId, expectedTitle) => {
+      const doc = new DOMParser().parseFromString(loadFixtureHtml(`${fixtureName}.html`, FIXTURES_DIR), "text/html");
+      const detected = detectProblemFromPage(asLocation(submissionUrl), doc);
+      const contest = expectedId.split("_")[0];
+      expect(detected).toEqual({
+        platform: "atcoder",
+        problemExternalId: expectedId,
+        problemTitle: expectedTitle,
+        canonicalUrl: `https://atcoder.jp/contests/${contest}/tasks/${expectedId}`,
+      });
+    },
+  );
 
-  it("rejects empty selectors with verified-public-dom via real filesystem", () => {
-    const meta = {
-      fixtureName: "empty-selectors-fixture",
-      sourceUrl: "https://atcoder.jp/contests/abc001/tasks/abc001_a",
-      captureDate: "2026-07-16",
-      captureMethod: "test",
-      evidenceTier: "verified-public-dom",
-      purpose: "detectVerdictFromDocument",
-      selectors: [],
-      authenticated: false,
-      sanitized: true,
-      verdictExpected: { verdict: "Accepted" },
-      problemExpected: null,
-    };
-    const json = JSON.stringify(meta);
-    const dir = mkdtempSync(join(tmpdir(), "atcoder-boundary-"));
-    let thrownError: unknown;
-    try {
-      writeFileSync(join(dir, "empty-selectors-fixture.html"), "<html></html>", "utf8");
-      writeFileSync(join(dir, "empty-selectors-fixture.meta.json"), json, "utf8");
-      try {
-        readFixtureMeta("empty-selectors-fixture.html", dir);
-        thrownError = null;
-      } catch (e) {
-        thrownError = e;
-      }
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-    expect(thrownError).toBeInstanceOf(FixtureMetadataError);
-    if (thrownError instanceof FixtureMetadataError) {
-      expect(thrownError.message).toContain("selectors");
-    }
+  it("task fixture still resolves through URL-only detection with matching identity", () => {
+    const doc = new DOMParser().parseFromString(loadFixtureHtml("task-agc040-d.html", FIXTURES_DIR), "text/html");
+    const taskDetected = detectProblemFromPage(
+      asLocation("https://atcoder.jp/contests/agc040/tasks/agc040_d"),
+      doc,
+    );
+    const subDoc = new DOMParser().parseFromString(loadFixtureHtml("submission-agc040-d-ac.html", FIXTURES_DIR), "text/html");
+    const subDetected = detectProblemFromPage(
+      asLocation("https://atcoder.jp/contests/agc040/submissions/53759742"),
+      subDoc,
+    );
+    expect(taskDetected?.problemExternalId).toBe("agc040_d");
+    expect(subDetected?.problemExternalId).toBe("agc040_d");
+    expect(taskDetected?.canonicalUrl).toBe(subDetected?.canonicalUrl);
+    expect(taskDetected?.canonicalUrl).toBe("https://atcoder.jp/contests/agc040/tasks/agc040_d");
   });
 });

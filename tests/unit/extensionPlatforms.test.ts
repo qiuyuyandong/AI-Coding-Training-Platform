@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   detectProblemFromLocation,
+  detectProblemFromPage,
   detectVerdictFromDocument,
   type DetectableLocation,
   getPlatformAdapterStatus,
@@ -15,6 +16,10 @@ function asLocation(url: string): DetectableLocation {
     hostname: parsedUrl.hostname,
     pathname: parsedUrl.pathname,
   };
+}
+
+function asDocument(html: string): Document {
+  return new DOMParser().parseFromString(html, "text/html");
 }
 
 describe("detectProblemFromLocation", () => {
@@ -175,5 +180,69 @@ describe("adapter status registry", () => {
       expect(Array.isArray(record.selectors)).toBe(true);
       expect(record.selectors.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("detectProblemFromPage", () => {
+  type PageAwareIdentity = {
+    readonly platform: "atcoder";
+    readonly problemExternalId: string;
+    readonly problemTitle: string;
+    readonly canonicalUrl: string;
+  };
+  type MatchCase = readonly [name: string, url: string, anchorHtml: string, expected: PageAwareIdentity];
+  type RejectCase = readonly [name: string, url: string, anchorHtml: string, hrefOverride: string];
+  const TASK_D = '<a href="/contests/agc040/tasks/agc040_d">D - Balance Beam</a>';
+  const TASK_E = '<a href="/contests/agc040/tasks/agc040_e">E - Another</a>';
+  const TASK_URL = "https://atcoder.jp/contests/agc040/tasks/agc040_d";
+  const SUB_URL = "https://atcoder.jp/contests/agc040/submissions/53759742";
+  const CANON = "https://atcoder.jp/contests/agc040/tasks/agc040_d";
+  const wrapDoc = (body: string): Document =>
+    asDocument(`<!doctype html><html><head><title>D - Balance Beam</title></head><body>${body}</body></html>`);
+
+  const MATCH_CASES: readonly MatchCase[] = [
+    ["task URL via URL-only branch with ?lang=en query", `${TASK_URL}?lang=en`, TASK_D, { platform: "atcoder", problemExternalId: "agc040_d", problemTitle: "D", canonicalUrl: CANON }],
+    ["submission URL via same-contest anchor", SUB_URL, TASK_D, { platform: "atcoder", problemExternalId: "agc040_d", problemTitle: "D - Balance Beam", canonicalUrl: CANON }],
+    ["submission URL with ?lang=en query preserved", `${SUB_URL}?lang=en`, TASK_D, { platform: "atcoder", problemExternalId: "agc040_d", problemTitle: "D - Balance Beam", canonicalUrl: CANON }],
+    ["two duplicate anchors collapse to one normalized identity", SUB_URL, TASK_D + TASK_D, { platform: "atcoder", problemExternalId: "agc040_d", problemTitle: "D - Balance Beam", canonicalUrl: CANON }],
+  ];
+
+const REJECT_CASES: readonly RejectCase[] = [
+    ["submission page with no task anchor", SUB_URL, "<span>no link</span>", ""],
+    ["submission page with two distinct valid task anchors", SUB_URL, TASK_D + TASK_E, ""],
+    ["anchor links to a different contest path", SUB_URL, '<a href="/contests/abc164/tasks/abc164_e">E - Two Currencies</a>', ""],
+    ["same-contest path but normalized task contest mismatch (agc040 vs abc164_e)", SUB_URL, '<a href="/contests/agc040/tasks/abc164_e">E - Two Currencies</a>', ""],
+    ["raw anchor-path contest mismatches submission contest even though normalized task contest matches (agc040 vs abc164 path, agc040_d id)", SUB_URL, '<a href="/contests/abc164/tasks/agc040_d">D - Balance Beam</a>', ""],
+    ["attacker anchor host containing atcoder.jp", SUB_URL, '<a href="https://atcoder.jp.evil.example/contests/agc040/tasks/agc040_d">spoofed</a>', ""],
+    ["nonnumeric submission ID segment", "https://atcoder.jp/contests/agc040/submissions/notanumber", TASK_D, ""],
+    ["invalid AtCoder task ID format", SUB_URL, '<a href="/contests/agc040/tasks/!!invalid!!">bad</a>', ""],
+    ["only exposes a document title", SUB_URL, "", ""],
+    ["submission-style path on unsupported host", "https://example.com/contests/agc040/submissions/53759742", TASK_D, ""],
+    ["page-location spoof on task-style path", "https://atcoder.jp.evil.example/contests/agc040/tasks/agc040_d", TASK_D, ""],
+    ["page-location spoof on submission-style path", "https://atcoder.jp.evil.example/contests/agc040/submissions/53759742", TASK_D, ""],
+    ["page URL with http (not https)", "http://atcoder.jp/contests/agc040/tasks/agc040_d", TASK_D, ""],
+    ["page URL with unexpected port", "https://atcoder.jp:8080/contests/agc040/submissions/53759742", TASK_D, ""],
+    ["page URL with credentials", "https://user:pass@atcoder.jp/contests/agc040/submissions/53759742", TASK_D, ""],
+    ["inconsistent DetectableLocation with evil href but first-party hostname/pathname", SUB_URL, TASK_D, "https://atcoder.jp.evil.example/contests/agc040/submissions/53759742"],
+    ["inconsistent DetectableLocation with evil href on task-style path", TASK_URL, TASK_D, "https://atcoder.jp.evil.example/contests/agc040/tasks/agc040_d"],
+    ["anchor with query string", SUB_URL, '<a href="/contests/agc040/tasks/agc040_d?foo=bar">D - Balance Beam</a>', ""],
+    ["anchor with hash fragment", SUB_URL, '<a href="/contests/agc040/tasks/agc040_d#frag">D - Balance Beam</a>', ""],
+    ["anchor with http (not https)", SUB_URL, '<a href="http://atcoder.jp/contests/agc040/tasks/agc040_d">D - Balance Beam</a>', ""],
+    ["anchor with unexpected port", SUB_URL, '<a href="https://atcoder.jp:8080/contests/agc040/tasks/agc040_d">D - Balance Beam</a>', ""],
+    ["anchor with credentials", SUB_URL, '<a href="https://user:pass@atcoder.jp/contests/agc040/tasks/agc040_d">D - Balance Beam</a>', ""],
+    ["anchor with ftp scheme", SUB_URL, '<a href="ftp://atcoder.jp/contests/agc040/tasks/agc040_d">D - Balance Beam</a>', ""],
+  ];
+
+  const locationFor = (url: string, hrefOverride: string): DetectableLocation => {
+    if (hrefOverride === "") return asLocation(url);
+    const claimed = new URL(url);
+    return { href: hrefOverride, hostname: claimed.hostname, pathname: claimed.pathname };
+  };
+
+  it.each(MATCH_CASES)("[%s] resolves to expected identity", (_n, url, anchorHtml, expected) => {
+    expect(detectProblemFromPage(asLocation(url), wrapDoc(anchorHtml))).toEqual(expected);
+  });
+  it.each(REJECT_CASES)("[%s] rejects and returns null", (_n, url, anchorHtml, hrefOverride) => {
+    expect(detectProblemFromPage(locationFor(url, hrefOverride), wrapDoc(anchorHtml))).toBeNull();
   });
 });

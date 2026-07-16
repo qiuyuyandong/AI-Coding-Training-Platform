@@ -1,4 +1,5 @@
 import {
+  CanonicalProblemUrlError,
   canonicalProblemUrl,
   normalizeProblemIdentity,
 } from "@/lib/services/canonicalProblemUrl";
@@ -133,6 +134,122 @@ function detectedProblem(
     problemTitle,
     canonicalUrl: canonicalProblemUrl(normalized, observedUrl),
   };
+}
+
+export function detectProblemFromPage(
+  location: DetectableLocation,
+  pageDocument: Document,
+): DetectedProblem | null {
+  // Parse location.href exactly once; the parsed URL is the single source of truth
+  // for routing and for any URL-only fallback. Inconsistent supplied DetectableLocation
+  // fields cannot bypass the spoof guard or the strict-origin check.
+  let parsed: URL;
+  try {
+    parsed = new URL(location.href);
+  } catch (error) {
+    if (error instanceof TypeError) return null;
+    throw error;
+  }
+  // Reject any parsed host that contains "atcoder.jp" as a substring but is not the
+  // exact first-party host (e.g. atcoder.jp.evil.example).
+  if (parsed.hostname !== "atcoder.jp" && parsed.hostname.includes("atcoder.jp")) return null;
+  if (parsed.hostname === "atcoder.jp") {
+    // First-party AtCoder page identity: https, exact host, no credentials, default port.
+    // Query strings (e.g. ?lang=en) and hash fragments are allowed because retained public
+    // source URLs use them.
+    if (parsed.protocol !== "https:" || parsed.username !== "" || parsed.password !== "" || parsed.port !== "") return null;
+    const contest = matchAtCoderSubmissionPath(parsed.pathname);
+    if (contest !== null) {
+      return detectProblemFromAtCoderSubmissionPage(contest, pageDocument);
+    }
+  }
+  const normalized: DetectableLocation = {
+    href: parsed.href,
+    hostname: parsed.hostname,
+    pathname: parsed.pathname,
+  };
+  return detectProblemFromLocation(normalized, pageDocument.title);
+}
+
+function matchAtCoderSubmissionPath(pathname: string): string | null {
+  const match = pathname.match(/^\/contests\/([^/]+)\/submissions\/(\d+)\/?$/u);
+  if (match === null || match[1] === undefined) return null;
+  return match[1];
+}
+
+function isExactAtCoderFirstPartyOrigin(parsed: URL): boolean {
+  return parsed.protocol === "https:"
+    && parsed.hostname === "atcoder.jp"
+    && parsed.username === ""
+    && parsed.password === ""
+    && parsed.port === ""
+    && parsed.search === ""
+    && parsed.hash === "";
+}
+
+function normalizeAtCoderTaskId(taskId: string) {
+  try {
+    return normalizeProblemIdentity({ platform: "atcoder", externalId: taskId });
+  } catch (error) {
+    if (error instanceof CanonicalProblemUrlError) return null;
+    throw error;
+  }
+}
+
+function detectProblemFromAtCoderSubmissionPage(
+  contest: string,
+  pageDocument: Document,
+): DetectedProblem | null {
+  // Dedupe by normalized (platform, externalId); preserve first-seen trimmed title.
+  const identities = new Map<string, string>();
+  for (const anchor of Array.from(pageDocument.querySelectorAll("a[href]"))) {
+    const href = anchor.getAttribute("href");
+    if (href === null) continue;
+    let parsed: URL;
+    try {
+      parsed = new URL(href, "https://atcoder.jp/");
+    } catch (error) {
+      if (error instanceof TypeError) continue;
+      throw error;
+    }
+    if (!isExactAtCoderFirstPartyOrigin(parsed)) continue;
+    const taskMatch = parsed.pathname.match(/^\/contests\/([^/]+)\/tasks\/([^/]+)\/?$/u);
+    if (taskMatch === null) continue;
+    const anchorContest = taskMatch[1];
+    const taskId = taskMatch[2];
+    if (anchorContest === undefined || taskId === undefined) continue;
+    // Require both the raw anchor-path contest AND the normalized task-ID contest to equal
+    // the submission-page contest. Raw anchor check catches path-level spoofing; normalized
+    // task-ID check catches ID-level inconsistencies.
+    if (anchorContest !== contest) continue;
+
+    const normalized = normalizeAtCoderTaskId(taskId);
+    if (normalized === null) continue;
+    if (normalized.platform !== "atcoder") continue;
+    const taskContest = normalized.externalId.split("_", 1)[0];
+    if (taskContest !== contest) continue;
+
+    if (!identities.has(normalized.externalId)) {
+      identities.set(normalized.externalId, anchor.textContent?.trim() ?? "");
+    }
+  }
+
+  if (identities.size !== 1) return null;
+  const first = identities.entries().next();
+  if (first.done === true) return null;
+  const [externalId, title] = first.value;
+
+  const observedUrl = `https://atcoder.jp/contests/${contest}/tasks/${externalId}`;
+  try {
+    return detectedProblem(
+      { platform: "atcoder", externalId },
+      title,
+      observedUrl,
+    );
+  } catch (error) {
+    if (error instanceof CanonicalProblemUrlError) return null;
+    throw error;
+  }
 }
 
 export function detectVerdictFromDocument(platform: Platform, pageDocument: Document): DetectedVerdict | null {
