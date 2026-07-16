@@ -238,7 +238,7 @@ T3 and T4 may be implemented in parallel only after T2 lands because both consum
 
 ### Wave 5 — Certification decision
 
-- [ ] **T6. Add a deterministic, platform-scoped AtCoder certification gate**
+- [x] **T6. Add a deterministic, platform-scoped AtCoder certification gate**
 
   **Files:** create `tests/helpers/platformCertification.ts`; create `tests/unit/extensionAtcoderCertification.test.ts`; minimally refactor `tests/unit/platformCertification.test.ts` to consume the shared pure evaluator while retaining its Luogu output/path; create `work/reports/atcoder-certification-gate-verdict.json` in the CERTIFIED pre-promotion state.
 
