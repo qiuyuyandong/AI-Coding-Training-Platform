@@ -114,6 +114,10 @@ const REJECTION_FIXTURES: ReadonlyArray<{ readonly name: string; readonly overri
     name: "negative-purpose-with-verdictExpected",
     override: { evidenceTier: "characterization-derived", purpose: "negative", verdictExpected: { verdict: "Accepted" }, problemExpected: null },
   },
+  {
+    name: "characterization-derived-with-selectors",
+    override: { evidenceTier: "characterization-derived", selectors: [".status"] },
+  },
   { name: "undocumented-purpose", override: { purpose: "verdictTextExtraction" } },
 ];
 
@@ -124,6 +128,19 @@ function readHtmlFile(name: string): string {
 describe("Luogu fixture corpus", () => {
   it("exposes exactly the four retained fixture names in deterministic order", () => {
     expect(loadFixtureNames(FIXTURES_DIR)).toEqual(RETAINED_FIXTURE_NAMES);
+  });
+
+  it("loadFixtureNames uses default Luogu fixtures directory when called without arguments", () => {
+    const defaultNames = loadFixtureNames();
+    const explicitNames = loadFixtureNames(FIXTURES_DIR);
+    expect(defaultNames).toEqual(explicitNames);
+    expect(defaultNames).toEqual(RETAINED_FIXTURE_NAMES);
+  });
+
+  it("loadFixtureHtml uses default Luogu fixtures directory when called without explicit directory", () => {
+    const defaultHtml = loadFixtureHtml("problem-b3619.html");
+    const explicitHtml = loadFixtureHtml("problem-b3619.html", FIXTURES_DIR);
+    expect(defaultHtml).toBe(explicitHtml);
   });
 
   it.each(
