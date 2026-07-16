@@ -202,7 +202,7 @@ T3 and T4 may be implemented in parallel only after T2 lands because both consum
 
   **Commit:** `fix: resolve AtCoder submission identity`
 
-- [ ] **T4. Isolate AtCoder verdict parsing to the real status element**
+- [x] **T4. Isolate AtCoder verdict parsing to the real status element**
 
   **Files:** update `extension/src/platforms.ts`, `tests/unit/extensionPlatforms.test.ts`, and `tests/unit/extensionAtcoderFixtures.test.ts`.
 
