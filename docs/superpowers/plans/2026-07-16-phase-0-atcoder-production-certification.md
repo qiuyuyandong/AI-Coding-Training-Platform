@@ -220,7 +220,7 @@ T3 and T4 may be implemented in parallel only after T2 lands because both consum
 
 ### Wave 4 — Runtime continuity
 
-- [ ] **T5. Lock the task-to-submission capture lifecycle and direct-open behavior**
+- [x] **T5. Lock the task-to-submission capture lifecycle and direct-open behavior**
 
   **Files:** update `tests/unit/extensionContentRuntime.test.ts` and, only if a discovered regression requires it, minimally update `extension/src/contentRuntime.ts` or `extension/src/pageLifecycle.ts`.
 
