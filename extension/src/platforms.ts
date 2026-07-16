@@ -34,7 +34,7 @@ export const PLATFORM_ADAPTERS: Record<Platform, PlatformAdapterRecord> = {
   atcoder: {
     status: "experimental",
     label: "AtCoder",
-    selectors: ["#judge-status", ".waiting-judge", "td", "body"],
+    selectors: ["#judge-status"],
   },
   nowcoder: {
     status: "experimental",

@@ -159,6 +159,38 @@ describe("detectVerdictFromDocument", () => {
 
     expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
   });
+
+  // T4: AtCoder must only parse #judge-status, not broad td/body selectors
+  it("AtCoder returns null when AC/WA/TLE appear outside #judge-status", () => {
+    document.body.innerHTML = "<table><tr><td>AC</td></tr></table><main>TLE</main>";
+    // With broad selectors this would return a false verdict
+    expect(detectVerdictFromDocument("atcoder", document)).toBeNull();
+  });
+
+  it("AtCoder returns null for absent status element", () => {
+    document.body.innerHTML = "<main>Problem statement only</main>";
+    expect(detectVerdictFromDocument("atcoder", document)).toBeNull();
+  });
+
+  it("AtCoder returns null for empty #judge-status", () => {
+    document.body.innerHTML = '<span id="judge-status"></span>';
+    expect(detectVerdictFromDocument("atcoder", document)).toBeNull();
+  });
+
+  it("AtCoder returns null for WJ (Waiting) status", () => {
+    document.body.innerHTML = '<span id="judge-status">WJ</span>';
+    expect(detectVerdictFromDocument("atcoder", document)).toBeNull();
+  });
+
+  it("AtCoder returns null for Judging status", () => {
+    document.body.innerHTML = '<span id="judge-status">Judging</span>';
+    expect(detectVerdictFromDocument("atcoder", document)).toBeNull();
+  });
+
+  it("AtCoder selectors are exactly ['#judge-status']", () => {
+    // This pins the fix so no broad selectors can creep back
+    expect(PLATFORM_ADAPTERS.atcoder.selectors).toEqual(["#judge-status"]);
+  });
 });
 
 describe("adapter status registry", () => {

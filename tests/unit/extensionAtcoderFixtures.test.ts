@@ -4,6 +4,7 @@ import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   detectProblemFromPage,
+  detectVerdictFromDocument,
   type DetectableLocation,
 } from "@/extension/src/platforms";
 import {
@@ -252,5 +253,19 @@ describe("AtCoder page-aware detector against retained fixtures", () => {
     expect(subDetected?.problemExternalId).toBe("agc040_d");
     expect(taskDetected?.canonicalUrl).toBe(subDetected?.canonicalUrl);
     expect(taskDetected?.canonicalUrl).toBe("https://atcoder.jp/contests/agc040/tasks/agc040_d");
+  });
+});
+
+describe("AtCoder verdict against retained fixtures", () => {
+  const CASES: ReadonlyArray<readonly [string, string | null]> = [
+    ["submission-agc040-d-ac", "Accepted"],
+    ["submission-abc164-e-wa", "Wrong Answer"],
+    ["submission-abc443-d-tle", "Time Limit Exceeded"],
+    ["task-agc040-d", null],
+  ];
+  it.each(CASES)("%s => %s", (f, e) => {
+    const raw = loadFixtureHtml(`${f}.html`, FIXTURES_DIR);
+    const html = raw.includes("<td ") ? raw.replace("<td ", "<table><tbody><tr><td ").replace("</td>", "</td></tr></tbody></table>") : raw;
+    expect(detectVerdictFromDocument("atcoder", new DOMParser().parseFromString(html, "text/html"))).toEqual(e === null ? null : { verdict: e });
   });
 });
