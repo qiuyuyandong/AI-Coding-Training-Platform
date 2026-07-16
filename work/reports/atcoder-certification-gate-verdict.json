@@ -1,0 +1,70 @@
+{
+  "gateVerdict": "CERTIFIED",
+  "blockingReasons": [],
+  "fixtureCoverage": {
+    "total": 4,
+    "publicContentAccessible": 1,
+    "verifiedPublicDom": 3,
+    "characterizationDerived": 0
+  },
+  "fixtureNames": [
+    "submission-abc164-e-wa",
+    "submission-abc443-d-tle",
+    "submission-agc040-d-ac",
+    "task-agc040-d"
+  ],
+  "atcoderCurrentStatus": "experimental",
+  "gateDate": "2026-07-16",
+  "gateSource": {
+    "planTask": "docs/superpowers/plans/2026-07-16-phase-0-atcoder-production-certification.md#T6",
+    "fixtureMetadataGlob": "tests/fixtures/atcoder/*.meta.json",
+    "adapterRegistry": "extension/src/platforms.ts",
+    "dateBasis": "fixture metadata captureDate"
+  },
+  "detectorEvidence": [
+    {
+      "fixtureName": "submission-abc164-e-wa",
+      "verdictExpected": "Wrong Answer",
+      "verdictDetected": "Wrong Answer",
+      "verdictMatch": true,
+      "problemPlatformExpected": "atcoder",
+      "problemPlatformDetected": "atcoder",
+      "problemExternalIdExpected": "abc164_e",
+      "problemExternalIdDetected": "abc164_e",
+      "problemMatch": true
+    },
+    {
+      "fixtureName": "submission-abc443-d-tle",
+      "verdictExpected": "Time Limit Exceeded",
+      "verdictDetected": "Time Limit Exceeded",
+      "verdictMatch": true,
+      "problemPlatformExpected": "atcoder",
+      "problemPlatformDetected": "atcoder",
+      "problemExternalIdExpected": "abc443_d",
+      "problemExternalIdDetected": "abc443_d",
+      "problemMatch": true
+    },
+    {
+      "fixtureName": "submission-agc040-d-ac",
+      "verdictExpected": "Accepted",
+      "verdictDetected": "Accepted",
+      "verdictMatch": true,
+      "problemPlatformExpected": "atcoder",
+      "problemPlatformDetected": "atcoder",
+      "problemExternalIdExpected": "agc040_d",
+      "problemExternalIdDetected": "agc040_d",
+      "problemMatch": true
+    },
+    {
+      "fixtureName": "task-agc040-d",
+      "verdictExpected": null,
+      "verdictDetected": null,
+      "verdictMatch": true,
+      "problemPlatformExpected": "atcoder",
+      "problemPlatformDetected": "atcoder",
+      "problemExternalIdExpected": "agc040_d",
+      "problemExternalIdDetected": "agc040_d",
+      "problemMatch": true
+    }
+  ]
+}
