@@ -10,6 +10,13 @@ import {
   loadFixtureMetadata,
   loadFixtureNames,
 } from "@/tests/helpers/luoguFixtureMetadata";
+import {
+  computeFixtureCoverage,
+  evaluatePlatformGate,
+  FixtureCoverageSchema,
+  REASON_MISSING_PUBLIC_CONTENT,
+  REASON_MISSING_VERIFIED_DOM,
+} from "@/tests/helpers/platformCertification";
 
 const FIXTURES_DIR = join(process.cwd(), "tests", "fixtures", "luogu");
 const REPORT_PATH = join(process.cwd(), "work", "reports", "certification-gate-verdict.json");
@@ -32,21 +39,8 @@ const GATE_SOURCE = {
   adapterRegistry: "extension/src/platforms.ts",
   dateBasis: "fixture metadata captureDate",
 } as const;
-const MISSING_PUBLIC_CONTENT_REASON =
-  "No fixture has evidenceTier \"public-content-accessible\"; URL detection evidence is required.";
-const MISSING_VERDICT_DOM_REASON =
-  "No fixture qualifies as evidenceTier \"verified-public-dom\": production requires at least one fixture with non-null verdictExpected and non-empty selector provenance proving actual public verdict DOM was observed.";
 
-const FixtureCoverageSchema = z
-  .object({
-    total: z.number().int().nonnegative(),
-    publicContentAccessible: z.number().int().nonnegative(),
-    verifiedPublicDom: z.number().int().nonnegative(),
-    characterizationDerived: z.number().int().nonnegative(),
-  })
-  .strict();
-type FixtureCoverage = z.infer<typeof FixtureCoverageSchema>;
-
+// Luogu-specific artifact schema (preserved byte-identical)
 const GateSharedShape = {
   fixtureCoverage: FixtureCoverageSchema,
   fixtureNames: z.array(z.string().min(1)),
@@ -61,7 +55,7 @@ const GateSharedShape = {
     })
     .strict(),
 } as const;
-const GateVerdictSchema = z.discriminatedUnion("gateVerdict", [
+const LuoguGateVerdictSchema = z.discriminatedUnion("gateVerdict", [
   z
     .object({ gateVerdict: z.literal("CERTIFIED"), blockingReasons: z.array(z.string()).length(0), ...GateSharedShape })
     .strict(),
@@ -69,43 +63,37 @@ const GateVerdictSchema = z.discriminatedUnion("gateVerdict", [
     .object({ gateVerdict: z.literal("BLOCKED"), blockingReasons: z.array(z.string().min(1)).min(1), ...GateSharedShape })
     .strict(),
 ]);
-type GateVerdict = z.infer<typeof GateVerdictSchema>;
+type LuoguGateVerdict = z.infer<typeof LuoguGateVerdictSchema>;
 
-function fixtureCoverage(metadata: readonly FixtureMeta[]): FixtureCoverage {
-  return FixtureCoverageSchema.parse({
-    total: metadata.length,
-    publicContentAccessible: metadata.filter((meta) => meta.evidenceTier === "public-content-accessible").length,
-    verifiedPublicDom: metadata.filter(
-      (meta) => meta.evidenceTier === "verified-public-dom" && meta.verdictExpected !== null && meta.selectors.length > 0,
-    ).length,
-    characterizationDerived: metadata.filter((meta) => meta.evidenceTier === "characterization-derived").length,
+function buildLuoguGateVerdict(metadata: readonly FixtureMeta[]): LuoguGateVerdict {
+  const evaluation = evaluatePlatformGate({
+    platform: "luogu",
+    metadata,
+    requiredVerdicts: [],
+    gateDate: GATE_DATE,
+    gateSource: GATE_SOURCE,
+    expectedSourceHost: "www.luogu.com.cn",
+    requiredSelectorToken: ".status",
+    detectorObservations: [],
   });
-}
-
-function buildGateVerdict(metadata: readonly FixtureMeta[]): GateVerdict {
-  const coverage = fixtureCoverage(metadata);
-  const blockingReasons = [
-    ...(coverage.publicContentAccessible === 0 ? [MISSING_PUBLIC_CONTENT_REASON] : []),
-    ...(coverage.verifiedPublicDom === 0 ? [MISSING_VERDICT_DOM_REASON] : []),
-  ];
-  return GateVerdictSchema.parse({
-    gateVerdict: blockingReasons.length === 0 ? "CERTIFIED" : "BLOCKED",
-    blockingReasons,
-    fixtureCoverage: coverage,
-    fixtureNames: metadata.map((meta) => meta.fixtureName),
-    luoguCurrentStatus: getPlatformAdapterStatus("luogu"),
+  return LuoguGateVerdictSchema.parse({
+    gateVerdict: evaluation.gateVerdict,
+    blockingReasons: evaluation.blockingReasons,
+    fixtureCoverage: evaluation.fixtureCoverage,
+    fixtureNames: evaluation.fixtureNames,
+    luoguCurrentStatus: evaluation.candidateCurrentStatus,
     gateDate: GATE_DATE,
     gateSource: GATE_SOURCE,
   });
 }
 
-function parseGateVerdict(raw: string): GateVerdict {
+function parseLuoguGateVerdict(raw: string): LuoguGateVerdict {
   const parsedJson: unknown = JSON.parse(raw);
-  return GateVerdictSchema.parse(parsedJson);
+  return LuoguGateVerdictSchema.parse(parsedJson);
 }
 
 const metadata = loadFixtureMetadata(FIXTURES_DIR);
-const verdict = buildGateVerdict(metadata);
+const verdict = buildLuoguGateVerdict(metadata);
 const ARTIFACT_TEXT = `${JSON.stringify(verdict, null, 2)}\n`;
 
 const MALFORMED_BASE = {
@@ -151,7 +139,7 @@ describe("Luogu platform certification gate", () => {
   });
 
   it("categorizes all metadata exactly once with qualified verdict evidence", () => {
-    const coverage = fixtureCoverage(metadata);
+    const coverage = computeFixtureCoverage(metadata);
     expect(coverage).toEqual(EXPECTED_COVERAGE);
     expect(
       coverage.publicContentAccessible + coverage.verifiedPublicDom + coverage.characterizationDerived,
@@ -159,7 +147,7 @@ describe("Luogu platform certification gate", () => {
   });
 
   it("requires public-content URL evidence", () => {
-    expect(fixtureCoverage(metadata).publicContentAccessible).toBeGreaterThan(0);
+    expect(computeFixtureCoverage(metadata).publicContentAccessible).toBeGreaterThan(0);
   });
 
   it("blocks Luogu production and production-list inclusion without public verdict DOM", () => {
@@ -169,18 +157,18 @@ describe("Luogu platform certification gate", () => {
   });
 
   it("writes the deterministic typed BLOCKED artifact", () => {
-    const artifact = parseGateVerdict(readFileSync(REPORT_PATH, "utf8"));
+    const artifact = parseLuoguGateVerdict(readFileSync(REPORT_PATH, "utf8"));
     expect(artifact).toEqual(verdict);
-    expect(artifact.blockingReasons).toEqual([MISSING_VERDICT_DOM_REASON]);
+    expect(artifact.blockingReasons).toEqual([REASON_MISSING_VERIFIED_DOM]);
   });
 
   it("rejects a stale artifact date", () => {
     const staleArtifact = JSON.stringify({ ...verdict, gateDate: "2026-07-13" });
-    expect(GateVerdictSchema.safeParse(JSON.parse(staleArtifact)).success).toBe(false);
+    expect(LuoguGateVerdictSchema.safeParse(JSON.parse(staleArtifact)).success).toBe(false);
   });
 
   it("rejects corrupt artifact JSON", () => {
-    expect(() => parseGateVerdict('{"gateVerdict":"BLOCKED"')).toThrow(SyntaxError);
+    expect(() => parseLuoguGateVerdict('{"gateVerdict":"BLOCKED"')).toThrow(SyntaxError);
   });
 
   it("would CERTIFY for synthetic in-memory verified-public-dom evidence without promoting Luogu", () => {
@@ -209,10 +197,32 @@ describe("Luogu platform certification gate", () => {
         sanitized: true,
         evidenceTier: "verified-public-dom",
         verdictExpected: { verdict: "Accepted" },
-        problemExpected: null,
+        problemExpected: { platform: "luogu", externalId: "P1001" },
       },
     ]);
-    const syntheticVerdict = buildGateVerdict(syntheticMetadata);
+    const syntheticObs = [
+      { fixtureName: "synth-public-content-p1001", verdictDetected: null, problemPlatformDetected: "luogu", problemExternalIdDetected: "P1001" },
+      { fixtureName: "synth-verified-public-dom-accepted", verdictDetected: "Accepted", problemPlatformDetected: "luogu", problemExternalIdDetected: "P1001" },
+    ];
+    const syntheticEvaluation = evaluatePlatformGate({
+      platform: "luogu",
+      metadata: syntheticMetadata,
+      requiredVerdicts: [],
+      gateDate: GATE_DATE,
+      gateSource: GATE_SOURCE,
+      expectedSourceHost: "www.luogu.com.cn",
+      requiredSelectorToken: ".status",
+      detectorObservations: syntheticObs,
+    });
+    const syntheticVerdict = LuoguGateVerdictSchema.parse({
+      gateVerdict: syntheticEvaluation.gateVerdict,
+      blockingReasons: syntheticEvaluation.blockingReasons,
+      fixtureCoverage: syntheticEvaluation.fixtureCoverage,
+      fixtureNames: syntheticEvaluation.fixtureNames,
+      luoguCurrentStatus: syntheticEvaluation.candidateCurrentStatus,
+      gateDate: GATE_DATE,
+      gateSource: GATE_SOURCE,
+    });
     expect(syntheticVerdict.gateVerdict).toBe("CERTIFIED");
     expect(syntheticVerdict.blockingReasons).toEqual([]);
     expect(syntheticVerdict.fixtureCoverage.verifiedPublicDom).toBeGreaterThanOrEqual(1);
@@ -225,5 +235,13 @@ describe("Luogu platform certification gate", () => {
 
   it("exposes the canonical evidence-tier taxonomy", () => {
     expect(EXPECTED_TIERS).toEqual(["public-content-accessible", "verified-public-dom", "characterization-derived"]);
+  });
+
+  // Verify shared evaluator reason constants are used
+  it("uses shared evaluator reason constants for consistency", () => {
+    expect(REASON_MISSING_PUBLIC_CONTENT).toBe(
+      'No fixture has evidenceTier "public-content-accessible"; URL detection evidence is required.',
+    );
+    expect(REASON_MISSING_VERIFIED_DOM).toContain("verified-public-dom");
   });
 });
