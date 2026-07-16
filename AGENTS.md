@@ -1,3 +1,6 @@
+请注意，将一切plan写入docs\superpowers\plans，将其作为plan的唯一入口。
+如果其他机制有执行或写入plan的需要，则将该机制的plan mklink到superpowers\plans。（如.omo的plan）
+
 # Agent Handoff Guide
 
 This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, and 0D are implemented, while the active product roadmap still labels the codebase Pre-V0. Phase 0 itself remains BLOCKED on production-adapter certification; only Phase 0D's engineering-gates package is closed.
