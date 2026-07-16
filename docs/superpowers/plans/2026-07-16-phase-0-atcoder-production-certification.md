@@ -186,7 +186,7 @@ T3 and T4 may be implemented in parallel only after T2 lands because both consum
 
 ### Wave 3 — Trustworthy page detection
 
-- [ ] **T3. Add an exact AtCoder submission-page identity bridge**
+- [x] **T3. Add an exact AtCoder submission-page identity bridge**
 
   **Files:** update `extension/src/platforms.ts`, `extension/src/content.ts`, `tests/unit/extensionPlatforms.test.ts`, and `tests/unit/extensionAtcoderFixtures.test.ts`.
 
