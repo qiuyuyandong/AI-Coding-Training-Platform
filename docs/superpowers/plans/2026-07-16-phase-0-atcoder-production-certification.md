@@ -276,7 +276,7 @@ T3 and T4 may be implemented in parallel only after T2 lands because both consum
 
 ### Wave 7 — Authoritative gate and phase reconciliation
 
-- [ ] **T8. Run the full Phase 0 gate, record evidence, and reconcile phase truth**
+- [x] **T8. Run the full Phase 0 gate, record evidence, and reconcile phase truth**
 
   **Files:** create `work/reports/phase-0-atcoder-certification.md`; update `work/handoff-current.md`, `IDEA.md`, `README.md`, `AGENTS.md`, `docs/architecture.md`, `docs/runbook.md`, `docs/superpowers/README.md`, `docs/superpowers/plans/2026-07-11-phase-0-reliability-baseline.md`, and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md`. Update no other current-state doc unless a concrete stale claim is found.
 
