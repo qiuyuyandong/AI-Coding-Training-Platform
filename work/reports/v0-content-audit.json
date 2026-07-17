@@ -1,0 +1,45 @@
+{
+  "schema_version": "v0-content-audit-1",
+  "implementation_sha": "d6c0f14aafb663c8746ad5e30d968508d539ec07",
+  "checksum_input": "PLACEHOLDER_WILL_BE_SET_BY_TODO_6",
+  "date": "2026-07-18",
+  "counts": {
+    "published_nodes": 12,
+    "reviewed_resources": 12,
+    "practice_tasks": 12,
+    "prerequisite_edges": 13,
+    "career_summaries": 9,
+    "resource_problem_links": 24
+  },
+  "nodes": [
+    { "stable_id": "cpp-io-types", "order_index": 1, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "cppreference.com", "provenance_url": "https://en.cppreference.com/w/cpp/io", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "practice_1" },
+    { "stable_id": "cpp-control-flow-functions", "order_index": 2, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "cppreference.com", "provenance_url": "https://en.cppreference.com/w/cpp/language/statements", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "abc086_a" },
+    { "stable_id": "cpp-containers", "order_index": 3, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "cppreference.com", "provenance_url": "https://en.cppreference.com/w/cpp/container/vector", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "abc081_b" },
+    { "stable_id": "program-decomposition", "order_index": 4, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "cppreference.com", "provenance_url": "https://en.cppreference.com/w/cpp/language/functions", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "abc085_c" },
+    { "stable_id": "debugging-testing", "order_index": 5, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "GNU Project", "provenance_url": "https://sourceware.org/gdb/current/onlinedocs/gdb.html", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "arc065_a" },
+    { "stable_id": "git-build-workflow", "order_index": 6, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "Git SCM", "provenance_url": "https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository", "resource_present": true, "practice_mapping_present": true, "source_platform": "manual", "source_external_id": "git_tutorial" },
+    { "stable_id": "complexity-analysis", "order_index": 7, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "OI Wiki", "provenance_url": "https://oi-wiki.org/basic/complexity/", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "abc085_b" },
+    { "stable_id": "sorting-binary-search", "order_index": 8, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "cppreference.com", "provenance_url": "https://en.cppreference.com/w/cpp/algorithm/lower_bound", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "arc084_a" },
+    { "stable_id": "stacks-queues", "order_index": 9, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "cppreference.com", "provenance_url": "https://en.cppreference.com/w/cpp/container/queue", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "abc007_3" },
+    { "stable_id": "hashing-linked-structures", "order_index": 10, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "cppreference.com", "provenance_url": "https://en.cppreference.com/w/cpp/container/unordered_map", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "abc073_c" },
+    { "stable_id": "trees-recursion-traversal", "order_index": 11, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "OI Wiki", "provenance_url": "https://oi-wiki.org/graph/dfs/", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "abc138_d" },
+    { "stable_id": "graphs-bfs-dfs", "order_index": 12, "status": "published", "outcome_present": true, "rationale_present": true, "stopping_guidance_present": true, "provenance_authority": "OI Wiki", "provenance_url": "https://oi-wiki.org/graph/bfs/", "resource_present": true, "practice_mapping_present": true, "source_platform": "atcoder", "source_external_id": "abc168_d" }
+  ],
+  "careers": [
+    { "slug": "frontend-web" },
+    { "slug": "backend-server" },
+    { "slug": "client" },
+    { "slug": "data-analytics-engineering" },
+    { "slug": "ai-ml" },
+    { "slug": "edge-ai-embedded" },
+    { "slug": "cloud-platform" },
+    { "slug": "security" },
+    { "slug": "systems-software" }
+  ],
+  "package": {
+    "track_slug": "software-development-foundations-v1",
+    "semantic_version": "1.0.0",
+    "source_revision": "v0-foundation-2026-07-17",
+    "package_id": "pkg_software-development-foundations-v1_1_0_0"
+  }
+}
