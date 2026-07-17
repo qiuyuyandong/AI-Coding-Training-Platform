@@ -36,6 +36,7 @@
 - T7 — promotion to production + promotion guard artifact + pipeline E2E + plan record: `06fc306` (`feat: promote certified AtCoder adapter`), `e72cfc1` (`test: guard AtCoder certification artifact`), `41009d1` (`test: verify AtCoder capture pipeline`), `29f6075` (`docs: mark T7 complete in AtCoder certification plan`)
 - T8 — authoritative gate run + documentation reconciliation: `7eddee1` (`docs: record Phase 0 AtCoder certification`), `3aaa7c5` (`docs: update adapter status guidance`), `62c3e83` (`docs: close Phase 0 product roadmap`), `a46896b` (`docs: mark T8 complete in AtCoder certification plan`)
 - T8 agent/handoff reconciliation: `d7bebcc` (`docs: reconcile Phase 0 agent handoff`)
+- F1–F4 final verification evidence and plan record: `ad6839ad443e99dd39a3b073ca38b1d2afd19944` (`docs: record Phase 0 final verification`)
 
 ## Accepted
 
@@ -43,15 +44,17 @@
 - Phase 0 AtCoder production certification (2026-07-17): T1–T7 implemented and verified
 - T8 authoritative Phase 0 gate (2026-07-17): `extension:check` and `quality:gate` both PASS with fresh counts above; default DB metadata unchanged; AtCoder sole production; Luogu experimental with SHA-identical BLOCKED evidence
 - T8 documentation reconciliation (2026-07-17): 11 files updated, stale-claim audit passed, all docs consistently state Phase 0 green/completed
+- F1–F4 final verification (2026-07-17): all four lanes (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) independently **APPROVE** against commit `45cdd92a161f27622dbe5706a805eab523220910`. No blockers; no required fixes. Evidence recorded in `work/reports/phase-0-atcoder-certification.md#final-verification-f1` through `#final-verification-f4`.
 
 ## In Flight
 
 - No Worker in flight
+- **User acceptance pending**: technical verification is complete; explicit user acceptance is required before overall Phase 0 declaration and V0 planning
 
 ## Next Commander Action
 
-1. **Final verification wave F1–F4**: run all four lanes (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) against the current committed T8 candidate. Surface all four results; wait for user acceptance.
-2. **V0 vertical-slice plan** (after F1–F4 acceptance): write/approve a new atomic plan under `docs/superpowers/plans/` for the first V0 manual learning loop. Do not start Phase 1 implementation before the V0 plan is approved.
+1. **Surface F1–F4 results**: all four lanes APPROVE; no blockers. Wait for explicit user acceptance. Do not claim user acceptance or start V0 planning until confirmed.
+2. **V0 vertical-slice plan** (after user acceptance): write/approve a new atomic plan under `docs/superpowers/plans/` for the first V0 manual learning loop. Do not start Phase 1 implementation before the V0 plan is approved.
 
 ## Known Risks
 
