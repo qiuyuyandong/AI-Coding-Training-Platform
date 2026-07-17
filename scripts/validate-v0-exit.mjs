@@ -328,8 +328,8 @@ export function validateAllReports({
   ];
   const failed = [
     ...engineeringReport.failed,
-    ...ownerReport.failed,
-    ...participantsReport.failed,
+    ...(ownerReport.failed ?? []),
+    ...(participantsReport.failed ?? []),
     ...exitReport.failed,
     ...(finalReport !== null ? finalReport.failed : []),
   ];
@@ -573,7 +573,7 @@ function combineSections(sections) {
   for (const section of sections) {
     if (section === null) continue;
     allChecks.push(...section.checks);
-    failed.push(...section.failed);
+    failed.push(...(section.failed ?? section.failedChecks ?? []));
   }
   const ok = failed.length === 0;
   return {
