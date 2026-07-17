@@ -1,5 +1,7 @@
 # AI Coding Growth Platform Product Development Roadmap
 
+> **Status (2026-07-18):** **V0 exit candidate; F1-F4 final verification and user acceptance pending.** Engineering gates PASS at implementationSha `d6c0f14aafb663c8746ad5e30d968508d539ec07`; observationRecordSha `5a0e0a0f12a0fcf24683564fb5146087a9c59c9f`. See `work/reports/v0-exit-report.md` for the full SHA chain, decision and limitations. V0 is not declared complete or accepted until F1-F4 all APPROVE and the user explicitly accepts the V0 verification.
+
 > **For agentic workers:** Before implementing a work package, use `superpowers:writing-plans` to expand it against the then-current codebase. During implementation use the appropriate execution skill, and use `superpowers:verification-before-completion` before declaring a release gate complete.
 
 **Goal:** Turn the current local verdict-capture prototype into a learning-navigation and code-growth product that can first serve the owner and roommates, then evolve into a public cloud service.

@@ -3,7 +3,9 @@
 
 # Agent Handoff Guide
 
-This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, 0D, and the Phase 0 AtCoder production certification (T1–T8) are implemented. Phase 0 is complete and reconciled green on 2026-07-17; AtCoder is the sole certified production adapter. The active product roadmap still labels the codebase Pre-V0.
+> **Status (2026-07-18):** **V0 exit candidate; F1-F4 final verification and user acceptance pending.** Engineering gates PASS at implementationSha `d6c0f14aafb663c8746ad5e30d968508d539ec07`; observationRecordSha `5a0e0a0f12a0fcf24683564fb5146087a9c59c9f`. See `work/reports/v0-exit-report.md` for the full SHA chain, decision and limitations. V0 is not declared complete or accepted until F1-F4 all APPROVE and the user explicitly accepts the V0 verification.
+
+This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, 0D, and the Phase 0 AtCoder production certification (T1–T8) are implemented. Phase 0 is complete and reconciled green on 2026-07-17; AtCoder is the sole certified production adapter. The V0 manual learning loop vertical slice has been implemented and recorded as a V0 exit candidate pending F1-F4 final verification and user acceptance.
 
 `IDEA.md` and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` define the future V0/V0.5/V1/Public Beta direction. `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud SaaS as the eventual target but explicitly defers implementation until the Phase 7 gate.
 

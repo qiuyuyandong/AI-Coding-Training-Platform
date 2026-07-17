@@ -1,7 +1,12 @@
 # AI 代码成长与学习导航平台：产品说明
 
-最后更新：2026-07-17
-当前状态：产品方向已收敛，Phase 0 已完成并通过 AtCoder 生产适配器认证（2026-07-17），项目仍处于 **Pre-V0 技术原型**
+最后更新：2026-07-18
+当前状态：**V0 exit candidate; F1-F4 final verification and user acceptance pending**
+- implementationSha：`d6c0f14aafb663c8746ad5e30d968508d539ec07`
+- observationRecordSha：`5a0e0a0f12a0fcf24683564fb5146087a9c59c9f`
+- 出口报告：`work/reports/v0-exit-report.md`
+- 工程门 PASS（八个阶段全部退出码 0），主观察与两用户观察仍 PENDING，F1-F4 终审与用户明确接受尚待执行。
+- 在 F1-F4 终审与用户明确接受之前，V0 不得声明完成或被接受。
 
 > 本文是产品定义的唯一主入口：说明要解决什么问题、服务谁、核心机制和版本边界。
 > 当前已经实现什么以 `README.md` 和 `docs/architecture.md` 为准；开发顺序与验收门槛以 `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` 为准。

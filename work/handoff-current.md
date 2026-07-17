@@ -1,16 +1,26 @@
 # Current Handoff
 
+## Status (2026-07-18)
+
+**V0 exit candidate; F1-F4 final verification and user acceptance pending.**
+
+- implementationSha: `d6c0f14aafb663c8746ad5e30d968508d539ec07` (engineering gates PASS)
+- observationRecordSha: `5a0e0a0f12a0fcf24683564fb5146087a9c59c9f` (owner + two-user observation windows PENDING)
+- Exit report: `work/reports/v0-exit-report.md` (decision `ACCEPT_CANDIDATE`)
+- V0 is **not** declared complete or accepted. F1 plan compliance, F2 code quality and security, F3 hands-on QA, and F4 scope/docs fidelity must all APPROVE the same `releaseRecordSha`; then the user must explicitly accept the V0 verification. Only after that is V0 done.
+
 ## Workspace
 
 - Branch: `feature/v1-followup`
 - Worktree: repository root; this handoff reflects the clean post-commit T8 candidate (worktree clean of tracked modifications; only ignored `.omo/` and `node_modules/` entries)
 - Default database: preserved during the authoritative Phase 0D Task 4, Task 6, and T8 gate verification runs (metadata-only `Get-Item`; the default `training-platform.sqlite` was never opened or hashed by those runs)
 - Latest independent quality-gate run: 2026-07-17 (T8), `npm run quality:gate` PASS: 32 unit files / 367 passed / 1 skip; 17 E2E; 15 extension files / 242 passed; 16/16 build pages; default `training-platform.sqlite` `Length` 73728 and `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z unchanged before and after
+- V0 engineering gate run (Todo 27): `npm run lint`, disposable `npm run db:migrate`, `npm run curriculum:validate`, `npm run test`, `npm run typecheck`, `npm run e2e`, `npm run extension:check`, `npm run build` all exit 0 at implementationSha `d6c0f14aafb663c8746ad5e30d968508d539ec07`; default `training-platform.sqlite` preserved (73728 bytes, LastWriteTimeUtc = 2026-07-13 17:49:36 UTC)
 
 ## Current Phase
 
 - Phase 0: **complete and reconciled green on 2026-07-17.** All exit criteria satisfied; AtCoder is the sole certified production adapter.
-- Phase 1 / V0: **not started.** Next action is writing/approving a V0 vertical-slice plan.
+- V0 manual learning loop vertical slice: **exit candidate recorded 2026-07-18; F1-F4 final verification and user acceptance pending.**
 
 ## Commit Chronology
 
@@ -53,8 +63,11 @@
 
 ## Next Commander Action
 
-1. **V0 vertical-slice plan**: write and approve a new atomic plan under `docs/superpowers/plans/` for the first V0 manual learning loop.
-2. Do not start Phase 1 / V0 implementation before that plan is approved.
+1. **F1-F4 final verification**: invoke read-only Oracles and a hands-on QA agent against the same `releaseRecordSha`. All four must APPROVE.
+2. **Record `work/reports/v0-final-verification.md`** with F1-F4 results and the F1-F4-verified `releaseRecordSha`, committed as `docs(evidence): record V0 final verification`.
+3. **Wait for explicit user acceptance** of the V0 verification. Do not advance to V0.5 planning before the user explicitly accepts.
+4. If acceptance is given, run the post-acceptance reconciliation and commit `docs(release): accept V0 verification` against the six status docs.
+5. If F1-F4 finds blockers, repeat observations, hold, or restart from the engineering gates — do not declare V0 complete.
 
 ## Known Risks
 

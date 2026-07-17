@@ -1,6 +1,8 @@
 # AI Coding Training Platform
 
-This repository currently contains a **Pre-V0 local OJ capture prototype**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet reached that scope.
+> **Status (2026-07-18):** **V0 exit candidate; F1-F4 final verification and user acceptance pending.** Engineering gates PASS at implementationSha `d6c0f14aafb663c8746ad5e30d968508d539ec07`; observationRecordSha `5a0e0a0f12a0fcf24683564fb5146087a9c59c9f`. See `work/reports/v0-exit-report.md` for the full SHA chain, decision and limitations. V0 is not declared complete or accepted until F1-F4 all APPROVE and the user explicitly accepts the V0 verification.
+
+This repository currently contains a **V0 exit candidate build of a local learning loop** with the V0 engineering gates passing and observation windows pending. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release.
 
 It provides:
 
