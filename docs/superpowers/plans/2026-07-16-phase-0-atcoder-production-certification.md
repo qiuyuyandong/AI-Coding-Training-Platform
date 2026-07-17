@@ -296,22 +296,22 @@ T3 and T4 may be implemented in parallel only after T2 lands because both consum
 
 Run all four lanes in parallel **after T8**, against the same clean candidate commit. Every lane must independently return `APPROVE`; a summary or passing log is only a claim until the lane checks the exact assertion/artifact. If any lane rejects, fix the issue in a new atomic commit and rerun all affected lanes. Surface all four results and wait for the user's explicit okay before declaring the work complete.
 
-- [ ] **F1 — Plan compliance audit**
+- [x] **F1 — Plan compliance audit**
   - Verify every T1-T8 acceptance item and Must-NOT-Have against the diff and artifacts.
   - Confirm AtCoder is the only production platform, Luogu evidence files are unchanged, Phase 1 product code is absent, and plan authority remains this file under `docs/superpowers/plans/`.
   - Evidence: `work/reports/phase-0-atcoder-certification.md#final-verification-f1`.
 
-- [ ] **F2 — Code quality and security review**
+- [x] **F2 — Code quality and security review**
   - Review strict TypeScript, parser boundaries, host/path spoofing, unique task-link selection, selector isolation, fixture sanitization, deterministic writes, and default DB safety.
   - Reject `any`, casts prohibited by AGENTS.md, broad `body`/`td` AtCoder verdict fallback, hidden/authenticated data, network tests, or silent error swallowing.
   - Evidence: `work/reports/phase-0-atcoder-certification.md#final-verification-f2`.
 
-- [ ] **F3 — Hands-on QA**
+- [x] **F3 — Hands-on QA**
   - Run focused fixture/identity/verdict/runtime/certification tests, AtCoder E2E, `extension:check`, and `quality:gate` from a clean state using disposable data.
   - Inspect exact gate artifacts and cleanup; do not open/hash the default DB.
   - Evidence: `work/reports/phase-0-atcoder-certification.md#final-verification-f3`.
 
-- [ ] **F4 — Scope and documentation fidelity**
+- [x] **F4 — Scope and documentation fidelity**
   - Compare IDEA, roadmap, baseline, README, architecture, runbook, Superpowers index, AGENTS, handoff, and reports for one consistent phase story.
   - Confirm the next action is V0 vertical-slice planning, not silent Phase 1 implementation, and cloud/local-first boundaries remain unchanged.
   - Evidence: `work/reports/phase-0-atcoder-certification.md#final-verification-f4`.

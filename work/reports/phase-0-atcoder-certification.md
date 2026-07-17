@@ -1,7 +1,7 @@
 # Phase 0 AtCoder Certification — Final T8 Closure Report
 
 **Date:** 2026-07-17
-**Branch:** `feature/v1-followup` at `29f6075` (`docs: mark T7 complete in AtCoder certification plan`)
+**Branch:** `feature/v1-followup` at `45cdd92a161f27622dbe5706a805eab523220910` (clean; no drift during F1–F4 lanes)
 **Plan:** `docs/superpowers/plans/2026-07-16-phase-0-atcoder-production-certification.md` (T8)
 **Verifier role:** Worker, verification-only, no persistent source/test/config edits.
 
@@ -248,19 +248,59 @@ All pre-existing certification artifacts under `work/reports/` (`atcoder-certifi
 - `getProductionPlatforms() === ["atcoder"]`; every other adapter is `experimental`.
 - The full Phase 0 engineering gate (`extension:check` and `quality:gate`) passes with disposable/isolated data; default DB metadata (`Length` and `LastWriteTimeUtc`) was identical pre and post; all temp/server cleanup proven; no tracked modifications.
 
-## 8. Phase 0 closure — affirmed and deferred
+## 8. Phase 0 closure — affirmed; user acceptance deferred
 
 ### Affirmed by this T8 step
 
 - **T8 documentation reconciliation is complete.** The companion docs-update step was executed on 2026-07-17 and all listed docs now agree: Phase 0 green, AtCoder sole production, Luogu experimental with historical BLOCKED, Phase 1 not started. See §10.1 for the reconciled-docs audit.
 - AtCoder is the sole production platform; Luogu historical evidence SHA-identical; all engineering gates pass; default DB metadata unchanged.
 
-### Not yet affirmed (deferred to F1–F4)
+### Final verification F1
 
-- **No Phase 1 / V0 implementation has started.** The next product action is writing/approving a V0 vertical-slice plan (per plan T8 acceptance and `Success criteria #9`), following F1–F4 acceptance. Phase 1 capability plans under `docs/superpowers/plans/2026-07-11-phase-1..6-*.md` remain active planning artifacts, not implementation commitments.
-- **The Phase 0B4 Luogu certification remains BLOCKED as a historical record.** No public Luogu verdict DOM was discovered; the blocker artifact (`work/reports/luogu-adapter-blocker.json`) is preserved with its SHA-256 unchanged from Phase 0B4. Luogu is `experimental`. This BLOCKED record no longer blocks Phase 0 closure; AtCoder satisfies the production-adapter exit criterion.
-- **Cloud/local-first boundaries are unchanged.** No external LLM, analytics, sync, or third-party API calls were added. The capture pipeline remains local-only.
-- **No commits, push, or PRs were made during evidence acquisition or documentation reconciliation.** The authoritative T8 gate run produced the untracked report only (zero tracked modifications). The companion docs-reconciliation step subsequently modified ten tracked docs plus updated this report; atomic closure commits occur only after this report is finalized.
+**APPROVE.** Review basis: clean commit `45cdd92a161f27622dbe5706a805eab523220910`, branch `feature/v1-followup`, no drift during lanes.
+
+- Every T1–T8 acceptance item and Must-NOT-Have is satisfied against the committed diff and artifacts.
+- AtCoder is the sole production platform (`getProductionPlatforms() === ["atcoder"]`); LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`.
+- Luogu evidence files (`tests/fixtures/luogu/`, `work/reports/certification-gate-verdict.json`, `work/reports/luogu-adapter-blocker.json`, `work/reports/luogu-adapter-certification.json`) are SHA-256 identical to Phase 0B4/0D evidence. No production promotion occurred for Luogu; its BLOCKED status is preserved as a historical record.
+- No Phase 1 / V0 feature code is present. Phase 1 capability plans under `docs/superpowers/plans/2026-07-11-phase-1..6-*.md` remain planning artifacts, not implementation commitments.
+- Plan authority is `docs/superpowers/plans/2026-07-16-phase-0-atcoder-production-certification.md` as the sole plan entry; `.omo/plans` is only a repository junction.
+
+### Final verification F2
+
+**APPROVE.** Review basis: clean commit `45cdd92a161f27622dbe5706a805eab523220910`, branch `feature/v1-followup`, no drift during lanes.
+
+- No CRITICAL, MAJOR, or HIGH findings. Strict TypeScript throughout; no prohibited casts (`any`, `as any`, `as unknown`), no `@ts-ignore` or `@ts-expect-error`, no non-null assertions.
+- Exact host/path checks: `atcoder.jp.evil.example` and spoofed submission IDs rejected (`extension/src/platforms.ts:152-181`); submission identity resolves exactly one contest-consistent task link.
+- Verdict detection reads only `#judge-status`. No `body`/`td` fallback; unrelated page text cannot produce a verdict.
+- Fixtures are public, sanitized, unauthenticated; all four `atcoder.jp` fixtures carry `authenticated: false`, `sanitized: true`, and truthful `evidenceTier` metadata.
+- Certification artifacts are deterministic and guarded: the T6 gate artifact SHA is pinned in T7; the 16-test promotion guard rejects BLOCKED, malformed JSON, forged `verifiedPublicDom`, forged detector evidence, spoof host URLs, and spoof submission IDs.
+- Local-only boundaries intact: no external HTTP in Vitest, Playwright, or build; E2E uses `http://localhost:3000` only; default `training-platform.sqlite` metadata unchanged pre/post gate.
+- Luogu historical evidence preserved with SHA-256 unchanged; no overwrite of Luogu gate artifacts.
+
+### Final verification F3
+
+**APPROVE.** Review basis: clean commit `45cdd92a161f27622dbe5706a805eab523220910`, branch `feature/v1-followup`, no drift during lanes. Fresh runs from clean state with disposable data.
+
+- **Focused fixture/identity/verdict/runtime/certification tests:** 18 files, 214 tests passed. The separate `extension:check` run covered 15 extension files / 242 tests.
+- **Targeted AtCoder E2E:** `tests/e2e/capture-atcoder-problem.spec.ts` 1 passed with `external=[]` (all 16 requests from `http://localhost:3000`; no external network).
+- **Canonical quality gate** (`npm run quality:gate`): 32 files / 367 passed / 1 skipped (file-symlink capability test, loud EPERM); 17 E2E passed; 15 extension files / 242 passed; 16/16 static pages built; EXITCODE 0.
+- **T6 gate artifact SHA:** `1589BB48A962CF2F388802F654E969E2A5DCEB7EC35113032B96055F668D951D` — exact match to T7 `t6GateArtifact.sha256`.
+- **Default DB metadata:** `Length` 73728, `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z — identical pre/post (metadata-only `Get-Item`; never opened or hashed).
+- **Cleanup:** no stale `.tmp/playwright`, quality-gate temp dirs, or port 3000 listeners; `extension/dist` gitignored; worktree clean of tracked modifications.
+
+### Final verification F4
+
+**APPROVE.** Review basis: clean commit `45cdd92a161f27622dbe5706a805eab523220910`, branch `feature/v1-followup`, no drift during lanes.
+
+- All current-state docs (`README.md`, `IDEA.md`, `AGENTS.md`, `docs/architecture.md`, `docs/runbook.md`, `docs/superpowers/README.md`, baseline, roadmap, handoff) consistently state: Phase 0 complete/green on 2026-07-17, AtCoder sole production adapter, Luogu experimental with historical BLOCKED certification, other platforms experimental.
+- Historical Phase 0D and Luogu BLOCKED records are correctly contextualized as completed or historical; no document presents them as current obstacles.
+- Links, paths, test counts (367 passed / 1 skip / 242 extension), and commit chronology are consistent across all referenced docs.
+- Cloud and local-first boundaries are unchanged from Phase 0D; no external LLM, analytics, sync, or third-party API calls were added.
+- Next process action (surface F1–F4 results; wait for explicit user acceptance) and next product action (after acceptance: write/approve V0 vertical-slice plan) are correct per plan T8 acceptance and success criteria #9. Phase 1 / V0 implementation has not started.
+
+### User-acceptance status
+
+All four technical verification lanes (F1, F2, F3, F4) independently **APPROVE** against commit `45cdd92a161f27622dbe5706a805eab523220910`. No blockers; no required fixes. Per the plan's final verification wave contract (§"Final verification wave"), the results must be surfaced and explicit user acceptance is still required before the overall declaration. Do not claim user acceptance or start V0 planning until the user explicitly confirms.
 
 ---
 
@@ -286,11 +326,11 @@ Pre-removal count: 18 + 13 = **31 transient files**; 0 unchanged files outside t
 
 ## 10. Remaining product work (out of scope for T8)
 
-The following items remain **out of scope** for this T8 verification. Immediate process step first, then product actions:
+The following items remain after technical verification:
 
-1. **Final verification wave (F1–F4)**: run all four lanes (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) against the committed T8 candidate. Surface all four results; wait for user acceptance.
-2. **V0 vertical-slice plan** (after F1–F4 acceptance): write/approve a new atomic plan under `docs/superpowers/plans/` against the current repository. Do not treat a completed Phase 1 capability plan as line-by-line instructions.
-3. **Phase 0B4 Luogu re-attempt**: requires a publicly accessible Luogu verdict DOM (no authentication, no restricted content) or a new design decision that explicitly accepts characterization-only evidence. Out of scope for the AtCoder close.
+1. **User acceptance**: F1–F4 are complete and all APPROVE; surface the results and wait for explicit user acceptance before the overall declaration.
+2. **V0 vertical-slice plan** (after user acceptance): write/approve a new atomic plan under `docs/superpowers/plans/` against the current repository. Do not treat a completed Phase 1 capability plan as line-by-line instructions.
+3. **Phase 0B4 Luogu re-attempt**: requires a publicly accessible Luogu verdict DOM (no authentication, no restricted content) or a new design decision that explicitly accepts characterization-only evidence. This remains optional future work and does not block Phase 0.
 
 ### 10.1 Documentation reconciliation and stale-claim audit (2026-07-17)
 
@@ -301,7 +341,7 @@ The companion docs-update step reconciled all plan-listed documentation files. E
 | File | Change |
 | --- | --- |
 | `work/reports/phase-0-atcoder-certification.md` | Converted from gate-only/deferred-docs to final T8 closure report. Removed "T8 docs reconciliation is explicitly out of scope." Added §10.1 reconciliation audit. Updated verdict to T8 PASS / Phase 0 reconciled green. |
-| `work/handoff-current.md` | Phase 0 complete (was BLOCKED). Added AtCoder T1–T8 chronology. Next action: V0 plan + F1–F4 pending. Updated test counts to T8 values, marked previous Phase 0D counts as historical. |
+| `work/handoff-current.md` | Phase 0 complete (was BLOCKED). Added AtCoder T1–T8 chronology. Next action: V0 plan + F1–F4 pending (F1–F4 subsequently completed, all APPROVE on 2026-07-17). Updated test counts to T8 values, marked previous Phase 0D counts as historical. |
 | `README.md` | Adapter status: AtCoder production, four platforms experimental. Added reference to AtCoder certification report. |
 | `AGENTS.md` | Phase 0 complete (was BLOCKED). Adapter status: AtCoder production. Added AtCoder certification handoff. |
 | `docs/architecture.md` | Adapter status: AtCoder production, others experimental. Removed "no production adapter exists." |
@@ -310,7 +350,7 @@ The companion docs-update step reconciled all plan-listed documentation files. E
 | `IDEA.md` | Date updated to 2026-07-17. Phase 0 production-adapter exit satisfied by AtCoder. Marked Luogu blocker as historical. Removed "Phase 0D 工程质量门后，才能关闭 Phase 0" — Phase 0D is complete and Phase 0 is green. |
 | `docs/superpowers/plans/2026-07-11-phase-0-reliability-baseline.md` | Status changed from "In progress / BLOCKED" to "Complete — 2026-07-17." Production-adapter exit gate checked `[x]` with AtCoder note. |
 | `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` | Phase 0 status changed from "In progress / BLOCKED" to "Complete." Near-term execution item 1 marked resolved by AtCoder. Removed "one production-quality OJ adapter" from "Not yet trustworthy or present." |
-| `docs/superpowers/plans/2026-07-16-phase-0-atcoder-production-certification.md` | T8 checkbox changed from `[ ]` to `[x]`. F1–F4 remain unchecked (pending). |
+| `docs/superpowers/plans/2026-07-16-phase-0-atcoder-production-certification.md` | T8 checkbox changed from `[ ]` to `[x]`. F1–F4 remained unchecked (pending) until final-verification APPROVE on 2026-07-17, then all four checked `[x]`. |
 
 **Targeted stale-claim audit results:**
 
@@ -330,9 +370,11 @@ Search patterns audited across all listed files:
 
 ## Verdict
 
-**T8 PASS — Phase 0 reconciled green.** The authoritative gate evidence is recorded in §4; the companion documentation reconciliation and stale-claim audit (§10.1) confirm all listed docs consistently state Phase 0 completed on 2026-07-17. AtCoder is the sole production platform; Luogu remains `experimental` with SHA-256-identical Phase 0B4 evidence; default `training-platform.sqlite` metadata (`Length` and `LastWriteTimeUtc`) was identical pre and post; all temp/server cleanup is proven.
+**T8 PASS — Phase 0 reconciled green; F1–F4 all APPROVE.** The authoritative gate evidence is recorded in §4; the companion documentation reconciliation and stale-claim audit (§10.1) confirm all listed docs consistently state Phase 0 completed on 2026-07-17. AtCoder is the sole production platform; Luogu remains `experimental` with SHA-256-identical Phase 0B4 evidence; default `training-platform.sqlite` metadata (`Length` and `LastWriteTimeUtc`) was identical pre and post; all temp/server cleanup is proven.
 
-**Next process step:** execute the F1–F4 final verification wave against the committed T8 candidate. **Next product action** (after F1–F4 user acceptance): write/approve a V0 vertical-slice plan. Phase 1 / V0 implementation has not started.
+**F1–F4 final verification:** all four lanes (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) independently **APPROVE** against commit `45cdd92a161f27622dbe5706a805eab523220910`. No blockers; no required fixes. F1/F2/F3/F4 findings are recorded above under §8 with exact anchor-linked headings.
+
+**Next process step:** surface results; wait for explicit user acceptance. **Next product action** (after user acceptance): write/approve a V0 vertical-slice plan. Phase 1 / V0 implementation has not started.
 
 ---
 
