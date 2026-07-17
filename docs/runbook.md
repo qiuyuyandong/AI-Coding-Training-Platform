@@ -69,13 +69,16 @@ npm run quality:gate
 
 The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses a server on port 3000. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
 
-`npm run test` currently runs 236 tests (235 pass, 1 capability skip). The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. Named test files of interest:
+`npm run test` currently runs 367 tests (pass) plus 1 capability skip (368 total). The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. Named test files of interest:
 
 | File | Tests | Role |
 |---|---|---|
-| `tests/unit/extensionPlatforms.test.ts` | 23 | Adapter registry (status types, no production platforms) |
-| `tests/unit/luoguFixtureLoader.test.ts` | 14 | Characterizes every fixture against detection functions |
-| `tests/unit/platformCertification.test.ts` | 13 | Read-only certification gate (on-disk BLOCKED + synthetic CERTIFIED) |
+| `tests/unit/extensionPlatforms.test.ts` | 58 | Adapter registry (AtCoder production, four platforms experimental) |
+| `tests/unit/extensionAtcoderCertificationBlocked.test.ts` | 34 | Certification gate BLOCKED path coverage |
+| `tests/unit/extensionAtcoderFixtures.test.ts` | 28 | AtCoder fixture loading and characterization |
+| `tests/unit/extensionAtcoderPromotion.test.ts` | 16 | Production promotion guard (forged/malformed artifact rejection) |
+| `tests/unit/luoguFixtureLoader.test.ts` | 17 | Luogu fixture characterization (historical BLOCKED evidence) |
+| `tests/unit/platformCertification.test.ts` | 14 | Read-only certification gate (on-disk BLOCKED + synthetic CERTIFIED) |
 | `tests/unit/e2eDatabase.test.ts` | 7 + 1 skip | lstat-safe teardown (6 mandatory junction tests pass; 1 symlink skip expected) |
 
 To run fixture loader or certification gate in isolation:
@@ -141,4 +144,4 @@ Network errors are retryable. Invalid 400/413/415 responses and permanent 409 ev
 
 The pairing boundary assumes the local OS account and files remain trustworthy. A process that can edit the SQLite database or Chrome profile can bypass this local HTTP control; that host-compromise case is not solved by localhost bearer credentials.
 
-If SPA capture appears stale, confirm the URL changes in the address bar and inspect the content-script console for `[capture-v2]` errors. Unit tests cover both route-event-first and DOM-mutation-first transitions, but platform-specific DOM readiness remains experimental until one adapter receives fixture certification.
+If SPA capture appears stale, confirm the URL changes in the address bar and inspect the content-script console for `[capture-v2]` errors. Unit tests cover both route-event-first and DOM-mutation-first transitions. AtCoder is the sole production adapter with certified public-DOM fixtures.
