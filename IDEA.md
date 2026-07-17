@@ -1,7 +1,7 @@
 # AI 代码成长与学习导航平台：产品说明
 
-最后更新：2026-07-14
-当前状态：产品方向已收敛，项目仍处于 **Pre-V0 技术原型**
+最后更新：2026-07-17
+当前状态：产品方向已收敛，Phase 0 已完成并通过 AtCoder 生产适配器认证（2026-07-17），项目仍处于 **Pre-V0 技术原型**
 
 > 本文是产品定义的唯一主入口：说明要解决什么问题、服务谁、核心机制和版本边界。
 > 当前已经实现什么以 `README.md` 和 `docs/architecture.md` 为准；开发顺序与验收门槛以 `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` 为准。
@@ -97,7 +97,7 @@
 - 五个平台只是宽泛页面启发式，不等于稳定适配；
 - 目前不能采集代码快照、运行测试、提示使用或可靠提交序列；
 - Coach/Growth 仍只基于 attempt 结果做确定性统计，不能诊断知识薄弱点；
-- 尚无通过真实页面夹具认证的 production-ready OJ 适配器；
+- 仅 AtCoder 为 production-ready 适配器（2026-07-17 通过公开 DOM 夹具认证），其余四个平台仍为实验状态；
 - 还没有代码快照、运行测试证据或完整的学习能力模型。
 
 ### 4.3 尚未实现
@@ -109,7 +109,7 @@
 - 真实 AI provider、默认 AI 额度、BYOK 与云端账户；
 - 可用于公开产品的数据隔离、删除、导出和计费能力。
 
-所以当前仍处于 **Pre-V0 可信原型**：0A—0C2 和 0B4（已执行，无公开 verdict DOM，洛谷仍为 experimental）已完成，剩余 Phase 0D 工程质量门后，才能关闭 Phase 0。生产适配器认证被阻塞，解除条件为获得公开可访问的洛谷判题结果页面或接受仅表征覆盖的设计决策。
+所以当前仍处于 **Pre-V0 可信原型**：Phase 0A—0C2、0B4（洛谷适配器认证 BLOCKED，保留为历史记录）、0D 工程质量门和 AtCoder 生产适配器认证（T1–T8）均已完成。Phase 0 于 2026-07-17 整体通过并闭合；AtCoder 为唯一的 production 适配器。洛谷 production 适配器认证仍因缺少公开 verdict DOM 而保持 BLOCKED（历史记录），解除条件为获得公开可访问的洛谷判题结果页面或接受仅表征覆盖的设计决策。
 
 ## 5. 产品结构：共同基础 + 职业方向
 
@@ -383,7 +383,8 @@ AI 不能：凭空发布课程、因一次 AC 宣布掌握、绕过前置规则�
 - 修复 E2E 数据隔离、session/submission、SPA/pagehide、队列和真实聚合；
 - 增加 canonical URL、来源凭证和手动记录 fallback；
 - 只把一个 OJ 适配器做稳，其余明确标为实验；
-- 当前候选首发平台为洛谷，Phase 0 用真实页面夹具验证后冻结。
+- AtCoder 为通过公开 DOM 夹具认证的首发 production 平台（2026-07-17）；洛谷适配器认证曾尝试但 BLOCKED（历史记录）。
+- V0.5 首发候选平台仍为洛谷（历史计划方向），但 Phase 0 已通过 AtCoder 满足生产适配器退出条件。
 
 ### V0：手动优先的最小学习闭环
 
@@ -508,11 +509,13 @@ V1 之前不做：多 OJ 全覆盖、社区、排行榜、积分、自研基础�
 
 ## 17. 当前下一步
 
-Phase 0B4（洛谷适配器认证）已执行，结果为 **BLOCKED**：公开洛谷判题结果页面需登录，无法获取 `verified-public-dom` 证据，认证门被阻塞。洛谷保持 `experimental`。阻塞解除条件：
+Phase 0 已于 2026-07-17 整体闭合：AtCoder 通过公开 DOM 夹具认证成为唯一 production 适配器；洛谷保持 experimental（Phase 0B4 历史 BLOCKED 记录保留于 `work/reports/luogu-adapter-blocker.json`）。Phase 0D 工程质量门与 Phase 0 AtCoder 认证均已执行完毕。
+
+洛谷 production 适配器认证的阻塞解除条件：
 - 获得公开可访问的洛谷判题结果页面（含 `.status` 等 verdict 元素），或
 - 接受仅表征覆盖（无真实 DOM 证据）的设计决策。
 
-下一步先完成 Phase 0D 工程质量门（lint、CI、迁移测试），再在不等待完整图谱的前提下制作一个 V0 纵向切片：
+当前下一步：先编写并审批一个 V0 纵向切片计划，再在不等待完整图谱的前提下制作：
 
 ```text
 一个明确用户
@@ -524,4 +527,4 @@ Phase 0B4（洛谷适配器认证）已执行，结果为 **BLOCKED**：公开�
   + 一周真实自用
 ```
 
-详细顺序、版本映射和每阶段退出条件见 [`docs/superpowers/plans/2026-07-11-product-development-roadmap.md`](docs/superpowers/plans/2026-07-11-product-development-roadmap.md)。
+Phase 1 / V0 实现尚未开始。不要将已完成的 Phase 0A–0D、Phase 0B4（BLOCKED）或 AtCoder T1–T8 计划重新执行；它们保留为实现记录。

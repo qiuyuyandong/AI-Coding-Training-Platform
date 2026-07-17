@@ -35,7 +35,6 @@ Available today:
 
 Not yet trustworthy or present:
 
-- one production-quality OJ adapter;
 - code snapshots;
 - learner profile, graph, plans, evidence levels, review or projects;
 - VS Code integration, real AI provider, accounts or cloud storage.
@@ -207,7 +206,7 @@ Exit gate:
 
 | Phase | Capability outcome | First release that consumes it | Status | Detailed plan |
 |---|---|---|---|---|
-| 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | In progress / BLOCKED; 0A-0D executed; Phase 0 remains BLOCKED on production-adapter certification | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
+| 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | Complete — 2026-07-17; AtCoder sole production adapter | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
 | 1 | Versioned common-foundation graph, career summaries and reviewed resources | V0 | Planned | [Phase 1](./2026-07-11-phase-1-curriculum-resource-catalog.md) |
 | 2 | Goal, diagnosis, bounded daily planning and replanning | V0 | Planned | [Phase 2](./2026-07-11-phase-2-goals-diagnosis-planning.md) |
 | 3 | Auditable evidence, five-level ability projection and review | V0 thin slice; V0.5 deepens | Planned | [Phase 3](./2026-07-11-phase-3-evidence-mastery-review.md) |
@@ -242,7 +241,7 @@ Content research may run in parallel with Phase 0, but imports and personalized 
 
 ## 8. Near-Term Execution Order
 
-1. Acquire a publicly accessible verdict DOM for an OJ candidate adapter or write a new design decision that explicitly accepts characterization-only evidence, then re-run the Phase 0B4 certification gate; Phase 0 remains BLOCKED until that gate returns CERTIFIED.
+1. Phase 0 is complete (2026-07-17): AtCoder is the sole certified production adapter. Luogu production-adapter certification was attempted in Phase 0B4 and remains historically BLOCKED on missing public verdict DOM; it no longer blocks Phase 0 closure. Do not re-execute completed Phase 0 plans.
 2. Phase 0D engineering gates (lint, CI parity, migration matrix, extension parity, final documentation) are already executed and verified; do not re-execute them.
 3. Write one V0 vertical-slice design and atomic implementation plan spanning only the required Phase 1/2/3/5 tasks.
 4. Publish the first 12–18 nodes and manual task flow; do not wait for an encyclopedia.
@@ -291,7 +290,7 @@ npm run build
 npm run quality:gate
 ```
 
-`npm run quality:gate` runs the seven commands above in that exact order under an OS-temporary database and is the safe single verification. The Pre-V0 exit gate requires this aggregate gate plus the separate Phase 0B4 production-adapter certification condition. E2E must first prove it is using a disposable database; until then, do not run it against valuable local data.
+`npm run quality:gate` runs the seven commands above in that exact order under an OS-temporary database and is the safe single verification. The Pre-V0 exit gate requires this aggregate gate plus a certified production adapter; AtCoder satisfies that condition as of 2026-07-17. E2E must first prove it is using a disposable database; until then, do not run it against valuable local data.
 
 ## 12. Scope Control
 

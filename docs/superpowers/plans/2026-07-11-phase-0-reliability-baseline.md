@@ -1,6 +1,6 @@
 # Phase 0 Trustworthy Capture and Analytics Delivery Plan
 
-**Status:** In progress / BLOCKED on 2026-07-15. Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, and 0D are complete. Phase 0 itself remains BLOCKED on production-adapter certification; Phase 0D only closed the engineering-gates package. Production-adapter certification was attempted in Phase 0B4 and BLOCKED (no public Luogu verdict DOM); re-certification requires a new design decision or publicly accessible verdict page.
+**Status:** Complete — 2026-07-17. Phase 0A, 0B1-0B3, 0B4 (Luogu BLOCKED, historical record), 0C1-0C2, 0D, and Phase 0 AtCoder production certification (T1–T8) are all complete. AtCoder is the sole production adapter; Luogu remains experimental with a historical BLOCKED certification record. Phase 0 exit gate is fully satisfied.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:writing-plans to expand each subphase, superpowers:test-driven-development during implementation, and superpowers:verification-before-completion before closing Phase 0.
 
@@ -122,7 +122,7 @@ Phase 0 is complete only when all are true:
 - [x] `/training` shows the current problem’s attempt, not a globally recent attempt.
 - [x] Growth totals use full aggregates and recent metrics declare their window.
 - [x] One canonical URL implementation is used everywhere.
-- [ ] One adapter is explicitly production-ready against its fixture/manual matrix; every other adapter is visibly experimental or disabled. (Phase 0B4 attempted Luogu certification but BLOCKED on missing public verdict DOM.)
+- [x] One adapter is explicitly production-ready against its fixture/manual matrix; every other adapter is visibly experimental or disabled. (AtCoder certified 2026-07-17 via Phase 0 T1–T8; Luogu certification remains historically BLOCKED on missing public verdict DOM.)
 - [x] A learner can record or correct a session when automatic capture fails, without erasing the original provenance.
 - [x] Fresh and upgrade migrations pass in temporary databases.
 - [x] Lint, unit, type, E2E, extension, and production build gates all pass.
