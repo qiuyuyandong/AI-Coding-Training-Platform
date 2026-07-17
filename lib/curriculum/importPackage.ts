@@ -139,7 +139,7 @@ function parseJsonAbsolute<T>(
   schema: z.ZodType<T>,
 ): T {
   const raw = readFileSync(absolutePath, "utf8");
-  const value = JSON.parse(raw) as unknown;
+  const value: unknown = JSON.parse(raw);
   return schema.parse(value);
 }
 

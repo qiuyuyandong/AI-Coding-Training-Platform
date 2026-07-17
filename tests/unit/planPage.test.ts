@@ -450,7 +450,7 @@ describe("POST /api/plan/override-start", () => {
 
 describe("buildPlanPagePayload", () => {
   it("returns the no_goal state when the learner has no active goal", async () => {
-    const { buildPlanPagePayload } = await import("@/app/plan/page");
+    const { buildPlanPagePayload } = await import("@/lib/pages/planPage");
     const db = openDatabase();
     try {
       const payload = buildPlanPagePayload(db);
@@ -464,7 +464,7 @@ describe("buildPlanPagePayload", () => {
   });
 
   it("returns the pre_diagnosis state after a goal is set", async () => {
-    const { buildPlanPagePayload } = await import("@/app/plan/page");
+    const { buildPlanPagePayload } = await import("@/lib/pages/planPage");
     const db = openDatabase();
     try {
       getOrCreateLocalProfile(db);
@@ -481,7 +481,7 @@ describe("buildPlanPagePayload", () => {
           "backend-server",
           "security",
         ]);
-        // No in-progress session â†’ first prompt is suggested.
+        // No in-progress session â†?first prompt is suggested.
         expect(payload.nextPromptId).toBe("cpp-basics");
       }
     } finally {
@@ -490,7 +490,7 @@ describe("buildPlanPagePayload", () => {
   });
 
   it("transitions to plan_overview after a completed diagnosis + plan items", async () => {
-    const { buildPlanPagePayload } = await import("@/app/plan/page");
+    const { buildPlanPagePayload } = await import("@/lib/pages/planPage");
     const db = openDatabase();
     try {
       getOrCreateLocalProfile(db);

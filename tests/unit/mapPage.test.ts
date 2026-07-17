@@ -8,8 +8,8 @@ import { importPackage } from "@/lib/curriculum/importPackage";
 import {
   buildMapIndex,
   findActiveCurriculumPackageId,
-} from "@/app/map/page";
-import { buildNodeDetail } from "@/app/map/[nodeId]/page";
+} from "@/lib/pages/mapIndex";
+import { buildNodeDetail } from "@/lib/pages/nodeDetail";
 import {
   listCareerTracks,
   listKnowledgeEdges,

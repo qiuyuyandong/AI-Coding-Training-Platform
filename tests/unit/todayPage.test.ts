@@ -150,7 +150,7 @@ function makeFeedbackRequest(
 
 describe("buildTodayPagePayload", () => {
   it("returns the available state with exactly one primary item", async () => {
-    const { buildTodayPagePayload } = await import("@/app/today/page");
+    const { buildTodayPagePayload } = await import("@/lib/pages/todayPage");
     const db = openDatabase();
     try {
       const payload = buildTodayPagePayload(db);
@@ -197,7 +197,7 @@ describe("buildTodayPagePayload", () => {
     } finally {
       db.close();
     }
-    const { buildTodayPagePayload } = await import("@/app/today/page");
+    const { buildTodayPagePayload } = await import("@/lib/pages/todayPage");
     const db2 = openDatabase();
     try {
       const payload = buildTodayPagePayload(db2);
@@ -218,7 +218,7 @@ describe("buildTodayPagePayload", () => {
     } finally {
       db.close();
     }
-    const { buildTodayPagePayload } = await import("@/app/today/page");
+    const { buildTodayPagePayload } = await import("@/lib/pages/todayPage");
     const db2 = openDatabase();
     try {
       const payload = buildTodayPagePayload(db2);
