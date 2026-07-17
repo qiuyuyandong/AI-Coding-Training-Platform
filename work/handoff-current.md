@@ -45,16 +45,16 @@
 - T8 authoritative Phase 0 gate (2026-07-17): `extension:check` and `quality:gate` both PASS with fresh counts above; default DB metadata unchanged; AtCoder sole production; Luogu experimental with SHA-identical BLOCKED evidence
 - T8 documentation reconciliation (2026-07-17): 11 files updated, stale-claim audit passed, all docs consistently state Phase 0 green/completed
 - F1–F4 final verification (2026-07-17): all four lanes (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) independently **APPROVE** against commit `45cdd92a161f27622dbe5706a805eab523220910`. No blockers; no required fixes. Evidence recorded in `work/reports/phase-0-atcoder-certification.md#final-verification-f1` through `#final-verification-f4`.
+- User acceptance (2026-07-17): the user explicitly accepted the Phase 0 verification result. Phase 0 is technically verified, documented, and accepted.
 
 ## In Flight
 
 - No Worker in flight
-- **User acceptance pending**: technical verification is complete; explicit user acceptance is required before overall Phase 0 declaration and V0 planning
 
 ## Next Commander Action
 
-1. **Surface F1–F4 results**: all four lanes APPROVE; no blockers. Wait for explicit user acceptance. Do not claim user acceptance or start V0 planning until confirmed.
-2. **V0 vertical-slice plan** (after user acceptance): write/approve a new atomic plan under `docs/superpowers/plans/` for the first V0 manual learning loop. Do not start Phase 1 implementation before the V0 plan is approved.
+1. **V0 vertical-slice plan**: write and approve a new atomic plan under `docs/superpowers/plans/` for the first V0 manual learning loop.
+2. Do not start Phase 1 / V0 implementation before that plan is approved.
 
 ## Known Risks
 
