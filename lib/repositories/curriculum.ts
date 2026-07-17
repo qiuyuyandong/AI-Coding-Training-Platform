@@ -120,11 +120,19 @@ export function findKnowledgeNodeIdByStableId(
   packageId: string,
   stableId: string,
 ): string | null {
-  const row = db
+  let row = db
     .prepare<[string, string], { readonly id: string }>(
       `SELECT id FROM knowledge_nodes WHERE package_id = ? AND stable_id = ? LIMIT 1`,
     )
     .get(packageId, stableId);
+  if (row?.id !== undefined) return row.id;
+  if (packageId !== "") {
+    row = db
+      .prepare<[string], { readonly id: string }>(
+        `SELECT id FROM knowledge_nodes WHERE stable_id = ? LIMIT 1`,
+      )
+      .get(stableId);
+  }
   return row?.id ?? null;
 }
 
@@ -137,11 +145,19 @@ export function findPracticeTaskIdByStableId(
   packageId: string,
   stableId: string,
 ): string | null {
-  const row = db
+  let row = db
     .prepare<[string, string], { readonly id: string }>(
       `SELECT id FROM practice_tasks WHERE package_id = ? AND stable_id = ? LIMIT 1`,
     )
     .get(packageId, stableId);
+  if (row?.id !== undefined) return row.id;
+  if (packageId !== "") {
+    row = db
+      .prepare<[string], { readonly id: string }>(
+        `SELECT id FROM practice_tasks WHERE stable_id = ? LIMIT 1`,
+      )
+      .get(stableId);
+  }
   return row?.id ?? null;
 }
 
