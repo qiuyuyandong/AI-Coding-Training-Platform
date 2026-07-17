@@ -3,19 +3,22 @@
 implementationSha: d6c0f14aafb663c8746ad5e30d968508d539ec07
 date: 2026-07-18
 revalidatedOn: 2026-07-18
-revalidatedSha: b91fc71 (HEAD of feature/v1-followup at revalidation time)
+revalidatedSha: b91fc71 (after F2/F3 fix attempt)
+currentHead: c709049 (FK mismatch fix applied; downstream tests need updating)
+revalidatedOn2: 2026-07-18
+revalidatedSha2: c709049 (FK fix committed; 6 downstream tests now fail because they were written for the old stable_id behavior)
 
 ## Summary
 
-PARTIAL — F2/F3 audit blockers B1–B4 are RESOLVED. B5 (curriculumLinkChecker)
-remains BROKEN with the same pre-existing failure mode documented below.
-All other engineering gate stages pass at HEAD `b91fc71` except for the
-pre-existing unit-test regressions listed under "Known warnings".
+PARTIAL — F2/F3 audit blockers B1–B4 are RESOLVED. The FK schema-code mismatch
+(blocker 1 in the second F2 audit) was fixed at `c709049`, but the fix broke
+6 downstream tests in `learningCompletion.test.ts` and `planCompletionApi.test.ts`
+that were written for the old behavior (stable_id storage, FK=OFF). These tests
+need to be updated to expect row IDs and the new FK=ON behavior.
 
-This report supersedes the prior `d6c0f14a` claim that all eight stages
-exit 0. The prior claim was aspirational; the revalidated table below
-records the actual exit codes observed on 2026-07-18 against
-implementationSha `b91fc71a...`.
+B5 (curriculumLinkChecker) remains BROKEN with the same pre-existing failure
+mode documented below. All other engineering gate stages pass at HEAD
+`c709049` except for the test-stage failures listed under "Known warnings".
 
 ## F2/F3 blocker fixes applied (2026-07-18)
 
