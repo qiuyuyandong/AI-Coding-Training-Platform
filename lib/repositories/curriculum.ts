@@ -112,6 +112,40 @@ export function listKnowledgeEdges(
 }
 
 /**
+ * Resolve a knowledge node row id from its package-scoped stable id.
+ * Returns `null` when no matching row exists.
+ */
+export function findKnowledgeNodeIdByStableId(
+  db: Database.Database,
+  packageId: string,
+  stableId: string,
+): string | null {
+  const row = db
+    .prepare<[string, string], { readonly id: string }>(
+      `SELECT id FROM knowledge_nodes WHERE package_id = ? AND stable_id = ? LIMIT 1`,
+    )
+    .get(packageId, stableId);
+  return row?.id ?? null;
+}
+
+/**
+ * Resolve a practice task row id from its package-scoped stable id.
+ * Returns `null` when no matching row exists.
+ */
+export function findPracticeTaskIdByStableId(
+  db: Database.Database,
+  packageId: string,
+  stableId: string,
+): string | null {
+  const row = db
+    .prepare<[string, string], { readonly id: string }>(
+      `SELECT id FROM practice_tasks WHERE package_id = ? AND stable_id = ? LIMIT 1`,
+    )
+    .get(packageId, stableId);
+  return row?.id ?? null;
+}
+
+/**
  * List every career track for the package, ordered by `slug`. The
  * `summary` column is returned as the raw JSON string written by the
  * importer; parse-on-demand is the caller's responsibility.

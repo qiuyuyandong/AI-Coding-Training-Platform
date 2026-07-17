@@ -6,6 +6,10 @@ import {
   recordRevisionEvent,
 } from "@/lib/repositories/plans";
 import {
+  findKnowledgeNodeIdByStableId,
+  findPracticeTaskIdByStableId,
+} from "@/lib/repositories/curriculum";
+import {
   generatePlan,
   PLAN_GENERATOR_VERSION,
   type PlanGeneratorInput,
@@ -41,6 +45,15 @@ export function generateAndPersistPlan(
 ): PersistedPlan {
   const plan = generatePlan(input);
   return db.transaction((): PersistedPlan => {
+    // Resolve the local package id for stable_id lookups.
+    // There is exactly one local curriculum package in the V0 deployment.
+    const packageRow = db
+      .prepare<[], { readonly id: string }>(
+        `SELECT id FROM curriculum_packages LIMIT 1`,
+      )
+      .get();
+    const packageId = packageRow?.id ?? "";
+
     const learningPlan = createLearningPlan(
       db,
       input.learnerId,
@@ -60,12 +73,19 @@ export function generateAndPersistPlan(
       {},
     );
 
+    const primaryNodeId =
+      findKnowledgeNodeIdByStableId(db, packageId, plan.primary.nodeId) ??
+      plan.primary.nodeId;
+    const primaryTaskId =
+      findPracticeTaskIdByStableId(db, packageId, plan.primary.taskId) ??
+      plan.primary.taskId;
+
     const itemIds: string[] = [];
     const primaryRow = insertPlanItem(
       db,
       snapshot.id,
-      plan.primary.taskId,
-      plan.primary.nodeId,
+      primaryTaskId,
+      primaryNodeId,
       "primary",
       0,
       JSON.stringify(plan.primary.reasonCodes),
@@ -83,11 +103,17 @@ export function generateAndPersistPlan(
     for (const role of alternativeRoles) {
       const alternative = plan.alternatives[role];
       if (alternative === undefined) continue;
+      const nodeId =
+        findKnowledgeNodeIdByStableId(db, packageId, alternative.nodeId) ??
+        alternative.nodeId;
+      const taskId =
+        findPracticeTaskIdByStableId(db, packageId, alternative.taskId) ??
+        alternative.taskId;
       insertPlanItem(
         db,
         snapshot.id,
-        alternative.taskId,
-        alternative.nodeId,
+        taskId,
+        nodeId,
         role,
         rank,
         JSON.stringify(alternative.reasonCodes),
