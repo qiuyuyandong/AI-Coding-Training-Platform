@@ -46,10 +46,12 @@ export function generateAndPersistPlan(
   const plan = generatePlan(input);
   return db.transaction((): PersistedPlan => {
     // Resolve the local package id for stable_id lookups.
-    // There is exactly one local curriculum package in the V0 deployment.
+    // The V0 deployment has exactly one local curriculum package. We order
+    // by `installed_at DESC` so the most-recently-installed package wins even
+    // if the table somehow holds more than one row in a test fixture.
     const packageRow = db
       .prepare<[], { readonly id: string }>(
-        `SELECT id FROM curriculum_packages LIMIT 1`,
+        `SELECT id FROM curriculum_packages ORDER BY installed_at DESC LIMIT 1`,
       )
       .get();
     const packageId = packageRow?.id ?? "";
