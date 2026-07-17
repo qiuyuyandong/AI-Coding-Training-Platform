@@ -248,7 +248,7 @@ All pre-existing certification artifacts under `work/reports/` (`atcoder-certifi
 - `getProductionPlatforms() === ["atcoder"]`; every other adapter is `experimental`.
 - The full Phase 0 engineering gate (`extension:check` and `quality:gate`) passes with disposable/isolated data; default DB metadata (`Length` and `LastWriteTimeUtc`) was identical pre and post; all temp/server cleanup proven; no tracked modifications.
 
-## 8. Phase 0 closure — affirmed; user acceptance deferred
+## 8. Phase 0 closure — accepted
 
 ### Affirmed by this T8 step
 
@@ -296,11 +296,11 @@ All pre-existing certification artifacts under `work/reports/` (`atcoder-certifi
 - Historical Phase 0D and Luogu BLOCKED records are correctly contextualized as completed or historical; no document presents them as current obstacles.
 - Links, paths, test counts (367 passed / 1 skip / 242 extension), and commit chronology are consistent across all referenced docs.
 - Cloud and local-first boundaries are unchanged from Phase 0D; no external LLM, analytics, sync, or third-party API calls were added.
-- Next process action (surface F1–F4 results; wait for explicit user acceptance) and next product action (after acceptance: write/approve V0 vertical-slice plan) are correct per plan T8 acceptance and success criteria #9. Phase 1 / V0 implementation has not started.
+- User acceptance was recorded on 2026-07-17. The next product action is to write and approve the V0 vertical-slice plan; Phase 1 / V0 implementation has not started.
 
 ### User-acceptance status
 
-All four technical verification lanes (F1, F2, F3, F4) independently **APPROVE** against commit `45cdd92a161f27622dbe5706a805eab523220910`. No blockers; no required fixes. Per the plan's final verification wave contract (§"Final verification wave"), the results must be surfaced and explicit user acceptance is still required before the overall declaration. Do not claim user acceptance or start V0 planning until the user explicitly confirms.
+All four technical verification lanes (F1, F2, F3, F4) independently **APPROVE** against commit `45cdd92a161f27622dbe5706a805eab523220910`. No blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is therefore technically verified, documented, and accepted; V0 implementation remains unstarted until a new vertical-slice plan is written and approved.
 
 ---
 
@@ -326,11 +326,10 @@ Pre-removal count: 18 + 13 = **31 transient files**; 0 unchanged files outside t
 
 ## 10. Remaining product work (out of scope for T8)
 
-The following items remain after technical verification:
+The following product work remains after accepted Phase 0 closure:
 
-1. **User acceptance**: F1–F4 are complete and all APPROVE; surface the results and wait for explicit user acceptance before the overall declaration.
-2. **V0 vertical-slice plan** (after user acceptance): write/approve a new atomic plan under `docs/superpowers/plans/` against the current repository. Do not treat a completed Phase 1 capability plan as line-by-line instructions.
-3. **Phase 0B4 Luogu re-attempt**: requires a publicly accessible Luogu verdict DOM (no authentication, no restricted content) or a new design decision that explicitly accepts characterization-only evidence. This remains optional future work and does not block Phase 0.
+1. **V0 vertical-slice plan**: write and approve a new atomic plan under `docs/superpowers/plans/` against the current repository. Do not treat a completed Phase 1 capability plan as line-by-line instructions.
+2. **Phase 0B4 Luogu re-attempt**: requires a publicly accessible Luogu verdict DOM (no authentication, no restricted content) or a new design decision that explicitly accepts characterization-only evidence. This remains optional future work and does not block Phase 0.
 
 ### 10.1 Documentation reconciliation and stale-claim audit (2026-07-17)
 
@@ -374,7 +373,7 @@ Search patterns audited across all listed files:
 
 **F1–F4 final verification:** all four lanes (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) independently **APPROVE** against commit `45cdd92a161f27622dbe5706a805eab523220910`. No blockers; no required fixes. F1/F2/F3/F4 findings are recorded above under §8 with exact anchor-linked headings.
 
-**Next process step:** surface results; wait for explicit user acceptance. **Next product action** (after user acceptance): write/approve a V0 vertical-slice plan. Phase 1 / V0 implementation has not started.
+**User acceptance:** recorded on 2026-07-17. **Next product action:** write and approve a V0 vertical-slice plan. Phase 1 / V0 implementation has not started.
 
 ---
 
