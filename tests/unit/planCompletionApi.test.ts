@@ -43,7 +43,6 @@ beforeEach(() => {
   process.env.TRAINING_DB_PATH = dbPath;
   const db = openDatabase();
   try {
-    db.pragma("foreign_keys = OFF");
     applyMigrations(db);
     const result = importPackage(db, SAMPLE_FIXTURE);
     if (!result.ok) {

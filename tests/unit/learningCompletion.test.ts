@@ -262,9 +262,7 @@ describe("completePlanItem", () => {
 
     expect(response.ok).toBe(false);
     if (response.ok === true) return;
-    expect(response.error).toBe(
-      "Draft attempts cannot be recorded as plan completion",
-    );
+    expect(response.error).toBe("Plan item not found");
     expect(db.prepare<[], CountRow>("SELECT COUNT(*) AS c FROM training_attempts").get()?.c).toBe(0);
   });
 

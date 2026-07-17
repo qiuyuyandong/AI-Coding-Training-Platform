@@ -363,7 +363,7 @@ function insertKnowledgeNodes(
   packageId: string,
 ): void {
   const insert = db.prepare(
-    `INSERT INTO knowledge_nodes (
+    `INSERT OR IGNORE INTO knowledge_nodes (
        id, stable_id, title, outcome, rationale, order_index,
        status, provenance_json, package_id
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -389,7 +389,7 @@ function insertKnowledgeEdges(
   edges: readonly KnowledgeEdge[],
 ): void {
   const insert = db.prepare(
-    `INSERT INTO knowledge_edges (
+    `INSERT OR IGNORE INTO knowledge_edges (
        id, from_node_id, to_node_id, edge_type
      ) VALUES (?, ?, ?, ?)`,
   );
@@ -407,7 +407,7 @@ function insertLearningResources(
   packageId: string,
 ): void {
   const insert = db.prepare(
-    `INSERT INTO learning_resources (
+    `INSERT OR IGNORE INTO learning_resources (
        id, stable_id, title, url, author, language, cost, access,
        license_boundary, review_status, reviewed_at, stopping_guidance,
        package_id
@@ -443,7 +443,7 @@ function insertNodeResources(
     nodeIds.set(node.stable_id, `node_${node.stable_id}`);
   }
   const insert = db.prepare(
-    `INSERT INTO node_resources (node_id, resource_id, role, sort_order)
+    `INSERT OR IGNORE INTO node_resources (node_id, resource_id, role, sort_order)
      VALUES (?, ?, ?, ?)`,
   );
   let count = 0;
@@ -463,7 +463,7 @@ function insertPracticeTasks(
   packageId: string,
 ): void {
   const insert = db.prepare(
-    `INSERT INTO practice_tasks (
+    `INSERT OR IGNORE INTO practice_tasks (
        id, stable_id, canonical_problem_id, title, kind, difficulty_band,
        package_id
      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -491,7 +491,7 @@ function insertNodePracticeMappings(
   mappings: readonly PracticeMapping[],
 ): number {
   const insert = db.prepare(
-    `INSERT INTO node_practice_mappings (
+    `INSERT OR IGNORE INTO node_practice_mappings (
        node_id, practice_task_id, measurement_role, variant_family_id,
        sort_order
      ) VALUES (?, ?, ?, ?, ?)`,
@@ -518,7 +518,7 @@ function insertCareerTracks(
   packageId: string,
 ): void {
   const insert = db.prepare(
-    `INSERT INTO career_tracks (id, slug, name, summary, status, package_id)
+    `INSERT OR IGNORE INTO career_tracks (id, slug, name, summary, status, package_id)
      VALUES (?, ?, ?, ?, ?, ?)`,
   );
   for (const career of careers) {
