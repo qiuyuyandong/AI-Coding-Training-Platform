@@ -35,7 +35,7 @@
 - T6 — shared evaluator + AtCoder certification gate + plan record: `efe0716` (`refactor: share platform certification evaluator`), `8ccde10` (`test: certify public AtCoder adapter evidence`), `0b5074c` (`docs: mark T6 complete in AtCoder certification plan`)
 - T7 — promotion to production + promotion guard artifact + pipeline E2E + plan record: `06fc306` (`feat: promote certified AtCoder adapter`), `e72cfc1` (`test: guard AtCoder certification artifact`), `41009d1` (`test: verify AtCoder capture pipeline`), `29f6075` (`docs: mark T7 complete in AtCoder certification plan`)
 - T8 — authoritative gate run + documentation reconciliation: `7eddee1` (`docs: record Phase 0 AtCoder certification`), `3aaa7c5` (`docs: update adapter status guidance`), `62c3e83` (`docs: close Phase 0 product roadmap`), `a46896b` (`docs: mark T8 complete in AtCoder certification plan`)
-- T8 agent/handoff reconciliation: this final closure commit
+- T8 agent/handoff reconciliation: `d7bebcc` (`docs: reconcile Phase 0 agent handoff`)
 
 ## Accepted
 
@@ -50,7 +50,7 @@
 
 ## Next Commander Action
 
-1. Commit the T8 candidate (ten reconciled docs plus the new `work/reports/phase-0-atcoder-certification.md`), then **final verification wave F1–F4**: run all four lanes (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) against the committed candidate. Surface all four results; wait for user acceptance.
+1. **Final verification wave F1–F4**: run all four lanes (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) against the current committed T8 candidate. Surface all four results; wait for user acceptance.
 2. **V0 vertical-slice plan** (after F1–F4 acceptance): write/approve a new atomic plan under `docs/superpowers/plans/` for the first V0 manual learning loop. Do not start Phase 1 implementation before the V0 plan is approved.
 
 ## Known Risks
