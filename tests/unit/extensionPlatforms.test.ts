@@ -194,15 +194,22 @@ describe("detectVerdictFromDocument", () => {
 });
 
 describe("adapter status registry", () => {
-  it("initially has no production platform (certification gate must decide)", () => {
-    expect(getProductionPlatforms()).toEqual([]);
+  it("AtCoder is the sole production platform", () => {
+    expect(getProductionPlatforms()).toEqual(["atcoder"]);
   });
 
-  it("every currently enabled platform is experimental or disabled", () => {
-    for (const platform of ["leetcode", "nowcoder", "codeforces", "atcoder", "luogu"] as const) {
-      const status = getPlatformAdapterStatus(platform);
-      expect(["experimental", "disabled"]).toContain(status);
+  it("LeetCode, Codeforces, NowCoder, and Luogu are exactly experimental", () => {
+    for (const platform of ["leetcode", "codeforces", "nowcoder", "luogu"] as const) {
+      expect(getPlatformAdapterStatus(platform)).toBe("experimental");
     }
+  });
+
+  it("AtCoder is production", () => {
+    expect(getPlatformAdapterStatus("atcoder")).toBe("production");
+  });
+
+  it("Luogu is never included in production platforms", () => {
+    expect(getProductionPlatforms()).not.toContain("luogu");
   });
 
   it("every platform has an adapter record with label and selectors", () => {

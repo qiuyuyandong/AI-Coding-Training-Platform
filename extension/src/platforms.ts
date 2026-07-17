@@ -32,7 +32,7 @@ export const PLATFORM_ADAPTERS: Record<Platform, PlatformAdapterRecord> = {
     selectors: [".status-cell", "td.status-small", ".verdict-accepted", "body"],
   },
   atcoder: {
-    status: "experimental",
+    status: "production",
     label: "AtCoder",
     selectors: ["#judge-status"],
   },
@@ -53,9 +53,8 @@ export function getPlatformAdapterStatus(platform: Platform): PlatformAdapterSta
 }
 
 export function getProductionPlatforms(): Platform[] {
-  return (Object.keys(PLATFORM_ADAPTERS) as Platform[]).filter(
-    (p) => PLATFORM_ADAPTERS[p].status === "production",
-  );
+  const all = ["leetcode", "codeforces", "atcoder", "nowcoder", "luogu"] as const satisfies readonly Platform[];
+  return all.filter((p) => PLATFORM_ADAPTERS[p].status === "production");
 }
 
 export type DetectableLocation = Pick<Location, "href" | "hostname" | "pathname">;
