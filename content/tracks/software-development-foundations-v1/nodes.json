@@ -1,0 +1,170 @@
+[
+  {
+    "stable_id": "cpp-io-types",
+    "title": "C++ I/O and types",
+    "outcome": "Write C++ programs that read from standard input, write to standard output, and use fundamental data types including int, long long, double, char, and string for basic computation tasks.",
+    "rationale": "Input/output operations and type systems form the foundation of every competitive programming solution. Without mastery of these, learners cannot read problem constraints, process test data, or produce correctly formatted output.",
+    "order_index": 1,
+    "status": "published",
+    "provenance": {
+      "authority": "cppreference.com",
+      "url": "https://en.cppreference.com/w/cpp/io",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can read two integers, compute a result, and print the output correctly for AtCoder ABC practice problem 1 without consulting references."
+  },
+  {
+    "stable_id": "cpp-control-flow-functions",
+    "title": "C++ control flow and functions",
+    "outcome": "Implement C++ programs using conditional statements including if/else and switch, loops including for and while, and custom functions with parameters and return values to control program execution flow.",
+    "rationale": "Control flow and functions are the building blocks of algorithmic thinking. Conditionals model decision logic, loops handle repetition, and functions encapsulate reusable computation patterns essential for any non-trivial problem.",
+    "order_index": 2,
+    "status": "published",
+    "provenance": {
+      "authority": "cppreference.com",
+      "url": "https://en.cppreference.com/w/cpp/language/statements",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can write a function that processes an array with a loop, uses conditionals for branching, and passes all test cases for ABC086 A Product without external help."
+  },
+  {
+    "stable_id": "cpp-containers",
+    "title": "C++ containers",
+    "outcome": "Select and apply standard C++ containers including vector, string, and array to store, access, and manipulate ordered collections of data in algorithmic problem solving.",
+    "rationale": "Standard library containers eliminate manual memory management and provide battle-tested data structures. Understanding when to use vector versus array versus string directly determines whether a solution is correct and efficient.",
+    "order_index": 3,
+    "status": "published",
+    "provenance": {
+      "authority": "cppreference.com",
+      "url": "https://en.cppreference.com/w/cpp/container/vector",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can choose the appropriate container for a problem, iterate over elements with range-based for loops, and solve ABC081 B Shift Only independently."
+  },
+  {
+    "stable_id": "program-decomposition",
+    "title": "Program decomposition",
+    "outcome": "Decompose programming problems into smaller reusable functions and modules, applying separation of concerns to build maintainable solutions with clear interfaces and testable components.",
+    "rationale": "Large problems cannot be solved in a single monolithic block of code. Decomposition into smaller, testable functions reduces cognitive load, enables parallel debugging, and is the prerequisite skill for all advanced algorithm design.",
+    "order_index": 4,
+    "status": "published",
+    "provenance": {
+      "authority": "cppreference.com",
+      "url": "https://en.cppreference.com/w/cpp/language/functions",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can break down a problem into three or more cooperating functions, define clear parameter contracts, and solve ABC085 C Otoshidama without looking at solutions."
+  },
+  {
+    "stable_id": "debugging-testing",
+    "title": "Debugging and testing",
+    "outcome": "Diagnose and fix common C++ bugs using systematic debugging techniques including breakpoints, print-based tracing, and structured test case construction with boundary analysis.",
+    "rationale": "Even experienced programmers spend more time debugging than writing code. Systematic debugging with tools and structured test cases transforms frustrating guesswork into a repeatable engineering discipline.",
+    "order_index": 5,
+    "status": "published",
+    "provenance": {
+      "authority": "GNU Project",
+      "url": "https://sourceware.org/gdb/current/onlinedocs/gdb.html",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can reproduce a failing test case from output alone, identify the logical error through systematic debugging, and correct it for ARC065 A Daydream."
+  },
+  {
+    "stable_id": "git-build-workflow",
+    "title": "Git and build workflow",
+    "outcome": "Initialize Git repositories, stage and commit changes with meaningful messages, and compile C++ programs using command-line build tools in a reproducible development workflow.",
+    "rationale": "Version control and reproducible builds are non-negotiable professional skills. Git protects against lost work and enables experimentation, while command-line compilation removes IDE dependency for consistent results.",
+    "order_index": 6,
+    "status": "published",
+    "provenance": {
+      "authority": "Git SCM",
+      "url": "https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can initialize a Git repository, commit changes with descriptive messages, compile a multi-file C++ program, and explain the build pipeline to another learner."
+  },
+  {
+    "stable_id": "complexity-analysis",
+    "title": "Complexity analysis",
+    "outcome": "Analyze the time and space complexity of algorithms using Big-O notation, estimate worst-case behavior from nested loops and recursive calls, and justify efficiency trade-offs between competing approaches.",
+    "rationale": "Algorithm complexity is the universal language for comparing solutions. Without Big-O analysis, learners cannot predict whether their code will run within time limits or choose between competing algorithmic approaches.",
+    "order_index": 7,
+    "status": "published",
+    "provenance": {
+      "authority": "OI Wiki",
+      "url": "https://oi-wiki.org/basic/complexity/",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can estimate the time complexity of a nested-loop solution to within one order of magnitude, predict whether it passes ABC constraints, and optimize accordingly."
+  },
+  {
+    "stable_id": "sorting-binary-search",
+    "title": "Sorting and binary search",
+    "outcome": "Implement common sorting algorithms and binary search, apply C++ standard library sort and lower_bound functions, and solve problems requiring ordered data access patterns and efficient lookup.",
+    "rationale": "Sorting and binary search appear in the majority of intermediate competitive programming problems. The C++ standard library provides optimized implementations, but learners must understand when and how to apply them correctly.",
+    "order_index": 8,
+    "status": "published",
+    "provenance": {
+      "authority": "cppreference.com",
+      "url": "https://en.cppreference.com/w/cpp/algorithm/lower_bound",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can sort an array with std::sort, use lower_bound for binary search, and independently solve ARC084 A Snuke's Festival using the two approaches combined."
+  },
+  {
+    "stable_id": "stacks-queues",
+    "title": "Stacks and queues",
+    "outcome": "Model and solve problems using stack with LIFO semantics and queue with FIFO semantics, including bracket matching, expression evaluation, and breadth-first traversal preparation tasks.",
+    "rationale": "Stacks and queues model real-world ordering constraints and appear as building blocks in graph traversal, expression parsing, and state management. Mastering them now prevents re-deriving these patterns during harder graph problems.",
+    "order_index": 9,
+    "status": "published",
+    "provenance": {
+      "authority": "cppreference.com",
+      "url": "https://en.cppreference.com/w/cpp/container/queue",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can recognize a stack or queue problem from its description, implement the solution with std::stack or std::queue, and solve ABC007 C without external references."
+  },
+  {
+    "stable_id": "hashing-linked-structures",
+    "title": "Hashing and linked structures",
+    "outcome": "Apply hash-based containers including unordered_map and unordered_set for O(1) average-time lookups and implement linked-list traversal for problems requiring sequential pointer-based access patterns.",
+    "rationale": "Hash tables provide amortized constant-time lookup that transforms quadratic-time nested loops into linear scans. Linked structures introduce pointer-based traversal, a fundamental pattern for trees and graphs ahead.",
+    "order_index": 10,
+    "status": "published",
+    "provenance": {
+      "authority": "cppreference.com",
+      "url": "https://en.cppreference.com/w/cpp/container/unordered_map",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can use unordered_map for frequency counting, detect duplicate removal with unordered_set, and solve ABC073 C Write and Erase using hash-based approaches."
+  },
+  {
+    "stable_id": "trees-recursion-traversal",
+    "title": "Trees, recursion, and traversal",
+    "outcome": "Represent tree structures in C++, implement recursive and iterative depth-first traversals, and solve problems involving subtree queries, path sums, and ancestor relationships efficiently.",
+    "rationale": "Trees model hierarchical relationships found in file systems, organization charts, and parse trees. Recursive traversal is the essential mental model for divide-and-conquer algorithms and dynamic programming on trees.",
+    "order_index": 11,
+    "status": "published",
+    "provenance": {
+      "authority": "OI Wiki",
+      "url": "https://oi-wiki.org/graph/dfs/",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can build a tree from parent or edge input, write a recursive DFS to aggregate subtree values, and solve ABC138 D Ki without consulting the editorial."
+  },
+  {
+    "stable_id": "graphs-bfs-dfs",
+    "title": "Graphs: BFS and DFS",
+    "outcome": "Model problems as directed and undirected graphs, implement BFS for shortest-path and level-order traversal, and apply DFS for connectivity analysis, cycle detection, and topological exploration.",
+    "rationale": "Graphs are the most expressive data structure in computer science, modeling networks, dependencies, and state spaces. BFS and DFS together solve connectivity, shortest-path, and reachability problems throughout advanced competitive programming.",
+    "order_index": 12,
+    "status": "published",
+    "provenance": {
+      "authority": "OI Wiki",
+      "url": "https://oi-wiki.org/graph/bfs/",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop when you can represent a graph with adjacency lists, run BFS for shortest-path queries on unweighted graphs, and independently solve ABC168 D using BFS traversal."
+  }
+]

@@ -1,0 +1,67 @@
+[
+  {
+    "from_stable_id": "cpp-io-types",
+    "to_stable_id": "cpp-control-flow-functions",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "cpp-control-flow-functions",
+    "to_stable_id": "cpp-containers",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "cpp-containers",
+    "to_stable_id": "program-decomposition",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "program-decomposition",
+    "to_stable_id": "debugging-testing",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "program-decomposition",
+    "to_stable_id": "git-build-workflow",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "cpp-containers",
+    "to_stable_id": "complexity-analysis",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "complexity-analysis",
+    "to_stable_id": "sorting-binary-search",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "complexity-analysis",
+    "to_stable_id": "stacks-queues",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "complexity-analysis",
+    "to_stable_id": "hashing-linked-structures",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "program-decomposition",
+    "to_stable_id": "trees-recursion-traversal",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "hashing-linked-structures",
+    "to_stable_id": "trees-recursion-traversal",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "trees-recursion-traversal",
+    "to_stable_id": "graphs-bfs-dfs",
+    "edge_type": "required_prerequisite"
+  },
+  {
+    "from_stable_id": "stacks-queues",
+    "to_stable_id": "graphs-bfs-dfs",
+    "edge_type": "required_prerequisite"
+  }
+]

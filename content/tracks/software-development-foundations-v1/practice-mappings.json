@@ -1,0 +1,194 @@
+[
+  {
+    "node_stable_id": "cpp-io-types",
+    "practice_task_stable_id": "task-cpp-io-types",
+    "canonical_problem_stable_id": "cpp-cpp-io-types",
+    "title": "Practice I/O and Basic Types",
+    "kind": "oj",
+    "difficulty_band": "intro",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "practice_1",
+        "url": "https://atcoder.jp/contests/practice/tasks/practice_1",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "cpp-control-flow-functions",
+    "practice_task_stable_id": "task-cpp-control-flow",
+    "canonical_problem_stable_id": "cpp-cpp-control-flow",
+    "title": "Control Flow and Conditional Logic",
+    "kind": "oj",
+    "difficulty_band": "intro",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc086_a",
+        "url": "https://atcoder.jp/contests/abc086/tasks/abc086_a",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "cpp-containers",
+    "practice_task_stable_id": "task-cpp-containers",
+    "canonical_problem_stable_id": "cpp-cpp-containers",
+    "title": "Working with Vectors and Iteration",
+    "kind": "oj",
+    "difficulty_band": "intro",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc081_b",
+        "url": "https://atcoder.jp/contests/abc081/tasks/abc081_b",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "program-decomposition",
+    "practice_task_stable_id": "task-program-decomposition",
+    "canonical_problem_stable_id": "cpp-program-decomposition",
+    "title": "Function Decomposition and Search",
+    "kind": "oj",
+    "difficulty_band": "easy",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc085_c",
+        "url": "https://atcoder.jp/contests/abc085/tasks/abc085_c",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "debugging-testing",
+    "practice_task_stable_id": "task-debugging-testing",
+    "canonical_problem_stable_id": "cpp-debugging-testing",
+    "title": "Debugging String Manipulation Logic",
+    "kind": "oj",
+    "difficulty_band": "easy",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "arc065_a",
+        "url": "https://atcoder.jp/contests/arc065/tasks/arc065_a",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "git-build-workflow",
+    "practice_task_stable_id": "task-git-build",
+    "canonical_problem_stable_id": "manual-git-build",
+    "title": "Git Tutorial: Basic Workflow",
+    "kind": "manual_exercise",
+    "difficulty_band": "intro",
+    "sources": [
+      {
+        "platform": "manual",
+        "external_id": "git_tutorial",
+        "url": "https://git-scm.com/docs/gittutorial",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "complexity-analysis",
+    "practice_task_stable_id": "task-complexity",
+    "canonical_problem_stable_id": "cpp-complexity",
+    "title": "Complexity-Aware Algorithm Design",
+    "kind": "oj",
+    "difficulty_band": "easy",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc085_b",
+        "url": "https://atcoder.jp/contests/abc085/tasks/abc085_b",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "sorting-binary-search",
+    "practice_task_stable_id": "task-sorting-binary-search",
+    "canonical_problem_stable_id": "cpp-sorting-binary-search",
+    "title": "Sorting with Binary Search Application",
+    "kind": "oj",
+    "difficulty_band": "medium",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "arc084_a",
+        "url": "https://atcoder.jp/contests/arc084/tasks/arc084_a",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "stacks-queues",
+    "practice_task_stable_id": "task-stacks-queues",
+    "canonical_problem_stable_id": "cpp-stacks-queues",
+    "title": "BFS Preparation with Queue Structures",
+    "kind": "oj",
+    "difficulty_band": "easy",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc007_3",
+        "url": "https://atcoder.jp/contests/abc007/tasks/abc007_3",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "hashing-linked-structures",
+    "practice_task_stable_id": "task-hashing",
+    "canonical_problem_stable_id": "cpp-hashing",
+    "title": "Hash-Based Deduplication and Counting",
+    "kind": "oj",
+    "difficulty_band": "easy",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc073_c",
+        "url": "https://atcoder.jp/contests/abc073/tasks/abc073_c",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "trees-recursion-traversal",
+    "practice_task_stable_id": "task-trees",
+    "canonical_problem_stable_id": "cpp-trees",
+    "title": "Tree Traversal and Subtree Aggregation",
+    "kind": "oj",
+    "difficulty_band": "medium",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc138_d",
+        "url": "https://atcoder.jp/contests/abc138/tasks/abc138_d",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "graphs-bfs-dfs",
+    "practice_task_stable_id": "task-graphs",
+    "canonical_problem_stable_id": "cpp-graphs",
+    "title": "Shortest Path on Unweighted Graphs",
+    "kind": "oj",
+    "difficulty_band": "medium",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc168_d",
+        "url": "https://atcoder.jp/contests/abc168/tasks/abc168_d",
+        "is_primary": true
+      }
+    ]
+  }
+]
