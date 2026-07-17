@@ -1,0 +1,148 @@
+{
+  "careers": [
+    {
+      "slug": "frontend-web",
+      "name": "Frontend Web",
+      "status": "published",
+      "summary": {
+        "purpose": "Build browser-based user interfaces.",
+        "representative_roles": ["Frontend Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-x"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small interactive docs site.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "backend-server",
+      "name": "Backend Server",
+      "status": "published",
+      "summary": {
+        "purpose": "Build server-side systems.",
+        "representative_roles": ["Backend Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-y"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small REST API.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "client",
+      "name": "Client",
+      "status": "published",
+      "summary": {
+        "purpose": "Build desktop or mobile clients.",
+        "representative_roles": ["Client Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-z"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small offline-first mobile app.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "data-analytics-engineering",
+      "name": "Data / Analytics Engineering",
+      "status": "published",
+      "summary": {
+        "purpose": "Build analytics pipelines.",
+        "representative_roles": ["Data Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-q"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small batch analytics job.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "ai-ml",
+      "name": "AI / ML",
+      "status": "published",
+      "summary": {
+        "purpose": "Build applied ML systems.",
+        "representative_roles": ["ML Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-r"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small text classifier.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "edge-ai-embedded",
+      "name": "Edge AI / Embedded",
+      "status": "published",
+      "summary": {
+        "purpose": "Build embedded and edge AI software.",
+        "representative_roles": ["Embedded Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-s"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small sensor logger.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "cloud-platform",
+      "name": "Cloud Platform",
+      "status": "published",
+      "summary": {
+        "purpose": "Build cloud platform tooling.",
+        "representative_roles": ["Platform Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-t"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small container scheduler.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "security",
+      "name": "Security",
+      "status": "published",
+      "summary": {
+        "purpose": "Build security tooling.",
+        "representative_roles": ["Security Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-u"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small log auditor.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "systems-software",
+      "name": "Systems Software",
+      "status": "published",
+      "summary": {
+        "purpose": "Build systems-level software.",
+        "representative_roles": ["Systems Engineer"],
+        "common_foundation_dependencies": ["sample-node-a"],
+        "direction_specific_module_names": ["sample-module-v"],
+        "coarse_order": ["sample-node-a", "sample-node-b"],
+        "representative_project": "A small log replay tool.",
+        "provenance": "Editorial note 2026-07-17.",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    }
+  ]
+}

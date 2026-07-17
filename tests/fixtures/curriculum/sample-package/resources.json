@@ -1,0 +1,32 @@
+[
+  {
+    "stable_id": "sample-resource-a",
+    "title": "Sample Resource A",
+    "url": "https://example.com/resource-a",
+    "author": "Sample Author",
+    "language": "en",
+    "cost": "free",
+    "access": "open",
+    "license_boundary": "permissive_open",
+    "review_status": "reviewed",
+    "reviewed_at": "2026-07-17T00:00:00.000Z",
+    "stopping_guidance": "Stop after reading the overview.",
+    "node_stable_id": "sample-node-a",
+    "role": "primary"
+  },
+  {
+    "stable_id": "sample-resource-b",
+    "title": "Sample Resource B",
+    "url": "https://example.com/resource-b",
+    "author": "Sample Author",
+    "language": "en",
+    "cost": "free",
+    "access": "open",
+    "license_boundary": "permissive_open",
+    "review_status": "reviewed",
+    "reviewed_at": "2026-07-17T00:00:00.000Z",
+    "stopping_guidance": "Stop after completing the worked example.",
+    "node_stable_id": "sample-node-b",
+    "role": "primary"
+  }
+]

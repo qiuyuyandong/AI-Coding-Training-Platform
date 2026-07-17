@@ -1,0 +1,7 @@
+[
+  {
+    "from_stable_id": "sample-node-a",
+    "to_stable_id": "sample-node-b",
+    "edge_type": "required_prerequisite"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "node_stable_id": "sample-node-a",
+    "practice_task_stable_id": "sample-task-a",
+    "canonical_problem_stable_id": "sample-problem-a",
+    "title": "Practice Task A",
+    "kind": "oj",
+    "difficulty_band": "intro",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "practice_1",
+        "url": "https://atcoder.jp/contests/practice/tasks/practice_1",
+        "is_primary": true
+      }
+    ]
+  },
+  {
+    "node_stable_id": "sample-node-b",
+    "practice_task_stable_id": "sample-task-b",
+    "canonical_problem_stable_id": "sample-problem-b",
+    "title": "Practice Task B",
+    "kind": "oj",
+    "difficulty_band": "easy",
+    "sources": [
+      {
+        "platform": "atcoder",
+        "external_id": "abc086_a",
+        "url": "https://atcoder.jp/contests/abc086/tasks/abc086_a",
+        "is_primary": true
+      }
+    ]
+  }
+]

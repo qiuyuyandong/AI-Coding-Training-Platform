@@ -1,0 +1,30 @@
+[
+  {
+    "stable_id": "sample-node-a",
+    "title": "Sample Node A",
+    "outcome": "Demonstrates the validator happy path.",
+    "rationale": "Used as the foundation node for fixtures.",
+    "order_index": 1,
+    "status": "published",
+    "provenance": {
+      "authority": "Sample Authority",
+      "url": "https://example.com/sample-a",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop once you can articulate the sample outcome."
+  },
+  {
+    "stable_id": "sample-node-b",
+    "title": "Sample Node B",
+    "outcome": "Builds on Sample Node A.",
+    "rationale": "Used as the successor node for fixtures.",
+    "order_index": 2,
+    "status": "published",
+    "provenance": {
+      "authority": "Sample Authority",
+      "url": "https://example.com/sample-b",
+      "retrieved_at": "2026-07-17T00:00:00.000Z"
+    },
+    "stopping_guidance": "Stop once you can connect this to Sample Node A."
+  }
+]
