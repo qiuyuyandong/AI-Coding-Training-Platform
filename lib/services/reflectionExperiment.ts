@@ -144,6 +144,42 @@ function readEnv(env: EnvSource): ResolvedConfig {
   return { enabled, url, model, apiKey, timeoutMs };
 }
 
+/**
+ * Reject loopback, link-local, and RFC1918 private-network hostnames so
+ * the AI experiment cannot be redirected at internal infrastructure
+ * (LLM agents on localhost, cloud metadata services, or LAN devices).
+ * Public DNS hostnames and unreserved IPv4/IPv6 addresses pass.
+ */
+function isPrivateOrLocalHostname(rawHostname: string): boolean {
+  let host = rawHostname.toLowerCase();
+  if (host.startsWith("[") && host.endsWith("]")) {
+    host = host.slice(1, -1);
+  }
+  if (host.length === 0) return true;
+  if (host === "localhost" || host === "::1") return true;
+  if (host === "ip6-localhost" || host === "ip6-loopback") return true;
+  if (host.startsWith("fe80:") || host.startsWith("fe80::")) return true;
+  const parts = host.split(".");
+  if (parts.length === 4) {
+    const nums = parts.map((p) => Number.parseInt(p, 10));
+    if (nums.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) {
+      const [a, b] = nums;
+      if (a === undefined || b === undefined) return false;
+      // 127.0.0.0/8 loopback
+      if (a === 127) return true;
+      // 169.254.0.0/16 link-local (covers cloud metadata 169.254.169.254)
+      if (a === 169 && b === 254) return true;
+      // 10.0.0.0/8 private
+      if (a === 10) return true;
+      // 172.16.0.0/12 private
+      if (a === 172 && b >= 16 && b <= 31) return true;
+      // 192.168.0.0/16 private
+      if (a === 192 && b === 168) return true;
+    }
+  }
+  return false;
+}
+
 function isConfigValid(config: ResolvedConfig): boolean {
   if (!config.enabled) return false;
   if (config.url.length === 0) return false;
@@ -156,6 +192,9 @@ function isConfigValid(config: ResolvedConfig): boolean {
     return false;
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return false;
+  }
+  if (isPrivateOrLocalHostname(parsed.hostname)) {
     return false;
   }
   return true;
