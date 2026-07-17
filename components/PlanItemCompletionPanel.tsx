@@ -63,6 +63,10 @@ type CompletedResponse =
       readonly nodeId: string;
       readonly explanation: CompletionExplanation;
       readonly nextPlan: { readonly planId: string; readonly snapshotId: string };
+      readonly aiReflection?: {
+        readonly source: "ai" | "fallback";
+        readonly question: string;
+      };
     }
   | { readonly ok: false; readonly error?: string };
 
@@ -107,6 +111,7 @@ export function PlanItemCompletionPanel({
   const [language, setLanguage] = useState<string>("");
   const [duration, setDuration] = useState<string>("");
   const [reflection, setReflection] = useState<string>("");
+  const [requestAiReflection, setRequestAiReflection] = useState(false);
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -203,6 +208,7 @@ export function PlanItemCompletionPanel({
     }
     const trimmedReflection = reflection.trim();
     if (trimmedReflection.length > 0) payload["reflection"] = trimmedReflection;
+    payload["requestAiReflection"] = requestAiReflection;
 
     try {
       const response = await fetch(
@@ -377,6 +383,22 @@ export function PlanItemCompletionPanel({
             />
           </label>
         </div>
+        <label className="mt-3 flex items-start gap-2 text-xs normal-case tracking-normal text-slate-700">
+          <input
+            id="request-ai-reflection"
+            type="checkbox"
+            checked={requestAiReflection}
+            onChange={(event) => setRequestAiReflection(event.target.checked)}
+            disabled={submitting}
+            className="mt-0.5 h-4 w-4 rounded border border-slate-300 text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+          />
+          <span>
+            Generate one optional AI reflection question
+            <span className="block text-[11px] text-slate-500">
+              （仅当你勾选时才调用；未配置或失败将使用本地兜底问题；不会保存该问题）
+            </span>
+          </span>
+        </label>
         <button
           type="button"
           onClick={() => void submitCompletion()}
