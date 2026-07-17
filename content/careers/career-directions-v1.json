@@ -1,0 +1,148 @@
+{
+  "careers": [
+    {
+      "slug": "frontend-web",
+      "name": "Frontend Web",
+      "status": "published",
+      "summary": {
+        "purpose": "Build interactive web user interfaces with component-level state management, accessible markup semantics and browser-side performance fundamentals.",
+        "representative_roles": ["Frontend Engineer", "UI Engineer"],
+        "common_foundation_dependencies": ["cpp-io-types", "program-decomposition"],
+        "direction_specific_module_names": ["javascript-basics", "react-fundamentals", "css-layout"],
+        "coarse_order": ["cpp-io-types", "program-decomposition"],
+        "representative_project": "Build a small interactive docs site with component-level state and basic accessibility.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "backend-server",
+      "name": "Backend Server",
+      "status": "published",
+      "summary": {
+        "purpose": "Design and build reliable server-side APIs and services with input validation, data persistence, authentication and unit testing practices.",
+        "representative_roles": ["Backend Engineer", "API Engineer"],
+        "common_foundation_dependencies": ["program-decomposition", "debugging-testing"],
+        "direction_specific_module_names": ["http-rest", "sql-fundamentals", "auth-basics"],
+        "coarse_order": ["program-decomposition", "debugging-testing"],
+        "representative_project": "Build a small REST API with input validation and unit tests.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "client",
+      "name": "Client",
+      "status": "published",
+      "summary": {
+        "purpose": "Build offline-first mobile and desktop applications with platform-aware runtimes, local data persistence and responsive UI threading models.",
+        "representative_roles": ["Client Engineer", "Mobile Engineer"],
+        "common_foundation_dependencies": ["cpp-io-types", "program-decomposition"],
+        "direction_specific_module_names": ["platform-runtime", "offline-storage", "ui-thread-basics"],
+        "coarse_order": ["cpp-io-types", "program-decomposition"],
+        "representative_project": "Build a small offline-first mobile app with local persistence.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "data-analytics-engineering",
+      "name": "Data / Analytics Engineering",
+      "status": "published",
+      "summary": {
+        "purpose": "Transform raw events into structured, queryable summaries using batch processing pipelines, SQL-based aggregation and schema modeling techniques.",
+        "representative_roles": ["Data Engineer", "Analytics Engineer"],
+        "common_foundation_dependencies": ["complexity-analysis", "sorting-binary-search"],
+        "direction_specific_module_names": ["sql-advanced", "batch-pipelines", "schema-modeling"],
+        "coarse_order": ["complexity-analysis", "sorting-binary-search"],
+        "representative_project": "Build a small batch analytics job that aggregates raw events into a daily summary.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "ai-ml",
+      "name": "AI / ML",
+      "status": "published",
+      "summary": {
+        "purpose": "Train and evaluate machine learning models on structured data, including feature engineering, linear model selection, held-out evaluation and basic classifier pipelines.",
+        "representative_roles": ["ML Engineer", "Applied ML Engineer"],
+        "common_foundation_dependencies": ["complexity-analysis", "trees-recursion-traversal", "graphs-bfs-dfs"],
+        "direction_specific_module_names": ["linear-models", "evaluation-basics", "feature-pipelines"],
+        "coarse_order": ["complexity-analysis", "trees-recursion-traversal"],
+        "representative_project": "Build a small text classifier with a held-out evaluation set.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "edge-ai-embedded",
+      "name": "Edge AI / Embedded",
+      "status": "published",
+      "summary": {
+        "purpose": "Deploy quantized machine learning models on resource-constrained embedded devices with memory-efficient C++ runtimes, sensor sampling loops and on-device inference.",
+        "representative_roles": ["Embedded Engineer", "Edge ML Engineer"],
+        "common_foundation_dependencies": ["cpp-containers", "debugging-testing"],
+        "direction_specific_module_names": ["memory-constrained-cpp", "sampling-loops", "model-runtime"],
+        "coarse_order": ["cpp-containers", "debugging-testing"],
+        "representative_project": "Build a small sensor logger that runs a quantized model on-device.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "cloud-platform",
+      "name": "Cloud Platform",
+      "status": "published",
+      "summary": {
+        "purpose": "Operate and automate cloud infrastructure with container orchestration, infrastructure-as-code, observability pipelines and basic health-check scheduling.",
+        "representative_roles": ["Platform Engineer", "SRE"],
+        "common_foundation_dependencies": ["git-build-workflow", "debugging-testing"],
+        "direction_specific_module_names": ["container-runtime", "iac-basics", "observability"],
+        "coarse_order": ["git-build-workflow", "debugging-testing"],
+        "representative_project": "Build a small container scheduler with basic health checks.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "security",
+      "name": "Security",
+      "status": "published",
+      "summary": {
+        "purpose": "Identify, model and mitigate software security threats through threat modeling, cryptographic primitives, secure coding patterns and audit automation.",
+        "representative_roles": ["Security Engineer", "Application Security Engineer"],
+        "common_foundation_dependencies": ["debugging-testing", "program-decomposition"],
+        "direction_specific_module_names": ["threat-modeling-basics", "crypto-primitives", "secure-coding"],
+        "coarse_order": ["debugging-testing", "program-decomposition"],
+        "representative_project": "Build a small log auditor that flags suspicious authentication events.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    },
+    {
+      "slug": "systems-software",
+      "name": "Systems Software",
+      "status": "published",
+      "summary": {
+        "purpose": "Build low-level systems and infrastructure tools including OS primitives, process scheduling, I/O subsystems and log-structured data reconstruction.",
+        "representative_roles": ["Systems Engineer", "Infrastructure Engineer"],
+        "common_foundation_dependencies": ["complexity-analysis", "debugging-testing"],
+        "direction_specific_module_names": ["os-primitives", "process-scheduling", "io-systems"],
+        "coarse_order": ["complexity-analysis", "debugging-testing"],
+        "representative_project": "Build a small log replay tool that reconstructs events from segment files.",
+        "provenance": "Editorial note 2026-07-17",
+        "reviewed_at": "2026-07-17T00:00:00.000Z",
+        "unavailable_in_v0": true
+      }
+    }
+  ]
+}
