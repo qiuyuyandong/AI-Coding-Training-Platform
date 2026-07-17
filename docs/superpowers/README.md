@@ -6,17 +6,18 @@ This directory contains both active product planning and historical implementati
 
 1. [`../../IDEA.md`](../../IDEA.md) — product definition, adopted decisions, V0/V0.5/V1/Public Beta scope.
 2. [`plans/2026-07-11-product-development-roadmap.md`](plans/2026-07-11-product-development-roadmap.md) — active release/Phase map and exit gates.
-3. Phase 0 implementation records completed through 0D:
+3. Phase 0 implementation records completed through AtCoder certification:
    - [`plans/2026-07-11-phase-0a-e2e-data-safety.md`](plans/2026-07-11-phase-0a-e2e-data-safety.md)
    - [`plans/2026-07-14-phase-0b1-capture-session-protocol.md`](plans/2026-07-14-phase-0b1-capture-session-protocol.md)
    - [`plans/2026-07-14-phase-0b2-spa-queue-reliability.md`](plans/2026-07-14-phase-0b2-spa-queue-reliability.md)
    - [`plans/2026-07-14-phase-0b3-localhost-credential.md`](plans/2026-07-14-phase-0b3-localhost-credential.md)
-   - [`plans/2026-07-14-phase-0b4-luogu-adapter-certification.md`](plans/2026-07-14-phase-0b4-luogu-adapter-certification.md) — BLOCKED (no public verdict DOM); Luogu remains experimental
+   - [`plans/2026-07-14-phase-0b4-luogu-adapter-certification.md`](plans/2026-07-14-phase-0b4-luogu-adapter-certification.md) — BLOCKED (no public verdict DOM); Luogu remains experimental as a historical record
    - [`plans/2026-07-14-phase-0c1-query-analytics-canonical-url.md`](plans/2026-07-14-phase-0c1-query-analytics-canonical-url.md)
    - [`plans/2026-07-14-phase-0c2-manual-attempt-corrections.md`](plans/2026-07-14-phase-0c2-manual-attempt-corrections.md)
    - [`plans/2026-07-15-phase-0d-engineering-quality-gates.md`](plans/2026-07-15-phase-0d-engineering-quality-gates.md) — Completed and fully verified on 2026-07-15; evidence: [`../../work/reports/phase-0d-engineering-gates.md`](../../work/reports/phase-0d-engineering-gates.md)
+   - [`plans/2026-07-16-phase-0-atcoder-production-certification.md`](plans/2026-07-16-phase-0-atcoder-production-certification.md) — T1–T8 complete; AtCoder sole production adapter; evidence: [`../../work/reports/phase-0-atcoder-certification.md`](../../work/reports/phase-0-atcoder-certification.md)
 4. Active remaining and future capability plans:
-   - [`plans/2026-07-11-phase-0-reliability-baseline.md`](plans/2026-07-11-phase-0-reliability-baseline.md) — Phase 0D execution record retained; production-adapter re-certification requires a new design decision or public verdict DOM.
+   - [`plans/2026-07-11-phase-0-reliability-baseline.md`](plans/2026-07-11-phase-0-reliability-baseline.md) — Phase 0 complete on 2026-07-17; AtCoder is the sole production adapter. Luogu BLOCKED record retained as historical evidence.
    - [`plans/2026-07-11-phase-1-curriculum-resource-catalog.md`](plans/2026-07-11-phase-1-curriculum-resource-catalog.md)
    - [`plans/2026-07-11-phase-2-goals-diagnosis-planning.md`](plans/2026-07-11-phase-2-goals-diagnosis-planning.md)
    - [`plans/2026-07-11-phase-3-evidence-mastery-review.md`](plans/2026-07-11-phase-3-evidence-mastery-review.md)
@@ -25,7 +26,7 @@ This directory contains both active product planning and historical implementati
    - [`plans/2026-07-11-phase-6-pilot-calibration.md`](plans/2026-07-11-phase-6-pilot-calibration.md)
    - [`plans/2026-07-13-phase-7-public-beta-cloud.md`](plans/2026-07-13-phase-7-public-beta-cloud.md)
 
-Phase 0A through 0C2, Phase 0D, and Phase 0B4 (BLOCKED) are implemented and retained as execution records. Phase 0 itself remains BLOCKED on production-adapter certification. Before implementing another capability package, write a new atomic plan against the then-current repository rather than treating a completed plan or delivery overview as line-by-line instructions.
+Phase 0A through 0C2, Phase 0D, Phase 0B4 (BLOCKED), and Phase 0 AtCoder production certification (T1–T8) are implemented and retained as execution records. Phase 0 is complete and green on 2026-07-17. Before implementing another capability package, write a new atomic plan against the then-current repository rather than treating a completed plan or delivery overview as line-by-line instructions.
 
 ## Historical records
 
