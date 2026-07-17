@@ -256,7 +256,7 @@ T3 and T4 may be implemented in parallel only after T2 lands because both consum
 
 ### Wave 6 — Conditional promotion and pipeline proof
 
-- [ ] **T7. Promote exactly AtCoder and verify the local capture pipeline**
+- [x] **T7. Promote exactly AtCoder and verify the local capture pipeline**
 
   **Precondition:** T6's real on-disk artifact must read `gateVerdict: "CERTIFIED"`. If not, stop in BLOCKED state, write no registry change, and do not proceed to documentation closure.
 
