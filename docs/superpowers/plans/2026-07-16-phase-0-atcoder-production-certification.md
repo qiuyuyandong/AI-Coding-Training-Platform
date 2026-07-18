@@ -1,5 +1,9 @@
 # Phase 0 AtCoder Production Certification - Work Plan
 
+**Status:** Completed, independently verified, and user-accepted on 2026-07-17.
+AtCoder is the sole production adapter. Retained as a Phase 0 implementation
+record; do not re-execute T1–T8.
+
 ## TL;DR (For humans)
 
 ### What you'll get

@@ -14,6 +14,7 @@ import {
   generateAndPersistPlan,
 } from "@/lib/services/planGenerationService";
 import { projectAbility } from "@/lib/services/abilityProjector";
+import { buildTodayPagePayload } from "@/lib/pages/todayPage";
 import type { PlanGeneratorInput } from "@/lib/services/planGenerator";
 import type { CandidateTaskSelectorInput } from "@/lib/services/candidateTaskSelector";
 
@@ -54,10 +55,9 @@ function openImportedDb(): {
   tempDirs.push(tmp);
   const db = new Database(join(tmp, "complete.sqlite"));
   tempDbs.push(db);
-  // FK off mirrors `planGenerationService.test.ts` — the planner writes
-  // node_id / practice_task_id as the stable_id, deferring the FK
-  // mismatch to a future design decision.
-  db.pragma("foreign_keys = OFF");
+  // Match production: generated plan items must satisfy the row-ID foreign
+  // keys used by the completion service.
+  db.pragma("foreign_keys = ON");
   applyMigrations(db);
   const result = importPackage(db, SAMPLE_FIXTURE);
   if (!result.ok) {
@@ -166,7 +166,7 @@ describe("completePlanItem", () => {
     if (response.replayed === true) return;
     expect(response.replayed).toBe(false);
     expect(response.attemptId).toBe(`manual_plan_${primaryItemId}`);
-    expect(response.nodeId).toBe(`node_${NODE_SAMPLE_A}`);
+    expect(response.nodeId).toBe(`node_${NODE_SAMPLE_B}`);
     expect(response.explanation.levelLabel).toBe("First success");
     expect(response.explanation.confidenceLabel).toBe("low");
     expect(response.explanation.reasonCodes).toContain("primary_first_pass");
@@ -184,6 +184,13 @@ describe("completePlanItem", () => {
     expect(db.prepare<[], CountRow>("SELECT COUNT(*) AS c FROM ability_transitions").get()?.c).toBe(1);
     expect(db.prepare<[], CountRow>("SELECT COUNT(*) AS c FROM daily_plan_snapshots").get()?.c).toBe(2);
     expect(db.prepare<[], CountRow>("SELECT COUNT(*) AS c FROM plan_revision_events").get()?.c).toBe(2);
+    expect(
+      db
+        .prepare<[string], CountRow>(
+          "SELECT COUNT(*) AS c FROM plan_items WHERE daily_plan_id = ? AND role = 'primary'",
+        )
+        .get(response.nextPlan.snapshotId)?.c,
+    ).toBe(1);
 
     type SnapshotLinkRow = { readonly supersedes_daily_plan_id: string | null; readonly learning_plan_id: string };
     const successorRow = db
@@ -262,7 +269,28 @@ describe("completePlanItem", () => {
 
     expect(response.ok).toBe(false);
     if (response.ok === true) return;
-    expect(response.error).toBe("Plan item not found");
+    expect(response.error).toBe("Draft attempts cannot be recorded as plan completion");
+    expect(db.prepare<[], CountRow>("SELECT COUNT(*) AS c FROM training_attempts").get()?.c).toBe(0);
+  });
+
+  it("rejects completion of a non-primary alternative", () => {
+    const { db } = openImportedDb();
+    const { snapshotId } = persistInitialPlan(db);
+    const alternative = db
+      .prepare<[string], { readonly id: string }>(
+        "SELECT id FROM plan_items WHERE daily_plan_id = ? AND role <> 'primary' LIMIT 1",
+      )
+      .get(snapshotId);
+    expect(alternative).toBeDefined();
+    if (alternative === undefined) return;
+
+    const response = completePlanItem(db, {
+      learnerId: LOCAL_DEFAULT_LEARNER_ID,
+      dailyPlanItemId: alternative.id,
+      result: "passed",
+    });
+
+    expect(response).toEqual({ ok: false, error: "Only the primary plan item can be completed" });
     expect(db.prepare<[], CountRow>("SELECT COUNT(*) AS c FROM training_attempts").get()?.c).toBe(0);
   });
 
@@ -285,7 +313,7 @@ describe("completePlanItem", () => {
         `SELECT visible_level FROM ability_snapshots
           WHERE learner_id = ? AND node_id = ?`,
       )
-      .get(LOCAL_DEFAULT_LEARNER_ID, `node_${NODE_SAMPLE_A}`);
+      .get(LOCAL_DEFAULT_LEARNER_ID, completed.nodeId);
     expect(before?.visible_level).toBe("L1");
 
     correctAttempt(db, completed.attemptId, {
@@ -302,23 +330,28 @@ describe("completePlanItem", () => {
     db.prepare(
       `DELETE FROM ability_snapshots
         WHERE learner_id = ? AND node_id = ?`,
-    ).run(LOCAL_DEFAULT_LEARNER_ID, `node_${NODE_SAMPLE_A}`);
+    ).run(LOCAL_DEFAULT_LEARNER_ID, completed.nodeId);
 
     const mappings = listAttemptNodeMappings(db, LOCAL_DEFAULT_LEARNER_ID);
     const projection = projectAbility({
       learnerId: LOCAL_DEFAULT_LEARNER_ID,
       mappings,
-      nodeIds: [`node_${NODE_SAMPLE_A}`],
+      nodeIds: [completed.nodeId],
       previousSnapshots: new Map(),
       now: "2026-07-17T01:00:00.000Z",
     });
-    const next = projection.perNode.get(`node_${NODE_SAMPLE_A}`);
+    const next = projection.perNode.get(completed.nodeId);
     expect(next?.visibleLevel).toBe("unassessed");
   });
 
   it("exposes a different primary task for the next /today call", () => {
     const { db } = openImportedDb();
     const { primaryItemId } = persistInitialPlan(db);
+    const originalTask = db
+      .prepare<[string], { readonly practice_task_id: string }>(
+        "SELECT practice_task_id FROM plan_items WHERE id = ?",
+      )
+      .get(primaryItemId);
 
     const first = completePlanItem(db, {
       learnerId: LOCAL_DEFAULT_LEARNER_ID,
@@ -329,25 +362,16 @@ describe("completePlanItem", () => {
     if (first.ok !== true) return;
     if (first.replayed === true) return;
 
-    // Simulate a /today call after the completion: the planner
-    // receives the post-completion ability state (sample-node-a is
-    // now `L1`, so sample-node-b becomes reachable as practice) and
-    // must surface a new primary that differs from the just-completed
-    // practice task id.
-    const persisted = generateAndPersistPlan(db, {
-      ...baseSelectorInput(),
-      learnerId: LOCAL_DEFAULT_LEARNER_ID,
-      goalPrimaryNodeId: NODE_SAMPLE_B,
-      dailyMode: "practice",
-      localDate: "2026-07-17",
-      inputFingerprint: "fp-complete-15-after",
-      abilitiesByNode: {
-        [NODE_SAMPLE_A]: "L1",
-      },
-    });
-
-    expect(persisted.isFallback).toBe(false);
-    expect(persisted.primaryTaskId).not.toBe(TASK_SAMPLE_A);
-    expect(persisted.primaryTaskId).toBe(TASK_SAMPLE_B);
+    const today = buildTodayPagePayload(db);
+    expect(today.state).toBe("available");
+    if (today.state !== "available") return;
+    expect(today.snapshotId).toBe(first.nextPlan.snapshotId);
+    expect(today.primary.planItemId).not.toBe(primaryItemId);
+    const nextTask = db
+      .prepare<[string], { readonly practice_task_id: string }>(
+        "SELECT practice_task_id FROM plan_items WHERE id = ?",
+      )
+      .get(today.primary.planItemId);
+    expect(nextTask?.practice_task_id).not.toBe(originalTask?.practice_task_id);
   });
 });

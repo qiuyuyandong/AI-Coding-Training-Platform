@@ -1,5 +1,10 @@
 # Phase 3 Evidence, Ability, and Review Delivery Plan
 
+**Status (2026-07-18):** Partially implemented. V0 provides conservative
+manual-attempt mapping, correction-aware `unassessed`/L1/L2 projection, and
+explanations. Full evidence events, code snapshots, L3–L5 verification, decay,
+and review scheduling remain future V0.5/V1 work and need a fresh delta plan.
+
 > **For agentic workers:** Use `superpowers:writing-plans` to expand the active slice, `superpowers:test-driven-development` during implementation, and `superpowers:verification-before-completion` at each release gate.
 
 **Goal:** Replace verdict counting with an auditable model that classifies one training session, projects `unassessed + L1–L5` capability levels, schedules verification/review, and explains every change.
@@ -27,7 +32,7 @@
 
 ### V1 complete slice
 
-- browser + VS Code session merge;
+- explicit project-session evidence with learner-confirmed OJ relationships;
 - delayed, variant, alternative-solution, transfer and project evidence;
 - confidence decay by knowledge type;
 - full evidence timeline, user dispute flow and calibration metrics.

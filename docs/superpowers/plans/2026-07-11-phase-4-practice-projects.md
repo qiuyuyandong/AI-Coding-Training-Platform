@@ -1,48 +1,51 @@
-# Phase 4 VS Code Workspace, Practice, and Projects Delivery Plan
+# Phase 4 Project Practice and Explicit Engineering Evidence Delivery Plan
 
-> **For agentic workers:** Use `superpowers:brainstorming` to freeze the first workspace/project slice, `superpowers:writing-plans` for atomic tasks, `superpowers:test-driven-development` during implementation, and `superpowers:verification-before-completion` at the V1 gate.
+**Status (2026-07-18):** Future V1 capability; not started. Its entry
+dependencies are not complete. Do not execute this portfolio document until a
+post-V0.5 atomic plan is written and approved.
 
-**Goal:** Bridge isolated OJ work and software engineering by adding an optional VS Code training workspace, local run/test evidence, minimal implementations and one continuously evolving C++ project.
+> **For agentic workers:** Use `superpowers:brainstorming` to freeze the first
+> project/evidence slice, `superpowers:writing-plans` for atomic tasks,
+> `superpowers:test-driven-development` during implementation, and
+> `superpowers:verification-before-completion` at the V1 gate.
 
-**Non-goals:** Do not create an online IDE, monitor every terminal command or keystroke, scan arbitrary repositories, execute untrusted commands sent by a webpage, support every editor, or build a generic project-management suite.
+**Goal:** Bridge isolated OJ work and software engineering through
+editor-agnostic project tasks, explicit local build/test evidence, selected
+code snapshots or Git diffs, meaningful milestones, and one evolving C++
+project.
 
-**Dependencies:** Phase 0 provides session identity and authenticated ingestion; Phase 1 provides stable node/task IDs; Phase 2 provides daily tasks; Phase 3 accepts run/test/project evidence and snapshot references.
+**Non-goals:** No editor plugin, workspace/file watcher, save/run/debug
+footprint monitoring, terminal-history collection, keystroke tracking,
+arbitrary repository scan, automatic commit, online IDE, or generic project
+management suite.
+
+**Dependencies:** Phase 1 provides stable node/task IDs; Phase 2 provides daily
+tasks; Phase 3 accepts explicit run/test/project evidence and snapshot
+references; Phase 0/V0.5 provide trustworthy OJ evidence where available.
 
 ## 1. Experience Contract
 
-Direct OJ editing remains a fully supported low-friction path. VS Code is an enhanced path for users who want local compilation, testing, debugging, file organization and Git habits.
+Direct OJ editing remains the lowest-friction path. Project practice is an
+optional enhanced path that works with any editor or terminal because evidence
+is submitted deliberately rather than observed continuously.
 
 ```text
-Website recommends a task
-  → create/open a folder in the selected training workspace
-  → VS Code extension reads system-generated problem metadata
-  → learner writes, runs, tests and debugs locally
-  → browser extension captures the original OJ submission
-  → shared session/correlation ID merges both timelines
-  → accepted solution may create a user-confirmed Git milestone
+Website recommends a project or implementation task
+  → learner explicitly starts a training session
+  → learner works with any editor/toolchain
+  → learner explicitly records a build/test result
+  → learner optionally selects a bounded code snapshot or Git diff
+  → learner records a milestone and short reflection
+  → Phase 3 validates and projects the evidence
 ```
 
-No step requires copying a commercial full problem statement into the workspace. Metadata stores the source link, task ID, node mappings and permitted local instructions.
+The product never infers growth from edit frequency, time in an editor, number
+of saves, cursor movement, debug duration, or command history. It judges only
+inspectable task outcomes and later verification/transfer evidence.
 
-## 2. First Workspace and Project Slice
+## 2. First Project Slice
 
-Training workspace example:
-
-```text
-ai-training-workspace/
-├─ problems/
-│  └─ luogu/P1001/
-│     ├─ solution.cpp
-│     ├─ tests/
-│     ├─ notes.md
-│     └─ training-task.json
-├─ projects/
-│  └─ cpp-task-tracker/
-└─ .ai-training/
-   └─ local-cache/
-```
-
-Ship one reviewed project template: a C++ command-line task tracker that grows through:
+Ship one reviewed C++ command-line task tracker that grows through:
 
 1. basic input/output and CRUD;
 2. functions, types and module boundaries;
@@ -51,119 +54,134 @@ Ship one reviewed project template: a C++ command-line task tracker that grows t
 5. tests, error handling, logging, build, Git and documentation;
 6. a final run/test/explain/change-request assessment.
 
-Add one unfamiliar follow-up task or change request so success in a familiar project is not mistaken for transfer.
+Add one unfamiliar change request so a familiar implementation is not mistaken
+for transferable ability.
 
 ## 3. Planned Data Contracts
 
-At Phase 4 kickoff, assign the next available migration prefix to `workspace_practice_projects.sql` after inspecting merged history.
+At Phase 4 kickoff, inspect merged migrations and assign the next available
+prefix to a semantic `project_practice_evidence.sql` migration.
 
-Tables:
-
-- extend `practice_tasks` with minimal implementation, debugging, variant, review and project-milestone kinds while preserving stable IDs;
-- `training_workspaces`: stable local identifier, display name, consented root reference, extension version and status; do not send absolute paths to analytics/AI;
-- `workspace_sessions`: task, correlation ID, start/end, language/toolchain and provenance;
-- `local_run_events`: compile/test/debug/checkpoint facts, exit/result category, bounded output summary and snapshot reference;
-- `session_correlations`: browser OJ session ↔ VS Code workspace session, match reason, confidence and correction history;
+- extend `practice_tasks` with implementation, debugging, variant, review and
+  project-milestone kinds while preserving stable IDs;
+- `project_practice_sessions`: task, learner, explicit start/end, language,
+  toolchain label and provenance;
+- `explicit_run_results`: user-submitted build/test/check facts, exit/result
+  category, bounded diagnostics and evidence source;
+- `artifact_evidence`: user-selected snapshot/checksum/diff/test-summary/commit
+  reference, purpose, capture mode and deletion state;
 - `project_templates`, `learner_projects` and `project_milestones`;
-- `artifact_evidence`: snapshot/checksum/test-summary/commit references and verification source;
-- `rubric_assessments`: 0–3 dimension scores, evidence references, assessor and version;
+- `rubric_assessments`: versioned 0–3 dimensions with cited evidence;
 - `project_node_evidence`: explicit primary/supporting node links.
 
-VS Code extension source is planned under `vscode-extension/` with its own package/build/test configuration. Shared event schemas live in a small TypeScript package or dependency-free module consumed by app, browser extension and VS Code extension; the atomic plan must choose the exact layout after the repository structure is inspected.
+No table stores editor events, absolute workspace telemetry, terminal history,
+keystrokes, save counts, or background file snapshots.
 
-## 4. Security and Privacy Contract
+## 4. Privacy and Trust Contract
 
-- The user selects one training root; the extension rejects files outside it.
-- Default capture is event-based: explicit run, test, submit, checkpoint and final states—not every edit or keypress.
-- Ignore `.git`, `.env*`, keys, binary files, build outputs and configurable secret patterns.
-- The extension runs only generated/allowlisted task commands and shows the command before first execution.
-- Apply process timeout, output-size limit and cancellation; do not inherit or upload environment variables.
-- Direct arbitrary terminal history is never collected.
-- Git commits are user-confirmed milestones; no automatic commit per save/run.
-- Full/basic/minimal capture modes from Phase 3 apply equally to VS Code.
+- Every evidence attachment is initiated and previewed by the learner.
+- Default evidence is structured build/test status plus a short reflection;
+  raw code is optional.
+- A selected snapshot/diff is bounded by size, file type and explicit purpose.
+- Reject `.env*`, keys, credentials, binary/build output and secret patterns.
+- Never inherit/upload environment variables or execute commands supplied by a
+  webpage.
+- Git references are user-confirmed milestones; the product never commits or
+  pushes automatically.
+- Full/basic/minimal modes control evidence detail without penalizing the
+  learner; missing optional evidence lowers confidence rather than blocking use.
+- Local-first deterministic planning and manual evidence continue to work when
+  AI or any future integration is disabled.
 
 ## 5. Work Packages
 
-### 4.1 Shared training-session protocol
+### 4.1 Explicit project-session and evidence contracts
 
-- [ ] Define versioned task, workspace-session, run-event and correlation schemas.
-- [ ] Test browser-only, VS-Code-only, matched, ambiguous, late-arriving and corrected correlations.
-- [ ] Use explicit correlation IDs whenever the website creates a workspace; heuristics are fallback and never silently merge ambiguous sessions.
+- [ ] Define versioned project-session, run-result, artifact-reference and
+  milestone schemas.
+- [ ] Test manual-only, OJ-linked, build-only, test-backed, snapshot-backed,
+  missing-evidence and corrected-evidence cases.
+- [ ] Keep ambiguous OJ/project relationships separate until the learner
+  explicitly confirms them.
 
-### 4.2 VS Code extension foundation
+### 4.2 Unified practice-task model
 
-- [ ] Scaffold commands for selecting a workspace, creating/opening a task and showing capture status.
-- [ ] Store auth tokens through VS Code SecretStorage, not settings JSON or workspace files.
-- [ ] Test workspace allowlist, ignored files, offline queue, replay, version mismatch and user pause.
-- [ ] Provide a visible “recording active” state and one-click disable/delete path.
+- [ ] Test OJ problem, minimal implementation, debugging exercise, variant,
+  review and project milestone kinds.
+- [ ] Reuse Phase 1 task IDs and node mappings; do not create a second planning
+  identity.
+- [ ] Make `/today`, `/training` and future `/projects` consume the same task
+  contract.
 
-### 4.3 Controlled run/test/debug events
+### 4.3 Explicit build/test and artifact intake
 
-- [ ] Generate language/toolchain tasks for the first C++ slice and require confirmation before first run.
-- [ ] Capture compile category, exit status, test summary, bounded diagnostics and event-time snapshot reference.
-- [ ] Record debug-session start/end only; do not record arbitrary inspected values by default.
-- [ ] Test timeout, cancellation, missing compiler, oversized output, offline upload and unsupported workspace.
+- [ ] Accept a user-entered or explicitly imported build/test result with
+  bounded diagnostics and provenance.
+- [ ] Accept an optional selected snapshot, Git diff or milestone reference
+  after preview and secret/path validation.
+- [ ] Test oversized, secret-bearing, unsupported, deleted, corrected and
+  offline evidence without scanning unselected files.
 
-### 4.4 Unified practice-task model
+### 4.4 Project template and milestones
 
-- [ ] Test OJ problem, minimal implementation, debugging exercise, variant, review and project milestone kinds.
-- [ ] Reuse Phase 1 stable task IDs and node mappings; do not introduce a second planning identity.
-- [ ] Make `/today`, `/training` and workspace metadata consume the same task contract.
+- [ ] Implement the C++ task-tracker template with dependency-checked,
+  independently runnable milestones.
+- [ ] Test resume, skip/replace, template upgrade, unfamiliar change request and
+  completion.
+- [ ] Map each milestone to primary/supporting capabilities and expected
+  evidence.
 
-### 4.5 Project template and milestone engine
+### 4.5 Rubric, reflection and transfer
 
-- [ ] Implement the C++ task-tracker template with dependency-checked milestones and a runnable state after each milestone.
-- [ ] Test resume, skip/replace, template upgrade, unfamiliar change request and completion.
-- [ ] Map each milestone to primary/supporting capabilities and expected evidence.
+- [ ] Store user-confirmed milestones for start, first working result, tested
+  result, refinement and retrospective.
+- [ ] Test the 0–3 rubric for function, design, testing/boundaries,
+  maintainability, robustness, explanation and transfer.
+- [ ] Require minimum 2 in function, testing, integration and explanation; an
+  average cannot hide a critical zero.
+- [ ] Feed verified facts into Phase 3 replay; never mutate ability directly.
 
-### 4.6 Git milestones and rubric assessment
+### 4.6 Product integration
 
-- [ ] Offer user-confirmed milestones for start, first working solution, accepted result, optimization and retrospective.
-- [ ] Store commit hashes/references; do not require pushing to a remote repository.
-- [ ] Test the 0–3 rubric for function, decomposition/design, testing/debugging/boundaries, efficiency, maintainability, robustness/security, tools/docs, explanation and transfer.
-- [ ] Require minimum 2 in function, testing, integration and explanation; an average cannot hide a critical zero.
+- [ ] Add project-task status and explicit evidence actions to `/training` and
+  a future `/projects` surface.
+- [ ] Show provenance, uncertainty, correction and deletion controls for every
+  evidence item.
+- [ ] Add browser E2E fixtures using synthetic evidence; CI must not execute
+  arbitrary user projects.
 
-### 4.7 Product integration
+## 6. Verification
 
-- [ ] Add workspace status and launch actions to `/training` and `/projects`.
-- [ ] Merge OJ/local timelines and expose uncertain correlations for correction.
-- [ ] Feed verified run/test/project facts into Phase 3, never directly mutate ability levels.
-- [ ] Add E2E/extension integration fixtures without launching arbitrary user code in CI.
-
-## 6. Verification Commands
-
-The atomic plan adds exact VS Code scripts; the V1 gate will include at least:
-
-```powershell
-npm run test
-npm run typecheck
-npm run e2e
-npm run extension:build
-npm run vscode-extension:test
-npm run vscode-extension:build
-npm run build
-```
-
-Run a separate documented Windows manual check for workspace selection, missing compiler, offline queue, OJ correlation, snapshot deletion and Git milestone confirmation.
+The future atomic plan must add focused domain, repository, API and Playwright
+tests, then run the repository quality gate. A separate Windows manual check
+must cover explicit evidence preview, secret rejection, missing compiler/test
+result entry, snapshot deletion, Git milestone confirmation and offline use.
 
 ## 7. Exit Gate
 
-- [ ] A learner can continue using direct OJ editing without installing VS Code integration.
-- [ ] A selected-workspace learner can create a task, run/test it, submit on the original OJ and see one merged timeline.
-- [ ] Ambiguous browser/local sessions remain separate until corrected.
-- [ ] No event includes a workspace-external file, secret, environment variable or full terminal history.
-- [ ] Full/basic/minimal modes and delete/export controls work for local events and snapshots.
-- [ ] Git history contains only user-confirmed milestones.
-- [ ] The C++ project remains runnable/testable after each milestone and ends with one unfamiliar change request.
-- [ ] Critical rubric dimensions each reach 2 before project completion evidence is emitted.
-- [ ] Project evidence changes ability only through Phase 3's replayable contracts.
-- [ ] Full phase gate passes.
+- [ ] Direct OJ/manual learning remains fully usable without any editor
+  integration.
+- [ ] A learner can complete a project task using any editor, explicitly record
+  build/test evidence, and see its provenance and uncertainty.
+- [ ] No background process monitors files, saves, runs, debugging, commands,
+  terminal history or keystrokes.
+- [ ] No evidence contains unselected files, secrets or environment variables.
+- [ ] Full/basic/minimal modes and delete/export controls work for explicit
+  results and snapshots.
+- [ ] Git history contains only learner-created or learner-confirmed milestones.
+- [ ] The C++ project remains runnable/testable after each milestone and ends
+  with one unfamiliar change request.
+- [ ] Project evidence changes ability only through Phase 3 replayable
+  contracts.
+- [ ] The full future phase gate passes.
 
 ## 8. Risks and Controls
 
-- **Installation burden:** VS Code is optional; direct OJ/manual capture remains functional.
-- **Local execution risk:** generated allowlisted commands, confirmation, timeout, bounded output and cancellation.
-- **Workspace privacy:** one selected root, ignored secrets, event snapshots and visible capture state.
-- **False session merge:** explicit correlation IDs, confidence, correction and no silent ambiguous merge.
-- **Project familiarity bias:** one unfamiliar change request plus separate transfer evidence.
-- **Git noise:** user-confirmed milestones, not save-by-save automation.
+- **Evidence friction:** structured result entry is minimal; code attachment is
+  optional and task-scoped.
+- **Privacy:** explicit preview, bounded selection, secret rejection and local
+  deletion controls.
+- **False attribution:** learner confirmation, provenance and no silent merge.
+- **Project familiarity bias:** unfamiliar change request and delayed transfer
+  evidence.
+- **Git noise:** milestone references only; no automatic save/run commits.

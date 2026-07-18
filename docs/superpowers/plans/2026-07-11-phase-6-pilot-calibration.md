@@ -1,12 +1,17 @@
 # Phase 6 Windows Pilot, Portability, and Calibration Delivery Plan
 
+**Status (2026-07-18):** Future V1 capability; not started. The smaller V0
+owner and two-participant observations are still pending and are governed by
+the active V0 closeout plan. The formal 5–10-person four-week pilot entry gate
+is not met.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:brainstorming to approve the pilot protocol, superpowers:writing-plans for atomic tasks, and superpowers:verification-before-completion for every release candidate.
 
 **Goal:** Enable 5–10 nearby learners to install, use, inspect, back up, restore, and evaluate the V1 pilot for four continuous weeks, then calibrate product heuristics and decide readiness for the already-planned Public Beta work.
 
 **Non-goals:** No public launch, production cloud migration, payment, social system, covert telemetry, growth campaign, or claim that a 5–10 person pilot scientifically validates mastery theory.
 
-**Dependency:** Phases 0–5 satisfy their V1 slices, including browser/VS Code capture, evidence inspection and AI-disabled fallback. Earlier one- and two-week V0/V0.5 trials have already happened; this is the formal four-week calibration.
+**Dependency:** Phases 0–5 satisfy their V1 slices, including browser OJ capture, editor-agnostic explicit project evidence, evidence inspection and AI-disabled fallback. Earlier one- and two-week V0/V0.5 trials have already happened; this is the formal four-week calibration.
 
 ## Pilot Boundaries
 
@@ -54,8 +59,8 @@ Release and support modules:
 ### 6.2 Windows setup and launcher
 
 - [ ] Build a repeatable PowerShell setup/start/diagnose path for supported Windows versions and document Node/browser prerequisites.
-- [ ] Produce the browser and VS Code extension packages and verify Chrome/Edge/VS Code installation steps.
-- [ ] Test clean install, upgrade, uninstall-with-data-preservation, occupied port, missing browser/compiler/editor, restricted execution policy, and domestic dependency access.
+- [ ] Produce the browser extension package and verify Chrome/Edge installation plus editor-agnostic project-evidence instructions.
+- [ ] Test clean install, upgrade, uninstall-with-data-preservation, occupied port, missing browser/compiler, restricted execution policy, and domestic dependency access.
 - [ ] Defer Electron/installer work until setup observation proves scripts are insufficient.
 
 ### 6.3 Local diagnostics and support bundle

@@ -1,5 +1,10 @@
 # Phase 5 Provider-Neutral AI Coach Delivery Plan
 
+**Status (2026-07-18):** Partially implemented only as the V0 optional,
+default-disabled, non-persistent reflection experiment. Provider-neutral
+adapters, BYOK, quotas, evidence citations, and production secret handling are
+not implemented and require a fresh V0.5/V1 delta plan.
+
 > **For agentic workers:** Use `superpowers:brainstorming` to approve the active data/AI contract, `superpowers:writing-plans` for atomic tasks, `superpowers:test-driven-development` during implementation, `openai-docs` when implementing OpenAI APIs, and `superpowers:verification-before-completion` at each release gate.
 
 **Goal:** Add an evidence-grounded coach that supports a limited platform-funded model and user-provided API credentials while deterministic graph, planning, evidence and review services remain authoritative.

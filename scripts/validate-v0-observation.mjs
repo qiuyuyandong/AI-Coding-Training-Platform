@@ -164,6 +164,14 @@ function dateToUtcDayCount(dateString) {
     return null;
   }
   const utcMillis = Date.UTC(year, month - 1, day);
+  const normalized = new Date(utcMillis);
+  if (
+    normalized.getUTCFullYear() !== year ||
+    normalized.getUTCMonth() !== month - 1 ||
+    normalized.getUTCDate() !== day
+  ) {
+    return null;
+  }
   return Math.floor(utcMillis / 86_400_000);
 }
 
@@ -177,7 +185,7 @@ function daysBetween(startDate, endDate) {
 function distinctDates(values) {
   const seen = new Set();
   for (const value of values) {
-    if (ISO_DATE_REGEX.test(value)) seen.add(value);
+    if (dateToUtcDayCount(value) !== null) seen.add(value);
   }
   return Array.from(seen).sort();
 }
@@ -211,12 +219,12 @@ export function validateOwnerReport(parsed) {
     actual: parsed.status,
   });
 
-  if (!ISO_DATE_REGEX.test(parsed.windowStart ?? "")) {
+  if (dateToUtcDayCount(parsed.windowStart ?? "") === null) {
     check("owner.windowStart.isoDate", false, { actual: parsed.windowStart });
   } else {
     check("owner.windowStart.isoDate", true);
   }
-  if (!ISO_DATE_REGEX.test(parsed.windowEnd ?? "")) {
+  if (dateToUtcDayCount(parsed.windowEnd ?? "") === null) {
     check("owner.windowEnd.isoDate", false, { actual: parsed.windowEnd });
   } else {
     check("owner.windowEnd.isoDate", true);
@@ -250,13 +258,16 @@ export function validateOwnerReport(parsed) {
   let requiredFieldsOk = true;
   let effortBoundaryOk = true;
   let actionOk = true;
+  let withinWindowOk = true;
+  const windowStartDay = dateToUtcDayCount(parsed.windowStart ?? "");
+  const windowEndDay = dateToUtcDayCount(parsed.windowEnd ?? "");
   for (const [index, session] of sessions.entries()) {
     if (!isObject(session)) {
       requiredFieldsOk = false;
       continue;
     }
     const sessionChecks = {
-      hasDate: ISO_DATE_REGEX.test(session.date ?? ""),
+      hasDate: dateToUtcDayCount(session.date ?? "") !== null,
       hasEffortBoundary: EFFORT_BOUNDARIES.includes(session.effortBoundaryMinutes),
       hasPrimaryTask: isString(session.primaryTaskStableId),
       hasAction: ["started", "completed", "skipped", "replaced"].includes(session.action),
@@ -271,6 +282,16 @@ export function validateOwnerReport(parsed) {
     }
     if (!sessionChecks.hasEffortBoundary) effortBoundaryOk = false;
     if (!sessionChecks.hasAction) actionOk = false;
+    const sessionDay = dateToUtcDayCount(session.date ?? "");
+    if (
+      sessionDay === null ||
+      windowStartDay === null ||
+      windowEndDay === null ||
+      sessionDay < windowStartDay ||
+      sessionDay > windowEndDay
+    ) {
+      withinWindowOk = false;
+    }
     if (!allFields) {
       checks.push({
         name: `owner.effectiveSessions[${index}].requiredFields`,
@@ -285,6 +306,11 @@ export function validateOwnerReport(parsed) {
     allowed: EFFORT_BOUNDARIES,
   });
   check("owner.effectiveSessions.action", actionOk);
+  check("owner.effectiveSessions.withinWindow", withinWindowOk, {
+    windowStart: parsed.windowStart,
+    windowEnd: parsed.windowEnd,
+    dates: sessionDates,
+  });
 
   // At least one full map→plan→today→completion→next-decision loop.
   const loops = Array.isArray(parsed.loopEvidence) ? parsed.loopEvidence : [];

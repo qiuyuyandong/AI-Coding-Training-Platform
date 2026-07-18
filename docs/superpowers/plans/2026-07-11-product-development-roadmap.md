@@ -1,6 +1,11 @@
 # AI Coding Growth Platform Product Development Roadmap
 
-> **Status (2026-07-18):** **V0 exit candidate; F1-F4 final verification and user acceptance pending.** Engineering gates PASS at implementationSha `d6c0f14aafb663c8746ad5e30d968508d539ec07`; observationRecordSha `5a0e0a0f12a0fcf24683564fb5146087a9c59c9f`. See `work/reports/v0-exit-report.md` for the full SHA chain, decision and limitations. V0 is not declared complete or accepted until F1-F4 all APPROVE and the user explicitly accepts the V0 verification.
+> **Status (2026-07-18):** **V0 validation — functional slice implemented and stabilized; real-use observation, final verification, and user acceptance pending.** Phase 0 is complete. The provisional exit-candidate report is not a valid release decision because its owner and participant observations are still empty. The only active execution plan is [`2026-07-18-v0-closeout-observation-final-verification.md`](./2026-07-18-v0-closeout-observation-final-verification.md).
+
+> **Stabilization note:** The current uncommitted worktree fixes the known
+> post-candidate blockers and passes the fresh full quality gate. This does not
+> advance the roadmap gate: a committed implementation SHA, refreshed evidence,
+> observations, F1-F4 re-verification, and explicit acceptance are still required.
 
 > **For agentic workers:** Before implementing a work package, use `superpowers:writing-plans` to expand it against the then-current codebase. During implementation use the appropriate execution skill, and use `superpowers:verification-before-completion` before declaring a release gate complete.
 
@@ -22,26 +27,40 @@ Older 2026-07-05/06 plans use historical Phase numbers. They are implementation 
 
 ## 2. Current Baseline
 
-The repository is **Pre-V0**, not a completed multi-platform learning system.
+The repository is in **V0 validation**, not Pre-V0 and not V0.5. Phase 0 is
+complete, and the manual-first V0 functional slice is implemented in the
+current worktree.
 
 Available today:
 
-- metadata-only problem links and source registry;
-- a local Next.js + SQLite app;
-- an MV3 extension that detects broad problem-page and visible verdict signals;
-- isolated Playwright databases and reusable migrations;
-- V2 session/submission identity, SPA lifecycle handling, serialized queue delivery, and localhost pairing credentials;
-- raw capture events plus same-transaction projections, scoped attempt queries, canonical URLs, full Growth aggregates, and explicit Coach windows;
-- manual attempts, visible source labels, optimistic correction history, and logical voiding;
-- unit tests, Playwright smoke tests, extension builds, and production builds.
+- the Phase 0 local capture foundation: isolated test databases, V2
+  session/submission identity, SPA/queue reliability, localhost pairing,
+  transactional projections, correction/void history, and one certified
+  production adapter (AtCoder);
+- a versioned 12-node curriculum package, 13 prerequisite edges, 12 reviewed
+  resources, 12 practice mappings, and nine career summaries;
+- learner goals, a six-prompt diagnosis, adjustable starting point, immutable
+  daily plans, and one primary task with bounded alternatives;
+- `/map`, `/map/[nodeId]`, `/plan`, and `/today`, including atomic manual task
+  completion and the visible next-decision loop;
+- conservative `unassessed`/L1/L2 ability projection with explanations,
+  correction/void replay, and stored but unreachable L3–L5 states in V0;
+- an optional, default-disabled, non-persistent AI reflection experiment with a
+  deterministic offline fallback;
+- a fresh full quality-gate PASS for the 2026-07-18 stabilization worktree.
 
-Not yet trustworthy or present:
+Still required before V0 completion:
 
-- code snapshots;
-- learner profile, graph, plans, evidence levels, review or projects;
-- VS Code integration, real AI provider, accounts or cloud storage.
+- restore and execute the missing V0 report-validator regression suite;
+- one committed implementation SHA and refreshed evidence anchored to it;
+- at least seven calendar days of owner observation and two participant windows
+  of at least fourteen calendar days each;
+- F1–F4 all approving the same stabilized release SHA;
+- explicit user acceptance and final status reconciliation.
 
-Phase 0 is therefore mandatory. No later capability may treat current verdict counts as a reliable learner model.
+Deferred beyond V0 includes code snapshots, review scheduling,
+editor-agnostic project practice and stage projects, the full provider/BYOK/quota layer, formal pilot portability,
+accounts, multi-tenant cloud storage, billing, and public operations.
 
 ## 3. Product Invariants
 
@@ -53,7 +72,7 @@ Phase 0 is therefore mandatory. No later capability may treat current verdict co
 6. Rules, graph navigation, planning and basic analysis continue to work without AI.
 7. AI explains and proposes; validated evidence and deterministic rules remain authoritative.
 8. Commercial OJ content remains on the original platform; the product stores metadata, mappings and user-generated training records.
-9. Code capture is limited to explicit training events and a selected workspace; no cookies, tokens, hidden tests or keystroke logging.
+9. Code evidence is optional, task-scoped, explicitly selected and previewed; no workspace monitoring, cookies, tokens, hidden tests, terminal history or keystroke logging.
 10. Every state change is auditable and cites evidence/reason versions.
 11. Tests never open or mutate the default `training-platform.sqlite`.
 12. Public cloud features require tenant isolation, deletion/export, consent and retention design before activation.
@@ -64,7 +83,7 @@ Phase 0 is therefore mandatory. No later capability may treat current verdict co
 flowchart LR
   A["Current: local Next.js + SQLite"] --> B["V0: manual learning loop"]
   B --> C["V0.5: one reliable OJ connector"]
-  C --> D["V1: browser + VS Code + graph + AI pilot"]
+  C --> D["V1: graph + project practice + evidence + AI pilot"]
   D --> E["Public Beta: accounts + cloud data + default AI quota"]
 ```
 
@@ -77,9 +96,10 @@ Browser extension → localhost API → SQLite → Today / Training / Coach / Gr
 ### Public target architecture
 
 ```text
-Browser extension ┐
-                  ├→ authenticated HTTPS API → tenant-scoped database/object storage
-VS Code extension ┘                            → graph/rules/evidence → AI provider layer
+Browser OJ events ──────────────┐
+Explicit project evidence input ├→ authenticated HTTPS API
+                                └→ tenant-scoped database/object storage
+                                   → graph/rules/evidence → AI provider layer
 ```
 
 The target is cloud SaaS, but the migration happens after the learning loop and capture hypotheses are demonstrated. Public storage must use a durable multi-tenant database and object storage; a shared SQLite file or ephemeral deployment filesystem is not a production design.
@@ -165,8 +185,8 @@ Includes:
 - all nine career summaries plus a deeper common-foundation route;
 - five daily modes: learn, review, practice, build and recover;
 - bounded quick replacement and reviewable AI plan proposals;
-- VS Code extension and selected training workspace;
-- local run/test/debug snapshots merged with browser OJ submissions;
+- editor-agnostic project practice with explicit sessions;
+- user-submitted build/test results and selected snapshots or Git diffs, with confirmed rather than silently merged OJ relationships;
 - Git milestone references, not save-by-save commits;
 - confidence decay, delayed verification, variant/transfer evidence and one C++ stage project;
 - code/data view, export, deletion and retention controls;
@@ -189,7 +209,7 @@ Includes Phase 7:
 
 - account lifecycle and tenant-scoped authorization;
 - durable relational database and encrypted object storage;
-- authenticated browser/VS Code event ingestion, offline queue and conflict handling;
+- authenticated browser event ingestion plus explicit project-evidence submission, offline queue and conflict handling;
 - platform default AI quota, abuse protection, provider fallback and cost controls;
 - BYOK with encrypted secret storage; no per-user `.env.local` workflow;
 - consent, provider disclosure, retention, export and deletion workflows;
@@ -209,13 +229,13 @@ Exit gate:
 | Phase | Capability outcome | First release that consumes it | Status | Detailed plan |
 |---|---|---|---|---|
 | 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | Complete — 2026-07-17; AtCoder sole production adapter | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
-| 1 | Versioned common-foundation graph, career summaries and reviewed resources | V0 | Planned | [Phase 1](./2026-07-11-phase-1-curriculum-resource-catalog.md) |
-| 2 | Goal, diagnosis, bounded daily planning and replanning | V0 | Planned | [Phase 2](./2026-07-11-phase-2-goals-diagnosis-planning.md) |
-| 3 | Auditable evidence, five-level ability projection and review | V0 thin slice; V0.5 deepens | Planned | [Phase 3](./2026-07-11-phase-3-evidence-mastery-review.md) |
-| 4 | VS Code workspace, local runs/tests and stage projects | V1 | Planned | [Phase 4](./2026-07-11-phase-4-practice-projects.md) |
-| 5 | Provider-neutral default/BYOK AI coach with evidence citations | V0 experiment; V0.5/V1 deepen | Planned | [Phase 5](./2026-07-11-phase-5-byok-ai-coach.md) |
-| 6 | Windows pilot, backup/restore and heuristic calibration | Begins in V0; formal at V1 | Planned | [Phase 6](./2026-07-11-phase-6-pilot-calibration.md) |
-| 7 | Accounts, cloud storage, hosted quota and public operations | Public Beta | Later, explicit gate | [Phase 7](./2026-07-13-phase-7-public-beta-cloud.md) |
+| 1 | Versioned common-foundation graph, career summaries and reviewed resources | V0 | V0 thin slice implemented; broader catalog expansion pending | [Phase 1](./2026-07-11-phase-1-curriculum-resource-catalog.md) |
+| 2 | Goal, diagnosis, bounded daily planning and replanning | V0 | V0 thin slice implemented; broader planning modes pending | [Phase 2](./2026-07-11-phase-2-goals-diagnosis-planning.md) |
+| 3 | Auditable evidence, five-level ability projection and review | V0 thin slice; V0.5 deepens | Minimal V0 ability projection implemented; full evidence/review pending | [Phase 3](./2026-07-11-phase-3-evidence-mastery-review.md) |
+| 4 | Editor-agnostic project practice, explicit run/test evidence and stage projects | V1 | Not started; future V1 work | [Phase 4](./2026-07-11-phase-4-practice-projects.md) |
+| 5 | Provider-neutral default/BYOK AI coach with evidence citations | V0 experiment; V0.5/V1 deepen | V0 reflection experiment implemented; provider/BYOK/quota layer pending | [Phase 5](./2026-07-11-phase-5-byok-ai-coach.md) |
+| 6 | Windows pilot, backup/restore and heuristic calibration | Begins in V0; formal at V1 | V0 observation pending; formal V1 pilot not started | [Phase 6](./2026-07-11-phase-6-pilot-calibration.md) |
+| 7 | Accounts, cloud storage, hosted quota and public operations | Public Beta | Long-term target; entry gate not met | [Phase 7](./2026-07-13-phase-7-public-beta-cloud.md) |
 
 ## 7. Dependency and Delivery Map
 
@@ -230,7 +250,7 @@ flowchart TD
   P0 --> P3B
   P3B --> V05["V0.5 one OJ connector"]
   P5B["P5 provider layer"] --> V05
-  V05 --> P4["P4 VS Code + project"]
+  V05 --> P4["P4 project practice + explicit evidence"]
   P1 --> P4
   P2 --> P4
   P3B --> P4
@@ -239,16 +259,25 @@ flowchart TD
   V1 --> P7["P7 public cloud"]
 ```
 
-Content research may run in parallel with Phase 0, but imports and personalized decisions wait for the Phase 0 data-safety gate. Lightweight user observation begins in V0; Phase 6 is not the first contact with users.
+Phase 0 is closed. Lightweight user observation is the current V0 gate; Phase 6
+is the later formal V1 pilot, not the first contact with users.
 
 ## 8. Near-Term Execution Order
 
-1. Phase 0 is complete (2026-07-17): AtCoder is the sole certified production adapter. Luogu production-adapter certification was attempted in Phase 0B4 and remains historically BLOCKED on missing public verdict DOM; it no longer blocks Phase 0 closure. Do not re-execute completed Phase 0 plans.
-2. Phase 0D engineering gates (lint, CI parity, migration matrix, extension parity, final documentation) are already executed and verified; do not re-execute them.
-3. Write one V0 vertical-slice design and atomic implementation plan spanning only the required Phase 1/2/3/5 tasks.
-4. Publish the first 12–18 nodes and manual task flow; do not wait for an encyclopedia.
-5. Run one week of self-use, fix blocking friction, then run a two-week roommate trial.
-6. Only after the V0 report, freeze the V0.5 OJ adapter and code-snapshot contract.
+1. Preserve Phase 0 as complete; do not re-execute its plans. Luogu's BLOCKED
+   certification remains historical and does not reopen Phase 0.
+2. Use only the V0 closeout plan to classify and checkpoint the current
+   stabilization worktree, then regenerate evidence on its committed SHA.
+3. Complete and validate the owner observation and both participant windows on
+   that frozen implementation.
+4. Publish a valid exit candidate, run F1–F4 against the same release SHA, and
+   obtain explicit user acceptance.
+5. Only after V0 acceptance, write a fresh V0.5 delta plan for connected OJ
+   evidence and code snapshots. Do not execute the broad Phase 1–7 documents
+   line by line.
+
+**Target hierarchy:** immediate target = accepted V0; next target = V0.5; then
+V1; total product target = **Phase 7 / Public Beta hosted SaaS**.
 
 ## 9. Common Delivery Loop
 
@@ -312,7 +341,7 @@ The roadmap succeeds when a first-year learner can:
 1. understand several career directions without being forced to choose immediately;
 2. see a credible common-foundation path and current position;
 3. select today's effort boundary and start one explainable task;
-4. train on an original OJ or in VS Code with a reliable record;
+4. train on an original OJ or in an editor-agnostic project task with a reliable, explicit record;
 5. see an evidence-grounded level and uncertainty rather than a decorative score;
 6. receive review, bridge, project or recovery work instead of endless same-form questions;
 7. use AI for explanation and plan negotiation without granting it authority over facts;

@@ -231,6 +231,50 @@ describe("projectAbility", () => {
     expect(transition?.reasonCodes).toContain("primary_repeat_short_window");
   });
 
+  it("promotes on a later qualifying pass after two short-window passes", () => {
+    const result = projectAbility(
+      buildInput([NODE_ID], [
+        {
+          mapping: makeMapping(NODE_ID, "a1", "primary"),
+          attempt: makeAttempt("a1", "passed", "2026-07-01T00:00:00.000Z"),
+        },
+        {
+          mapping: makeMapping(NODE_ID, "a2", "primary"),
+          attempt: makeAttempt("a2", "passed", "2026-07-01T02:00:00.000Z"),
+        },
+        {
+          mapping: makeMapping(NODE_ID, "a3", "primary"),
+          attempt: makeAttempt("a3", "passed", "2026-07-09T00:00:00.000Z"),
+        },
+      ]),
+    );
+    const projection = result.perNode.get(NODE_ID);
+    expect(projection?.visibleLevel).toBe("L2");
+    expect(projection?.confidence).toBe("medium");
+    expect(result.transitions[0]?.sourceAttemptIds).toEqual(["a1", "a3"]);
+    expect(result.transitions[0]?.reasonCodes).toContain(
+      "primary_second_pass_delayed_reverification",
+    );
+  });
+
+  it("marks a projection stale at the 30-day boundary without lowering it", () => {
+    const result = projectAbility(
+      buildInput(
+        [NODE_ID],
+        [
+          {
+            mapping: makeMapping(NODE_ID, "a1", "primary"),
+            attempt: makeAttempt("a1", "passed", "2026-06-01T00:00:00.000Z"),
+          },
+        ],
+        { now: "2026-07-01T00:00:00.000Z" },
+      ),
+    );
+    const projection = result.perNode.get(NODE_ID);
+    expect(projection?.visibleLevel).toBe("L1");
+    expect(projection?.stale).toBe(true);
+  });
+
   it("keeps unassessed/low for a single failed primary attempt", () => {
     const result = projectAbility(
       buildInput([NODE_ID], [
@@ -424,6 +468,7 @@ describe("projectAbility", () => {
       visibleLevel: "unassessed",
       confidence: "low",
       evidenceCount: 0,
+      stale: false,
     });
     expect(
       result.perNode.get("cpp-control-flow-functions"),
@@ -431,6 +476,7 @@ describe("projectAbility", () => {
       visibleLevel: "unassessed",
       confidence: "low",
       evidenceCount: 0,
+      stale: false,
     });
     expect(result.transitions).toHaveLength(0);
   });

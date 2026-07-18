@@ -4,7 +4,11 @@ import { z } from "zod";
 import { AbilityLevelSchema } from "@/lib/domain/ability";
 import { type AttemptResult, AttemptResultSchema } from "@/lib/domain/training";
 import { LOCAL_DEFAULT_LEARNER_ID } from "@/lib/domain/learner";
-import { type DailyMode } from "@/lib/domain/plan";
+import {
+  type DailyMode,
+  type PlanItemRole,
+  PlanItemRoleSchema,
+} from "@/lib/domain/plan";
 import { PlatformSchema, type Platform } from "@/lib/domain/source";
 import {
   insertAbilityTransition,
@@ -13,8 +17,6 @@ import {
 } from "@/lib/repositories/ability";
 import {
   appendFeedback,
-  createDailySnapshot,
-  recordRevisionEvent,
 } from "@/lib/repositories/plans";
 import { createManualAttempt } from "@/lib/services/manualAttempts";
 import {
@@ -24,6 +26,7 @@ import {
   type ProjectorInput,
 } from "@/lib/services/abilityProjector";
 import { explainLevel, type Explanation } from "@/lib/services/evidenceExplanation";
+import { regenerateDailyPlan } from "@/lib/services/planRegeneration";
 
 /**
  * V0 atomic plan-item completion service (Todo 15).
@@ -45,8 +48,6 @@ import { explainLevel, type Explanation } from "@/lib/services/evidenceExplanati
  * UNIQUE `(plan_item_id, action)` constraint on `task_feedback` and the
  * deterministic `attempt_id` reproducible for replay tests.
  */
-
-const PLAN_GENERATOR_VERSION = "v0-plan-generator-1" as const;
 
 const CompletionResultSchema = AttemptResultSchema;
 
@@ -95,6 +96,7 @@ export type CompleteResponse =
   | { readonly ok: false; readonly error: string };
 
 type PracticeContext = {
+  readonly taskStableId: string;
   readonly platform: Platform;
   readonly externalId: string;
   readonly title: string;
@@ -109,7 +111,9 @@ type PlanItemContext = {
   readonly snapshotId: string;
   readonly practiceTaskId: string;
   readonly nodeId: string;
+  readonly role: PlanItemRole;
   readonly dailyMode: DailyMode;
+  readonly localDate: string;
   readonly effortBoundaryMinutes: 15 | 30 | 60 | 90;
   readonly practice: PracticeContext;
   readonly isLatestSnapshot: boolean;
@@ -135,6 +139,7 @@ function loadPlanItemContext(
     readonly learner_id: string;
     readonly learning_plan_id: string;
     readonly daily_mode: string;
+    readonly local_date: string;
     readonly effort_boundary_minutes: number;
   };
   type TaskRow = {
@@ -157,6 +162,7 @@ function loadPlanItemContext(
               s.learning_plan_id AS learning_plan_id,
               lp.learner_id   AS learner_id,
               s.daily_mode    AS daily_mode,
+              s.local_date    AS local_date,
               s.effort_boundary_minutes AS effort_boundary_minutes
          FROM plan_items pi
          JOIN daily_plan_snapshots s ON s.id = pi.daily_plan_id
@@ -187,7 +193,7 @@ function loadPlanItemContext(
          JOIN canonical_problem_sources cp
            ON cp.canonical_problem_id = pt.canonical_problem_id
           AND cp.is_primary = 1
-        WHERE pt.stable_id = ?
+        WHERE pt.id = ?
         LIMIT 1`,
     )
     .get(item.practice_task_id);
@@ -200,7 +206,9 @@ function loadPlanItemContext(
     snapshotId: item.daily_plan_id,
     practiceTaskId: item.practice_task_id,
     nodeId: item.node_id,
+    role: PlanItemRoleSchema.parse(item.role),
     dailyMode: z.enum(["learn", "practice", "recover"]).parse(item.daily_mode),
+    localDate: item.local_date,
     effortBoundaryMinutes: z.union([
       z.literal(15),
       z.literal(30),
@@ -208,6 +216,7 @@ function loadPlanItemContext(
       z.literal(90),
     ]).parse(item.effort_boundary_minutes),
     practice: {
+      taskStableId: task.stable_id,
       platform: PlatformSchema.parse(task.platform),
       externalId: task.external_id,
       title: task.title,
@@ -261,13 +270,6 @@ function collectPreviousSnapshots(
     });
   }
   return map;
-}
-
-function formatLocalDate(now: Date): string {
-  const year = now.getUTCFullYear();
-  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(now.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function buildExplanation(
@@ -340,6 +342,9 @@ export function completePlanItem(
   }
   if (!context.isLatestSnapshot) {
     return { ok: false, error: "Plan item no longer belongs to the latest snapshot" };
+  }
+  if (context.role !== "primary") {
+    return { ok: false, error: "Only the primary plan item can be completed" };
   }
   if (parsed.result === "draft") {
     return { ok: false, error: "Draft attempts cannot be recorded as plan completion" };
@@ -414,7 +419,7 @@ export function completePlanItem(
         visible_level: projectionRow.visibleLevel,
         confidence: projectionRow.confidence,
         evidence_count: projectionRow.evidenceCount,
-        stale: false,
+        stale: projectionRow.stale,
         input_fingerprint: projection.inputFingerprint,
         projection_version: PROJECTOR_VERSION,
         as_of_time: nowIso,
@@ -464,33 +469,26 @@ export function completePlanItem(
       transitionForNode,
     );
 
+    const successor = regenerateDailyPlan(db, {
+      learnerId,
+      learningPlanId: context.learningPlanId,
+      beforeSnapshotId: context.snapshotId,
+      localDate: context.localDate,
+      effortBoundaryMinutes: context.effortBoundaryMinutes,
+      dailyMode: context.dailyMode,
+      eventType: "item_completed",
+      inputFingerprint: projection.inputFingerprint,
+      now: nowIso,
+      additionalRecentCompletionTaskId: context.practice.taskStableId,
+    });
+
     appendFeedback(db, planItemId, "completed", {
       now: () => nowIso,
       attemptId,
       reasonCode: null,
       reasonText: null,
-      successorDailyPlanId: null,
+      successorDailyPlanId: successor.snapshotId,
     });
-
-    const successorSnapshot = createDailySnapshot(
-      db,
-      context.learningPlanId,
-      formatLocalDate(new Date(nowMs)),
-      context.effortBoundaryMinutes,
-      context.dailyMode,
-      PLAN_GENERATOR_VERSION,
-      context.snapshotId,
-      { now: () => nowIso },
-    );
-
-    recordRevisionEvent(
-      db,
-      context.snapshotId,
-      successorSnapshot.id,
-      "item_completed",
-      projection.inputFingerprint,
-      { now: () => nowIso },
-    );
 
     return {
       ok: true,
@@ -500,7 +498,7 @@ export function completePlanItem(
       explanation,
       nextPlan: {
         planId: context.learningPlanId,
-        snapshotId: successorSnapshot.id,
+        snapshotId: successor.snapshotId,
       },
     };
   });

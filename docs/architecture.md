@@ -6,7 +6,7 @@ Last updated: 2026-07-15
 
 The app is a local-first unified OJ training memory system. It opens original problem pages through deep links, receives user-visible browser capture events from a user-installed extension, stores local training records in SQLite, and renders deterministic Coach/Growth insights from those records.
 
-This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. Accounts, cloud sync, hosted AI, VS Code capture, and multi-tenant storage are not implemented today.
+This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. Accounts, cloud sync, hosted AI, editor-agnostic project evidence, and multi-tenant storage are not implemented today. The product does not plan editor activity or workspace-footprint monitoring.
 
 ## Runtime modules
 

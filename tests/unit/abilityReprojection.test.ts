@@ -28,10 +28,7 @@ import { computeInputFingerprint } from "@/lib/services/abilityProjector";
  * The fixture imports `tests/fixtures/curriculum/sample-package` so the
  * `knowledge_nodes` rows referenced by `attempt_node_mappings` exist;
  * without them the FK on `ability_snapshots.node_id` would reject the
- * reprojection. Foreign-key enforcement stays OFF for parity with the
- * plan-completion tests: the planner writes `node_id` as the
- * `knowledge_nodes.stable_id`, which is the established pre-existing
- * design gap documented in the Todo 15 evidence.
+ * reprojection. Foreign-key enforcement stays enabled to match production.
  */
 
 const SAMPLE_FIXTURE = join(
@@ -55,6 +52,7 @@ type SnapshotRow = {
   readonly visible_level: string;
   readonly confidence: string;
   readonly evidence_count: number;
+  readonly stale: number;
 };
 type RevisionRow = {
   readonly event_type: string;
@@ -71,7 +69,7 @@ function openImportedDb(): {
   tempDirs.push(tmp);
   const db = new Database(join(tmp, "reproj.sqlite"));
   tempDbs.push(db);
-  db.pragma("foreign_keys = OFF");
+  db.pragma("foreign_keys = ON");
   applyMigrations(db, { now: () => "2026-07-17T00:00:00.000Z" });
   const result = importPackage(db, SAMPLE_FIXTURE);
   if (!result.ok) {
@@ -140,6 +138,40 @@ afterEach(() => {
 });
 
 describe("reprojectAfterCorrection", () => {
+  it("persists stale=true at 30 days without lowering the visible level", async () => {
+    const { db } = openImportedDb();
+    const attemptId = "manual_reproj_stale";
+    createManualAttempt(db, {
+      platform: "atcoder",
+      problemExternalId: "practice_1",
+      problemTitle: "Practice 1",
+      startedAt: "2026-06-01T00:00:00.000Z",
+      endedAt: "2026-06-01T00:15:00.000Z",
+      result: "passed",
+    }, {
+      id: () => attemptId,
+      now: () => "2026-06-01T00:16:00.000Z",
+    });
+    seedMapping(db, attemptId, NODE_ID_A, "primary", "manual_completion");
+
+    await reprojectAfterCorrection(db, {
+      learnerId: LEARNER,
+      attemptId,
+      trigger: "attempt_corrected",
+      now: "2026-07-01T00:00:00.000Z",
+    });
+
+    const snapshot = db
+      .prepare<[string, string], SnapshotRow>(
+        `SELECT visible_level, confidence, evidence_count, stale
+           FROM ability_snapshots
+          WHERE learner_id = ? AND node_id = ?`,
+      )
+      .get(LEARNER, NODE_ID_A);
+    expect(snapshot?.visible_level).toBe("L1");
+    expect(snapshot?.stale).toBe(1);
+  });
+
   it("drops a mapped passed ability down to unassessed after correction to failed", async () => {
     const { db } = openImportedDb();
     const attemptId = "manual_reproj_correct";
@@ -602,7 +634,14 @@ describe("wrapWithReprojection revision-event audit trail", () => {
       .get();
     expect(eventRow?.event_type).toBe("attempt_corrected");
     expect(eventRow?.before_daily_plan_id).toBe(snapshotId);
-    expect(eventRow?.after_daily_plan_id).toBe(snapshotId);
+    expect(eventRow?.after_daily_plan_id).not.toBe(snapshotId);
+    expect(
+      db
+        .prepare<[string], CountRow>(
+          "SELECT COUNT(*) AS c FROM plan_items WHERE daily_plan_id = ? AND role = 'primary'",
+        )
+        .get(eventRow?.after_daily_plan_id ?? "")?.c,
+    ).toBe(1);
     expect(eventRow?.input_fingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 });

@@ -554,6 +554,9 @@ test("V0 offline-core loop: full browser path /map → /plan → /today → corr
     await page.goto("/today");
     const todayMain = page.locator("main").first();
     await expect(todayMain).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "今日主任务", exact: true }),
+    ).toBeVisible();
 
     // Phase 7: ability snapshot must exist for the mapped node at L1.
     const abilityRow = hasAbilitySnapshot(

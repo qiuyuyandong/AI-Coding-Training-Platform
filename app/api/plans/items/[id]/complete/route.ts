@@ -113,7 +113,7 @@ function loadReflectionScalars(
               ds.effort_boundary_minutes AS effort_boundary_minutes
          FROM plan_items pi
          JOIN knowledge_nodes kn ON kn.id = pi.node_id
-         JOIN practice_tasks pt ON pt.stable_id = pi.practice_task_id
+         JOIN practice_tasks pt ON pt.id = pi.practice_task_id
          JOIN daily_plan_snapshots ds ON ds.id = pi.daily_plan_id
         WHERE pi.id = ?
         LIMIT 1`,

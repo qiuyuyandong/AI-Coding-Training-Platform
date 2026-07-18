@@ -1,8 +1,12 @@
 # Phase 7 Public Beta Cloud Delivery Plan
 
+**Status (2026-07-18):** Long-term total product target; not started. Phase 6
+has not produced its readiness decision, so the entry gate is not met. This is
+not an active implementation plan.
+
 > **For agentic workers:** Activate this plan only after the Phase 6 readiness decision. Use `superpowers:brainstorming` for the provider/data architecture, `superpowers:writing-plans` for atomic tasks, the relevant security threat-model skill before implementation, `superpowers:test-driven-development` during implementation, and `superpowers:verification-before-completion` before inviting public users.
 
-**Goal:** Convert the validated V1 pilot into a hosted multi-user product with durable cloud data, authenticated browser/VS Code ingestion, limited platform AI and complete user data controls.
+**Goal:** Convert the validated V1 pilot into a hosted multi-user product with durable cloud data, authenticated browser OJ ingestion, explicit project-evidence submission, limited platform AI and complete user data controls.
 
 **Non-goals:** No social feed, leaderboard, large organization tenancy, automatic import of arbitrary repositories, unrestricted free AI, self-hosted foundation model, MCP ecosystem, or broad paid launch before cost and retention are understood.
 
@@ -84,10 +88,10 @@ The atomic implementation plan copies the chosen exact providers and versions fr
 - [ ] Implement full/basic/minimal modes, retention expiry, user pinning, per-task delete and delete-all.
 - [ ] Reconcile orphan database rows/objects and prove deletion retries are safe.
 
-### 7.4 Authenticated browser and VS Code ingestion
+### 7.4 Authenticated browser ingestion and explicit project evidence
 
-- [ ] Replace localhost-only identity with scoped device installations and revocable credentials.
-- [ ] Bind every event to tenant, device, adapter/extension version, session/submission and idempotency key.
+- [ ] Replace localhost-only identity with scoped browser installations and revocable credentials.
+- [ ] Bind every browser event to tenant, installation, adapter version, session/submission and idempotency key; bind every project-evidence submission to tenant, learner confirmation, task, purpose and checksum.
 - [ ] Implement bounded offline queue, refresh, conflict response and visible sync health.
 - [ ] Preserve local/manual fallback when cloud or a platform adapter is unavailable.
 
@@ -109,7 +113,7 @@ The atomic implementation plan copies the chosen exact providers and versions fr
 
 - [ ] Add production health, structured redacted logging, alerting, incident runbook, provider/cost dashboards and restore drills.
 - [ ] Publish Chrome and Edge packages with minimum optional host permissions and reviewed privacy disclosures.
-- [ ] Provide a Windows installation/diagnostics path for the browser and VS Code extensions.
+- [ ] Provide a Windows installation/diagnostics path for the browser extension and editor-neutral explicit evidence workflow.
 - [ ] Verify core pages, resources and extension endpoints from representative mainland-China networks.
 
 ### 7.8 Controlled Public Beta
@@ -138,13 +142,13 @@ Run the normal repository gate plus the cloud integration, migration, authorizat
 
 - [ ] Every learner-private repository/API operation requires and tests a tenant scope.
 - [ ] Automated cross-tenant suites find zero unauthorized read, mutation, object access or inference path.
-- [ ] Browser and VS Code devices can be listed and revoked; replay cannot duplicate evidence or quota usage.
+- [ ] Browser installations can be listed and revoked; replay cannot duplicate browser events, explicit evidence or quota usage.
 - [ ] Full/basic/minimal modes are enforced end to end.
 - [ ] Export is complete and readable; account deletion removes active relational/object data according to the published contract.
 - [ ] BYOK secrets never appear in plaintext database rows, responses, logs, support bundles or exports.
 - [ ] Platform AI quotas are race-safe and deterministic fallback survives exhaustion/outage.
 - [ ] Backup restore and one failed-migration rollback are rehearsed in staging.
-- [ ] Chrome/Edge/VS Code distribution and Windows setup pass the supported-environment checklist.
+- [ ] Chrome/Edge distribution and the editor-neutral Windows evidence workflow pass the supported-environment checklist.
 - [ ] Public privacy/provider/retention disclosures match the implemented data flow.
 - [ ] Critical security/data-loss defects are zero before public invitation.
 

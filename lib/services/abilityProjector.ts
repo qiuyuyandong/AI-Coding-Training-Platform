@@ -88,7 +88,13 @@ export type PerNodeProjection = {
   readonly visibleLevel: AbilityLevel;
   readonly confidence: AbilityConfidence;
   readonly evidenceCount: number;
+  readonly stale: boolean;
 };
+
+export type PreviousNodeProjection = Pick<
+  PerNodeProjection,
+  "visibleLevel" | "confidence" | "evidenceCount"
+>;
 
 export type ProjectorInput = {
   readonly learnerId: string;
@@ -97,7 +103,7 @@ export type ProjectorInput = {
     readonly attempt: AttemptRef;
   }>;
   readonly nodeIds: ReadonlyArray<string>;
-  readonly previousSnapshots?: ReadonlyMap<string, PerNodeProjection>;
+  readonly previousSnapshots?: ReadonlyMap<string, PreviousNodeProjection>;
   readonly now: string;
 };
 
@@ -187,15 +193,70 @@ type PerNodeProjectionInputs = {
     readonly mapping: AttemptNodeMappingRow;
     readonly attempt: AttemptRef;
   }>;
-  readonly previous: PerNodeProjection | undefined;
+  readonly previous: PreviousNodeProjection | undefined;
   readonly nowMs: number;
 };
 
 type PerNodeProjectionOutput = {
   readonly projection: PerNodeProjection;
   readonly transition: AbilityTransition | null;
-  readonly isStale: boolean;
 };
+
+type QualifyingPassPair = {
+  readonly first: {
+    readonly mapping: AttemptNodeMappingRow;
+    readonly attempt: AttemptRef;
+  };
+  readonly second: {
+    readonly mapping: AttemptNodeMappingRow;
+    readonly attempt: AttemptRef;
+  };
+  readonly reasonCode:
+    | "primary_second_pass_distinct_problem"
+    | "primary_second_pass_delayed_reverification";
+};
+
+function findQualifyingPassPair(
+  primaryPasses: ReadonlyArray<{
+    readonly mapping: AttemptNodeMappingRow;
+    readonly attempt: AttemptRef;
+  }>,
+): QualifyingPassPair | null {
+  for (let firstIndex = 0; firstIndex < primaryPasses.length - 1; firstIndex += 1) {
+    const first = primaryPasses[firstIndex];
+    if (first === undefined) continue;
+    const firstMs = parseTimestamp(first.attempt.startedAt);
+    for (
+      let secondIndex = firstIndex + 1;
+      secondIndex < primaryPasses.length;
+      secondIndex += 1
+    ) {
+      const second = primaryPasses[secondIndex];
+      if (second === undefined) continue;
+      const isDistinctProblem =
+        first.attempt.canonicalProblemId !== undefined &&
+        second.attempt.canonicalProblemId !== undefined &&
+        first.attempt.canonicalProblemId !== second.attempt.canonicalProblemId;
+      if (isDistinctProblem) {
+        return {
+          first,
+          second,
+          reasonCode: "primary_second_pass_distinct_problem",
+        };
+      }
+      const gapDays =
+        (parseTimestamp(second.attempt.startedAt) - firstMs) / MS_PER_DAY;
+      if (gapDays >= RE_VERIFICATION_DAYS) {
+        return {
+          first,
+          second,
+          reasonCode: "primary_second_pass_delayed_reverification",
+        };
+      }
+    }
+  }
+  return null;
+}
 
 function projectSingleNode(
   inputs: PerNodeProjectionInputs,
@@ -250,39 +311,19 @@ function projectSingleNode(
   let sourceAttemptRevisions: number[] = [];
 
   if (primaryPasses.length >= 2) {
-    const first = primaryPasses[0];
-    const second = primaryPasses[1];
+    const qualifyingPair = findQualifyingPassPair(primaryPasses);
+    const first = qualifyingPair?.first ?? primaryPasses[0];
+    const second = qualifyingPair?.second ?? primaryPasses[1];
     if (first !== undefined && second !== undefined) {
-      const firstMs = parseTimestamp(first.attempt.startedAt);
-      const secondMs = parseTimestamp(second.attempt.startedAt);
-      const gapDays = (secondMs - firstMs) / MS_PER_DAY;
-      const isDistinctProblem =
-        first.attempt.canonicalProblemId !== undefined &&
-        second.attempt.canonicalProblemId !== undefined &&
-        first.attempt.canonicalProblemId !==
-          second.attempt.canonicalProblemId;
-      const isDelayed = gapDays >= RE_VERIFICATION_DAYS;
-      if (isDistinctProblem || isDelayed) {
-        visibleLevel = "L2";
-        reasonCodes = [
-          isDistinctProblem
-            ? "primary_second_pass_distinct_problem"
-            : "primary_second_pass_delayed_reverification",
-        ];
-        sourceAttemptIds = [first.attempt.id, second.attempt.id];
-        sourceAttemptRevisions = [
-          first.attempt.revision,
-          second.attempt.revision,
-        ];
-      } else {
-        visibleLevel = "L1";
-        reasonCodes = ["primary_repeat_short_window"];
-        sourceAttemptIds = [first.attempt.id, second.attempt.id];
-        sourceAttemptRevisions = [
-          first.attempt.revision,
-          second.attempt.revision,
-        ];
-      }
+      visibleLevel = qualifyingPair === null ? "L1" : "L2";
+      reasonCodes = [
+        qualifyingPair?.reasonCode ?? "primary_repeat_short_window",
+      ];
+      sourceAttemptIds = [first.attempt.id, second.attempt.id];
+      sourceAttemptRevisions = [
+        first.attempt.revision,
+        second.attempt.revision,
+      ];
     }
   } else if (primaryPasses.length === 1) {
     const first = primaryPasses[0];
@@ -341,23 +382,7 @@ function projectSingleNode(
   if (primaryFailures.length > 0 || primaryPasses.length === 0) {
     confidence = "low";
   } else if (visibleLevel === "L2") {
-    const firstPass = primaryPasses[0];
-    const secondPass = primaryPasses[1];
-    if (firstPass !== undefined && secondPass !== undefined) {
-      const firstMs = parseTimestamp(firstPass.attempt.startedAt);
-      const secondMs = parseTimestamp(secondPass.attempt.startedAt);
-      const gapDays = (secondMs - firstMs) / MS_PER_DAY;
-      const isDistinctProblem =
-        firstPass.attempt.canonicalProblemId !== undefined &&
-        secondPass.attempt.canonicalProblemId !== undefined &&
-        firstPass.attempt.canonicalProblemId !==
-          secondPass.attempt.canonicalProblemId;
-      const isDelayed = gapDays >= RE_VERIFICATION_DAYS;
-      confidence =
-        isDistinctProblem || isDelayed ? "medium" : "low";
-    } else {
-      confidence = "low";
-    }
+    confidence = "medium";
   } else {
     confidence = "low";
   }
@@ -375,6 +400,7 @@ function projectSingleNode(
     visibleLevel,
     confidence,
     evidenceCount,
+    stale: isStale,
   };
 
   const previousLevel = previous?.visibleLevel ?? "unassessed";
@@ -390,7 +416,7 @@ function projectSingleNode(
         }
       : null;
 
-  return { projection, transition, isStale };
+  return { projection, transition };
 }
 
 export function computeInputFingerprint(input: ProjectorInput): string {

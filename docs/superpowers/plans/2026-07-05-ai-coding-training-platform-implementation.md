@@ -1,5 +1,9 @@
 # Unified OJ Entry + Capture Sync Implementation Plan
 
+**Status:** Historical prototype implementation record. Its reused "V1" label
+predates the current V0/V0.5/V1 roadmap; unchecked boxes here are not current
+project work and this plan must not be resumed line by line.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build V1 as a local-first unified coding-practice entry: search problems in one app, deep-link to original OJ sites for training, capture user-visible training events through a browser extension, and feed attempts into local Coach/Growth analysis.

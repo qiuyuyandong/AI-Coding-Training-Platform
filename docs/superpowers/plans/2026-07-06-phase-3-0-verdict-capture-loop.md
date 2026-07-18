@@ -1,5 +1,9 @@
 # Phase 3.0 Verdict Capture Loop Implementation Plan
 
+**Status:** Completed historical prototype record. "Phase 3.0" here predates
+the current roadmap's Phase 3 evidence/ability/review work and is not an active
+plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the browser extension emit real verdict events so local attempts move from draft to passed/failed/partial/stuck and Coach/Growth become usable with real training data.

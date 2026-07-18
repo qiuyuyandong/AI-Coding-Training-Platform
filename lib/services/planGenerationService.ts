@@ -15,6 +15,7 @@ import {
   type PlanGeneratorInput,
 } from "@/lib/services/planGenerator";
 import type { PlanItemRole } from "@/lib/domain/plan";
+import { serializeLearningPlanSnapshot } from "@/lib/services/planSnapshot";
 
 /**
  * V0 transactional persistence wrapper around `generatePlan`.
@@ -60,7 +61,12 @@ export function generateAndPersistPlan(
       db,
       input.learnerId,
       PLAN_GENERATOR_VERSION,
-      JSON.stringify({}),
+      serializeLearningPlanSnapshot({
+        goalPrimaryNodeId: input.goalPrimaryNodeId,
+        goalInterestNodeIds: input.goalInterestNodeIds === undefined
+          ? undefined
+          : [...input.goalInterestNodeIds],
+      }),
       {},
     );
 

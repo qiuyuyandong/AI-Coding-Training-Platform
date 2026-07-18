@@ -3,9 +3,23 @@
 
 # Agent Handoff Guide
 
-> **Status (2026-07-18):** **V0 exit candidate; F1-F4 final verification and user acceptance pending.** Engineering gates PASS at implementationSha `d6c0f14aafb663c8746ad5e30d968508d539ec07`; observationRecordSha `5a0e0a0f12a0fcf24683564fb5146087a9c59c9f`. See `work/reports/v0-exit-report.md` for the full SHA chain, decision and limitations. V0 is not declared complete or accepted until F1-F4 all APPROVE and the user explicitly accepts the V0 verification.
+> **Status (2026-07-18):** **V0 validation.** Phase 0 is complete; the V0
+> functional slice and stabilization fixes are implemented. Real-use
+> observations, same-SHA F1–F4 verification, and explicit user acceptance are
+> pending. The previous `ACCEPT_CANDIDATE` report was premature because its
+> observation artifacts contain no sessions.
 
-This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, 0D, and the Phase 0 AtCoder production certification (T1–T8) are implemented. Phase 0 is complete and reconciled green on 2026-07-17; AtCoder is the sole certified production adapter. The V0 manual learning loop vertical slice has been implemented and recorded as a V0 exit candidate pending F1-F4 final verification and user acceptance.
+> **Current worktree stabilization:** Known post-review completion, ability,
+> optional-AI and Windows link-check issues are repaired and the fresh full
+> quality gate passes. The changes are not committed, so the authoritative
+> implementation SHA remains pending. Evidence:
+> `work/reports/v0-stabilization-2026-07-18.md`.
+> `tests/unit/v0ReportValidators.test.ts` now contains 13 real
+> temporary-repository cases for the two-commit release contract. Its focused
+> suite, lint, and typecheck pass; the RC SHA remains pending the authoritative
+> quality gate and checkpoint commit.
+
+This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, 0D, and the Phase 0 AtCoder production certification (T1–T8) are implemented. Phase 0 is complete and reconciled green on 2026-07-17; AtCoder is the sole certified production adapter. The V0 manual learning loop vertical slice is implemented and in validation, not accepted. The only active execution plan is `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md`.
 
 `IDEA.md` and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` define the future V0/V0.5/V1/Public Beta direction. `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud SaaS as the eventual target but explicitly defers implementation until the Phase 7 gate.
 
@@ -21,9 +35,9 @@ This repository currently implements a local-first AI coding training prototype.
 - E2E database teardown uses `lstatSync`-based safe deletion (handles symlinks, junctions, and broken reparse points). One file-symlink capability test is skipped under EPERM; all mandatory junction tests pass.
 - Playwright e2e smoke tests own the local browser QA server lifecycle through `playwright.config.ts`.
 
-## V0 manual learning loop (exit candidate)
+## V0 manual learning loop (implemented; validation pending)
 
-The V0 vertical slice is implemented as an **exit candidate** pending F1–F4 final verification and explicit user acceptance. The following surface exists in code today and is exercised by the offline-core Playwright gate:
+The V0 vertical slice is implemented and passes the current worktree quality gate. It is **not yet a valid exit candidate or accepted release** because the owner and participant observation windows are empty, the stabilization work has no committed implementation SHA, and F1–F4 must be rerun afterward. The following surface exists in code today and is exercised by the offline-core Playwright gate:
 
 - Curriculum catalog: `content/tracks/software-development-foundations-v1/` (12 published nodes, 13 prerequisite edges, 12 reviewed resources, 12 practice mappings) and `content/careers/career-directions-v1.json` (9 career summaries). Migration 0006 adds the catalog tables; the CLI scripts `validate-curriculum.mjs` and `check-curriculum-links.mjs` gate the package.
 - Learner and plan persistence: migration 0007 adds `learner_profiles`, `learner_goals`, `diagnostic_sessions`, `diagnostic_responses`, `learner_node_baselines`, `learning_plans`, `daily_plan_snapshots`, `plan_items`, `task_feedback`, `plan_revision_events`.
@@ -31,7 +45,7 @@ The V0 vertical slice is implemented as an **exit candidate** pending F1–F4 fi
 - Pages: `/map` (keyboard-readable list of 12 nodes plus a static SVG visualization of the 13 edges, labelled supplementary), `/map/[nodeId]` (node detail with outcome, rationale, prerequisites, resource, practice, ability), `/plan` (goal + 6-prompt diagnosis + starting-node override), `/today` (one primary task with ≤3 alternatives and the completion loop).
 - APIs: `POST /api/diagnosis` (start/response/complete/override), `POST /api/plans/items/[id]/complete`, `POST /api/plans/items/[id]/feedback`, `POST /api/plan/goal`, `POST /api/plan/override-start`.
 - Optional AI reflection: `lib/services/reflectionExperiment.ts` (default disabled, per-request opt-in, native `fetch` only, 7-scalar allowlist, network-denial guard for loopback/RFC1918, deterministic result-keyed fallback). See ADR 0002.
-- Observability: `scripts/validate-v0-observation.mjs` (owner/participants), `scripts/validate-v0-exit.mjs` (candidate/accepted).
+- Observability: `scripts/validate-v0-observation.mjs` (owner/participants), `scripts/validate-v0-exit.mjs` (final two-commit release validation).
 
 ## Commands
 
@@ -94,4 +108,4 @@ These are current implementation boundaries, not a permanent rejection of the ap
   Phase 0D plan: `docs/superpowers/plans/2026-07-15-phase-0d-engineering-quality-gates.md`. Evidence: `work/reports/phase-0d-engineering-gates.md`. Current Commander state: `work/handoff-current.md`.
 - Phase 0C2 completed on 2026-07-14 and is merged at `983e10a`.
 - Phase 0B4 (Luogu adapter certification) executed on 2026-07-14 with BLOCKED terminal state. The Luogu certification gate confirmed no production adapter existed at that time. The blocker artifact (`work/reports/luogu-adapter-blocker.json`) documents the missing public verdict DOM as the reason. Re-attempting Luogu production-adapter certification requires a publicly accessible Luogu page with verdict DOM or a new design decision to accept characterization-only evidence.
-- Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. The next product action is writing and approving a V0 vertical-slice plan. Do not re-execute the completed 0A-0C2, 0B4, and AtCoder T1–T8 plans; they are retained as implementation records. Do not start Phase 1 until a new V0 plan is written and approved.
+- Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. The current product action is executing `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md`. Do not re-execute the completed 0A-0C2, 0B4, AtCoder T1–T8, or V0 implementation plans; they are retained as implementation records. Do not start V0.5 until V0 is explicitly accepted.

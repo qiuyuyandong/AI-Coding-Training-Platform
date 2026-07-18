@@ -1,5 +1,10 @@
 # Phase 1 Curriculum Graph and Resource Catalog Delivery Plan
 
+**Status (2026-07-18):** Partially implemented through the V0 thin slice (12
+published nodes, 12 reviewed resources, 12 practice mappings, 13 edges, and
+nine career summaries). This broad capability plan is not an active checklist;
+remaining expansion requires a fresh delta plan after V0 acceptance.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:brainstorming to confirm the first content slice, superpowers:writing-plans for atomic tasks, and superpowers:test-driven-development during implementation.
 
 **Goal:** Publish a reviewed, versioned vertical slice of `Software Development Foundations v1`, plus nine shallow career-direction summaries, connecting direction, prerequisites, legal resources and concrete coding work.

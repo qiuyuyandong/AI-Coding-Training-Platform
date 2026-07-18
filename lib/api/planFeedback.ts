@@ -6,11 +6,10 @@ import {
 } from "@/lib/domain/plan";
 import {
   appendFeedback,
-  createDailySnapshot,
   findActivePlan,
   findLatestDailySnapshot,
-  recordRevisionEvent,
 } from "@/lib/repositories/plans";
+import { regenerateDailyPlan } from "@/lib/services/planRegeneration";
 
 export type ApplyFeedbackInput = {
   readonly planItemId: string;
@@ -39,6 +38,7 @@ type PlanItemLookupRow = {
   readonly local_date: string;
   readonly daily_mode: string;
   readonly effort_boundary_minutes: number;
+  readonly practice_task_stable_id: string;
 };
 
 function lookupPlanItem(
@@ -55,9 +55,11 @@ function lookupPlanItem(
               s.local_date    AS local_date,
               s.daily_mode    AS daily_mode,
               s.effort_boundary_minutes AS effort_boundary_minutes
+              , task.stable_id AS practice_task_stable_id
          FROM plan_items pi
          JOIN daily_plan_snapshots s ON s.id = pi.daily_plan_id
          JOIN learning_plans lp ON lp.id = s.learning_plan_id
+         JOIN practice_tasks task ON task.id = pi.practice_task_id
         WHERE pi.id = ?
         LIMIT 1`,
     )
@@ -162,23 +164,21 @@ export function applyFeedback(
     if (shouldResnapshot && revisionEventType !== null) {
       const nextEffort: EffortBoundaryMinutes =
         input.effortBoundaryMinutes ?? currentSnapshot.effortBoundaryMinutes;
-      const successor = createDailySnapshot(
-        db,
-        activePlan.id,
-        currentSnapshot.localDate,
-        nextEffort,
-        currentSnapshot.dailyMode,
-        currentSnapshot.generatorVersion,
-        currentSnapshot.id,
-      );
-      successorSnapshotId = successor.id;
-      recordRevisionEvent(
-        db,
-        currentSnapshot.id,
-        successor.id,
-        revisionEventType,
-        `feedback:${input.action}:${input.planItemId}`,
-      );
+      const now = new Date().toISOString();
+      const successor = regenerateDailyPlan(db, {
+        learnerId: input.learnerId,
+        learningPlanId: activePlan.id,
+        beforeSnapshotId: currentSnapshot.id,
+        localDate: currentSnapshot.localDate,
+        effortBoundaryMinutes: nextEffort,
+        dailyMode: currentSnapshot.dailyMode,
+        eventType: revisionEventType,
+        inputFingerprint: `feedback:${input.action}:${input.planItemId}:${nextEffort}`,
+        now,
+        additionalRecentlySkippedTaskId:
+          input.action === "skipped" ? item.practice_task_stable_id : undefined,
+      });
+      successorSnapshotId = successor.snapshotId;
     }
 
     const feedback = appendFeedback(db, input.planItemId, input.action, {

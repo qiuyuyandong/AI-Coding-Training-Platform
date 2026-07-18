@@ -1,6 +1,10 @@
 # Phase 0D Engineering Quality Gates Implementation Plan
 
-**Status:** Completed and fully verified on 2026-07-15. This plan completes Phase 0D only. Phase 0 remains open while production-adapter certification is BLOCKED. Evidence: `work/reports/phase-0d-engineering-gates.md`. Handoff: `work/handoff-current.md`.
+**Status:** Completed and fully verified on 2026-07-15. This plan completed
+Phase 0D only; Phase 0 was still open at that point, then closed on 2026-07-17
+after AtCoder production certification. Evidence:
+`work/reports/phase-0d-engineering-gates.md`. Handoff:
+`work/handoff-current.md`.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

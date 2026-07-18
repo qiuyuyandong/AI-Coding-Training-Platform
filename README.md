@@ -1,8 +1,23 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-18):** **V0 exit candidate; F1-F4 final verification and user acceptance pending.** Engineering gates PASS at implementationSha `d6c0f14aafb663c8746ad5e30d968508d539ec07`; observationRecordSha `5a0e0a0f12a0fcf24683564fb5146087a9c59c9f`. See `work/reports/v0-exit-report.md` for the full SHA chain, decision and limitations. V0 is not declared complete or accepted until F1-F4 all APPROVE and the user explicitly accepts the V0 verification.
+> **Status (2026-07-18):** **V0 validation.** Phase 0 is complete. The V0
+> functional slice and stabilization fixes are implemented, but real-use
+> observations, same-SHA F1–F4 verification, and explicit user acceptance are
+> pending. The earlier exit-candidate record was premature and is not an
+> accepted release decision.
 
-This repository currently contains a **V0 exit candidate build of a local learning loop** with the V0 engineering gates passing and observation windows pending. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release.
+> **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` now exercises
+> 13 real temporary-repository cases for the two-commit release contract. The
+> focused suite, lint, and typecheck pass; the RC implementation SHA is pending
+> the authoritative quality gate and checkpoint commit.
+
+> **Post-candidate stabilization:** The current uncommitted worktree repairs the
+> plan-completion row-ID regression, stale projection, later-pass L2 promotion,
+> optional-AI lookup and Windows link-check harness. A fresh eight-stage quality
+> gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. A new committed
+> implementation SHA and F1-F4/user acceptance are still pending.
+
+This repository currently contains an implemented and worktree-verified **V0 local learning loop under validation**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release. The only active plan is `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md`.
 
 It provides:
 
@@ -12,7 +27,7 @@ It provides:
 - a paired, session- and submission-aware local capture API;
 - captured and manually entered local attempts, with traceable corrections and logical voiding;
 - Coach and Growth pages that use active attempts by default;
-- a V0 **manual learning loop** (exit candidate, pending F1–F4 final verification and user acceptance): a 12-node foundation curriculum with 12 reviewed resources, 12 mapped practice tasks, 13 prerequisite edges and 9 career summaries; a 6-prompt resumable diagnosis with starting-node override; deterministic candidate selection with semantic alternatives; an atomic completion loop that records attempt, attempt→node mapping, ability projection and successor plan; optional opt-in per-completion AI reflection (default disabled, network-denial guard, deterministic fallback). V0 introduces the `/map`, `/plan`, and `/today` pages and the underlying services, repositories, migrations 0006/0007/0008, and validators described under `work/reports/v0-exit-report.md`.
+- a V0 **manual learning loop** (implemented; observation and acceptance pending): a 12-node foundation curriculum with 12 reviewed resources, 12 mapped practice tasks, 13 prerequisite edges and 9 career summaries; a 6-prompt resumable diagnosis with starting-node override; deterministic candidate selection with semantic alternatives; an atomic completion loop that records attempt, attempt→node mapping, ability projection and successor plan; optional opt-in per-completion AI reflection (default disabled, network-denial guard, deterministic fallback). V0 introduces the `/map`, `/plan`, and `/today` pages and the underlying services, repositories, migrations 0006/0007/0008, and validators.
 
 The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
 

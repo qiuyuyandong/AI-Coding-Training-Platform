@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync } from "nod
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:http";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { describe, expect, it, afterAll, beforeAll } from "vitest";
 import type { Server } from "node:http";
 
@@ -13,6 +13,7 @@ async function startTestServer(): Promise<{ server: Server; port: number }> {
   const redirectMap: Record<string, string> = {
     "/redirect-once": "/ok",
     "/redirect-twice": "/redirect-once",
+    "/final-dup-alt": "/final-dup",
   };
   const chain = ["/r1", "/r2", "/r3", "/r4", "/r5", "/r6"];
   for (let i = 0; i < chain.length - 1; i++) {
@@ -37,7 +38,7 @@ async function startTestServer(): Promise<{ server: Server; port: number }> {
         res.end("slow response");
       }, 12_000);
     } else if (redirectMap[url]) {
-      res.writeHead(301, { Location: `http://127.0.0.1:${redirectMap[url]}` });
+      res.writeHead(301, { Location: redirectMap[url] });
       res.end();
     } else {
       res.writeHead(200);
@@ -112,12 +113,41 @@ function writeMinimalPkg(dstDir: string, port: number, resourceUrl: string, reso
   writeFileSync(join(careersDir, "career-directions-v1.json"), careersData);
 }
 
-function runCli(pkgPath: string, outPath: string): ReturnType<typeof spawnSync> {
-  return spawnSync(
-    "node",
-    ["--import", "tsx", "scripts/check-curriculum-links.mjs", pkgPath, "--profile", "test", "--output", outPath],
-    { cwd: process.cwd() },
-  );
+type CliResult = {
+  readonly status: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
+};
+
+function runCli(pkgPath: string, outPath: string): Promise<CliResult> {
+  return new Promise<CliResult>((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [
+        "scripts/check-curriculum-links.mjs",
+        pkgPath,
+        "--profile",
+        "test",
+        "--output",
+        outPath,
+      ],
+      { cwd: process.cwd(), windowsHide: true },
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (status) => {
+      resolve({ status, stdout, stderr });
+    });
+  });
 }
 
 function readJson(path: string): unknown {
@@ -140,12 +170,12 @@ describe("check-curriculum-links", () => {
     }
   });
 
-  it("ok route: summary.failed === 0", () => {
+  it("ok route: summary.failed === 0", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "link-check-ok-"));
     try {
       writeMinimalPkg(tmp, port, `http://127.0.0.1:${port}/ok`, "sample-resource-a");
       const outPath = join(tmp, "out.json");
-      const result = runCli(join(tmp, "pkg"), outPath);
+      const result = await runCli(join(tmp, "pkg"), outPath);
       expect(result.status).toBe(0);
       const output = readJson(outPath) as { summary: { failed: number } };
       expect(output.summary.failed).toBe(0);
@@ -154,12 +184,12 @@ describe("check-curriculum-links", () => {
     }
   });
 
-  it("redirect-twice: resolves with 2 redirects", () => {
+  it("redirect-twice: resolves with 2 redirects", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "link-check-redir2-"));
     try {
       writeMinimalPkg(tmp, port, `http://127.0.0.1:${port}/redirect-twice`, "sample-resource-a");
       const outPath = join(tmp, "out.json");
-      runCli(join(tmp, "pkg"), outPath);
+      await runCli(join(tmp, "pkg"), outPath);
       const output = readJson(outPath) as { results: Array<{ url: string; redirects: number }> };
       const r = output.results.find((res) => res.url.includes("/redirect-twice"));
       expect(r?.redirects).toBe(2);
@@ -168,12 +198,12 @@ describe("check-curriculum-links", () => {
     }
   });
 
-  it("redirect-six: at least one result has redirect error", () => {
+  it("redirect-six: at least one result has redirect error", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "link-check-redir6-"));
     try {
       writeMinimalPkg(tmp, port, `http://127.0.0.1:${port}/redirect-six`, "sample-resource-a");
       const outPath = join(tmp, "out.json");
-      runCli(join(tmp, "pkg"), outPath);
+      await runCli(join(tmp, "pkg"), outPath);
       const output = readJson(outPath) as { results: Array<{ ok: boolean; error?: string }> };
       const hasRedirectError = output.results.some(
         (r) => r.ok === false && r.error !== undefined && /redirect/i.test(r.error),
@@ -184,12 +214,12 @@ describe("check-curriculum-links", () => {
     }
   });
 
-  it("slow: at least one result has abort/timeout error", () => {
+  it("slow: at least one result has abort/timeout error", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "link-check-slow-"));
     try {
       writeMinimalPkg(tmp, port, `http://127.0.0.1:${port}/slow`, "sample-resource-a");
       const outPath = join(tmp, "out.json");
-      runCli(join(tmp, "pkg"), outPath);
+      await runCli(join(tmp, "pkg"), outPath);
       const output = readJson(outPath) as { results: Array<{ ok: boolean; error?: string }> };
       const hasTimeoutError = output.results.some(
         (r) => r.ok === false && r.error !== undefined && /abort|timeout/i.test(r.error),
@@ -198,14 +228,14 @@ describe("check-curriculum-links", () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
-  }, 15_000);
+  }, 20_000);
 
-  it("not-found: at least one result has 404/status error", () => {
+  it("not-found: at least one result has 404/status error", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "link-check-404-"));
     try {
       writeMinimalPkg(tmp, port, `http://127.0.0.1:${port}/not-found`, "sample-resource-a");
       const outPath = join(tmp, "out.json");
-      runCli(join(tmp, "pkg"), outPath);
+      await runCli(join(tmp, "pkg"), outPath);
       const output = readJson(outPath) as { results: Array<{ ok: boolean; error?: string }> };
       const has404Error = output.results.some(
         (r) => r.ok === false && r.error !== undefined && /(404|status)/i.test(r.error),
@@ -216,12 +246,12 @@ describe("check-curriculum-links", () => {
     }
   });
 
-  it("login: at least one result has password/login marker error", () => {
+  it("login: at least one result has password/login marker error", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "link-check-login-"));
     try {
       writeMinimalPkg(tmp, port, `http://127.0.0.1:${port}/login`, "sample-resource-a");
       const outPath = join(tmp, "out.json");
-      runCli(join(tmp, "pkg"), outPath);
+      await runCli(join(tmp, "pkg"), outPath);
       const output = readJson(outPath) as { results: Array<{ ok: boolean; error?: string }> };
       const hasLoginError = output.results.some(
         (r) => r.ok === false && r.error !== undefined && /(password|login)/i.test(r.error),
@@ -232,7 +262,7 @@ describe("check-curriculum-links", () => {
     }
   });
 
-  it("two distinct source URLs resolving to same final-dup: duplicates >= 1", () => {
+  it("two distinct source URLs resolving to same final-dup: duplicates >= 1", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "link-check-dup-"));
     try {
       const pkgDir = join(tmp, "pkg");
@@ -256,7 +286,7 @@ describe("check-curriculum-links", () => {
         {
           stable_id: "sample-resource-b",
           title: "Sample Resource B",
-          url: `http://127.0.0.1:${port}/ok`,
+          url: `http://127.0.0.1:${port}/final-dup-alt`,
           author: "Sample Author",
           language: "en",
           cost: "free",
@@ -290,7 +320,7 @@ describe("check-curriculum-links", () => {
       writeFileSync(join(careersDir, "career-directions-v1.json"), careersData);
 
       const outPath = join(tmp, "out.json");
-      runCli(pkgDir, outPath);
+      await runCli(pkgDir, outPath);
       const output = readJson(outPath) as { summary: { duplicates: number } };
       expect(output.summary.duplicates).toBeGreaterThanOrEqual(1);
     } finally {
@@ -298,14 +328,14 @@ describe("check-curriculum-links", () => {
     }
   });
 
-  it("deterministic: running twice on /ok produces equal JSON output", () => {
+  it("deterministic: running twice on /ok produces equal JSON output", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "link-check-det-"));
     try {
       writeMinimalPkg(tmp, port, `http://127.0.0.1:${port}/ok`, "sample-resource-a");
       const out1 = join(tmp, "out1.json");
       const out2 = join(tmp, "out2.json");
-      runCli(tmp, out1);
-      runCli(tmp, out2);
+      await runCli(join(tmp, "pkg"), out1);
+      await runCli(join(tmp, "pkg"), out2);
       const s1 = readFileSync(out1, "utf8");
       const s2 = readFileSync(out2, "utf8");
       expect(s1).toBe(s2);

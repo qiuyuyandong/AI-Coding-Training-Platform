@@ -13,12 +13,17 @@ The first users are the owner and roommates, and the core learning loop is still
 
 Use two explicit architecture stages:
 
-1. **V0–V1 pilot:** keep the existing local Next.js + SQLite runtime while validating reliable capture, the daily learning loop, evidence semantics, VS Code integration and the four-week pilot.
-2. **Public Beta:** migrate to a hosted multi-tenant service after the Phase 6 readiness gate. Use a durable PostgreSQL-compatible database for structured data, encrypted object storage for code snapshots, and authenticated HTTPS ingestion from browser and VS Code extensions.
+1. **V0–V1 pilot:** keep the existing local Next.js + SQLite runtime while validating reliable OJ capture, the daily learning loop, evidence semantics, editor-agnostic project practice and the four-week pilot.
+2. **Public Beta:** migrate to a hosted multi-tenant service after the Phase 6 readiness gate. Use a durable PostgreSQL-compatible database for structured data, encrypted object storage for explicitly selected code snapshots, authenticated HTTPS ingestion for browser OJ events, and user-initiated project-evidence submission.
 
 Design new domain data with stable IDs, append-only/replayable evidence and storage interfaces so the public migration can rebuild derived state instead of copying opaque local snapshots.
 
 Ordinary APIs, not MCP, carry high-frequency training events. MCP remains a later optional interface for external AI clients.
+
+Project learning does not use an editor plugin or background workspace
+monitor. Build/test results, snapshots and Git diffs enter only after explicit
+user action and preview. The system never treats save counts, edit duration,
+debug activity, command history or keystrokes as learning evidence.
 
 ## Consequences
 
@@ -51,7 +56,7 @@ Costs:
 - BYOK encryption/key-management implementation;
 - snapshot/report/event retention and deletion SLA;
 - platform AI provider, quota and fallback policy;
-- mainland-China access and extension distribution strategy;
+- mainland-China access and browser-extension distribution strategy;
 - purpose-specific consent and raw-code/model-training policy;
 - backup, restore, incident response and pricing readiness.
 

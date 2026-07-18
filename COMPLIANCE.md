@@ -1,6 +1,6 @@
 # Compliance Notes
 
-This file describes the **current Pre-V0 local implementation**. It is not the privacy policy for the planned hosted Public Beta. Cloud accounts, code-snapshot upload, platform-funded AI, retention, deletion, and provider disclosure require the separate Phase 7 contract in `IDEA.md` and `docs/superpowers/plans/2026-07-13-phase-7-public-beta-cloud.md`.
+This file describes the **current local V0 implementation under validation**. It is not the privacy policy for the planned hosted Public Beta. Cloud accounts, code-snapshot upload, platform-funded AI, retention, deletion, and provider disclosure require the separate Phase 7 contract in `IDEA.md` and `docs/superpowers/plans/2026-07-13-phase-7-public-beta-cloud.md`.
 
 The product uses this rule: use browser session, do not extract browser session.
 
@@ -11,6 +11,14 @@ Allowed in the current implementation:
 - detect user-visible page and submission events through a user-installed browser extension;
 - keep captured training records local by default.
 - create and correct metadata-only manual training records locally.
+
+Future project practice remains editor-agnostic and explicit. The product does
+not plan an editor plugin, background workspace/file watcher, save/run/debug
+footprint collection, terminal-history collection, keystroke tracking, or
+arbitrary repository scanning. A future code snapshot or Git diff must be
+task-scoped, selected and previewed by the learner, screened for secrets, and
+optional; structured build/test results and manual fallback remain available
+without raw code.
 
 Not allowed in the current implementation:
 

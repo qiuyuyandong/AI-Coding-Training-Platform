@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
+import { z } from "zod";
 import {
   afterEach,
   beforeEach,
@@ -49,14 +50,8 @@ import {
  * rows; a failure of the AI call must still return HTTP 200 with a
  * deterministic fallback question.
  *
- * The default `openDatabase()` enables `foreign_keys = ON`, but the
- * current V0 schema treats `plan_items.practice_task_id` as the raw
- * stable id (matching `practice_tasks.stable_id`) used by
- * `learningCompletion.loadPlanItemContext`. Bootstrap fixtures cannot
- * satisfy both the FK reference and the stable-id read in a single
- * row, so this test mocks `openDatabase` to return a connection with
- * enforcement disabled during the bootstrap phase; the route still
- * performs every read through the same connection.
+ * The fixture keeps foreign keys enabled so the optional-AI path exercises
+ * the same row-ID contract as production.
  */
 
 void _openDatabaseImportForRuntime;
@@ -116,15 +111,19 @@ function makeFetchSpy(response: {
     ],
   });
   const calls: FetchCall[] = [];
-  const mock = vi.fn((url: string, init?: { readonly method?: string }) => {
+  const implementation: FetchSpyFn = (
+    url: string,
+    init?: { readonly method?: string },
+  ) => {
     calls.push({ url, init });
     return Promise.resolve({
       ok: status >= 200 && status < 300,
       status,
       text: () => Promise.resolve(body),
     });
-  });
-  const fn = mock as unknown as FetchSpyFn;
+  };
+  const mock = vi.fn(implementation);
+  const fn: FetchSpyFn = mock;
   return { fn, calls, mock };
 }
 
@@ -165,11 +164,7 @@ beforeEach(() => {
   const databasePath = join(tempDir, "complete-ai.sqlite");
   process.env.TRAINING_DB_PATH = databasePath;
   const db = new Database(databasePath);
-  // The V0 plan_items schema requires practice_task_id to reference the
-  // stable_id (the loader reads it back via `WHERE pt.stable_id = ?`)
-  // while the FK target is `practice_tasks(id)`; turning FK enforcement
-  // off here lets a single bootstrap fixture satisfy both contracts.
-  db.pragma("foreign_keys = OFF");
+  db.pragma("foreign_keys = ON");
   __mockDbHandle.current = db;
   try {
     applyMigrations(db);
@@ -200,12 +195,26 @@ beforeEach(() => {
       null,
       { now: () => now },
     );
+    type IdRow = { readonly id: string };
+    const task = db
+      .prepare<[string], IdRow>(
+        "SELECT id FROM practice_tasks WHERE stable_id = ? LIMIT 1",
+      )
+      .get("sample-task-a");
+    const node = db
+      .prepare<[string], IdRow>(
+        "SELECT id FROM knowledge_nodes WHERE stable_id = ? LIMIT 1",
+      )
+      .get("sample-node-a");
+    if (task === undefined || node === undefined) {
+      throw new Error("Imported plan-item row IDs were not found");
+    }
     const reasonCodes = JSON.stringify(["primary_first_pass"]);
     const item = insertPlanItem(
       db,
       snapshot.id,
-      "sample-task-a",
-      "node_sample-node-a",
+      task.id,
+      node.id,
       "primary",
       0,
       reasonCodes,
@@ -234,24 +243,27 @@ afterEach(() => {
   __mockDbHandle.current = null;
 });
 
-type CompletionResponse = {
-  readonly ok: boolean;
-  readonly replayed: boolean;
-  readonly attemptId: string;
-  readonly nodeId: string;
-  readonly explanation: {
-    readonly levelLabel: string;
-    readonly confidenceLabel: string;
-  };
-  readonly nextPlan: { readonly planId: string; readonly snapshotId: string };
-  readonly aiReflection?:
-    | { readonly source: "ai" | "fallback"; readonly question: string }
-    | undefined;
-};
+const CompletionResponseSchema = z.object({
+  ok: z.boolean(),
+  replayed: z.boolean(),
+  attemptId: z.string(),
+  nodeId: z.string(),
+  explanation: z.object({
+    levelLabel: z.string(),
+    confidenceLabel: z.string(),
+  }),
+  nextPlan: z.object({ planId: z.string(), snapshotId: z.string() }),
+  aiReflection: z.object({
+    source: z.enum(["ai", "fallback"]),
+    question: z.string(),
+  }).optional(),
+});
+
+type CompletionResponse = z.infer<typeof CompletionResponseSchema>;
 
 function readResponseBody(text: string): CompletionResponse {
-  const body = JSON.parse(text) as Record<string, unknown>;
-  return body as unknown as CompletionResponse;
+  const body: unknown = JSON.parse(text);
+  return CompletionResponseSchema.parse(body);
 }
 
 function makeRequest(body: Record<string, unknown>): Request {
@@ -277,7 +289,7 @@ async function postCompletion(body: Record<string, unknown>): Promise<{
   // a single long-lived connection across the mock and the route means
   // the route reads back the rows that the bootstrap inserted.
   const ownedDb = new Database(process.env.TRAINING_DB_PATH ?? ":memory:");
-  ownedDb.pragma("foreign_keys = OFF");
+  ownedDb.pragma("foreign_keys = ON");
   __mockDbHandle.current = ownedDb;
   try {
     const route = await import("@/app/api/plans/items/[id]/complete/route");
@@ -300,7 +312,7 @@ function openVerificationDatabase(): Database.Database {
   // Verify state with a fresh connection that matches what the mock
   // exposes to the route; the bootstrap closed its handle already.
   const db = new Database(process.env.TRAINING_DB_PATH ?? ":memory:");
-  db.pragma("foreign_keys = OFF");
+  db.pragma("foreign_keys = ON");
   return db;
 }
 

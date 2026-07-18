@@ -12,6 +12,7 @@ import {
 } from "@/lib/services/planGenerationService";
 import type { PlanGeneratorInput } from "@/lib/services/planGenerator";
 import { PLAN_GENERATOR_VERSION } from "@/lib/services/planGenerator";
+import { buildTodayPagePayload } from "@/lib/pages/todayPage";
 
 /**
  * V0 `/today` page + feedback API tests (Todo 19).
@@ -386,6 +387,11 @@ describe("POST /api/plans/items/[id]/feedback", () => {
         .all(body.snapshotId ?? "");
       expect(events).toHaveLength(1);
       expect(events[0]?.event_type).toBe("item_skipped");
+      const refreshed = buildTodayPagePayload(db);
+      expect(refreshed.state).toBe("available");
+      if (refreshed.state === "available") {
+        expect(refreshed.snapshotId).toBe(body.snapshotId);
+      }
     } finally {
       db.close();
     }
@@ -425,6 +431,12 @@ describe("POST /api/plans/items/[id]/feedback", () => {
         )
         .all(body.snapshotId ?? "");
       expect(events[0]?.event_type).toBe("effort_changed");
+      const refreshed = buildTodayPagePayload(db);
+      expect(refreshed.state).toBe("available");
+      if (refreshed.state === "available") {
+        expect(refreshed.snapshotId).toBe(body.snapshotId);
+        expect(refreshed.effortBoundaryMinutes).toBe(60);
+      }
     } finally {
       db.close();
     }

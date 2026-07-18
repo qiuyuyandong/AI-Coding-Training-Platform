@@ -155,7 +155,7 @@ describe("POST /api/plans/items/[id]/complete", () => {
     expect(body.ok).toBe(true);
     expect(body.replayed).toBe(false);
     expect(body.attemptId).toBe(`manual_plan_${primaryItemId}`);
-    expect(body.nodeId).toBe("node_sample-node-a");
+    expect(body.nodeId).toBe("node_sample-node-b");
     expect(body.explanation.levelLabel).toBe("First success");
     expect(body.explanation.confidenceLabel).toBe("low");
     expect(body.nextPlan.planId).toBe(planId);

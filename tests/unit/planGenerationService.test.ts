@@ -291,4 +291,30 @@ describe("generateAndPersistPlan", () => {
       .get(persisted.snapshotId);
     expect(fingerprintRow?.input_fingerprint).toBe("fp-fingerprint-003");
   });
+
+  it("persists node goal context so successor plans can restore ranking intent", () => {
+    const { db } = openImportedDb();
+    const input: PlanGeneratorInput = {
+      ...baseSelector(),
+      learnerId: LOCAL_DEFAULT_LEARNER_ID,
+      goalPrimaryNodeId: "sample-node-b",
+      goalInterestNodeIds: ["sample-node-a"],
+      dailyMode: "learn",
+      localDate: "2026-07-17",
+      inputFingerprint: "fp-goal-context-004",
+    };
+
+    const persisted = generateAndPersistPlan(db, input);
+    const row = db
+      .prepare<[string], { readonly snapshot_json: string }>(
+        "SELECT snapshot_json FROM learning_plans WHERE id = ?",
+      )
+      .get(persisted.planId);
+
+    expect(row).toBeDefined();
+    expect(JSON.parse(row?.snapshot_json ?? "{}")).toEqual({
+      goalPrimaryNodeId: "sample-node-b",
+      goalInterestNodeIds: ["sample-node-a"],
+    });
+  });
 });

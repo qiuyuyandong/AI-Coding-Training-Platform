@@ -10,10 +10,9 @@ import type { AbilitySnapshotRow } from "@/lib/domain/ability";
 import {
   findActivePlan,
   findLatestDailySnapshot,
-  recordRevisionEvent,
 } from "@/lib/repositories/plans";
-import type { PlanRevisionEventType } from "@/lib/domain/plan";
 import { LOCAL_DEFAULT_LEARNER_ID } from "@/lib/domain/learner";
+import { regenerateDailyPlan } from "@/lib/services/planRegeneration";
 
 /**
  * V0 correction / void reprojection wrapper (Todo 16).
@@ -162,7 +161,7 @@ function reprojectAfterCorrectionInternal(
       visible_level: projectionRow.visibleLevel,
       confidence: projectionRow.confidence,
       evidence_count: projectionRow.evidenceCount,
-      stale: false,
+      stale: projectionRow.stale,
       input_fingerprint: projection.inputFingerprint,
       projection_version: PROJECTOR_VERSION,
       as_of_time: now,
@@ -199,15 +198,17 @@ function reprojectAfterCorrectionInternal(
   if (activePlan !== null) {
     const latestSnapshot = findLatestDailySnapshot(db, activePlan.id);
     if (latestSnapshot !== null) {
-      const eventType: PlanRevisionEventType = request.trigger;
-      recordRevisionEvent(
-        db,
-        latestSnapshot.id,
-        latestSnapshot.id,
-        eventType,
-        projection.inputFingerprint,
-        { now: () => now },
-      );
+      regenerateDailyPlan(db, {
+        learnerId: request.learnerId,
+        learningPlanId: activePlan.id,
+        beforeSnapshotId: latestSnapshot.id,
+        localDate: latestSnapshot.localDate,
+        effortBoundaryMinutes: latestSnapshot.effortBoundaryMinutes,
+        dailyMode: latestSnapshot.dailyMode,
+        eventType: request.trigger,
+        inputFingerprint: projection.inputFingerprint,
+        now,
+      });
     }
   }
 

@@ -1,5 +1,10 @@
 # Phase 2 Goals, Diagnosis, and Deterministic Planning Delivery Plan
 
+**Status (2026-07-18):** Partially implemented through the V0 thin slice
+(goals, six-prompt diagnosis, starting override, immutable daily plans, and the
+one-task Today loop). This broad plan is not active; remaining modes and
+replanning depth require a fresh delta plan after V0 acceptance.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:brainstorming to validate the onboarding flow, superpowers:writing-plans for atomic tasks, and superpowers:test-driven-development during implementation.
 
 **Goal:** Turn the static curriculum graph into a personal, explainable route that gives the learner one useful task today without requiring an AI key.
