@@ -11,7 +11,8 @@ It provides:
 - a Chrome extension that detects user-visible training events;
 - a paired, session- and submission-aware local capture API;
 - captured and manually entered local attempts, with traceable corrections and logical voiding;
-- Coach and Growth pages that use active attempts by default.
+- Coach and Growth pages that use active attempts by default;
+- a V0 **manual learning loop** (exit candidate, pending F1–F4 final verification and user acceptance): a 12-node foundation curriculum with 12 reviewed resources, 12 mapped practice tasks, 13 prerequisite edges and 9 career summaries; a 6-prompt resumable diagnosis with starting-node override; deterministic candidate selection with semantic alternatives; an atomic completion loop that records attempt, attempt→node mapping, ability projection and successor plan; optional opt-in per-completion AI reflection (default disabled, network-denial guard, deterministic fallback). V0 introduces the `/map`, `/plan`, and `/today` pages and the underlying services, repositories, migrations 0006/0007/0008, and validators described under `work/reports/v0-exit-report.md`.
 
 The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
 

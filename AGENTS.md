@@ -21,6 +21,18 @@ This repository currently implements a local-first AI coding training prototype.
 - E2E database teardown uses `lstatSync`-based safe deletion (handles symlinks, junctions, and broken reparse points). One file-symlink capability test is skipped under EPERM; all mandatory junction tests pass.
 - Playwright e2e smoke tests own the local browser QA server lifecycle through `playwright.config.ts`.
 
+## V0 manual learning loop (exit candidate)
+
+The V0 vertical slice is implemented as an **exit candidate** pending F1–F4 final verification and explicit user acceptance. The following surface exists in code today and is exercised by the offline-core Playwright gate:
+
+- Curriculum catalog: `content/tracks/software-development-foundations-v1/` (12 published nodes, 13 prerequisite edges, 12 reviewed resources, 12 practice mappings) and `content/careers/career-directions-v1.json` (9 career summaries). Migration 0006 adds the catalog tables; the CLI scripts `validate-curriculum.mjs` and `check-curriculum-links.mjs` gate the package.
+- Learner and plan persistence: migration 0007 adds `learner_profiles`, `learner_goals`, `diagnostic_sessions`, `diagnostic_responses`, `learner_node_baselines`, `learning_plans`, `daily_plan_snapshots`, `plan_items`, `task_feedback`, `plan_revision_events`.
+- Ability projection: migration 0008 adds `attempt_node_mappings`, `ability_snapshots`, `ability_transitions`. The V0 E1 projector (`v0-ability-projector-1`) only reaches `L1` / `L2` from the initial one-task-per-node corpus; `L3–L5` are stored but unreachable.
+- Pages: `/map` (keyboard-readable list of 12 nodes plus a static SVG visualization of the 13 edges, labelled supplementary), `/map/[nodeId]` (node detail with outcome, rationale, prerequisites, resource, practice, ability), `/plan` (goal + 6-prompt diagnosis + starting-node override), `/today` (one primary task with ≤3 alternatives and the completion loop).
+- APIs: `POST /api/diagnosis` (start/response/complete/override), `POST /api/plans/items/[id]/complete`, `POST /api/plans/items/[id]/feedback`, `POST /api/plan/goal`, `POST /api/plan/override-start`.
+- Optional AI reflection: `lib/services/reflectionExperiment.ts` (default disabled, per-request opt-in, native `fetch` only, 7-scalar allowlist, network-denial guard for loopback/RFC1918, deterministic result-keyed fallback). See ADR 0002.
+- Observability: `scripts/validate-v0-observation.mjs` (owner/participants), `scripts/validate-v0-exit.mjs` (candidate/accepted).
+
 ## Commands
 
 Use these commands for verification:
