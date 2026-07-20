@@ -305,7 +305,7 @@ function detectFallbackExplanation(
   if (nodeStableId !== "cpp-io-types") return null;
   const codes = parseReasonCodes(raw);
   if (!codes.includes("common_foundation")) return null;
-  return "当前没有合适的候选任务；使用安全基础任务（AtCoder practice_1）。";
+  return "当前没有合适的候选任务；使用安全基础任务（cpp-io-types 入门级 I/O 练习，平台无关）。";
 }
 
 function parseReasonCodes(raw: string): readonly string[] {

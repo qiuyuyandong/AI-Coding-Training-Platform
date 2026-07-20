@@ -3,7 +3,7 @@
 最后更新：2026-07-18
 当前状态：**V0 验收阶段；功能薄切片已实现并完成稳定化，真实使用观察、同 SHA 终审和用户验收待完成**
 - Phase 0 已于 2026-07-17 完成并接受；AtCoder 是唯一 production 适配器。
-- 当前未提交的稳定化工作树已修复已知运行问题，并重新通过完整八阶段质量门；证据见 `work/reports/v0-stabilization-2026-07-18.md`。但 V0 报告校验器的专门回归测试文件缺失，仍须在冻结实现 SHA 前补回。
+- 稳定化发布候选已冻结在 `b5166320768355666a5c4ff3f466c29c240ea8cf`；完整八阶段质量门和 21 项双提交校验器回归均通过。真实观察尚未开始，V0 仍未验收。
 - 旧 `work/reports/v0-exit-report.md` 在观察为空时即写入 `ACCEPT_CANDIDATE`，不满足其自身退出契约，现仅作为一次过早发布记录，不代表有效候选或验收结果。
 - 唯一活动计划：`docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md`。
 - 当前目标是接受 V0；随后才进入 V0.5，之后是 V1；总产品目标是 Phase 7 / Public Beta 云端 SaaS。

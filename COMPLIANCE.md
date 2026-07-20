@@ -40,6 +40,8 @@ The browser extension is local-first and user-controlled:
 - the long-lived credential is stored only in trusted extension contexts, while the app stores its hash;
 - no cookies, session tokens, passwords, or hidden platform data are read or uploaded;
 - commercial platform full statements remain out of scope unless explicitly licensed or manually entered by the user.
+- content-script host access is limited to declared OJ hosts and route logic accepts only supported problem paths; authenticated pages are used only through the learner's visible browser session;
+- any sanitized authenticated DOM fixture is characterization evidence only, must omit account identity, submitted source code and full statements, and cannot satisfy the public-DOM production certification gate.
 
 ## Phase 2.2 Training Records Loop
 

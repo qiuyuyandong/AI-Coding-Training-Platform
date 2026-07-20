@@ -1,0 +1,13 @@
+{
+  "fixtureName": "submission-84104369-ac",
+  "sourceUrl": "https://ac.nowcoder.com/acm/contest/view-submission?submissionId=84104369",
+  "captureDate": "2026-07-20",
+  "captureMethod": "Logged-in Chrome session visible-DOM scrape, user-authorized, sanitized. No cookies, no tokens, no scripts, no styles, no forms, no submitted source code, no username, no timestamp, no language, no memory, no code length. Only the page title, the unique first-party problem anchor `/acm/problem/319811` and the verdict container `<div class=\"coder-cont-legend\">运行状态:<span class=\"font-green\">答案正确</span></div>` are retained. Source URL and submission ID are public and retained.",
+  "purpose": "detectVerdictFromDocument — verdict captured via the observed `.coder-cont-legend` container. detectProblemFromPage — record-page problem identity via the unique acm problem anchor.",
+  "selectors": [".coder-cont-legend", "a[href=\"/acm/problem/319811\"]"],
+  "authenticated": true,
+  "sanitized": true,
+  "evidenceTier": "authenticated-characterization",
+  "verdictExpected": { "verdict": "Accepted" },
+  "problemExpected": { "platform": "nowcoder", "externalId": "acm/problem/319811" }
+}

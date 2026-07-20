@@ -1,35 +1,146 @@
 <!doctype html>
 <html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>本地采集状态</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+        color: #172033;
+        background: #edf1f5;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 336px; }
+      main { width: 336px; padding: 14px; }
+      h1, h2, p { margin: 0; }
+      .masthead {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+      .eyebrow {
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      h1 { margin-top: 3px; font-size: 18px; letter-spacing: -.02em; }
+      #status { margin-top: 4px; color: #526176; font-size: 11px; }
+      .switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #334155;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .panel {
+        margin-top: 10px;
+        border: 1px solid #d7dee8;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 8px 20px rgba(51, 65, 85, .06);
+      }
+      .diagnostics { overflow: hidden; }
+      .diagnostic-row { padding: 10px 12px; border-top: 1px solid #e7ebf0; }
+      .diagnostic-row:first-child { border-top: 0; }
+      .diagnostic-row strong { display: block; font-size: 12px; font-weight: 700; }
+      .meta { margin-top: 4px; color: #68758a; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+      .error { color: #9f2d2d; }
+      .pairing { padding: 12px; }
+      .section-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      h2 { font-size: 13px; }
+      #pairingState { color: #526176; font-size: 11px; }
+      form { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+      label.field { color: #526176; font-size: 11px; }
+      input[type="url"], input[type="text"] {
+        width: 100%;
+        margin-top: 5px;
+        border: 1px solid #c8d1dc;
+        border-radius: 6px;
+        background: #f8fafc;
+        padding: 7px 8px;
+        color: #172033;
+        font: inherit;
+        outline: none;
+      }
+      input:focus { border-color: #526176; box-shadow: 0 0 0 2px rgba(82, 97, 118, .13); }
+      button {
+        align-self: end;
+        border: 0;
+        border-radius: 6px;
+        background: #172033;
+        padding: 8px 11px;
+        color: #fff;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:disabled { cursor: wait; opacity: .5; }
+      #pairingResult { min-height: 16px; margin-top: 7px; color: #526176; font-size: 11px; }
+      details { margin-top: 10px; }
+      summary { color: #64748b; font-size: 11px; cursor: pointer; }
+      details .field { display: block; margin-top: 8px; }
+    </style>
+  </head>
   <body>
-    <main style="width: 300px; font-family: sans-serif; padding: 12px;">
-      <h1 style="font-size: 16px; margin: 0 0 8px;">Unified OJ Capture</h1>
-      <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-        <input id="captureEnabled" type="checkbox" />
-        <span>Enable local capture</span>
-      </label>
-      <label style="display: block; font-size: 12px; margin-bottom: 12px;">
-        Capture endpoint
-        <input id="captureEndpoint" type="url" style="box-sizing: border-box; margin-top: 4px; width: 100%;" />
-      </label>
-      <section style="border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 12px; padding: 10px;">
-        <strong style="display: block; font-size: 12px; margin-bottom: 6px;">Local pairing</strong>
-        <p id="pairingState" style="font-size: 12px; margin: 0 0 8px;">Not paired</p>
-        <form id="pairingForm">
-          <label style="display: block; font-size: 12px;">
-            One-time pairing code
-            <input id="pairingCode" required autocomplete="off" style="box-sizing: border-box; margin-top: 4px; width: 100%;" />
-          </label>
-          <button id="pairButton" type="submit" style="margin-top: 8px;">Pair extension</button>
-        </form>
-        <p id="pairingResult" role="status" style="font-size: 12px; margin: 8px 0 0;"></p>
+    <main>
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">Unified OJ Capture</p>
+          <h1>本地采集状态</h1>
+          <p id="status">正在读取…</p>
+        </div>
+        <label class="switch">
+          <input id="captureEnabled" type="checkbox" />
+          <span>启用</span>
+        </label>
+      </header>
+
+      <section class="panel diagnostics" aria-label="采集诊断">
+        <div class="diagnostic-row"><strong id="queueState">待发送事件 0</strong></div>
+        <div class="diagnostic-row">
+          <strong id="lastDelivery">最近送达：暂无</strong>
+          <p class="meta" id="lastDeliveryMeta" hidden></p>
+        </div>
+        <div class="diagnostic-row"><strong id="attemptState">训练记录：暂无送达结果</strong></div>
+        <div class="diagnostic-row"><strong class="error" id="lastError">阻塞原因：无</strong></div>
       </section>
-      <dl style="display: grid; grid-template-columns: 90px 1fr; gap: 6px; font-size: 12px;">
-        <dt>Queue</dt><dd id="queueLength">0</dd>
-        <dt>Last success</dt><dd id="lastSuccess">Never</dd>
-        <dt>Last error</dt><dd id="lastError">None</dd>
-      </dl>
-      <p id="status" style="font-size: 12px; margin-top: 12px;">Ready</p>
-      <script type="module" src="popup.js"></script>
+
+      <section class="panel pairing" aria-labelledby="pairingHeading">
+        <div class="section-heading">
+          <h2 id="pairingHeading">本地配对</h2>
+          <p id="pairingState">未配对</p>
+        </div>
+        <form id="pairingForm">
+          <label class="field" for="pairingCode">
+            一次性配对码
+            <input id="pairingCode" type="text" required autocomplete="off" />
+          </label>
+          <button id="pairButton" type="submit">配对</button>
+        </form>
+        <p id="pairingResult" role="status" aria-live="polite"></p>
+      </section>
+
+      <details>
+        <summary>高级设置</summary>
+        <label class="field" for="captureEndpoint">
+          本地接收地址
+          <input id="captureEndpoint" type="url" />
+        </label>
+      </details>
     </main>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>

@@ -2,10 +2,10 @@
 
 > **Status (2026-07-18):** **V0 validation — functional slice implemented and stabilized; real-use observation, final verification, and user acceptance pending.** Phase 0 is complete. The provisional exit-candidate report is not a valid release decision because its owner and participant observations are still empty. The only active execution plan is [`2026-07-18-v0-closeout-observation-final-verification.md`](./2026-07-18-v0-closeout-observation-final-verification.md).
 
-> **Stabilization note:** The current uncommitted worktree fixes the known
-> post-candidate blockers and passes the fresh full quality gate. This does not
-> advance the roadmap gate: a committed implementation SHA, refreshed evidence,
-> observations, F1-F4 re-verification, and explicit acceptance are still required.
+> **RC note:** The stabilized implementation is frozen at
+> `b5166320768355666a5c4ff3f466c29c240ea8cf` and passes the fresh full quality
+> gate. Real observations, F1-F4 re-verification, and explicit acceptance are
+> still required.
 
 > **For agentic workers:** Before implementing a work package, use `superpowers:writing-plans` to expand it against the then-current codebase. During implementation use the appropriate execution skill, and use `superpowers:verification-before-completion` before declaring a release gate complete.
 
@@ -29,7 +29,7 @@ Older 2026-07-05/06 plans use historical Phase numbers. They are implementation 
 
 The repository is in **V0 validation**, not Pre-V0 and not V0.5. Phase 0 is
 complete, and the manual-first V0 functional slice is implemented in the
-current worktree.
+frozen RC.
 
 Available today:
 
@@ -51,8 +51,6 @@ Available today:
 
 Still required before V0 completion:
 
-- restore and execute the missing V0 report-validator regression suite;
-- one committed implementation SHA and refreshed evidence anchored to it;
 - at least seven calendar days of owner observation and two participant windows
   of at least fourteen calendar days each;
 - F1–F4 all approving the same stabilized release SHA;
@@ -266,9 +264,7 @@ is the later formal V1 pilot, not the first contact with users.
 
 1. Preserve Phase 0 as complete; do not re-execute its plans. Luogu's BLOCKED
    certification remains historical and does not reopen Phase 0.
-2. Use only the V0 closeout plan to classify and checkpoint the current
-   stabilization worktree, then regenerate evidence on its committed SHA.
-3. Complete and validate the owner observation and both participant windows on
+2. Complete and validate the owner observation and both participant windows on
    that frozen implementation.
 4. Publish a valid exit candidate, run F1–F4 against the same release SHA, and
    obtain explicit user acceptance.

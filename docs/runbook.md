@@ -33,7 +33,7 @@ Build the Chrome MV3 extension:
 npm run extension:build
 ```
 
-Load `extension/dist` as an unpacked Chrome extension. Open `http://localhost:3000/settings`, create a pairing code, and paste it into the popup. The code expires after ten minutes and is consumed once. The popup can then enable/disable capture and shows pairing, queue, success, and error status.
+Load `extension/dist` as an unpacked Chrome extension. Open `http://localhost:3000/settings`, create a pairing code, and paste it into the popup. The code expires after ten minutes and is consumed once. The popup can then enable/disable capture and shows Chinese diagnostics for pending events, the last delivered event type, whether that ACK formed a training record, and the current blocking reason. `SESSION_STARTED` delivery is a page-session event, not a successful submission.
 
 Use `/settings` to rotate or revoke credentials. Rotation creates a code scoped to that installation; paste it into the same extension to atomically replace the old credential. Revocation causes capture requests to return 401 until an explicit targeted rotation code pairs it again.
 
@@ -44,6 +44,8 @@ Capture protocol V2 creates one logical session per observed problem visit and o
 `pagehide` delivery remains best effort, so an open session with no `ended_at` is expected after browser shutdown or extension interruption. If a hidden/BFCache page is shown again, the extension starts a fresh observed session.
 
 Queue delivery is FIFO and serialized. One drain batch handles at most 25 events. Network errors and retryable 500 responses preserve the queue head and stop; permanent 400/409/413/415 responses and 500 responses at the retry cap drop that head and continue. A 401/403 keeps the queue head without incrementing its retry count so pairing or configuration can recover it.
+
+The supported domestic problem routes are `leetcode.cn/problems/<slug>`, `www.nowcoder.com/practice/<id>`, `ac.nowcoder.com/acm/problem/<id>`, and `www.luogu.com.cn/problem/<id>`. Exact result routes are also injected for passive detection: LeetCode `/submissions/detail/<digits>/`, NowCoder `/acm/contest/view-submission?submissionId=<digits>`, and Luogu `/record/<digits>`. Runtime checks reject malformed IDs, extra query/hash data, spoofed hosts, ambiguous anchors, and hidden or overlong title text. Sanitized `authenticated-characterization` fixtures cover LeetCode AC, NowCoder AC, and Luogu AC/Compile Error; they never certify production. The agent performed no submissions, so LeetCode/NowCoder non-AC transitions and user-performed end-to-end capture remain unobserved.
 
 On the first V2 extension startup, any queued V1 events are discarded once. Chrome local storage records `discardedLegacyEventCount` and `legacyQueueDiscardedAt`, and the service worker logs the discarded count. `installationId` is only a correlation identifier; the separately stored credential authorizes requests. V2 events queued before pairing retain unpaired provenance after delivery.
 
@@ -69,11 +71,15 @@ npm run quality:gate
 
 The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses a server on port 3000. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
 
-`npm run test` currently runs 367 tests (pass) plus 1 capability skip (368 total). The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. Named test files of interest:
+The latest 2026-07-20 domestic-OJ repair gate ran 1008 passing unit tests plus 1 capability skip across 65 files. The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. The same gate ran 24 Playwright E2E tests and 457 extension tests across 18 files. Named test files of interest:
 
 | File | Tests | Role |
 |---|---|---|
-| `tests/unit/extensionPlatforms.test.ts` | 58 | Adapter registry (AtCoder production, four platforms experimental) |
+| `tests/unit/extensionDomesticOjAuth.test.ts` | 133 | Authenticated-characterization fixtures, manifest/runtime routes, privacy and spoof guards |
+| `tests/unit/extensionPlatforms.test.ts` | 98 | Strict routes, verdict isolation, adapter registry |
+| `tests/unit/extensionSubmissionControl.test.ts` | 29 | Exact submit-control and false-positive guards |
+| `tests/unit/extensionTransport.test.ts` | 28 | Typed ACK, queue delivery metadata, failure policy |
+| `tests/unit/domesticOjCurriculum.test.ts` | 9 | Curriculum 1.0.1 domestic OJ and package coexistence |
 | `tests/unit/extensionAtcoderCertificationBlocked.test.ts` | 34 | Certification gate BLOCKED path coverage |
 | `tests/unit/extensionAtcoderFixtures.test.ts` | 28 | AtCoder fixture loading and characterization |
 | `tests/unit/extensionAtcoderPromotion.test.ts` | 16 | Production promotion guard (forged/malformed artifact rejection) |
@@ -88,7 +94,7 @@ npm run test -- tests/unit/luoguFixtureLoader.test.ts
 npm run test -- tests/unit/platformCertification.test.ts
 ```
 
-`npm run e2e` owns the Next.js server and an isolated SQLite lifecycle. It deletes and recreates `.tmp/playwright`, applies every repository migration, runs 16 tests serially against that database, then removes it during global teardown. E2E cleanup uses an `lstatSync`-based safe walker (`tests/e2e/database.ts`) that handles symlinks, junctions, and broken reparse points. A process already listening on port 3000 is treated as an error; stop it rather than reusing an unknown server or database.
+`npm run e2e` owns the Next.js server and an isolated SQLite lifecycle. It deletes and recreates `.tmp/playwright`, applies every repository migration, runs 24 tests serially against that database, then removes it during global teardown. E2E cleanup uses an `lstatSync`-based safe walker (`tests/e2e/database.ts`) that handles symlinks, junctions, and broken reparse points. A process already listening on port 3000 is treated as an error; stop it rather than reusing an unknown server or database.
 
 The Coach/Growth E2E fixture writes more rows than either display window and asserts three separate contracts: Training still finds an older scoped problem, Growth totals match the complete database count while showing five activity rows, and Coach reports its 50-attempt analysis window.
 

@@ -18,8 +18,11 @@ test("pairs from settings and revoked credentials cannot write", async ({
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Capture pairing" })).toBeVisible();
   await expect(page.getByText("installation_e2e", { exact: true })).toBeVisible();
+  const seededInstallation = page.locator("li").filter({ hasText: "installation_e2e" });
+  await expect(seededInstallation).toContainText("已配对");
+  await expect(page.getByText(/credential v/i)).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Create pairing code" }).click();
+  await page.getByRole("button", { name: "创建配对码" }).click();
   const code = await page.getByTestId("pairing-code").textContent();
   if (code === null || code.length === 0) throw new Error("Pairing code was empty");
 
@@ -40,12 +43,12 @@ test("pairs from settings and revoked credentials cannot write", async ({
 
   await page.reload();
   await expect(page.getByText(installationId, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: `Rotate ${installationId}` }).click();
+  await page.getByRole("button", { name: `轮换凭证 ${installationId}` }).click();
   await expect(page.getByTestId("pairing-code-panel")).toContainText(
-    `Rotate ${installationId}`,
+    `轮换 ${installationId} 的凭证`,
   );
-  await page.getByRole("button", { name: `Revoke ${installationId}` }).click();
-  await expect(page.getByRole("status")).toContainText(`${installationId} revoked`);
+  await page.getByRole("button", { name: `撤销 ${installationId}` }).click();
+  await expect(page.getByRole("status")).toContainText(`已撤销 ${installationId}`);
 
   const event = captureEvent(problem, {
     type: "SESSION_STARTED",

@@ -36,6 +36,12 @@ const SAMPLE_FIXTURE = join(
   "curriculum",
   "sample-package",
 );
+const DOMESTIC_V101_PACKAGE = join(
+  process.cwd(),
+  "content",
+  "tracks",
+  "software-development-foundations-v1",
+);
 
 const NODE_SAMPLE_A = "sample-node-a";
 const NODE_SAMPLE_B = "sample-node-b";
@@ -47,7 +53,7 @@ const tempDbs: Database.Database[] = [];
 
 type CountRow = { readonly c: number };
 
-function openImportedDb(): {
+function openImportedDb(packagePath = SAMPLE_FIXTURE): {
   readonly db: Database.Database;
   readonly tmp: string;
 } {
@@ -59,7 +65,7 @@ function openImportedDb(): {
   // keys used by the completion service.
   db.pragma("foreign_keys = ON");
   applyMigrations(db);
-  const result = importPackage(db, SAMPLE_FIXTURE);
+  const result = importPackage(db, packagePath);
   if (!result.ok) {
     throw new Error(
       `importPackage failed: ${JSON.stringify(result.errors)}`,
@@ -148,6 +154,90 @@ afterEach(() => {
 });
 
 describe("completePlanItem", () => {
+  it("completes the real 1.0.1 NowCoder task with the canonical namespaced identity", () => {
+    const { db } = openImportedDb(DOMESTIC_V101_PACKAGE);
+    const input: PlanGeneratorInput = {
+      nodes: [
+        {
+          stable_id: "debugging-testing",
+          order_index: 5,
+          title: "Debugging and testing",
+        },
+      ],
+      edges: [],
+      practicesByNode: new Map([
+        [
+          "debugging-testing",
+          [{
+            stable_id: "task-debugging-testing",
+            title: "小红的字符串处理 (NowCoder 319811)",
+            difficulty_band: "easy" as const,
+          }],
+        ],
+      ]),
+      resourcesByNode: new Map([
+        ["debugging-testing", { review_status: "reviewed" }],
+      ]),
+      effortBoundaryMinutes: 30,
+      prerequisitesByNode: {},
+      learnerId: LOCAL_DEFAULT_LEARNER_ID,
+      goalPrimaryNodeId: "debugging-testing",
+      dailyMode: "learn",
+      localDate: "2026-07-20",
+      inputFingerprint: "fp-domestic-nowcoder-completion",
+    };
+    const persisted = generateAndPersistPlan(db, input);
+    const primary = db.prepare<
+      [string],
+      { readonly id: string; readonly stable_id: string }
+    >(`
+      SELECT pi.id, pt.stable_id
+      FROM plan_items pi
+      JOIN practice_tasks pt ON pt.id = pi.practice_task_id
+      WHERE pi.daily_plan_id = ? AND pi.role = 'primary'
+      LIMIT 1
+    `).get(persisted.snapshotId);
+    if (primary === undefined) throw new Error("Domestic plan did not persist a primary item");
+    expect(primary.stable_id).toBe("task-debugging-testing");
+
+    const response = completePlanItem(db, {
+      learnerId: LOCAL_DEFAULT_LEARNER_ID,
+      dailyPlanItemId: primary.id,
+      result: "passed",
+      language: "C++17",
+      durationMinutes: 12,
+      reflection: "Verified the domestic NowCoder completion path.",
+    });
+    expect(response.ok).toBe(true);
+    if (!response.ok || response.replayed) return;
+
+    const attempt = db.prepare<
+      [string],
+      {
+        readonly platform: string;
+        readonly problem_external_id: string;
+        readonly canonical_url: string;
+      }
+    >(`
+      SELECT platform, problem_external_id, canonical_url
+      FROM training_attempts
+      WHERE id = ?
+    `).get(response.attemptId);
+    expect(attempt).toEqual({
+      platform: "nowcoder",
+      problem_external_id: "acm/problem/319811",
+      canonical_url: "https://ac.nowcoder.com/acm/problem/319811",
+    });
+    expect(db.prepare<[string], CountRow>(`
+      SELECT COUNT(*) AS c FROM task_feedback
+      WHERE plan_item_id = ? AND action = 'completed'
+    `).get(primary.id)?.c).toBe(1);
+    expect(db.prepare<[string], CountRow>(`
+      SELECT COUNT(*) AS c FROM daily_plan_snapshots
+      WHERE supersedes_daily_plan_id = ?
+    `).get(persisted.snapshotId)?.c).toBe(1);
+  });
+
   it("completes a primary item as 'passed' and persists attempt, mapping, feedback, snapshot, and successor", () => {
     const { db } = openImportedDb();
     const { primaryItemId, snapshotId, planId } = persistInitialPlan(db);

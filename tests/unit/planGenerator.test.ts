@@ -97,6 +97,20 @@ describe("planGenerator", () => {
     expect(out.reason).toMatch(/safe foundation fallback/);
   });
 
+  it("safe foundation fallback reason does not mention AtCoder", () => {
+    const empty: CandidateTaskSelectorInput = {
+      nodes: [],
+      edges: [],
+      practicesByNode: new Map(),
+      resourcesByNode: new Map(),
+      effortBoundaryMinutes: 30,
+    };
+    const input = makeInput(empty);
+    const out = generatePlan(input);
+    expect(out.isFallback).toBe(true);
+    expect(out.reason ?? "").not.toMatch(/AtCoder|atcoder/i);
+  });
+
   it("propagates the supplied daily mode unchanged", () => {
     const input = makeInput(makeEligibleFixture(), "practice");
     const out = generatePlan(input);

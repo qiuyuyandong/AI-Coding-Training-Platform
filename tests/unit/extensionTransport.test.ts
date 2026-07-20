@@ -4,11 +4,14 @@ import {
   MAX_RETRY_ATTEMPTS,
   enqueueCaptureEvent,
   captureRequestHeaders,
+  flushResultFromSuccessResponse,
   isCaptureMessage,
   isQueueItem,
+  parseCaptureSuccessAck,
   planQueueAfterFlush,
   readCaptureEndpoint,
   type CaptureQueueItem,
+  type CaptureSuccessAck,
 } from "@/extension/src/transport";
 import type { CaptureEvent } from "@/lib/capture/events";
 
@@ -31,6 +34,78 @@ function event(id: string): CaptureEvent {
     payload: { source: "content_script" },
   };
 }
+
+function successAck(
+  eventId: string,
+  attempt?: { readonly id: string; readonly status: "draft" | "passed" },
+): CaptureSuccessAck {
+  const base = {
+    ok: true as const,
+    eventId,
+    captureSessionId: "session_1",
+    replayed: false,
+  };
+  return attempt === undefined
+    ? base
+    : { ...base, attemptId: attempt.id, attemptStatus: attempt.status };
+}
+
+describe("capture success ACK", () => {
+  it("parses the current API response with and without an attempt", () => {
+    expect(parseCaptureSuccessAck(successAck("evt_session"))).toEqual(
+      successAck("evt_session"),
+    );
+    expect(parseCaptureSuccessAck(successAck("evt_verdict", {
+      id: "attempt_1",
+      status: "passed",
+    }))).toEqual(successAck("evt_verdict", {
+      id: "attempt_1",
+      status: "passed",
+    }));
+  });
+
+  it("rejects partial, unknown-status, and widened ACKs", () => {
+    expect(() => parseCaptureSuccessAck({
+      ok: true,
+      eventId: "evt_1",
+      captureSessionId: "session_1",
+      replayed: false,
+      attemptId: "attempt_1",
+    })).toThrow();
+    expect(() => parseCaptureSuccessAck({
+      ...successAck("evt_1"),
+      attemptId: "attempt_1",
+      attemptStatus: "accepted",
+    })).toThrow();
+    expect(() => parseCaptureSuccessAck({
+      ...successAck("evt_1"),
+      unexpected: true,
+    })).toThrow();
+    expect(() => parseCaptureSuccessAck({ ok: true })).toThrow();
+  });
+
+  it("turns malformed or mismatched HTTP 200 bodies into retryable validation failures", () => {
+    expect(flushResultFromSuccessResponse({ ok: true }, event("evt_1"))).toMatchObject({
+      status: 500,
+      error: expect.stringContaining("Success ACK validation failed"),
+    });
+    expect(flushResultFromSuccessResponse(
+      successAck("evt_other"),
+      event("evt_1"),
+    )).toEqual({
+      status: 500,
+      error: "Success ACK validation failed: event identity did not match",
+    });
+  });
+
+  it("returns a typed successful flush result only for the sent event", () => {
+    const sent = event("evt_1");
+    expect(flushResultFromSuccessResponse(successAck("evt_1"), sent)).toEqual({
+      status: 200,
+      ack: successAck("evt_1"),
+    });
+  });
+});
 
 describe("isCaptureMessage", () => {
   it("accepts capture messages", () => {
@@ -85,11 +160,45 @@ describe("captureRequestHeaders", () => {
 });
 
 describe("planQueueAfterFlush", () => {
-  it("removes delivered events", () => {
-    const result = planQueueAfterFlush([{ event: event("evt_1"), attempts: 0 }], { status: 200 });
+  it("removes delivered events and records session delivery without inventing an attempt", () => {
+    const deliveredAt = "2026-07-20T10:00:00.000Z";
+    const result = planQueueAfterFlush(
+      [{ event: event("evt_1"), attempts: 0 }],
+      { status: 200, ack: successAck("evt_1") },
+      deliveredAt,
+    );
 
-    expect(result.queue).toEqual([]);
-    expect(result.lastSuccessfulCaptureAt).toBeDefined();
+    expect(result).toMatchObject({
+      queue: [],
+      clearLastCaptureError: true,
+      clearLastDeliveredAttempt: true,
+      lastSuccessfulCaptureAt: deliveredAt,
+      lastDeliveredEventType: "SESSION_STARTED",
+      lastDeliveredEventId: "evt_1",
+      lastDeliveredEventOccurredAt: "2026-07-06T00:00:00.000Z",
+      lastDeliveredCreatedAttempt: false,
+    });
+    expect(result.lastDeliveredAttemptId).toBeUndefined();
+    expect(result.lastDeliveredAttemptStatus).toBeUndefined();
+  });
+
+  it("records the materialized attempt from the ACK", () => {
+    const result = planQueueAfterFlush(
+      [{ event: event("evt_1"), attempts: 0 }],
+      {
+        status: 200,
+        ack: successAck("evt_1", { id: "attempt_1", status: "draft" }),
+      },
+    );
+
+    expect(result).toMatchObject({
+      queue: [],
+      clearLastCaptureError: true,
+      lastDeliveredCreatedAttempt: true,
+      lastDeliveredAttemptId: "attempt_1",
+      lastDeliveredAttemptStatus: "draft",
+    });
+    expect(result.clearLastDeliveredAttempt).toBeUndefined();
   });
 
   it("drops validation errors", () => {

@@ -7,7 +7,9 @@
   "host_permissions": [
     "http://localhost:3000/*",
     "https://leetcode.com/*",
+    "https://leetcode.cn/*",
     "https://www.nowcoder.com/*",
+    "https://ac.nowcoder.com/*",
     "https://www.luogu.com.cn/*",
     "https://codeforces.com/*",
     "https://atcoder.jp/*"
@@ -22,8 +24,15 @@
         "https://leetcode.com/problems/*",
         "https://leetcode.com/problems/*/description/*",
         "https://leetcode.com/problems/*/submissions/*",
-        "https://www.nowcoder.com/*",
-        "https://www.luogu.com.cn/*",
+        "https://leetcode.cn/problems/*",
+        "https://leetcode.cn/problems/*/description/*",
+        "https://leetcode.cn/problems/*/submissions/*",
+        "https://leetcode.cn/submissions/detail/*",
+        "https://www.nowcoder.com/practice/*",
+        "https://ac.nowcoder.com/acm/problem/*",
+        "https://ac.nowcoder.com/acm/contest/view-submission*",
+        "https://www.luogu.com.cn/problem/*",
+        "https://www.luogu.com.cn/record/*",
         "https://codeforces.com/problemset/problem/*",
         "https://atcoder.jp/contests/*/tasks/*"
       ],

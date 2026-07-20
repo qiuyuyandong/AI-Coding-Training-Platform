@@ -3,14 +3,14 @@
     "node_stable_id": "cpp-io-types",
     "practice_task_stable_id": "task-cpp-io-types",
     "canonical_problem_stable_id": "cpp-cpp-io-types",
-    "title": "Practice I/O and Basic Types",
+    "title": "A+B Problem (Luogu P1001)",
     "kind": "oj",
     "difficulty_band": "intro",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "practice_1",
-        "url": "https://atcoder.jp/contests/practice/tasks/practice_1",
+        "platform": "luogu",
+        "external_id": "P1001",
+        "url": "https://www.luogu.com.cn/problem/P1001",
         "is_primary": true
       }
     ]
@@ -19,14 +19,14 @@
     "node_stable_id": "cpp-control-flow-functions",
     "practice_task_stable_id": "task-cpp-control-flow",
     "canonical_problem_stable_id": "cpp-cpp-control-flow",
-    "title": "Control Flow and Conditional Logic",
+    "title": "数的性质 (Luogu P5710)",
     "kind": "oj",
     "difficulty_band": "intro",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "abc086_a",
-        "url": "https://atcoder.jp/contests/abc086/tasks/abc086_a",
+        "platform": "luogu",
+        "external_id": "P5710",
+        "url": "https://www.luogu.com.cn/problem/P5710",
         "is_primary": true
       }
     ]
@@ -35,14 +35,14 @@
     "node_stable_id": "cpp-containers",
     "practice_task_stable_id": "task-cpp-containers",
     "canonical_problem_stable_id": "cpp-cpp-containers",
-    "title": "Working with Vectors and Iteration",
+    "title": "合并两个有序数组 (LeetCode 88)",
     "kind": "oj",
     "difficulty_band": "intro",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "abc081_b",
-        "url": "https://atcoder.jp/contests/abc081/tasks/abc081_b",
+        "platform": "leetcode",
+        "external_id": "merge-sorted-array",
+        "url": "https://leetcode.cn/problems/merge-sorted-array/",
         "is_primary": true
       }
     ]
@@ -51,14 +51,14 @@
     "node_stable_id": "program-decomposition",
     "practice_task_stable_id": "task-program-decomposition",
     "canonical_problem_stable_id": "cpp-program-decomposition",
-    "title": "Function Decomposition and Search",
+    "title": "Fizz Buzz (LeetCode 412)",
     "kind": "oj",
     "difficulty_band": "easy",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "abc085_c",
-        "url": "https://atcoder.jp/contests/abc085/tasks/abc085_c",
+        "platform": "leetcode",
+        "external_id": "fizz-buzz",
+        "url": "https://leetcode.cn/problems/fizz-buzz/",
         "is_primary": true
       }
     ]
@@ -67,14 +67,14 @@
     "node_stable_id": "debugging-testing",
     "practice_task_stable_id": "task-debugging-testing",
     "canonical_problem_stable_id": "cpp-debugging-testing",
-    "title": "Debugging String Manipulation Logic",
+    "title": "小红的字符串处理 (NowCoder 319811)",
     "kind": "oj",
     "difficulty_band": "easy",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "arc065_a",
-        "url": "https://atcoder.jp/contests/arc065/tasks/arc065_a",
+        "platform": "nowcoder",
+        "external_id": "acm/problem/319811",
+        "url": "https://ac.nowcoder.com/acm/problem/319811",
         "is_primary": true
       }
     ]
@@ -99,14 +99,14 @@
     "node_stable_id": "complexity-analysis",
     "practice_task_stable_id": "task-complexity",
     "canonical_problem_stable_id": "cpp-complexity",
-    "title": "Complexity-Aware Algorithm Design",
+    "title": "存在重复元素 (LeetCode 217)",
     "kind": "oj",
     "difficulty_band": "easy",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "abc085_b",
-        "url": "https://atcoder.jp/contests/abc085/tasks/abc085_b",
+        "platform": "leetcode",
+        "external_id": "contains-duplicate",
+        "url": "https://leetcode.cn/problems/contains-duplicate/",
         "is_primary": true
       }
     ]
@@ -115,14 +115,14 @@
     "node_stable_id": "sorting-binary-search",
     "practice_task_stable_id": "task-sorting-binary-search",
     "canonical_problem_stable_id": "cpp-sorting-binary-search",
-    "title": "Sorting with Binary Search Application",
+    "title": "二分查找 (LeetCode 704)",
     "kind": "oj",
     "difficulty_band": "medium",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "arc084_a",
-        "url": "https://atcoder.jp/contests/arc084/tasks/arc084_a",
+        "platform": "leetcode",
+        "external_id": "binary-search",
+        "url": "https://leetcode.cn/problems/binary-search/",
         "is_primary": true
       }
     ]
@@ -131,14 +131,14 @@
     "node_stable_id": "stacks-queues",
     "practice_task_stable_id": "task-stacks-queues",
     "canonical_problem_stable_id": "cpp-stacks-queues",
-    "title": "BFS Preparation with Queue Structures",
+    "title": "有效的括号 (LeetCode 20)",
     "kind": "oj",
     "difficulty_band": "easy",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "abc007_3",
-        "url": "https://atcoder.jp/contests/abc007/tasks/abc007_3",
+        "platform": "leetcode",
+        "external_id": "valid-parentheses",
+        "url": "https://leetcode.cn/problems/valid-parentheses/",
         "is_primary": true
       }
     ]
@@ -147,14 +147,14 @@
     "node_stable_id": "hashing-linked-structures",
     "practice_task_stable_id": "task-hashing",
     "canonical_problem_stable_id": "cpp-hashing",
-    "title": "Hash-Based Deduplication and Counting",
+    "title": "两数之和 (LeetCode 1)",
     "kind": "oj",
     "difficulty_band": "easy",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "abc073_c",
-        "url": "https://atcoder.jp/contests/abc073/tasks/abc073_c",
+        "platform": "leetcode",
+        "external_id": "two-sum",
+        "url": "https://leetcode.cn/problems/two-sum/",
         "is_primary": true
       }
     ]
@@ -163,14 +163,14 @@
     "node_stable_id": "trees-recursion-traversal",
     "practice_task_stable_id": "task-trees",
     "canonical_problem_stable_id": "cpp-trees",
-    "title": "Tree Traversal and Subtree Aggregation",
+    "title": "二叉树的中序遍历 (LeetCode 94)",
     "kind": "oj",
     "difficulty_band": "medium",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "abc138_d",
-        "url": "https://atcoder.jp/contests/abc138/tasks/abc138_d",
+        "platform": "leetcode",
+        "external_id": "binary-tree-inorder-traversal",
+        "url": "https://leetcode.cn/problems/binary-tree-inorder-traversal/",
         "is_primary": true
       }
     ]
@@ -179,14 +179,14 @@
     "node_stable_id": "graphs-bfs-dfs",
     "practice_task_stable_id": "task-graphs",
     "canonical_problem_stable_id": "cpp-graphs",
-    "title": "Shortest Path on Unweighted Graphs",
+    "title": "走迷宫 (NowCoder 319371)",
     "kind": "oj",
     "difficulty_band": "medium",
     "sources": [
       {
-        "platform": "atcoder",
-        "external_id": "abc168_d",
-        "url": "https://atcoder.jp/contests/abc168/tasks/abc168_d",
+        "platform": "nowcoder",
+        "external_id": "acm/problem/319371",
+        "url": "https://ac.nowcoder.com/acm/problem/319371",
         "is_primary": true
       }
     ]

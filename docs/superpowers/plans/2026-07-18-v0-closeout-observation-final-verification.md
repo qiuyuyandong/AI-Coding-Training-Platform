@@ -6,7 +6,8 @@
 > `neat-freak` only after observation, F1–F4, and explicit user acceptance.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Active — the only current execution plan.
+**Status:** Paused — superseded on 2026-07-20 by the blocking domestic-OJ RC
+repair plan. Resume only after a replacement implementation SHA is frozen.
 
 **Goal:** Remove the planned VS Code behavior-footprint collector, retain
 editor-agnostic project learning with explicit evidence, repair the V0 release
@@ -149,10 +150,10 @@ reports already present in the dirty worktree.
   preservation.
 - [x] Request an independent code/plan review and resolve every blocking or
   important finding.
-- [ ] Update the active plan with the verified result. After the RC commit
+- [x] Update the active plan with the verified result. After the RC commit
   exists, regenerate the engineering report against its immutable SHA; include
   that report in the final evidence/status commit to avoid self-reference.
-- [ ] Stage only the classified RC scope and create the first commit. Record its
+- [x] Stage only the classified RC scope and create the first commit. Record its
   40-character SHA as `implementationSha` in the observation templates.
 
 ### Task 5: Complete real owner and participant observations

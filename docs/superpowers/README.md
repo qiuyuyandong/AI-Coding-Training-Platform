@@ -1,15 +1,18 @@
 # Superpowers Documentation Index
 
-> **Status (2026-07-18):** **V0 validation.** Phase 0 is complete; the V0
-> functional slice and stabilization fixes are implemented and pass the full
-> worktree quality gate. V0 is not complete because real-use observations,
-> same-SHA F1–F4 verification, and explicit user acceptance are pending.
+> **Status (2026-07-20):** **V0 repair and validation.** Phase 0 is complete.
+> Domestic-OJ routing, queue diagnostics, curriculum 1.0.1, and passive
+> authenticated characterization are implemented and reviewed in the working
+> tree. The former RC `b516632...` is superseded; no replacement RC exists
+> until this repair is explicitly committed.
 
 The only active execution plan is
+[`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md).
+The closeout plan is paused until a replacement RC is frozen:
 [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md).
 The completed stabilization package is recorded in
 [`plans/2026-07-18-v0-stabilization-known-issues.md`](plans/2026-07-18-v0-stabilization-known-issues.md)
-with worktree evidence at
+with RC evidence at
 [`../../work/reports/v0-stabilization-2026-07-18.md`](../../work/reports/v0-stabilization-2026-07-18.md).
 
 This directory contains both active product planning and historical implementation records. Phase numbers were reused during early prototype work, so use this index before executing a plan.
@@ -18,7 +21,8 @@ This directory contains both active product planning and historical implementati
 
 1. [`../../IDEA.md`](../../IDEA.md) — product definition, adopted decisions, V0/V0.5/V1/Public Beta scope.
 2. [`plans/2026-07-11-product-development-roadmap.md`](plans/2026-07-11-product-development-roadmap.md) — active release/Phase map and exit gates.
-3. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — the only active execution checklist.
+3. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — the only active execution checklist; replacement-RC repair.
+4. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — paused closeout checklist; resumes after the repair RC.
 
 Immediate target: accepted V0. Next target: V0.5 connected OJ/basic evidence.
 Then: V1 integrated local pilot. Total product target: **Phase 7 / Public Beta

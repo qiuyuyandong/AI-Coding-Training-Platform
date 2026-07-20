@@ -32,6 +32,15 @@ async function startTestServer(): Promise<{ server: Server; port: number }> {
     } else if (url === "/login") {
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end('<input name="password">');
+    } else if (url === "/seo-login-wall") {
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(
+        '<!doctype html><html><head>'
+        + '<meta name="robots" content="index,follow">'
+        + '<meta name="description" content="This generic platform description is deliberately long enough to resemble SEO metadata while exposing no public problem statement to the visitor.">'
+        + '<meta property="og:title" content="请登录后继续">'
+        + '</head><body><main>请登录</main></body></html>',
+      );
     } else if (url === "/slow") {
       setTimeout(() => {
         res.writeHead(200);
@@ -257,6 +266,29 @@ describe("check-curriculum-links", () => {
         (r) => r.ok === false && r.error !== undefined && /(password|login)/i.test(r.error),
       );
       expect(hasLoginError).toBe(true);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a login wall even when it carries indexable SEO metadata", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "link-check-seo-login-wall-"));
+    try {
+      writeMinimalPkg(
+        tmp,
+        port,
+        `http://127.0.0.1:${port}/seo-login-wall`,
+        "sample-resource-a",
+      );
+      const outPath = join(tmp, "out.json");
+      await runCli(join(tmp, "pkg"), outPath);
+      const output = readJson(outPath) as {
+        results: Array<{ url: string; ok: boolean; error?: string }>;
+      };
+      const loginResult = output.results.find((entry) =>
+        entry.url.endsWith("/seo-login-wall"));
+      expect(loginResult?.ok).toBe(false);
+      expect(loginResult?.error).toMatch(/login|登录/iu);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }

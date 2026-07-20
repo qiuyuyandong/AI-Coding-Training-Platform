@@ -5,6 +5,7 @@ import {
   detectProblemFromPage,
   detectVerdictFromDocument,
 } from "./platforms";
+import { isExactSubmitControl } from "./submissionControl";
 import type { CaptureEvent } from "@/lib/capture/protocol";
 
 const NAVIGATION_POLL_MS = 500;
@@ -72,9 +73,19 @@ async function run(): Promise<void> {
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-
-    const text = target.textContent?.toLowerCase() ?? "";
-    if (!text.includes("submit") && !text.includes("提交")) return;
+    // Two independent guards before forwarding to the runtime:
+    //   1. The current URL must resolve to a supported problem page; this
+    //      rejects login / registration / record / company / home pages that
+    //      happen to contain the word "submit" or "提交".
+    //   2. The click target must be a recognized interactive control whose
+    //      normalized label is exactly an allowed submit label for that
+    //      platform. Substring matches such as "登录并提交", "提交记录" or
+    //      "Submit Solution Now" are explicitly rejected by the allowlist.
+    // The runtime still owns the active-session gate (reconcile + check
+    // state.active) and emits the SUBMISSION_OBSERVED event.
+    const detected = detectProblemFromPage(window.location, document);
+    if (detected === null) return;
+    if (!isExactSubmitControl(detected.platform, target)) return;
     runtime.submissionObserved();
   });
   window.addEventListener("popstate", observeLocation);

@@ -9,7 +9,7 @@ describe("canonical problem identity", () => {
     [
       { platform: "leetcode" as const, externalId: "/Two-Sum/" },
       { platform: "leetcode", externalId: "two-sum" },
-      "https://leetcode.com/problems/two-sum/",
+      "https://leetcode.cn/problems/two-sum/",
     ],
     [
       { platform: "codeforces" as const, externalId: "123b1" },
@@ -27,9 +27,14 @@ describe("canonical problem identity", () => {
       "https://www.luogu.com.cn/problem/P1001",
     ],
     [
-      { platform: "nowcoder" as const, externalId: "practice/example/?from=nav#answer" },
-      { platform: "nowcoder", externalId: "/practice/example" },
+      { platform: "nowcoder" as const, externalId: "/practice/example" },
+      { platform: "nowcoder", externalId: "practice/example" },
       "https://www.nowcoder.com/practice/example",
+    ],
+    [
+      { platform: "nowcoder" as const, externalId: "https://ac.nowcoder.com/acm/problem/25000" },
+      { platform: "nowcoder", externalId: "acm/problem/25000" },
+      "https://ac.nowcoder.com/acm/problem/25000",
     ],
   ])("normalizes %j", (input, identity, url) => {
     expect(normalizeProblemIdentity(input)).toEqual(identity);
@@ -53,8 +58,39 @@ describe("canonical problem identity", () => {
     [{ platform: "codeforces" as const, externalId: "bad" }, "Invalid Codeforces problem ID"],
     [{ platform: "atcoder" as const, externalId: "abc086" }, "Invalid AtCoder task ID"],
     [{ platform: "leetcode" as const, externalId: " / " }, "Problem external ID is required"],
+    [{ platform: "leetcode" as const, externalId: "two sum" }, "Invalid LeetCode problem slug"],
+    [{ platform: "leetcode" as const, externalId: "-two-sum" }, "Invalid LeetCode problem slug"],
+    [{ platform: "leetcode" as const, externalId: "two-sum-" }, "Invalid LeetCode problem slug"],
+    [{ platform: "luogu" as const, externalId: "record/123" }, "Invalid Luogu problem ID"],
+    [{ platform: "luogu" as const, externalId: "/record/123" }, "Invalid Luogu problem ID"],
+    [{ platform: "nowcoder" as const, externalId: "https://www.nowcoder.com/company/home" }, "Invalid NowCoder problem path"],
+    [{ platform: "nowcoder" as const, externalId: "https://ac.nowcoder.com/contest/1" }, "Invalid NowCoder problem path"],
+    [{ platform: "nowcoder" as const, externalId: "http://www.nowcoder.com/practice/example" }, "Invalid NowCoder problem path"],
+    [{ platform: "nowcoder" as const, externalId: "https://user:pass@www.nowcoder.com/practice/example" }, "Invalid NowCoder problem path"],
+    [{ platform: "nowcoder" as const, externalId: "https://www.nowcoder.com:8080/practice/example" }, "Invalid NowCoder problem path"],
+    [{ platform: "nowcoder" as const, externalId: "https://leetcode.cn/problems/two-sum/" }, "Invalid NowCoder problem path"],
+    [{ platform: "nowcoder" as const, externalId: "https://nowcoder.com/practice/example" }, "Invalid NowCoder problem path"],
   ])("rejects malformed identity %j", (identity, message) => {
     expect(() => normalizeProblemIdentity(identity)).toThrow(message);
+  });
+
+  it("strips trailing slashes and query strings from NowCoder identity", () => {
+    const identity = { platform: "nowcoder" as const, externalId: "/practice/example/?from=nav#answer" };
+
+    expect(normalizeProblemIdentity(identity)).toEqual({
+      platform: "nowcoder",
+      externalId: "practice/example",
+    });
+    expect(canonicalProblemUrl(identity)).toBe("https://www.nowcoder.com/practice/example");
+  });
+
+  it("produces the leetcode.cn canonical URL even when the source URL is leetcode.com", () => {
+    expect(canonicalProblemUrl({
+      platform: "leetcode",
+      externalId: "two-sum",
+    }, "https://leetcode.com/problems/two-sum/description/?envType=daily")).toBe(
+      "https://leetcode.cn/problems/two-sum/",
+    );
   });
 
   it("requires a safe observed URL for manual problems", () => {

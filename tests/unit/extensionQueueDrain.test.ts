@@ -37,32 +37,58 @@ function item(id: string, attempts = 0): CaptureQueueItem {
   return { event: event(id), attempts };
 }
 
+function delivered(id: string): FlushResult {
+  return {
+    status: 200,
+    ack: {
+      ok: true,
+      eventId: id,
+      captureSessionId: `session_${id}`,
+      replayed: false,
+    },
+  };
+}
+
 type DrainHarness = {
   readonly dependencies: QueueDrainDependencies;
   readonly sent: string[];
+  readonly plans: QueuePlan[];
   readonly queue: () => readonly CaptureQueueItem[];
+  readonly lastCaptureError: () => string | undefined;
 };
 
 function createHarness(
   initial: readonly CaptureQueueItem[],
   results: readonly FlushResult[],
+  initialLastCaptureError?: string,
 ): DrainHarness {
   let queue = initial;
+  let lastCaptureError = initialLastCaptureError;
   const pendingResults = [...results];
   const sent: string[] = [];
+  const plans: QueuePlan[] = [];
   return {
     dependencies: {
       readQueue: async () => queue,
       send: async (captureEvent) => {
         sent.push(captureEvent.id);
-        return pendingResults.shift() ?? { status: 200 };
+        return pendingResults.shift() ?? delivered(captureEvent.id);
       },
       persist: async (plan: QueuePlan) => {
+        plans.push(plan);
         queue = plan.queue;
+        if (plan.lastCaptureError !== undefined) {
+          lastCaptureError = plan.lastCaptureError;
+        }
+        if (plan.clearLastCaptureError === true) {
+          lastCaptureError = undefined;
+        }
       },
     },
     sent,
+    plans,
     queue: () => queue,
+    lastCaptureError: () => lastCaptureError,
   };
 }
 
@@ -77,13 +103,29 @@ describe("capture queue drain", () => {
     expect(harness.queue()).toEqual([]);
   });
 
+  it("persists an explicit stale-error removal after a successful ACK", async () => {
+    const harness = createHarness(
+      [item("evt_1")],
+      [delivered("evt_1")],
+      "offline",
+    );
+
+    const outcome = await drainCaptureQueue(harness.dependencies);
+
+    expect(outcome).toEqual({ reason: "empty", processed: 1 });
+    expect(harness.plans).toHaveLength(1);
+    expect(harness.plans[0]?.clearLastCaptureError).toBe(true);
+    expect(harness.plans[0]?.lastCaptureError).toBeUndefined();
+    expect(harness.lastCaptureError()).toBeUndefined();
+  });
+
   it("drops permanent failures and continues draining", async () => {
     const harness = createHarness(
       [item("evt_1"), item("evt_2"), item("evt_3")],
       [
         { status: 400, error: "invalid" },
         { status: 409, error: "conflict" },
-        { status: 200 },
+        delivered("evt_3"),
       ],
     );
 
@@ -111,7 +153,7 @@ describe("capture queue drain", () => {
   it("drops a capped server failure and continues", async () => {
     const harness = createHarness(
       [item("evt_1", MAX_RETRY_ATTEMPTS - 1), item("evt_2")],
-      [{ status: 500, error: "server failed" }, { status: 200 }],
+      [{ status: 500, error: "server failed" }, delivered("evt_2")],
     );
 
     const outcome = await drainCaptureQueue(harness.dependencies);
@@ -180,7 +222,7 @@ describe("capture queue drain", () => {
           markSendStarted();
           await sendGate;
         }
-        return { status: 200 };
+        return delivered(captureEvent.id);
       },
       persist: async (plan) => {
         queue = plan.queue;

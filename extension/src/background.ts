@@ -16,11 +16,13 @@ import { createSerializedWorkExecutor } from "./serializedWork";
 import {
   enqueueCaptureEvent,
   captureRequestHeaders,
+  flushResultFromSuccessResponse,
   isCaptureMessage,
   isQueueItem,
   readCaptureEndpoint,
   type CaptureQueueItem,
   type FlushResult,
+  type QueuePlan,
 } from "./transport";
 
 const INITIALIZATION_STORAGE_KEYS = [
@@ -151,13 +153,29 @@ async function flushQueue(): Promise<void> {
         state.captureCredential,
       );
     },
-    persist: async (plan) => {
-      await chrome.storage.local.set(plan);
-    },
+    persist: persistQueuePlan,
   });
 
   if (outcome.reason === "batch_limit") {
     executor.schedule(flushQueue);
+  }
+}
+
+async function persistQueuePlan(plan: QueuePlan): Promise<void> {
+  const {
+    clearLastCaptureError,
+    clearLastDeliveredAttempt,
+    ...storedPlan
+  } = plan;
+  await chrome.storage.local.set(storedPlan);
+
+  const keysToRemove: string[] = [];
+  if (clearLastCaptureError === true) keysToRemove.push("lastCaptureError");
+  if (clearLastDeliveredAttempt === true) {
+    keysToRemove.push("lastDeliveredAttemptId", "lastDeliveredAttemptStatus");
+  }
+  if (keysToRemove.length > 0) {
+    await chrome.storage.local.remove(keysToRemove);
   }
 }
 
@@ -173,7 +191,7 @@ async function postCaptureEvent(
       body: JSON.stringify(event),
     });
 
-    if (response.ok) return { status: 200 };
+    if (response.ok) return readSuccessAck(response, event);
 
     const body = await readErrorBody(response);
     if (response.status === 400) return { status: 400, error: body };
@@ -187,6 +205,23 @@ async function postCaptureEvent(
     return {
       status: "network_error",
       error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+async function readSuccessAck(
+  response: Response,
+  event: CaptureQueueItem["event"],
+): Promise<FlushResult> {
+  try {
+    const body: unknown = await response.json();
+    return flushResultFromSuccessResponse(body, event);
+  } catch (error) {
+    return {
+      status: 500,
+      error: error instanceof Error
+        ? `Success ACK validation failed: ${error.message}`
+        : "Success ACK validation failed",
     };
   }
 }

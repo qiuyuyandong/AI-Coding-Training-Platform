@@ -1,0 +1,13 @@
+{
+  "fixtureName": "record-287273601-p1001-ac",
+  "sourceUrl": "https://www.luogu.com.cn/record/287273601",
+  "captureDate": "2026-07-20",
+  "captureMethod": "Logged-in Chrome session visible-DOM scrape, user-authorized, sanitized. No cookies, no tokens, no scripts, no styles, no forms, no submitted source code, no username, no timestamp, no language, no memory, no code length, no user-link, no problem text. Only the page title, the unique first-party problem anchor `/problem/P1001`, and the semantic verdict row keyed by the exact label 评测状态 with the sibling colored span containing `Accepted` are retained. The exact selector provenance is the semantic extractor `extractLuoguRecordRowText`: a leaf whose trimmed textContent is exactly 评测状态, surrounded by an enclosing div/li/tr/section row, with the full row text used for verdict classification. No body scanning, no generated data-v attribute. Source URL and record ID are public and retained.",
+  "purpose": "detectVerdictFromDocument — verdict captured via the semantic extractor keyed by 评测状态. detectProblemFromPage — record-page problem identity via the unique `/problem/P1001` anchor.",
+  "selectors": ["extractor:extractLuoguRecordRowText", "a[href=\"/problem/P1001\"]"],
+  "authenticated": true,
+  "sanitized": true,
+  "evidenceTier": "authenticated-characterization",
+  "verdictExpected": { "verdict": "Accepted" },
+  "problemExpected": { "platform": "luogu", "externalId": "P1001" }
+}

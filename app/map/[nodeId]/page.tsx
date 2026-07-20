@@ -48,7 +48,7 @@ function NodeDetailMissingPackage({
         <code className="mx-1 rounded bg-slate-100 px-1 py-0.5 text-xs">
           npm run curriculum:import
         </code>
-        导入 <code>software-development-foundations-v1@1.0.0</code>，然后刷新
+        导入 <code>software-development-foundations-v1@1.0.1</code>，然后刷新
         <code className="mx-1 rounded bg-slate-100 px-1 py-0.5 text-xs">
           /map/{requestedNodeId}
         </code>

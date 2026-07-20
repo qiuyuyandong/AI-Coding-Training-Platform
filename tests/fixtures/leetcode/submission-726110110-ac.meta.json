@@ -1,0 +1,13 @@
+{
+  "fixtureName": "submission-726110110-ac",
+  "sourceUrl": "https://leetcode.cn/submissions/detail/726110110/",
+  "captureDate": "2026-07-20",
+  "captureMethod": "Logged-in Chrome session visible-DOM scrape, user-authorized, sanitized. No cookies, no tokens, no scripts, no styles, no forms, no problem statement, no submitted source code, no username, no timestamp, no language, no memory, no code length. Only the page title, the unique first-party problem anchor `/problems/find-the-prefix-common-array-of-two-arrays/` and the verdict node `<div data-e2e-locator=\"submission-result\">通过</div>` are retained. Source URL and submission ID are public and retained.",
+  "purpose": "detectVerdictFromDocument — no own verdict evidence was observed; this AC evidence comes from an existing submission page and is recorded only as authenticated-characterization. detectProblemFromPage — record-page problem identity via the unique anchor.",
+  "selectors": ["[data-e2e-locator=\"submission-result\"]", "a[href=\"/problems/find-the-prefix-common-array-of-two-arrays/\"]"],
+  "authenticated": true,
+  "sanitized": true,
+  "evidenceTier": "authenticated-characterization",
+  "verdictExpected": { "verdict": "Accepted" },
+  "problemExpected": { "platform": "leetcode", "externalId": "find-the-prefix-common-array-of-two-arrays" }
+}

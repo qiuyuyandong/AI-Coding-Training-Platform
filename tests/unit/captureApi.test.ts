@@ -388,7 +388,7 @@ describe("capture API V2", () => {
       }>("SELECT problem_external_id, canonical_url FROM capture_events").get())
         .toEqual({
           problem_external_id: "two-sum",
-          canonical_url: "https://leetcode.com/problems/two-sum/",
+          canonical_url: "https://leetcode.cn/problems/two-sum/",
         });
     } finally {
       db.close();

@@ -1,23 +1,24 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-18):** **V0 validation.** Phase 0 is complete. The V0
-> functional slice and stabilization fixes are implemented, but real-use
-> observations, same-SHA F1–F4 verification, and explicit user acceptance are
-> pending. The earlier exit-candidate record was premature and is not an
-> accepted release decision.
+> **Status (2026-07-20):** **V0 repair and validation.** Phase 0 is complete.
+> The domestic-OJ RC repair is implemented in the working tree and invalidates
+> the former frozen RC, but has not yet been committed as a replacement RC.
+> Real-use observations, same-SHA F1–F4 verification, and explicit user
+> acceptance remain pending.
 
-> **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` now exercises
-> 13 real temporary-repository cases for the two-commit release contract. The
-> focused suite, lint, and typecheck pass; the RC implementation SHA is pending
-> the authoritative quality gate and checkpoint commit.
+> **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
+> real temporary-repository cases for the strict two-commit release contract.
+> `b5166320768355666a5c4ff3f466c29c240ea8cf` is now the superseded RC; no
+> replacement implementation SHA exists until this repair is reviewed and
+> explicitly committed.
 
-> **Post-candidate stabilization:** The current uncommitted worktree repairs the
+> **Post-candidate stabilization:** The frozen RC repairs the
 > plan-completion row-ID regression, stale projection, later-pass L2 promotion,
 > optional-AI lookup and Windows link-check harness. A fresh eight-stage quality
-> gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. A new committed
-> implementation SHA and F1-F4/user acceptance are still pending.
+> gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
+> observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented and worktree-verified **V0 local learning loop under validation**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release. The only active plan is `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md`.
+This repository currently contains an implemented **V0 local learning loop under repair and validation**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release. The only active plan is `docs/superpowers/plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`; closeout resumes after a replacement RC is frozen.
 
 It provides:
 
@@ -27,7 +28,7 @@ It provides:
 - a paired, session- and submission-aware local capture API;
 - captured and manually entered local attempts, with traceable corrections and logical voiding;
 - Coach and Growth pages that use active attempts by default;
-- a V0 **manual learning loop** (implemented; observation and acceptance pending): a 12-node foundation curriculum with 12 reviewed resources, 12 mapped practice tasks, 13 prerequisite edges and 9 career summaries; a 6-prompt resumable diagnosis with starting-node override; deterministic candidate selection with semantic alternatives; an atomic completion loop that records attempt, attempt→node mapping, ability projection and successor plan; optional opt-in per-completion AI reflection (default disabled, network-denial guard, deterministic fallback). V0 introduces the `/map`, `/plan`, and `/today` pages and the underlying services, repositories, migrations 0006/0007/0008, and validators.
+- a V0 **manual learning loop** (implemented; observation and acceptance pending): curriculum package 1.0.1 has 12 nodes, 12 reviewed resources, 12 mapped practice tasks (11 domestic OJ links across LeetCode.cn, Luogu and NowCoder plus one manual Git exercise), 13 prerequisite edges and 9 career summaries; a 6-prompt resumable diagnosis with starting-node override; deterministic candidate selection with semantic alternatives; an atomic completion loop that records attempt, attempt→node mapping, ability projection and successor plan; optional opt-in per-completion AI reflection (default disabled, network-denial guard, deterministic fallback). V0 introduces the `/map`, `/plan`, and `/today` pages and the underlying services, repositories, migrations 0006/0007/0008, and validators.
 
 The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
 
@@ -79,7 +80,7 @@ Before the first capture, open `/settings`, create a ten-minute pairing code, an
 
 The training loop turns captured browser events into local training attempts:
 
-- `/training?platform=leetcode&externalId=two-sum&title=Two%20Sum` opens the original problem and shows capture plus problem-specific attempt status;
+- `/training?platform=leetcode&externalId=two-sum&title=Two%20Sum` opens the domestic canonical `leetcode.cn` problem link and shows capture plus problem-specific attempt status;
 - `/api/capture/events` stores each V2 raw event and its deterministic session/attempt projection in one SQLite transaction;
 - `/api/attempts/recent` accepts an explicit bounded limit and optional `platform` + `externalId` scope; the training workspace requests only its current problem;
 - `POST /api/attempts` creates a server-labelled manual attempt; correction and void endpoints require an expected revision and a reason;
@@ -89,11 +90,11 @@ The Training workspace labels each attempt as `Automatic capture` or `Manual ent
 
 Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per observed problem visit, and a `submissionId` per observed submission. Same-problem SPA routes retain the active session; navigation to another problem emits the old-session end before the new-session start. Sessions may remain open when the optional `SESSION_ENDED` signal is not delivered. Exact event replay is idempotent; reusing an `eventId` with different content returns HTTP 409.
 
-The extension owns its queue through one serialized executor and drains events FIFO in batches of at most 25. Permanent 400/409/413/415 failures are dropped, while network and retryable server failures preserve the head. A 401 preserves the queue and retry budget until the extension is paired again.
+The extension owns its queue through one serialized executor and drains events FIFO in batches of at most 25. Permanent 400/409/413/415 failures are dropped, while network and retryable server failures preserve the head. A 401 preserves the queue and retry budget until the extension is paired again. The popup labels this as an event queue, distinguishes page-session delivery from submit/verdict delivery, and reports whether the server ACK materialized a training attempt; a successful ACK clears stale transport errors.
 
 Extension unit tests cover SPA observation and queue concurrency directly. Playwright does not load the unpacked MV3 extension, so its SPA-shaped test validates the resulting end/start sequence through the API, SQLite projections, and problem-specific training UI.
 
-Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with status levels `production`, `experimental`, or `disabled`. AtCoder is the sole `production` adapter, certified with real public verdict DOM fixtures on 2026-07-17 (`work/reports/phase-0-atcoder-certification.md`). LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`. A Luogu DOM fixture corpus (`tests/fixtures/luogu/`) with an evidence-tier metadata system and a certification gate (`tests/unit/platformCertification.test.ts`) enforce that promotion to `production` requires publicly verified verdict DOM. Luogu adapter certification was attempted in Phase 0B4 (2026-07-14) and remains historically BLOCKED because its record pages require authentication; the blocker is preserved in `work/reports/luogu-adapter-blocker.json`.
+Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with status levels `production`, `experimental`, or `disabled`. AtCoder remains the sole `production` adapter, certified with public verdict DOM fixtures on 2026-07-17 (`work/reports/phase-0-atcoder-certification.md`); LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`. User-authorized, strictly sanitized `authenticated-characterization` fixtures now cover an existing LeetCode.cn AC result, an existing NowCoder AC result, and existing Luogu AC/Compile Error records. The extension resolves those exact result routes from one first-party problem anchor, uses narrow verdict selectors or semantic extraction, and never scans the whole `body`. This evidence proves passive detector behavior only: the agent performed no submissions, LeetCode/NowCoder non-AC transitions were not observed, and authenticated characterization cannot satisfy the public-DOM production gate.
 
 The V2 cutover intentionally discarded legacy V1 capture rows and queued extension events. The extension records the one-time queue discard count and logs it locally. Existing V2 events remain intact when credential migration 0004 is applied; events observed before pairing keep `extension_unpaired` provenance even if delivered after pairing.
 

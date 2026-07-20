@@ -90,7 +90,7 @@ describe("problem catalog seed", () => {
 
       expect(listProblems(db)[0]).toMatchObject({
         externalId: "two-sum",
-        canonicalUrl: "https://leetcode.com/problems/two-sum/",
+        canonicalUrl: "https://leetcode.cn/problems/two-sum/",
       });
     } finally {
       db.close();

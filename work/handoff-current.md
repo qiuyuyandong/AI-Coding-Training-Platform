@@ -1,37 +1,41 @@
 # Current Handoff
 
-## Status (2026-07-18)
+## Status (2026-07-20)
 
-**V0 validation: implementation and stabilization complete in the worktree;
-observation, final verification, and user acceptance pending.**
+**V0 domestic-OJ engineering and passive characterization complete; former RC superseded;
+replacement RC, observation, final verification, and acceptance pending.**
 
-- Previous implementationSha: `d6c0f14aafb663c8746ad5e30d968508d539ec07`; it predates the stabilization fixes and cannot anchor final V0 acceptance.
+- Superseded implementationSha: `b5166320768355666a5c4ff3f466c29c240ea8cf`; no replacement RC SHA exists in the uncommitted worktree.
 - Observation templates at `work/reports/v0-observation-owner.md` and `work/reports/v0-observation-participants.md` contain no sessions or participant windows.
 - `work/reports/v0-exit-report.md` recorded `ACCEPT_CANDIDATE` before those required observations; treat it as a superseded premature record, not a valid candidate decision.
-- Active plan: `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md`.
-- V0 is **not** complete or accepted. After a frozen implementation SHA and validated observations exist, F1–F4 must all approve the same release SHA and the user must explicitly accept it.
-- Current stabilization worktree: full quality gate PASS on 2026-07-18 after
+- Active plan: `docs/superpowers/plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`. The 2026-07-18 closeout plan is paused.
+- V0 is **not** complete or accepted. After validated observations exist, F1–F4 must all approve the same implementation SHA and the user must explicitly accept it.
+- Frozen stabilization RC: full quality gate PASS on 2026-07-18 after
   repairing the plan-completion row-ID regression and related known issues.
-  Evidence: `work/reports/v0-stabilization-2026-07-18.md`. No new
-  implementation SHA exists until the user authorizes a commit.
+  Evidence: `work/reports/v0-engineering-gates.md` and
+  `work/reports/v0-stabilization-2026-07-18.md`.
 - Release-validator coverage: `tests/unit/v0ReportValidators.test.ts` contains
-  13 real temporary-repository cases for the two-commit contract. The focused
+  21 real temporary-repository cases for the strict two-commit contract. The focused
   suite, lint, and typecheck pass.
 
 ## Workspace
 
 - Branch: `feature/v1-followup`
-- Worktree: repository root; contains the uncommitted V0 stabilization repair
-  plus the user's pre-existing untracked V0 vertical-slice plan. Do not discard
-  or stage unrelated paths.
+- Worktree: repository root; domestic-OJ runtime, extension UX, curriculum 1.0.1,
+  tests and current-state docs are intentionally dirty. Do not begin observations
+  or write a replacement `implementationSha` until review, full gates and an
+  explicitly authorized commit freeze this scope.
 - Default database: preserved during the authoritative Phase 0D Task 4, Task 6, and T8 gate verification runs (metadata-only `Get-Item`; the default `training-platform.sqlite` was never opened or hashed by those runs)
-- Latest independent quality-gate run: 2026-07-17 (T8), `npm run quality:gate` PASS: 32 unit files / 367 passed / 1 skip; 17 E2E; 15 extension files / 242 passed; 16/16 build pages; default `training-platform.sqlite` `Length` 73728 and `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z unchanged before and after
-- V0 engineering gate run (Todo 27): `npm run lint`, disposable `npm run db:migrate`, `npm run curriculum:validate`, `npm run test`, `npm run typecheck`, `npm run e2e`, `npm run extension:check`, `npm run build` all exit 0 at implementationSha `d6c0f14aafb663c8746ad5e30d968508d539ec07`; default `training-platform.sqlite` preserved (73728 bytes, LastWriteTimeUtc = 2026-07-13 17:49:36 UTC)
+- Fresh repair-worktree quality gate: PASS on 2026-07-20 with 65 unit files / 1008 passed / 1 capability skip, 24 E2E, 18 extension files / 457 passed, curriculum 1.0.1 validation and production build PASS. This is uncommitted worktree evidence, not a replacement RC SHA.
+- Independent code review: APPROVED after manifest reachability and hidden-title privacy fixes; no blocker or important finding remains.
+- Passive authenticated characterization: existing LeetCode.cn AC, NowCoder AC, and Luogu AC/Compile Error pages were inspected in user-authorized background tabs. The agent made no submissions and retained no credentials, source code, account identity, or full statements. Evidence: `work/reports/v0-domestic-oj-authenticated-characterization-matrix.md`.
+- Real mainland-local curriculum link check: 17/24 PASS, 7 LeetCode.cn URLs conservatively BLOCKED on the `请登录` marker despite HTTP 200; do not report the package as fully link-verified.
+- Default database preserved at 462848 bytes and `LastWriteTimeUtc` `2026-07-17T22:06:33.9396954Z` by metadata-only comparison.
 
 ## Current Phase
 
 - Phase 0: **complete and reconciled green on 2026-07-17.** All exit criteria satisfied; AtCoder is the sole certified production adapter.
-- V0 manual learning loop vertical slice: **implemented and stabilized in the worktree; currently in V0 validation.**
+- V0 manual learning loop vertical slice: **implemented; domestic-OJ repair is uncommitted and currently in V0 validation.**
 
 ## Commit Chronology
 
@@ -74,12 +78,10 @@ observation, final verification, and user acceptance pending.**
 
 ## Next Commander Action
 
-1. Run the authoritative quality gate, complete independent review, and freeze the stabilized `implementationSha` in the authorized RC checkpoint commit.
-2. Regenerate engineering/content/privacy evidence against that immutable SHA.
-3. Complete and validate the 7-day owner observation and both 14-day participant windows.
-4. Run F1–F4 against the same `implementationSha`; all four must APPROVE.
-5. Record `work/reports/v0-final-verification.md`, present the evidence, and wait for explicit user acceptance.
-6. Only after acceptance, run `neat-freak`, make the final evidence/status commit, validate the RC-to-release allowlist, and begin a fresh V0.5 delta plan.
+1. Decide whether the reviewed, quality-gate-green worktree should be committed as the replacement RC; do not reuse superseded SHA `b5166320768355666a5c4ff3f466c29c240ea8cf`.
+2. If committed, verify the same SHA and begin only user-performed real-use observation; the agent must not submit OJ answers on the user's behalf.
+3. Restart and validate the 7-day owner observation and both 14-day participant windows against the replacement RC, then run same-SHA F1–F4 and wait for explicit user acceptance.
+4. Only after acceptance, run `neat-freak`, make the final evidence/status commit, validate the RC-to-release allowlist, and begin a fresh V0.5 delta plan.
 
 ## Known Risks
 

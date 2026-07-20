@@ -38,7 +38,7 @@ describe("createManualAttempt", () => {
       platform: "leetcode",
       problemExternalId: "two-sum",
       problemTitle: "Two Sum",
-      canonicalUrl: "https://leetcode.com/problems/two-sum/",
+      canonicalUrl: "https://leetcode.cn/problems/two-sum/",
       startedAt: "2026-07-14T01:00:00.000Z",
       endedAt: "2026-07-14T01:20:00.000Z",
       result: "failed",

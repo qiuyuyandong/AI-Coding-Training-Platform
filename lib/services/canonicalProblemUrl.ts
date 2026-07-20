@@ -23,7 +23,7 @@ export function normalizeProblemIdentity(
 
   switch (platform) {
     case "leetcode":
-      return { platform, externalId: trimSlashes(externalId).toLowerCase() };
+      return { platform, externalId: normalizeLeetCodeSlug(externalId) };
     case "codeforces":
       return { platform, externalId: normalizeCodeforcesId(externalId) };
     case "atcoder":
@@ -31,7 +31,7 @@ export function normalizeProblemIdentity(
     case "luogu":
       return { platform, externalId: normalizeLuoguId(externalId) };
     case "nowcoder":
-      return { platform, externalId: normalizeNowCoderPath(externalId) };
+      return { platform, externalId: normalizeNowCoderExternalId(externalId) };
     case "manual":
       return { platform, externalId };
   }
@@ -44,7 +44,7 @@ export function canonicalProblemUrl(
   const normalized = normalizeProblemIdentity(identity);
   switch (normalized.platform) {
     case "leetcode":
-      return `https://leetcode.com/problems/${normalized.externalId}/`;
+      return `https://leetcode.cn/problems/${normalized.externalId}/`;
     case "codeforces": {
       const parts = codeforcesParts(normalized.externalId);
       return `https://codeforces.com/problemset/problem/${parts.contest}/${parts.index}`;
@@ -59,7 +59,7 @@ export function canonicalProblemUrl(
     case "luogu":
       return `https://www.luogu.com.cn/problem/${normalized.externalId}`;
     case "nowcoder":
-      return `https://www.nowcoder.com${normalized.externalId}`;
+      return nowcoderCanonicalUrl(normalized.externalId);
     case "manual":
       if (observedUrl === undefined) {
         throw new CanonicalProblemUrlError("Manual problems require an observed URL");
@@ -72,6 +72,16 @@ function trimSlashes(value: string): string {
   const trimmed = value.replace(/^\/+|\/+$/gu, "");
   if (trimmed.length === 0) {
     throw new CanonicalProblemUrlError("Problem external ID is required");
+  }
+  return trimmed;
+}
+
+function normalizeLeetCodeSlug(value: string): string {
+  const trimmed = trimSlashes(value).toLowerCase();
+  // Lowercase slugs are made of letters, digits, and dashes. The slug must start
+  // and end with an alphanumeric so empty slugs and pure dashes cannot escape.
+  if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(trimmed)) {
+    throw new CanonicalProblemUrlError("Invalid LeetCode problem slug");
   }
   return trimmed;
 }
@@ -105,21 +115,121 @@ function normalizeLuoguId(value: string): string {
   const normalized = trimSlashes(value)
     .replace(/^problem\//iu, "")
     .toUpperCase();
+  // Luogu problem IDs are uppercase alphanumerics with optional dashes/underscores.
+  // Inputs like "/record/123" leave a "/" inside the candidate so this fails
+  // before any case conversion; unsupported paths surface as identity errors
+  // rather than fabricated externalIds.
   if (!/^[A-Z0-9_-]+$/u.test(normalized)) {
     throw new CanonicalProblemUrlError("Invalid Luogu problem ID");
   }
   return normalized;
 }
 
-function normalizeNowCoderPath(value: string): string {
-  const parsed = new URL(value, "https://www.nowcoder.com/");
-  if (parsed.hostname !== "www.nowcoder.com") {
+const NOWCODER_PRACTICE_PREFIX = "practice/";
+const NOWCODER_ACM_PREFIX = "acm/problem/";
+const NOWCODER_ID_PATTERN = /^[A-Za-z0-9_-]+$/u;
+const NOWCODER_ABSOLUTE_URL_PATTERN = /^https?:\/\//iu;
+
+function normalizeNowCoderExternalId(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
     throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
   }
-  const pathname = parsed.pathname === "/"
-    ? parsed.pathname
-    : parsed.pathname.replace(/\/+$/u, "");
-  return pathname.startsWith("/") ? pathname : `/${pathname}`;
+
+  if (NOWCODER_ABSOLUTE_URL_PATTERN.test(trimmed)) {
+    return parseNowCoderAbsoluteUrl(trimmed);
+  }
+
+  // Relative paths: pick the host namespace from the prefix and run the
+  // resulting URL through the absolute path so query strings and hash
+  // fragments are dropped consistently.
+  const stripped = trimmed.replace(/^\/+/u, "").replace(/\/+$/u, "");
+  if (stripped.startsWith(NOWCODER_PRACTICE_PREFIX)) {
+    return parseNowCoderRelative(stripped, "https://www.nowcoder.com/", NOWCODER_PRACTICE_PREFIX, "/practice/", "www.nowcoder.com");
+  }
+  if (stripped.startsWith(NOWCODER_ACM_PREFIX)) {
+    return parseNowCoderRelative(stripped, "https://ac.nowcoder.com/", NOWCODER_ACM_PREFIX, "/acm/problem/", "ac.nowcoder.com");
+  }
+  throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
+}
+
+function parseNowCoderRelative(
+  stripped: string,
+  base: string,
+  externalPrefix: string,
+  urlPrefix: string,
+  host: string,
+): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(stripped, base);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new CanonicalProblemUrlError(`Invalid NowCoder problem path for ${host}`);
+    }
+    throw error;
+  }
+  return readNowCoderId(parsed.pathname, externalPrefix, urlPrefix, host);
+}
+
+function parseNowCoderAbsoluteUrl(raw: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
+    }
+    throw error;
+  }
+  if (parsed.protocol !== "https:") {
+    throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
+  }
+  if (parsed.username !== "" || parsed.password !== "" || parsed.port !== "") {
+    throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
+  }
+  if (parsed.hostname === "www.nowcoder.com") {
+    return readNowCoderId(parsed.pathname, NOWCODER_PRACTICE_PREFIX, "/practice/", "www.nowcoder.com");
+  }
+  if (parsed.hostname === "ac.nowcoder.com") {
+    return readNowCoderId(parsed.pathname, NOWCODER_ACM_PREFIX, "/acm/problem/", "ac.nowcoder.com");
+  }
+  throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
+}
+
+function readNowCoderId(
+  pathname: string,
+  externalPrefix: string,
+  urlPrefix: string,
+  host: string,
+): string {
+  const cleaned = pathname === "/" ? pathname : pathname.replace(/\/+$/u, "");
+  if (!cleaned.startsWith(urlPrefix)) {
+    throw new CanonicalProblemUrlError(`Invalid NowCoder problem path for ${host}`);
+  }
+  const id = cleaned.slice(urlPrefix.length);
+  if (id.length === 0 || !NOWCODER_ID_PATTERN.test(id)) {
+    throw new CanonicalProblemUrlError(`Invalid NowCoder problem path for ${host}`);
+  }
+  return `${externalPrefix}${id}`;
+}
+
+function nowcoderCanonicalUrl(externalId: string): string {
+  if (externalId.startsWith(NOWCODER_PRACTICE_PREFIX)) {
+    const id = externalId.slice(NOWCODER_PRACTICE_PREFIX.length);
+    if (id.length === 0 || !NOWCODER_ID_PATTERN.test(id)) {
+      throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
+    }
+    return `https://www.nowcoder.com/practice/${id}`;
+  }
+  if (externalId.startsWith(NOWCODER_ACM_PREFIX)) {
+    const id = externalId.slice(NOWCODER_ACM_PREFIX.length);
+    if (id.length === 0 || !NOWCODER_ID_PATTERN.test(id)) {
+      throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
+    }
+    return `https://ac.nowcoder.com/acm/problem/${id}`;
+  }
+  throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
 }
 
 function normalizeGenericUrl(value: string): string {

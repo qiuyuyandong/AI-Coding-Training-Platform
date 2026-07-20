@@ -3,6 +3,12 @@ import { join } from "node:path";
 import { z } from "zod";
 import type { Platform } from "@/lib/domain/source";
 
+// The certifying evidence taxonomy used by the platform certification gate.
+// `authenticated-characterization` lives outside this taxonomy because it
+// can NEVER contribute to a production-promotion gate; keeping it here would
+// either restrict the metadata schema (breaking the "locally observed with
+// sanitization" use case) or weaken the certifying arithmetic (letting a
+// non-certifying fixture silently bump a coverage counter).
 export const EVIDENCE_TIERS = [
   "public-content-accessible",
   "verified-public-dom",
@@ -10,8 +16,23 @@ export const EVIDENCE_TIERS = [
 ] as const;
 export type EvidenceTier = (typeof EVIDENCE_TIERS)[number];
 
+// Non-certifying evidence tiers accepted by the metadata schema. Each tier
+// in this list deliberately fails `isCertifyingEvidence` and never contributes
+// to the certification coverage counters. The single entry represents
+// characterization-only fixtures backed by user-authorized, sanitized DOM
+// captured from a logged-in browser session.
+export const NONCERTIFYING_EVIDENCE_TIERS = ["authenticated-characterization"] as const;
+export type NoncertifyingEvidenceTier = (typeof NONCERTIFYING_EVIDENCE_TIERS)[number];
+
+export const ALL_EVIDENCE_TIERS = [
+  ...EVIDENCE_TIERS,
+  ...NONCERTIFYING_EVIDENCE_TIERS,
+] as const;
+export type AllEvidenceTier = (typeof ALL_EVIDENCE_TIERS)[number];
+
 export const PURPOSES = [
   "detectProblemFromLocation",
+  "detectProblemFromPage",
   "detectVerdictFromDocument",
   "both",
   "negative",
@@ -63,7 +84,7 @@ export function PlatformFixtureMetaSchema(expectedPlatform: Platform) {
       selectors: z.array(z.string()),
       authenticated: z.boolean(),
       sanitized: z.literal(true),
-      evidenceTier: z.enum(EVIDENCE_TIERS),
+      evidenceTier: z.enum(ALL_EVIDENCE_TIERS),
       verdictExpected: z.object({ verdict: z.string().min(1) }).strict().nullable(),
       problemExpected: z
         .object({ platform: z.literal(expectedPlatform), externalId: z.string().min(1) })
@@ -98,6 +119,36 @@ export function PlatformFixtureMetaSchema(expectedPlatform: Platform) {
       if (value.evidenceTier === "characterization-derived" && value.selectors.length > 0) {
         reject("selectors", "characterization-derived MUST have empty selectors");
       }
+
+      // authenticated-characterization is the non-certifying tier recorded
+      // from user-authorized logged-in DOM. It explicitly REQUIRES:
+      //   authenticated === true (we did observe inside a login session)
+      //   sanitized === true (already pinned by the literal above)
+      //   non-null verdictExpected (some visible verdict was observed)
+      //   non-empty selector provenance (the exact narrow selector or
+      //   semantic extractor used to capture it)
+      // It MUST NEVER contribute to any certifying gate.
+      if (value.evidenceTier === "authenticated-characterization") {
+        if (value.authenticated !== true) {
+          reject(
+            "authenticated",
+            "authenticated-characterization REQUIRES authenticated === true",
+          );
+        }
+        if (value.verdictExpected === null) {
+          reject(
+            "verdictExpected",
+            "authenticated-characterization REQUIRES non-null verdictExpected",
+          );
+        }
+        if (value.selectors.length === 0) {
+          reject(
+            "selectors",
+            "authenticated-characterization REQUIRES non-empty selector/extractor provenance",
+          );
+        }
+      }
+
       if (value.purpose === "negative" && value.verdictExpected !== null) {
         reject("verdictExpected", "negative purpose MUST have verdictExpected === null");
       }
@@ -174,8 +225,20 @@ export function loadFixtureMetadata<Schema extends PlatformFixtureSchema>(
     .sort((left, right) => left.fixtureName.localeCompare(right.fixtureName, "en"));
 }
 
-export function evidenceTierTag(meta: FixtureMeta): EvidenceTier {
+export function evidenceTierTag(meta: FixtureMeta): AllEvidenceTier {
   return meta.evidenceTier;
+}
+
+/**
+ * True iff the metadata's evidence tier falls within the non-certifying
+ * subset. Such fixtures may be recorded for characterization but never
+ * contribute to a production-promotion gate. Pinning this set explicitly
+ * makes it impossible for a future caller to silently inflate a coverage
+ * counter by accepting an authenticated-characterization fixture as if it
+ * were public evidence.
+ */
+export function isNoncertifyingEvidence(meta: FixtureMeta): boolean {
+  return meta.evidenceTier === "authenticated-characterization";
 }
 
 export function isCertifyingEvidence(meta: FixtureMeta): boolean {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import React, { useState } from "react";
 
 export type CaptureInstallationSummary = {
   readonly installationId: string;
@@ -26,12 +26,12 @@ export function CapturePairingSettings({
 }) {
   const router = useRouter();
   const [pairingCode, setPairingCode] = useState<PairingCodeView>();
-  const [status, setStatus] = useState("Ready");
+  const [status, setStatus] = useState("准备就绪");
   const [busy, setBusy] = useState(false);
 
   async function issueCode(targetInstallationId?: string): Promise<void> {
     setBusy(true);
-    setStatus("Creating one-time code…");
+    setStatus("正在创建一次性配对码…");
     try {
       const response = await fetch("/api/capture/pairing-codes", {
         method: "POST",
@@ -43,7 +43,7 @@ export function CapturePairingSettings({
       const body: unknown = await response.json();
       if (!response.ok) throw new Error(readApiError(body));
       if (!isPairingCodeResponse(body)) {
-        throw new Error("Pairing-code response was invalid");
+        throw new Error("配对码响应格式无效");
       }
       setPairingCode({
         code: body.code,
@@ -51,10 +51,10 @@ export function CapturePairingSettings({
         targetInstallationId,
       });
       setStatus(targetInstallationId === undefined
-        ? "New-installation code created"
-        : `Rotation code created for ${targetInstallationId}`);
+        ? "新扩展配对码已创建"
+        : `已为 ${targetInstallationId} 创建凭证轮换码`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to create code");
+      setStatus(error instanceof Error ? error.message : "创建配对码失败");
     } finally {
       setBusy(false);
     }
@@ -62,7 +62,7 @@ export function CapturePairingSettings({
 
   async function revoke(installationId: string): Promise<void> {
     setBusy(true);
-    setStatus(`Revoking ${installationId}…`);
+    setStatus(`正在撤销 ${installationId}…`);
     try {
       const response = await fetch(
         `/api/capture/installations/${encodeURIComponent(installationId)}/revoke`,
@@ -74,10 +74,10 @@ export function CapturePairingSettings({
       );
       const body: unknown = await response.json();
       if (!response.ok) throw new Error(readApiError(body));
-      setStatus(`${installationId} revoked`);
+      setStatus(`已撤销 ${installationId}`);
       router.refresh();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to revoke installation");
+      setStatus(error instanceof Error ? error.message : "撤销扩展失败");
     } finally {
       setBusy(false);
     }
@@ -88,9 +88,9 @@ export function CapturePairingSettings({
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Pair a new installation</h2>
+            <h2 className="text-lg font-semibold">配对新扩展</h2>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Create a ten-minute, one-time code, then paste it into the extension popup.
+              创建一个十分钟内有效的一次性配对码，再将它粘贴到扩展弹窗中。
             </p>
           </div>
           <button
@@ -99,29 +99,29 @@ export function CapturePairingSettings({
             onClick={() => void issueCode()}
             type="button"
           >
-            Create pairing code
+            创建配对码
           </button>
         </div>
         {pairingCode !== undefined ? (
           <div className="mt-4 rounded-lg bg-slate-100 p-4" data-testid="pairing-code-panel">
             <p className="text-xs uppercase tracking-wide text-slate-500">
               {pairingCode.targetInstallationId === undefined
-                ? "New installation"
-                : `Rotate ${pairingCode.targetInstallationId}`}
+                ? "新扩展"
+                : `轮换 ${pairingCode.targetInstallationId} 的凭证`}
             </p>
             <code className="mt-2 block break-all text-sm font-semibold" data-testid="pairing-code">
               {pairingCode.code}
             </code>
-            <p className="mt-2 text-xs text-slate-500">Expires {pairingCode.expiresAt}</p>
+            <p className="mt-2 text-xs text-slate-500">有效期至 {pairingCode.expiresAt}</p>
           </div>
         ) : null}
         <p className="mt-3 text-sm text-slate-600" role="status">{status}</p>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Paired installations</h2>
+        <h2 className="text-lg font-semibold">已配对的扩展</h2>
         {installations.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">No extension is paired yet.</p>
+          <p className="mt-3 text-sm text-slate-600">尚未配对任何扩展。</p>
         ) : (
           <ul className="mt-4 space-y-3">
             {installations.map((installation) => (
@@ -133,10 +133,11 @@ export function CapturePairingSettings({
                   <div>
                     <p className="font-mono text-sm">{installation.installationId}</p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {installation.status} · credential v{installation.credentialVersion}
+                      {installation.status === "active" ? "已配对" : "已撤销"}
+                      {installation.credentialVersion > 1 ? " · 凭证已轮换" : ""}
                       {installation.lastSeenAt === undefined
-                        ? " · never seen"
-                        : ` · last seen ${installation.lastSeenAt}`}
+                        ? " · 尚未收到事件"
+                        : ` · 最近收到事件 ${installation.lastSeenAt}`}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -146,7 +147,7 @@ export function CapturePairingSettings({
                       onClick={() => void issueCode(installation.installationId)}
                       type="button"
                     >
-                      Rotate {installation.installationId}
+                      轮换凭证 {installation.installationId}
                     </button>
                     <button
                       className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 disabled:opacity-50"
@@ -154,7 +155,7 @@ export function CapturePairingSettings({
                       onClick={() => void revoke(installation.installationId)}
                       type="button"
                     >
-                      Revoke {installation.installationId}
+                      撤销 {installation.installationId}
                     </button>
                   </div>
                 </div>
@@ -187,5 +188,5 @@ function readApiError(value: unknown): string {
   ) {
     return value.error;
   }
-  return "Local capture request failed";
+  return "本地采集请求失败";
 }

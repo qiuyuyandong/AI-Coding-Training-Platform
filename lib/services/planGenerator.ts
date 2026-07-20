@@ -12,11 +12,12 @@ import {
  * Wraps the deterministic `selectCandidateTask` (Todo 11) with an
  * explicit safe-foundation fallback. The Todo 12 contract says: when the
  * selector returns `noCandidate: true`, the generator MUST surface the
- * published AtCoder `practice_1` task on `cpp-io-types` rather than
- * returning an empty success. Callers (the persistence layer in
- * `planGenerationService`) persist the result with the same input
- * fingerprint and generator version, so two replays with identical
- * inputs produce byte-identical output and stable revision lineage.
+ * platform-neutral safe-foundation practice task on `cpp-io-types`
+ * (the lowest-level `intro` band task) rather than returning an empty
+ * success. Callers (the persistence layer in `planGenerationService`)
+ * persist the result with the same input fingerprint and generator
+ * version, so two replays with identical inputs produce byte-identical
+ * output and stable revision lineage.
  *
  * This module is pure: it does not import SQLite, Node process state,
  * or any clock. Determinism depends entirely on `selectCandidateTask`
@@ -83,6 +84,6 @@ export function generatePlan(input: PlanGeneratorInput): PlanGeneratorOutput {
     alternatives: {},
     mode: input.dailyMode,
     isFallback: true,
-    reason: `No eligible tasks; safe foundation fallback to AtCoder practice_1 on ${SAFE_FALLBACK_NODE_STABLE_ID}.`,
+    reason: `No eligible tasks; safe foundation fallback to ${SAFE_FALLBACK_TASK_STABLE_ID} on ${SAFE_FALLBACK_NODE_STABLE_ID} (platform-neutral basic I/O practice).`,
   };
 }

@@ -1,0 +1,192 @@
+{
+  "checkedAt": "1970-01-01T00:00:00.000Z",
+  "profile": "mainland-local",
+  "package": {
+    "path": "D:\\Cowork\\AI刷题训练平台\\content\\tracks\\software-development-foundations-v1",
+    "track_slug": "software-development-foundations-v1",
+    "semantic_version": "1.0.1"
+  },
+  "results": [
+    {
+      "url": "https://ac.nowcoder.com/acm/problem/319371",
+      "finalUrl": "https://ac.nowcoder.com/acm/problem/319371",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    },
+    {
+      "url": "https://ac.nowcoder.com/acm/problem/319811",
+      "finalUrl": "https://ac.nowcoder.com/acm/problem/319811",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    },
+    {
+      "url": "https://en.cppreference.com/w/cpp/algorithm/lower_bound",
+      "finalUrl": "https://en.cppreference.com/cpp/algorithm/lower_bound",
+      "status": 200,
+      "redirects": 1,
+      "ok": true
+    },
+    {
+      "url": "https://en.cppreference.com/w/cpp/container/queue",
+      "finalUrl": "https://en.cppreference.com/cpp/container/queue",
+      "status": 200,
+      "redirects": 1,
+      "ok": true
+    },
+    {
+      "url": "https://en.cppreference.com/w/cpp/container/unordered_map",
+      "finalUrl": "https://en.cppreference.com/cpp/container/unordered_map",
+      "status": 200,
+      "redirects": 1,
+      "ok": true
+    },
+    {
+      "url": "https://en.cppreference.com/w/cpp/container/vector",
+      "finalUrl": "https://en.cppreference.com/cpp/container/vector",
+      "status": 200,
+      "redirects": 1,
+      "ok": true
+    },
+    {
+      "url": "https://en.cppreference.com/w/cpp/io",
+      "finalUrl": "https://en.cppreference.com/cpp/io",
+      "status": 200,
+      "redirects": 1,
+      "ok": true
+    },
+    {
+      "url": "https://en.cppreference.com/w/cpp/language/functions",
+      "finalUrl": "https://en.cppreference.com/cpp/language/functions",
+      "status": 200,
+      "redirects": 1,
+      "ok": true
+    },
+    {
+      "url": "https://en.cppreference.com/w/cpp/language/statements",
+      "finalUrl": "https://en.cppreference.com/cpp/language/statements",
+      "status": 200,
+      "redirects": 1,
+      "ok": true
+    },
+    {
+      "url": "https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository",
+      "finalUrl": "https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    },
+    {
+      "url": "https://git-scm.com/docs/gittutorial",
+      "finalUrl": "https://git-scm.com/docs/gittutorial",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    },
+    {
+      "url": "https://leetcode.cn/problems/binary-search/",
+      "finalUrl": "https://leetcode.cn/problems/binary-search/",
+      "status": 200,
+      "redirects": 0,
+      "ok": false,
+      "error": "login/interstitial marker detected: 请登录"
+    },
+    {
+      "url": "https://leetcode.cn/problems/binary-tree-inorder-traversal/",
+      "finalUrl": "https://leetcode.cn/problems/binary-tree-inorder-traversal/",
+      "status": 200,
+      "redirects": 0,
+      "ok": false,
+      "error": "login/interstitial marker detected: 请登录"
+    },
+    {
+      "url": "https://leetcode.cn/problems/contains-duplicate/",
+      "finalUrl": "https://leetcode.cn/problems/contains-duplicate/",
+      "status": 200,
+      "redirects": 0,
+      "ok": false,
+      "error": "login/interstitial marker detected: 请登录"
+    },
+    {
+      "url": "https://leetcode.cn/problems/fizz-buzz/",
+      "finalUrl": "https://leetcode.cn/problems/fizz-buzz/",
+      "status": 200,
+      "redirects": 0,
+      "ok": false,
+      "error": "login/interstitial marker detected: 请登录"
+    },
+    {
+      "url": "https://leetcode.cn/problems/merge-sorted-array/",
+      "finalUrl": "https://leetcode.cn/problems/merge-sorted-array/",
+      "status": 200,
+      "redirects": 0,
+      "ok": false,
+      "error": "login/interstitial marker detected: 请登录"
+    },
+    {
+      "url": "https://leetcode.cn/problems/two-sum/",
+      "finalUrl": "https://leetcode.cn/problems/two-sum/",
+      "status": 200,
+      "redirects": 0,
+      "ok": false,
+      "error": "login/interstitial marker detected: 请登录"
+    },
+    {
+      "url": "https://leetcode.cn/problems/valid-parentheses/",
+      "finalUrl": "https://leetcode.cn/problems/valid-parentheses/",
+      "status": 200,
+      "redirects": 0,
+      "ok": false,
+      "error": "login/interstitial marker detected: 请登录"
+    },
+    {
+      "url": "https://oi-wiki.org/basic/complexity/",
+      "finalUrl": "https://oi-wiki.org/basic/complexity/",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    },
+    {
+      "url": "https://oi-wiki.org/graph/bfs/",
+      "finalUrl": "https://oi-wiki.org/graph/bfs/",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    },
+    {
+      "url": "https://oi-wiki.org/graph/dfs/",
+      "finalUrl": "https://oi-wiki.org/graph/dfs/",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    },
+    {
+      "url": "https://sourceware.org/gdb/current/onlinedocs/gdb.html",
+      "finalUrl": "https://sourceware.org/gdb/current/onlinedocs/gdb.html/",
+      "status": 200,
+      "redirects": 1,
+      "ok": true
+    },
+    {
+      "url": "https://www.luogu.com.cn/problem/P1001",
+      "finalUrl": "https://www.luogu.com.cn/problem/P1001",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    },
+    {
+      "url": "https://www.luogu.com.cn/problem/P5710",
+      "finalUrl": "https://www.luogu.com.cn/problem/P5710",
+      "status": 200,
+      "redirects": 0,
+      "ok": true
+    }
+  ],
+  "summary": {
+    "total": 24,
+    "ok": 17,
+    "failed": 7,
+    "duplicates": 0
+  }
+}

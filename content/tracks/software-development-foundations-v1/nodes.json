@@ -11,7 +11,7 @@
       "url": "https://en.cppreference.com/w/cpp/io",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can read two integers, compute a result, and print the output correctly for AtCoder ABC practice problem 1 without consulting references."
+    "stopping_guidance": "Stop when you can read two integers, compute a result, and print the output correctly for Luogu P1001 A+B Problem without consulting references."
   },
   {
     "stable_id": "cpp-control-flow-functions",
@@ -25,7 +25,7 @@
       "url": "https://en.cppreference.com/w/cpp/language/statements",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can write a function that processes an array with a loop, uses conditionals for branching, and passes all test cases for ABC086 A Product without external help."
+    "stopping_guidance": "Stop when you can write a function that processes an array with a loop, uses conditionals for branching, and passes all test cases for Luogu P5710 数的性质 without external help."
   },
   {
     "stable_id": "cpp-containers",
@@ -39,7 +39,7 @@
       "url": "https://en.cppreference.com/w/cpp/container/vector",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can choose the appropriate container for a problem, iterate over elements with range-based for loops, and solve ABC081 B Shift Only independently."
+    "stopping_guidance": "Stop when you can choose the appropriate container for a problem, iterate over elements with range-based for loops, and solve LeetCode 88 合并两个有序数组 independently."
   },
   {
     "stable_id": "program-decomposition",
@@ -53,7 +53,7 @@
       "url": "https://en.cppreference.com/w/cpp/language/functions",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can break down a problem into three or more cooperating functions, define clear parameter contracts, and solve ABC085 C Otoshidama without looking at solutions."
+    "stopping_guidance": "Stop when you can break down a problem into three or more cooperating functions, define clear parameter contracts, and solve LeetCode 412 Fizz Buzz without looking at solutions."
   },
   {
     "stable_id": "debugging-testing",
@@ -67,7 +67,7 @@
       "url": "https://sourceware.org/gdb/current/onlinedocs/gdb.html",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can reproduce a failing test case from output alone, identify the logical error through systematic debugging, and correct it for ARC065 A Daydream."
+    "stopping_guidance": "Stop when you can reproduce a failing test case from output alone, identify the logical error through systematic debugging, and correct it for NowCoder 319811 小红的字符串处理."
   },
   {
     "stable_id": "git-build-workflow",
@@ -95,7 +95,7 @@
       "url": "https://oi-wiki.org/basic/complexity/",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can estimate the time complexity of a nested-loop solution to within one order of magnitude, predict whether it passes ABC constraints, and optimize accordingly."
+    "stopping_guidance": "Stop when you can estimate the time complexity of a nested-loop solution to within one order of magnitude, predict whether it passes the standard OJ constraints for LeetCode 217 存在重复元素, and optimize accordingly."
   },
   {
     "stable_id": "sorting-binary-search",
@@ -109,7 +109,7 @@
       "url": "https://en.cppreference.com/w/cpp/algorithm/lower_bound",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can sort an array with std::sort, use lower_bound for binary search, and independently solve ARC084 A Snuke's Festival using the two approaches combined."
+    "stopping_guidance": "Stop when you can sort an array with std::sort, use lower_bound for binary search, and independently solve LeetCode 704 二分查找 using the two approaches combined."
   },
   {
     "stable_id": "stacks-queues",
@@ -123,7 +123,7 @@
       "url": "https://en.cppreference.com/w/cpp/container/queue",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can recognize a stack or queue problem from its description, implement the solution with std::stack or std::queue, and solve ABC007 C without external references."
+    "stopping_guidance": "Stop when you can recognize a stack or queue problem from its description, implement the solution with std::stack or std::queue, and solve LeetCode 20 有效的括号 without external references."
   },
   {
     "stable_id": "hashing-linked-structures",
@@ -137,7 +137,7 @@
       "url": "https://en.cppreference.com/w/cpp/container/unordered_map",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can use unordered_map for frequency counting, detect duplicate removal with unordered_set, and solve ABC073 C Write and Erase using hash-based approaches."
+    "stopping_guidance": "Stop when you can use unordered_map for frequency counting, detect duplicate removal with unordered_set, and solve LeetCode 1 两数之和 using hash-based approaches."
   },
   {
     "stable_id": "trees-recursion-traversal",
@@ -151,7 +151,7 @@
       "url": "https://oi-wiki.org/graph/dfs/",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can build a tree from parent or edge input, write a recursive DFS to aggregate subtree values, and solve ABC138 D Ki without consulting the editorial."
+    "stopping_guidance": "Stop when you can build a tree from parent or edge input, write a recursive DFS to aggregate subtree values, and solve LeetCode 94 二叉树的中序遍历 without consulting the editorial."
   },
   {
     "stable_id": "graphs-bfs-dfs",
@@ -165,6 +165,6 @@
       "url": "https://oi-wiki.org/graph/bfs/",
       "retrieved_at": "2026-07-17T00:00:00.000Z"
     },
-    "stopping_guidance": "Stop when you can represent a graph with adjacency lists, run BFS for shortest-path queries on unweighted graphs, and independently solve ABC168 D using BFS traversal."
+    "stopping_guidance": "Stop when you can represent a graph with adjacency lists, run BFS for shortest-path queries on unweighted graphs, and independently solve NowCoder 319371 走迷宫 using BFS traversal."
   }
 ]

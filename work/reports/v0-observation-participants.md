@@ -1,45 +1,25 @@
-# V0 Two-User Observation Report
+```json
+{
+  "type": "v0-observation-participants",
+  "schemaVersion": "v0-observation-participants-1",
+  "implementationSha": "b5166320768355666a5c4ff3f466c29c240ea8cf",
+  "status": "HOLD",
+  "participants": []
+}
+```
 
-Status: PENDING — requires two pseudonymous users (P1, P2) each completing ≥14 calendar days of observation starting at implementationSha.
+# V0 Participant Observation Report
 
-implementationSha: d6c0f14aafb663c8746ad5e30d968508d539ec07
+Status: HOLD — P1 and P2 observation windows have not started.
 
-## Required fields (per Todo 29 spec)
+Record P1 and P2 separately. Each real window must span at least fourteen
+calendar days and include a completed loop, a choice-friction answer, a
+reason-comprehension answer, and dispositions for every observed failure. Both
+participants must use the unchanged implementation SHA above.
 
-For EACH participant (P1 and P2), record:
+Do not pre-fill dates or synthesize evidence. When both windows complete, set
+`status` to `PASS` and run:
 
-| Field | Description |
-|-------|-------------|
-| participant_code | P1 / P2 (pseudonymous) |
-| window_start | ISO date (YYYY-MM-DD) |
-| window_end | ISO date (YYYY-MM-DD) |
-| implementationSha | Git HEAD at time of window |
-| at_least_one_full_loop | true if map → plan → today → completion → next-decision was observed |
-| default_primary_reduced_choice_friction | true | false |
-| recommendation_understood | true | false |
-| ability_reason_understood | true | false |
-| setup_failures | free-form list |
-| resource_failures | free-form list |
-| wrong_recommendation_failures | free-form list |
-| blocking_failures | free-form list |
-| dispositions | free-form: how each failure was handled |
-
-## Minimum requirements
-
-- Two distinct participants (P1, P2)
-- Each window spans ≥14 calendar days
-- Each participant completed at least one full loop
-- Each participant answered both `default_primary_reduced_choice_friction` and `ability_reason_understood`
-- Every observed failure has a disposition
-
-## How to fill
-
-1. Recruit two pseudonymous participants.
-2. Each participant uses the V0 app daily for ≥14 days.
-3. Record each participant's window in the schema above.
-4. After both windows complete, run `node scripts/validate-v0-observation.mjs --participants work/reports/v0-observation-participants.md` to validate.
-5. Validator exits 0 when minimum requirements are met.
-
-## Disposition
-
-PENDING — no participant windows recorded yet.
+```powershell
+node scripts/validate-v0-observation.mjs --participants work/reports/v0-observation-participants.md
+```

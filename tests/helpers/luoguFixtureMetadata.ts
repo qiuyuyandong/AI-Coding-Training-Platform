@@ -7,6 +7,10 @@ import { join } from "node:path";
 import {
   EVIDENCE_TIERS,
   type EvidenceTier,
+  NONCERTIFYING_EVIDENCE_TIERS,
+  type NoncertifyingEvidenceTier,
+  ALL_EVIDENCE_TIERS,
+  type AllEvidenceTier,
   PURPOSES,
   type Purpose,
   FixtureMetadataError,
@@ -19,13 +23,24 @@ import {
   loadFixtureMetadata as sharedLoadFixtureMetadata,
   evidenceTierTag,
   isCertifyingEvidence,
+  isNoncertifyingEvidence,
 } from "@/tests/helpers/platformFixtureMetadata";
 
 // Platform-scoped schema for Luogu
 const LuoguMetaSchema = PlatformFixtureMetaSchema("luogu");
 
 // Re-export all platform-agnostic types and values unchanged
-export { EVIDENCE_TIERS, EvidenceTier, PURPOSES, Purpose, FixtureMetadataError };
+export {
+  EVIDENCE_TIERS,
+  EvidenceTier,
+  NONCERTIFYING_EVIDENCE_TIERS,
+  NoncertifyingEvidenceTier,
+  ALL_EVIDENCE_TIERS,
+  AllEvidenceTier,
+  PURPOSES,
+  Purpose,
+  FixtureMetadataError,
+};
 export type { SharedFixtureMeta as FixtureMeta };
 
 // The schema export for Luogu - used by tests that import FixtureMetaSchema
@@ -64,4 +79,4 @@ export function loadFixtureHtml(htmlFileName: string, fixturesDir: string = DEFA
   return sharedLoadFixtureHtml(htmlFileName, fixturesDir);
 }
 
-export { evidenceTierTag, isCertifyingEvidence };
+export { evidenceTierTag, isCertifyingEvidence, isNoncertifyingEvidence };

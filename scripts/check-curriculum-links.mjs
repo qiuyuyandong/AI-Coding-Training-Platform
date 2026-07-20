@@ -15,7 +15,9 @@
 //     produce byte-identical JSON output.
 //   - For each URL, performs a `fetch` with `AbortSignal.timeout(10s)`
 //     and `redirect: 'manual'`, manually following up to 5 redirects.
-//   - Rejects non-HTTP(S), non-2xx/3xx, login-interstitial markers
+//   - Rejects non-HTTP(S), non-2xx/3xx and login/interstitial markers.
+//     A public-looking SEO preview is not sufficient to prove that the learner
+//     can use the rendered page without authentication.
 //     (`<input name="password"`, `Sign in`, `Login to continue`,
 //     `请登录`, `登录`), and duplicate `finalUrl`s across distinct
 //     source URLs.
