@@ -86,8 +86,11 @@
         font-size: 11px;
         font-weight: 700;
         cursor: pointer;
+        transition: background-color 160ms ease, opacity 160ms ease;
       }
       button:disabled { cursor: wait; opacity: .5; }
+      button:active, button.is-pressed { background: #64748b; }
+      #actionResult { min-height: 16px; margin-top: 7px; color: #526176; font-size: 11px; }
       #pairingResult { min-height: 16px; margin-top: 7px; color: #526176; font-size: 11px; }
       details { margin-top: 10px; }
       summary { color: #64748b; font-size: 11px; cursor: pointer; }
@@ -109,13 +112,23 @@
       </header>
 
       <section class="panel diagnostics" aria-label="采集诊断">
-        <div class="diagnostic-row"><strong id="queueState">待发送事件 0</strong></div>
+        <div class="diagnostic-row"><strong id="pendingState">等待判题 0</strong></div>
+        <div class="diagnostic-row"><strong id="outboxState">待同步结果 0</strong></div>
+        <div class="diagnostic-row">
+          <strong id="quarantineState">已隔离结果 0</strong>
+          <p class="meta" id="quarantineDetails"></p>
+        </div>
         <div class="diagnostic-row">
           <strong id="lastDelivery">最近送达：暂无</strong>
-          <p class="meta" id="lastDeliveryMeta" hidden></p>
         </div>
-        <div class="diagnostic-row"><strong id="attemptState">训练记录：暂无送达结果</strong></div>
+        <div class="diagnostic-row"><strong id="migrationState">正在检查旧记录…</strong></div>
         <div class="diagnostic-row"><strong class="error" id="lastError">阻塞原因：无</strong></div>
+        <div class="diagnostic-row">
+          <button id="retryAll" type="button">再次同步</button>
+          <button id="clearOutbox" type="button">清空待同步结果</button>
+          <button id="clearQuarantine" type="button">清空隔离区</button>
+          <p id="actionResult" role="status" aria-live="polite"></p>
+        </div>
       </section>
 
       <section class="panel pairing" aria-labelledby="pairingHeading">

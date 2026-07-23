@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { getPlatformAdapterStatus, getProductionPlatforms } from "@/extension/src/platforms";
-import { ADAPTER_VERSION, PARSER_VERSION } from "@/extension/src/captureSession";
+import { ADAPTER_VERSION, PARSER_VERSION } from "@/extension/src/attemptCapture";
 import { loadFixtureMetadata, loadFixtureNames } from "@/tests/helpers/atcoderFixtureMetadata";
 import { computeFixtureCoverage, evaluatePlatformGate } from "@/tests/helpers/platformCertification";
 import type { PlatformGateInput } from "@/tests/helpers/platformCertificationContract";

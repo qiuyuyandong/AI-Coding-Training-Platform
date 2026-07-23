@@ -1,5 +1,6 @@
 import type { APIRequestContext } from "@playwright/test";
 import type { CaptureEvent } from "../../lib/capture/protocol";
+import type { CaptureAttemptBundle } from "../../lib/capture/attemptBundle";
 import type { Platform } from "../../extension/src/platforms";
 import { E2E_CAPTURE_CREDENTIAL } from "./database";
 
@@ -33,7 +34,7 @@ type CaptureFixtureInput =
   | {
       readonly type: "SESSION_ENDED";
       readonly eventId: string;
-      readonly endReason: "spa_navigation" | "pagehide" | "capture_disabled";
+       readonly endReason: "spa_navigation" | "pagehide" | "capture_disabled";
       readonly occurredAt: string;
     };
 
@@ -85,6 +86,61 @@ export function captureEvent(
     submissionId: input.submissionId,
     payload: { verdict: input.verdict },
   };
+}
+
+export function captureAttemptBundle(
+  problem: CaptureProblemFixture,
+  input: {
+    readonly bundleId: string;
+    readonly submissionId: string;
+    readonly verdict: string;
+    readonly submittedAt: string;
+    readonly verdictAt: string;
+  },
+): CaptureAttemptBundle {
+  const started = captureEvent(problem, {
+    type: "SESSION_STARTED",
+    eventId: `${input.bundleId}_started`,
+    occurredAt: input.submittedAt,
+  });
+  const submitted = captureEvent(problem, {
+    type: "SUBMISSION_OBSERVED",
+    eventId: `${input.bundleId}_submitted`,
+    submissionId: input.submissionId,
+    occurredAt: input.submittedAt,
+  });
+  const verdict = captureEvent(problem, {
+    type: "VERDICT_OBSERVED",
+    eventId: `${input.bundleId}_verdict`,
+    submissionId: input.submissionId,
+    verdict: input.verdict,
+    occurredAt: input.verdictAt,
+  });
+  const ended = captureEvent(problem, {
+    type: "SESSION_ENDED",
+    eventId: `${input.bundleId}_ended`,
+    endReason: "capture_disabled",
+    occurredAt: input.verdictAt,
+  });
+  if (started.type !== "SESSION_STARTED" || submitted.type !== "SUBMISSION_OBSERVED"
+    || verdict.type !== "VERDICT_OBSERVED" || ended.type !== "SESSION_ENDED") {
+    throw new Error("Capture attempt fixture produced an invalid event order");
+  }
+  return {
+    schemaVersion: 1,
+    bundleId: input.bundleId,
+    events: [started, submitted, verdict, ended],
+  };
+}
+
+export async function postCaptureAttempt(
+  request: APIRequestContext,
+  bundle: CaptureAttemptBundle,
+) {
+  return request.post("/api/capture/attempts", {
+    data: bundle,
+    headers: { authorization: `Bearer ${E2E_CAPTURE_CREDENTIAL}` },
+  });
 }
 
 export async function postCaptureEvents(

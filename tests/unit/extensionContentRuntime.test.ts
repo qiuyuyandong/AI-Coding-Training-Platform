@@ -1,33 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { createCaptureContentRuntime, type CaptureContentRuntime } from "@/extension/src/contentRuntime";
-import type { CaptureIdKind } from "@/extension/src/captureSession";
-import type { DetectedProblem, DetectedVerdict } from "@/extension/src/platforms";
-import type { CaptureEvent } from "@/lib/capture/protocol";
+import {
+  createCaptureContentRuntime,
+  type CaptureContentRuntime,
+} from "@/extension/src/contentRuntime";
+import type { DetectedProblem } from "@/extension/src/platforms";
+import {
+  type AttemptCaptureRuntimeMessage,
+  type SubmissionIntentDraft,
+  type VerdictCandidateMessage,
+  type SubmissionIntentMessage,
+} from "@/extension/src/attemptCapture";
 
 const twoSum: DetectedProblem = {
   platform: "leetcode",
   problemExternalId: "two-sum",
   problemTitle: "Two Sum",
-  canonicalUrl: "https://leetcode.com/problems/two-sum/",
-};
-
-const twoSumSubmissions: DetectedProblem = {
-  ...twoSum,
-  canonicalUrl: "https://leetcode.com/problems/two-sum/submissions/",
+  canonicalUrl: "https://leetcode.cn/problems/two-sum/",
 };
 
 const validParentheses: DetectedProblem = {
   platform: "leetcode",
   problemExternalId: "valid-parentheses",
   problemTitle: "Valid Parentheses",
-  canonicalUrl: "https://leetcode.com/problems/valid-parentheses/",
-};
-
-const atcoderAgc040dTask: DetectedProblem = {
-  platform: "atcoder",
-  problemExternalId: "agc040_d",
-  problemTitle: "D",
-  canonicalUrl: "https://atcoder.jp/contests/agc040/tasks/agc040_d",
+  canonicalUrl: "https://leetcode.cn/problems/valid-parentheses/",
 };
 
 const atcoderAgc040dSubmission: DetectedProblem = {
@@ -37,213 +32,238 @@ const atcoderAgc040dSubmission: DetectedProblem = {
   canonicalUrl: "https://atcoder.jp/contests/agc040/tasks/agc040_d",
 };
 
-const atcoderAbc164e: DetectedProblem = {
-  platform: "atcoder",
-  problemExternalId: "abc164_e",
-  problemTitle: "E",
-  canonicalUrl: "https://atcoder.jp/contests/abc164/tasks/abc164_e",
-};
-
-type RuntimeHarness = {
+type Harness = {
   readonly runtime: CaptureContentRuntime;
-  readonly events: CaptureEvent[];
+  readonly messages: AttemptCaptureRuntimeMessage[];
   readonly setDetected: (value: DetectedProblem | null) => void;
-  readonly setVerdict: (value: DetectedVerdict | null) => void;
+  readonly setVerdict: (value: string | null, options?: { readonly sourceDocumentId?: string }) => void;
+  readonly markExactResultPage: (value: boolean) => void;
 };
 
-function createHarness(): RuntimeHarness {
+function createHarness(): Harness {
   let detected: DetectedProblem | null = twoSum;
-  let verdict: DetectedVerdict | null = null;
-  let tick = 0;
-  const counts = new Map<CaptureIdKind, number>();
-  const events: CaptureEvent[] = [];
+  let verdict: string | null = null;
+  let exact = false;
+  let sourceDocumentId = "doc_1";
+  let sessionTick = 0;
+  let submissionTick = 0;
+  const messages: AttemptCaptureRuntimeMessage[] = [];
   const runtime = createCaptureContentRuntime({
-    context: { installationId: "installation_1", captureEnabled: true, provenanceLevel: "extension_unpaired" },
     detectProblem: () => detected,
-    detectVerdict: () => verdict,
-    sendEvent: (event) => events.push(event),
-    now: () => { tick += 1; return `2026-07-14T04:${String(tick).padStart(2, "0")}:00.000Z`; },
-    createId: (kind) => { const next = (counts.get(kind) ?? 0) + 1; counts.set(kind, next); return `${kind}_${next}`; },
+    detectVerdict: () => ({ verdict, sourceDocumentId }),
+    exactResultPage: () => exact,
+    now: () => {
+      sessionTick += 1;
+      return `2026-07-14T04:${String(sessionTick).padStart(2, "0")}:00.000Z`;
+    },
+    createSessionId: () => {
+      sessionTick += 1;
+      return `session_${sessionTick}`;
+    },
+    createSubmissionIntentId: () => {
+      submissionTick += 1;
+      return `submission_${submissionTick}`;
+    },
+    activeDocumentId: "doc_1",
   });
-  return { runtime, events, setDetected: (value) => { detected = value; }, setVerdict: (value) => { verdict = value; } };
+  return {
+    runtime,
+    messages,
+    setDetected: (value) => { detected = value; },
+    setVerdict: (value, options) => {
+      verdict = value;
+      if (options?.sourceDocumentId !== undefined) {
+        sourceDocumentId = options.sourceDocumentId;
+      }
+    },
+    markExactResultPage: (value) => { exact = value; },
+  };
 }
 
-function getSubmissionId(event: CaptureEvent): string | undefined {
-  return event.type === "SUBMISSION_OBSERVED" ? event.submissionId : undefined;
+function recordMessages<T extends readonly AttemptCaptureRuntimeMessage[]>(
+  harness: Harness,
+  messages: T,
+): T {
+  harness.messages.push(...messages);
+  return messages;
 }
 
-describe("capture content runtime", () => {
-  it("scans an already-visible verdict on initial startup", () => {
+function latestIntent(harness: Harness): SubmissionIntentDraft {
+  const intent = [...harness.messages].reverse().find(
+    (message): message is SubmissionIntentMessage => message.type === "SUBMISSION_INTENT_OBSERVED",
+  );
+  if (intent === undefined) throw new Error("No intent message was emitted");
+  return intent.intent;
+}
+
+function latestCandidate(harness: Harness): Extract<VerdictCandidateMessage, { readonly type: "VERDICT_CANDIDATE_OBSERVED" }>["candidate"] | undefined {
+  const candidate = [...harness.messages].reverse().find(
+    (message): message is VerdictCandidateMessage => message.type === "VERDICT_CANDIDATE_OBSERVED",
+  );
+  return candidate?.candidate;
+}
+
+describe("verdict-gated capture content runtime", () => {
+  it("page open followed by page close emits no messages", () => {
     const harness = createHarness();
-    harness.setVerdict({ verdict: "Accepted" });
-    harness.runtime.start();
-    expect(harness.events.map((e) => e.type)).toEqual(["SESSION_STARTED", "VERDICT_OBSERVED"]);
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.locationObserved());
+    recordMessages(harness, harness.runtime.documentMutated());
+    recordMessages(harness, harness.runtime.pageHidden());
+    expect(harness.messages).toHaveLength(0);
   });
 
-  it("suppresses stale verdict after a location event changes problems", () => {
+  it("running or debugging code without an exact submit emits no messages", () => {
     const harness = createHarness();
-    harness.runtime.start();
-    harness.setDetected(validParentheses);
-    harness.setVerdict({ verdict: "Wrong Answer" });
-    harness.runtime.locationObserved();
-    harness.runtime.documentMutated();
-    expect(harness.events.slice(-2).map((e) => e.type)).toEqual(["SESSION_ENDED", "SESSION_STARTED"]);
-    expect(harness.events.some((e) => e.type === "VERDICT_OBSERVED" && e.problemExternalId === "valid-parentheses")).toBe(false);
-    harness.runtime.documentMutated();
-    expect(harness.events.at(-1)).toMatchObject({ type: "VERDICT_OBSERVED", problemExternalId: "valid-parentheses" });
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.documentMutated());
+    recordMessages(harness, harness.runtime.documentMutated());
+    recordMessages(harness, harness.runtime.locationObserved());
+    recordMessages(harness, harness.runtime.documentMutated());
+    expect(harness.messages).toHaveLength(0);
   });
 
-  it("suppresses stale verdict when a mutation first observes the new problem", () => {
+  it("exact submit click records exactly one intent and stays quiet about verdict", () => {
     const harness = createHarness();
-    harness.runtime.start();
-    harness.setDetected(validParentheses);
-    harness.setVerdict({ verdict: "Wrong Answer" });
-    harness.runtime.documentMutated();
-    expect(harness.events.at(-1)).toMatchObject({ type: "SESSION_STARTED" });
-    expect(harness.events).toHaveLength(3);
-    harness.runtime.documentMutated();
-    expect(harness.events.at(-1)).toMatchObject({ type: "VERDICT_OBSERVED", problemExternalId: "valid-parentheses" });
+    recordMessages(harness, harness.runtime.start());
+    const messages = recordMessages(harness, harness.runtime.submissionObserved());
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.type).toBe("SUBMISSION_INTENT_OBSERVED");
+    expect(latestIntent(harness).submissionId).toBe("submission_1");
   });
 
-  it("keeps the session across same-problem route observations", () => {
+  it("exact submit followed by a different final verdict emits one intent then one candidate", () => {
     const harness = createHarness();
-    harness.runtime.start();
-    const sessionId = harness.runtime.currentState().active?.captureSessionId;
-    harness.setDetected(twoSumSubmissions);
-    harness.runtime.locationObserved();
-    expect(harness.events).toHaveLength(1);
-    expect(harness.runtime.currentState().active?.captureSessionId).toBe(sessionId);
-  });
-
-  it("uses a submission as current-page evidence after navigation", () => {
-    const harness = createHarness();
-    harness.runtime.start();
-    harness.setDetected(validParentheses);
-    harness.runtime.locationObserved();
-    harness.runtime.submissionObserved();
-    harness.setVerdict({ verdict: "Accepted" });
-    harness.runtime.documentMutated();
-    expect(harness.events.slice(-2)).toMatchObject([
-      { type: "SUBMISSION_OBSERVED", problemExternalId: "valid-parentheses" },
-      { type: "VERDICT_OBSERVED", problemExternalId: "valid-parentheses" },
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.submissionObserved());
+    harness.setVerdict("Accepted");
+    const messages = recordMessages(harness, harness.runtime.documentMutated());
+    expect(messages.map((message) => message.type)).toEqual([
+      "VERDICT_CANDIDATE_OBSERVED",
     ]);
+    expect(messages).toHaveLength(1);
+    expect(latestCandidate(harness)?.verdict).toBe("Accepted");
+    expect(latestCandidate(harness)?.transitionEvidence).toBe("same_document_transition");
   });
 
-  it("emits nothing on an unsupported route after closing its session", () => {
+  it("may emit an internal historical candidate that requires background intent matching", () => {
     const harness = createHarness();
-    harness.runtime.start();
+    recordMessages(harness, harness.runtime.start());
+    harness.setVerdict("Accepted");
+    const messages = recordMessages(harness, harness.runtime.documentMutated());
+    expect(messages).toHaveLength(1);
+    expect(latestCandidate(harness)?.verdict).toBe("Accepted");
+  });
+
+  it("a stale same-text verdict after an exact submit must require a transition first", () => {
+    const harness = createHarness();
+    recordMessages(harness, harness.runtime.start());
+    harness.setVerdict("Accepted");
+    recordMessages(harness, harness.runtime.submissionObserved());
+
+    // Same text as the submit-time baseline is stale; runtime records the
+    // baseline but emits no candidate.
+    expect(recordMessages(harness, harness.runtime.documentMutated())).toHaveLength(0);
+
+    // Verdict spans disappears (null), then returns with the same text:
+    // that proves a real transition away from the submit-time baseline.
+    harness.setVerdict(null);
+    recordMessages(harness, harness.runtime.documentMutated());
+    harness.setVerdict("Accepted");
+    const messages = recordMessages(harness, harness.runtime.documentMutated());
+    expect(messages).toHaveLength(1);
+    expect(latestCandidate(harness)?.transitionEvidence).toBe("same_document_transition");
+  });
+
+  it("emits a candidate when a new exact result document first renders Accepted", () => {
+    const harness = createHarness();
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.submissionObserved());
+    harness.markExactResultPage(true);
+    harness.setDetected(atcoderAgc040dSubmission);
+    harness.setVerdict("Accepted", { sourceDocumentId: "doc_2" });
+    recordMessages(harness, harness.runtime.locationObserved());
+    expect(harness.messages.map((message) => message.type)).toEqual([
+      "SUBMISSION_INTENT_OBSERVED",
+      "VERDICT_CANDIDATE_OBSERVED",
+    ]);
+    expect(latestCandidate(harness)?.transitionEvidence).toBe("exact_result_document");
+    expect(latestCandidate(harness)?.problemExternalId).toBe("agc040_d");
+  });
+
+  it("emits a historical result candidate for background intent filtering", () => {
+    const harness = createHarness();
+    harness.markExactResultPage(true);
+    harness.setDetected(atcoderAgc040dSubmission);
+    harness.setVerdict("Accepted");
+    const messages = recordMessages(harness, harness.runtime.start());
+    expect(messages).toHaveLength(1);
+    expect(latestCandidate(harness)?.transitionEvidence).toBe("exact_result_document");
+  });
+
+  it("does not require a problem-page null snapshot before an exact-result candidate", () => {
+    const harness = createHarness();
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.submissionObserved());
+    harness.markExactResultPage(true);
+    harness.setDetected(atcoderAgc040dSubmission);
+    harness.setVerdict("Accepted");
+    const messages = recordMessages(harness, harness.runtime.locationObserved());
+    expect(messages).toHaveLength(1);
+  });
+
+  it("keeps submit causality across a same-document SPA result route", () => {
+    const harness = createHarness();
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.submissionObserved());
+
+    // LeetCode can switch from the task route to a result route without
+    // creating a new Chrome document. That route transition is still backed
+    // by the local submit observed by this runtime, so it must not be labelled
+    // as a cross-document historical result.
+    harness.markExactResultPage(true);
+    harness.setVerdict("Time Limit Exceeded");
+    const messages = recordMessages(harness, harness.runtime.locationObserved());
+
+    expect(messages).toHaveLength(1);
+    expect(latestCandidate(harness)).toMatchObject({
+      verdict: "Time Limit Exceeded",
+      transitionEvidence: "same_document_transition",
+      sourceDocumentId: "doc_1",
+    });
+  });
+
+  it("emits the exact-result candidate after BFCache restoration without requiring null", () => {
+    const harness = createHarness();
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.submissionObserved());
+    recordMessages(harness, harness.runtime.pageHidden());
+    harness.markExactResultPage(true);
+    harness.setDetected(atcoderAgc040dSubmission);
+    harness.setVerdict("Accepted");
+    recordMessages(harness, harness.runtime.pageShown());
+    expect(latestCandidate(harness)?.transitionEvidence).toBe("exact_result_document");
+  });
+
+  it("verdict emission after navigating away from the intent page targets the new problem, leaving the original intent intact", () => {
+    const harness = createHarness();
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.submissionObserved());
+    harness.setDetected(validParentheses);
+    recordMessages(harness, harness.runtime.locationObserved());
+    harness.setVerdict("Accepted");
+    recordMessages(harness, harness.runtime.documentMutated());
+    expect(latestCandidate(harness)?.problemExternalId).toBe("valid-parentheses");
+    expect(latestIntent(harness).problemExternalId).toBe("two-sum");
+  });
+
+  it("verdict emission for the same problem after navigation to a non-problem route stays quiet", () => {
+    const harness = createHarness();
+    recordMessages(harness, harness.runtime.start());
+    recordMessages(harness, harness.runtime.submissionObserved());
     harness.setDetected(null);
-    harness.runtime.locationObserved();
-    const eventCount = harness.events.length;
-    harness.runtime.submissionObserved();
-    harness.runtime.documentMutated();
-    expect(harness.events.at(-1)).toMatchObject({ type: "SESSION_ENDED", payload: { endReason: "spa_navigation" } });
-    expect(harness.events).toHaveLength(eventCount);
-  });
-
-  it("pagehide ends once and pageshow starts a fresh session without a verdict", () => {
-    const harness = createHarness();
-    harness.runtime.start();
-    harness.runtime.pageHidden();
-    harness.runtime.pageHidden();
-    harness.setVerdict({ verdict: "Accepted" });
-    harness.runtime.pageShown();
-    expect(harness.events.map((e) => e.type)).toEqual(["SESSION_STARTED", "SESSION_ENDED", "SESSION_STARTED"]);
-    expect(harness.events.at(-1)).toMatchObject({ captureSessionId: "session_2" });
-    harness.runtime.documentMutated();
-    expect(harness.events.at(-1)).toMatchObject({ type: "VERDICT_OBSERVED", captureSessionId: "session_2" });
-  });
-
-  // T5.1: atcoder same-identity task→submission with submit-click, Accepted verdict
-  it("atcoder: task→submit-click→same-identity submission page keeps one session and carries submission ID into verdict", () => {
-    const { runtime, events, setDetected, setVerdict } = createHarness();
-    setDetected(atcoderAgc040dTask);
-    runtime.start();
-    runtime.submissionObserved();
-    const subId = getSubmissionId(events[1]);
-    expect(subId).toBe("submission_1");
-    setDetected(atcoderAgc040dSubmission);
-    runtime.locationObserved();
-    expect(runtime.currentState().active?.captureSessionId).toBe("session_1");
-    expect(events.map((e) => e.type)).toEqual(["SESSION_STARTED", "SUBMISSION_OBSERVED"]);
-    setVerdict({ verdict: "Accepted" });
-    runtime.documentMutated();
-    expect(events.map((e) => e.type)).toEqual(["SESSION_STARTED", "SUBMISSION_OBSERVED", "VERDICT_OBSERVED"]);
-    expect(events[2]).toMatchObject({
-      type: "VERDICT_OBSERVED",
-      platform: "atcoder",
-      problemExternalId: "agc040_d",
-      canonicalUrl: "https://atcoder.jp/contests/agc040/tasks/agc040_d",
-      captureSessionId: "session_1",
-      submissionId: "submission_1",
-    });
-  });
-
-  // T5.2: atcoder direct-open submission page with visible Accepted
-  it("atcoder: direct-open submission page with visible Accepted starts one session and one verdict-created submission", () => {
-    const { runtime, events, setDetected, setVerdict } = createHarness();
-    setDetected(atcoderAgc040dSubmission);
-    setVerdict({ verdict: "Accepted" });
-    runtime.start();
-    expect(events.map((e) => e.type)).toEqual(["SESSION_STARTED", "VERDICT_OBSERVED"]);
-    expect(events[0]).toMatchObject({ type: "SESSION_STARTED", platform: "atcoder", problemExternalId: "agc040_d" });
-    expect(events[1]).toMatchObject({
-      type: "VERDICT_OBSERVED",
-      platform: "atcoder",
-      problemExternalId: "agc040_d",
-      canonicalUrl: "https://atcoder.jp/contests/agc040/tasks/agc040_d",
-      captureSessionId: "session_1",
-      submissionId: "submission_1",
-    });
-    expect(runtime.currentState().active?.activeSubmissionId).toBe("submission_1");
-  });
-
-  // T5.3: atcoder unresolvable submission page
-  it("atcoder: unresolvable submission page leaves no active session before verdict", () => {
-    const { runtime, events, setDetected, setVerdict } = createHarness();
-    setDetected(atcoderAgc040dTask);
-    runtime.start();
-    expect(events.at(-1)).toMatchObject({ type: "SESSION_STARTED", problemExternalId: "agc040_d" });
-    setDetected(null);
-    setVerdict({ verdict: "Accepted" });
-    runtime.locationObserved();
-    expect(events.at(-1)).toMatchObject({ type: "SESSION_ENDED", payload: { endReason: "spa_navigation" } });
-    expect(runtime.currentState().active).toBeUndefined();
-    runtime.documentMutated();
-    expect(events).toHaveLength(2);
-    runtime.documentMutated();
-    expect(events).toHaveLength(2);
-    runtime.submissionObserved();
-    expect(events).toHaveLength(2);
-  });
-
-  // T5.4: atcoder mismatched submission identity
-  it("atcoder: mismatched submission identity ends old session and attributes verdict to correct problem only", () => {
-    const { runtime, events, setDetected, setVerdict } = createHarness();
-    setDetected(atcoderAgc040dTask);
-    runtime.start();
-    runtime.submissionObserved();
-    const oldSubId = getSubmissionId(events[1]);
-    expect(oldSubId).toBe("submission_1");
-    setDetected(atcoderAbc164e);
-    runtime.locationObserved();
-    expect(events.map((e) => e.type)).toEqual(["SESSION_STARTED", "SUBMISSION_OBSERVED", "SESSION_ENDED", "SESSION_STARTED"]);
-    expect(events[2]).toMatchObject({ type: "SESSION_ENDED", captureSessionId: "session_1", payload: { endReason: "spa_navigation" } });
-    expect(events[3]).toMatchObject({ type: "SESSION_STARTED", problemExternalId: "abc164_e", captureSessionId: "session_2" });
-    expect(runtime.currentState().active?.captureSessionId).toBe("session_2");
-    expect(runtime.currentState().active?.activeSubmissionId).toBeUndefined();
-    setVerdict({ verdict: "Accepted" });
-    runtime.documentMutated();
-    expect(events).toHaveLength(4);
-    runtime.documentMutated();
-    expect(events.map((e) => e.type)).toEqual(["SESSION_STARTED", "SUBMISSION_OBSERVED", "SESSION_ENDED", "SESSION_STARTED", "VERDICT_OBSERVED"]);
-    expect(events[4]).toMatchObject({
-      type: "VERDICT_OBSERVED",
-      platform: "atcoder",
-      problemExternalId: "abc164_e",
-      captureSessionId: "session_2",
-      submissionId: "submission_2",
-    });
-    expect(events.some((e) => e.type === "VERDICT_OBSERVED" && e.problemExternalId === "agc040_d")).toBe(false);
+    recordMessages(harness, harness.runtime.locationObserved());
+    harness.setVerdict("Accepted");
+    expect(recordMessages(harness, harness.runtime.documentMutated())).toHaveLength(0);
   });
 });

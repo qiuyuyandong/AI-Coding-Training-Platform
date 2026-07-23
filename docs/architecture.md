@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-15
+Last updated: 2026-07-23
 
 ## Overview
 
@@ -13,7 +13,7 @@ This document describes the current implementation. The accepted future product 
 ```text
 Chrome MV3 extension
 -> one-time pairing -> hashed installation credential
--> authenticated POST /api/capture/events
+-> authenticated POST /api/capture/attempts
 -> one SQLite transaction: capture_events + deterministic projection
 -> training_sessions + training_attempts
 -> /training, /coach, /growth
@@ -24,15 +24,28 @@ Manual Training form
 -> /training, /coach, /growth
 ```
 
-The browser extension detects supported problem pages and visible verdict state. A problem visit creates a capture session; same-problem SPA routes retain it, while navigation to another problem ends the old session before starting the next. Each submit observation creates a submission. The extension normalizes English verdict tokens and Chinese verdict labels into local verdict events and stores V2 events in Chrome local storage.
+The browser extension detects supported problem pages and visible verdict state.
+Browsing does not create a session or queue item. An exact submit creates one
+pending intent; a matching final verdict creates one stable V3 four-event
+bundle in Chrome local storage. The server still stores the bundle's ordered
+session/submission/verdict/end events for backward-compatible projection, but
+the extension treats the completed bundle—not page activity—as the delivery
+unit.
 
-`extension/src/contentRuntime.ts` owns testable SPA/page lifecycle decisions. `content.ts` adapts Chrome `popstate`, `hashchange`, DOM mutations, `pagehide`, `pageshow`, and a 500 ms URL poll fallback. Submit clicks must resolve to an exact platform label on a real button/input/role-button while an exact problem route is active; the sole anchor exception is Luogu's observed `a.title[href="javascript:void 0"]` with an exact inner `提交` label. Arbitrary text containing “submit/提交” is ignored. The mutation following a changed problem identity skips verdict scanning unless an explicit submit establishes current-page evidence, reducing stale-verdict cross-linking.
+`extension/src/contentRuntime.ts` owns the verdict-gated state machine. `content.ts` adapts Chrome `popstate`, `hashchange`, DOM mutations, `pagehide`, `pageshow`, and a 500 ms URL poll fallback. Submit clicks must resolve to an exact platform label on a real button/input/role-button while an exact problem route is active; the sole anchor exception is Luogu's observed `a.title[href="javascript:void 0"]` with an exact inner `提交` label. Arbitrary text containing “submit/提交” is ignored. Browsing emits no user-level queue item. A submit creates a local intent; only a later final verdict with transition evidence can consume that intent.
 
-`extension/src/serializedWork.ts` keeps initialization, enqueue, and drain jobs ordered. `extension/src/queueDrain.ts` reads the latest queue before every head and drains FIFO in batches of at most 25. Permanent failures are removed; network and retryable server failures keep the head and stop the batch. Authentication failures keep the head without consuming retry budget. Successful response bodies are validated as typed ACKs before dequeue; the popup separately shows event delivery and whether an attempt was materialized, and successful delivery explicitly removes a stale transport error.
+`extension/src/serializedWork.ts` orders initialization, intent matching, outbox mutation, and delivery. `attemptStorage.ts` creates stable four-event bundles and enforces the storage reserve. `outboxDrain.ts` isolates item-specific failures in quarantine and continues with later bundles; network, 401, and 403 failures preserve the complete outbox and pause only the current drain. The popup separately reports waiting intents, pending bundles, quarantined bundles, migration count, and recovery controls.
 
-The service worker stores the long-lived credential in trusted-only Chrome local storage; content scripts receive only installation ID, capture-enabled state, and provenance. `installationId` remains a logical correlation value. A separate random bearer credential authorizes writes and is bound to that ID by the server. Explicit web origins are rejected, but Origin is defense in depth rather than identity.
+The service worker stores the long-lived credential in Chrome local storage;
+when the runtime exposes `StorageArea.setAccessLevel`, it restricts that area to
+trusted extension contexts. Older or reduced Chromium runtimes that omit the
+capability continue initialization instead of crashing. Content scripts receive
+only installation ID, capture-enabled state, and provenance. `installationId`
+remains a logical correlation value. A separate random bearer credential
+authorizes writes and is bound to that ID by the server. Explicit web origins
+are rejected, but Origin is defense in depth rather than identity.
 
-Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with three status levels: `production`, `experimental`, `disabled`. AtCoder is the sole `production` adapter; LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`. Domestic problem routes stay strict, and authenticated result pages are resolved only from exact first-party routes plus one unique, visible, bounded first-party problem anchor: LeetCode `/submissions/detail/<id>`, NowCoder `view-submission?submissionId=<id>`, and Luogu `/record/<id>`. Verdict extraction uses a LeetCode locator, a NowCoder result container, or Luogu's exact `评测状态` semantic row; none scans the whole `body`. Their minimized fixtures use the non-certifying `authenticated-characterization` tier, so the public-DOM certification gate and historical Luogu BLOCKED artifact remain authoritative.
+Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with three status levels: `production`, `experimental`, `disabled`. AtCoder is the sole `production` adapter; LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`. Domestic problem routes stay strict. LeetCode accepts both exact `/submissions/detail/<id>` pages resolved from one visible first-party problem anchor and the real problem-scoped `/problems/<slug>/submissions/<id>` route whose slug supplies identity. NowCoder `view-submission?submissionId=<id>` and Luogu `/record/<id>` continue to require one unique, visible, bounded first-party problem anchor. Verdict extraction uses a LeetCode locator, a NowCoder result container, or Luogu's exact `评测状态` semantic row; none scans the whole `body`. Their minimized fixtures use the non-certifying `authenticated-characterization` tier, so the public-DOM certification gate and historical Luogu BLOCKED artifact remain authoritative.
 
 ## App routes
 
@@ -52,6 +65,7 @@ Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (
 | API | Role |
 |---|---|
 | `POST /api/capture/events` | Authenticates the paired installation, validates a bounded V2 event, and atomically saves the raw event plus deterministic projection. |
+| `POST /api/capture/attempts` | Authenticates the paired installation, validates one strict completed-attempt bundle, and atomically writes all four raw events plus the final projection. |
 | `POST /api/capture/pairing-codes` | Same-origin management endpoint that creates a ten-minute new-installation or targeted rotation code. |
 | `POST /api/capture/pair` | Consumes a one-time code and returns a fresh installation credential once. |
 | `POST /api/capture/installations/:id/revoke` | Same-origin management endpoint that revokes an installation. |
@@ -73,7 +87,7 @@ The SQLite schema is defined by migrations under `lib/db/migrations`.
 |---|---|
 | `schema_migrations` | Applied migration tracking. |
 | `problems` | Metadata-only local problem records. |
-| `capture_events` | Raw local V2 browser events with a stable payload fingerprint. |
+| `capture_events` | Raw local capture events with a stable payload fingerprint; V3 writes completed four-event bundles atomically. |
 | `training_sessions` | One logical problem-page session; `ended_at` is nullable because `SESSION_ENDED` is best effort. |
 | `training_attempts` | One current attempt row. Captured rows retain session/submission identity; manual rows have no synthetic capture identity. Source, revision, and optional void metadata are stored directly. |
 | `attempt_corrections` | One scalar old/new row per actually changed field, grouped by correction ID and reason. It is audit metadata, never another attempt. |
@@ -90,12 +104,12 @@ Migration `0005_attempt_manual_corrections.sql` rebuilds only `training_attempts
 
 ## Service boundaries
 
-- `lib/capture/protocol.ts` owns the browser-safe V2 event contract and stable serialization.
+- `lib/capture/protocol.ts` owns the browser-safe event contract and stable serialization; `lib/capture/attemptBundle.ts` owns the strict V3 bundle and ACK schemas.
 - `lib/capture/fingerprint.ts` owns the server-only SHA-256 event fingerprint.
 - `extension/src/platforms.ts` owns pure platform page/verdict detection, including supported English and Chinese verdict text patterns.
-- `extension/src/pageLifecycle.ts` owns pure problem-session lifecycle transitions.
 - `extension/src/contentRuntime.ts` owns capture decisions independently of Chrome globals.
-- `extension/src/queueDrain.ts` and `extension/src/serializedWork.ts` own ordered queue delivery.
+- `extension/src/attemptStorage.ts`, `extension/src/outboxDrain.ts`, and `extension/src/serializedWork.ts` own intent matching, atomic bundle storage, and ordered delivery.
+- `extension/src/extensionOperation.ts` terminates fire-and-forget Chrome promises so popup/content operations cannot become unhandled extension errors.
 - `lib/repositories/**` owns SQLite row mapping and persistence helpers.
 - `lib/services/captureTransition.ts` owns pure deterministic session/attempt transitions.
 - `lib/services/captureMaterializer.ts` owns the raw-event-plus-projection transaction.

@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-15
+Last updated: 2026-07-23
 
 ## Setup
 
@@ -33,21 +33,21 @@ Build the Chrome MV3 extension:
 npm run extension:build
 ```
 
-Load `extension/dist` as an unpacked Chrome extension. Open `http://localhost:3000/settings`, create a pairing code, and paste it into the popup. The code expires after ten minutes and is consumed once. The popup can then enable/disable capture and shows Chinese diagnostics for pending events, the last delivered event type, whether that ACK formed a training record, and the current blocking reason. `SESSION_STARTED` delivery is a page-session event, not a successful submission.
+Load `extension/dist` as an unpacked Chrome extension. Open `http://localhost:3000/settings`, create a pairing code, and paste it into the popup. The code expires after ten minutes and is consumed once. The popup reports `等待判题`, `待同步结果`, and `已隔离结果` separately, together with migration and blocking diagnostics. Reloading a V3 build runs the one-time local migration that removes the pre-bundle `eventQueue` and records the actual removed count; verify the popup count before claiming the user's old entries were cleared.
 
 Use `/settings` to rotate or revoke credentials. Rotation creates a code scoped to that installation; paste it into the same extension to atomically replace the old credential. Revocation causes capture requests to return 401 until an explicit targeted rotation code pairs it again.
 
 Verdict capture is expected to detect visible accepted, wrong-answer, compile-error, runtime-error, time-limit, memory-limit, and partial verdict text. English verdict tokens and Chinese verdict labels are normalized before being sent to the local app.
 
-Capture protocol V2 creates one logical session per observed problem visit and one attempt per observed submission. Same-problem SPA routes retain the current session; navigation to a different problem emits `SESSION_ENDED(spa_navigation)` before the new `SESSION_STARTED`. Location observation combines `popstate`, `hashchange`, DOM reconciliation, and a 500 ms URL poll fallback.
+Capture protocol V3 creates no result for page lifecycle activity. An exact submit control creates one local intent. A new final verdict after that intent creates a stable bundle containing `SESSION_STARTED`, `SUBMISSION_OBSERVED`, `VERDICT_OBSERVED`, and `SESSION_ENDED`; the local app commits the bundle atomically.
 
-`pagehide` delivery remains best effort, so an open session with no `ended_at` is expected after browser shutdown or extension interruption. If a hidden/BFCache page is shown again, the extension starts a fresh observed session.
+`pagehide`, ordinary navigation, running samples, and debugging do not create training records or outbox entries. Exact result documents may emit an internal candidate, but the background discards it unless a matching active intent exists.
 
-Queue delivery is FIFO and serialized. One drain batch handles at most 25 events. Network errors and retryable 500 responses preserve the queue head and stop; permanent 400/409/413/415 responses and 500 responses at the retry cap drop that head and continue. A 401/403 keeps the queue head without incrementing its retry count so pairing or configuration can recover it.
+Outbox delivery is serialized by bundle. Network errors and 401/403 preserve every bundle and stop the current drain. A 400/409/413/415 isolates only that bundle and continues; repeated 500 responses move that bundle to quarantine at the retry cap. The popup can retry or delete an isolated item and clears outbox and quarantine only through separate confirmed actions. Capacity failures are visible and never evict older results.
 
-The supported domestic problem routes are `leetcode.cn/problems/<slug>`, `www.nowcoder.com/practice/<id>`, `ac.nowcoder.com/acm/problem/<id>`, and `www.luogu.com.cn/problem/<id>`. Exact result routes are also injected for passive detection: LeetCode `/submissions/detail/<digits>/`, NowCoder `/acm/contest/view-submission?submissionId=<digits>`, and Luogu `/record/<digits>`. Runtime checks reject malformed IDs, extra query/hash data, spoofed hosts, ambiguous anchors, and hidden or overlong title text. Sanitized `authenticated-characterization` fixtures cover LeetCode AC, NowCoder AC, and Luogu AC/Compile Error; they never certify production. The agent performed no submissions, so LeetCode/NowCoder non-AC transitions and user-performed end-to-end capture remain unobserved.
+The supported domestic problem routes are `leetcode.cn/problems/<slug>`, `www.nowcoder.com/practice/<id>`, `ac.nowcoder.com/acm/problem/<id>`, and `www.luogu.com.cn/problem/<id>`. Exact result routes are also injected for passive detection: LeetCode `/problems/<slug>/submissions/<digits>/` and `/submissions/detail/<digits>/`, NowCoder `/acm/contest/view-submission?submissionId=<digits>`, and Luogu `/record/<digits>`. Runtime checks reject malformed IDs, extra query/hash data, spoofed hosts, ambiguous anchors, and hidden or overlong title text. Sanitized `authenticated-characterization` fixtures cover LeetCode AC, NowCoder AC, and Luogu AC/Compile Error; they never certify production.
 
-On the first V2 extension startup, any queued V1 events are discarded once. Chrome local storage records `discardedLegacyEventCount` and `legacyQueueDiscardedAt`, and the service worker logs the discarded count. `installationId` is only a correlation identifier; the separately stored credential authorizes requests. V2 events queued before pairing retain unpaired provenance after delivery.
+On the first V3 extension startup, any pre-bundle `eventQueue` entries are discarded once. Chrome local storage records `discardedPreBundleEventCount` and `preBundleQueueDiscardedAt`; the user's real reload confirmed an actual count of 32. `installationId` is only a correlation identifier; the separately stored credential authorizes requests. The migration does not modify server records.
 
 ## Verification
 
@@ -71,14 +71,16 @@ npm run quality:gate
 
 The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses a server on port 3000. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
 
-The latest 2026-07-20 domestic-OJ repair gate ran 1008 passing unit tests plus 1 capability skip across 65 files. The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. The same gate ran 24 Playwright E2E tests and 457 extension tests across 18 files. Named test files of interest:
+The latest 2026-07-23 capture repair gate ran 1028 passing unit tests plus 1 capability skip across 68 files. The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. The same gate ran 25 Playwright E2E tests and 453 extension tests across 19 files. Named test files of interest:
 
 | File | Tests | Role |
 |---|---|---|
-| `tests/unit/extensionDomesticOjAuth.test.ts` | 133 | Authenticated-characterization fixtures, manifest/runtime routes, privacy and spoof guards |
-| `tests/unit/extensionPlatforms.test.ts` | 98 | Strict routes, verdict isolation, adapter registry |
+| `tests/unit/extensionDomesticOjAuth.test.ts` | 140 | Authenticated-characterization fixtures, real LeetCode result route, privacy and spoof guards |
+| `tests/unit/extensionPlatforms.test.ts` | 105 | Strict routes, cross-platform verdict taxonomy, adapter registry |
 | `tests/unit/extensionSubmissionControl.test.ts` | 29 | Exact submit-control and false-positive guards |
-| `tests/unit/extensionTransport.test.ts` | 28 | Typed ACK, queue delivery metadata, failure policy |
+| `tests/unit/extensionTransport.test.ts` | 4 | Strict attempt endpoint and typed ACK transport |
+| `tests/unit/extensionOperation.test.ts` | 2 | Rejected Chrome Promise containment |
+| `tests/unit/extensionPopup.test.ts` | 6 | Status presentation, pairing errors, and pressed-state recovery |
 | `tests/unit/domesticOjCurriculum.test.ts` | 9 | Curriculum 1.0.1 domestic OJ and package coexistence |
 | `tests/unit/extensionAtcoderCertificationBlocked.test.ts` | 34 | Certification gate BLOCKED path coverage |
 | `tests/unit/extensionAtcoderFixtures.test.ts` | 28 | AtCoder fixture loading and characterization |
@@ -94,7 +96,7 @@ npm run test -- tests/unit/luoguFixtureLoader.test.ts
 npm run test -- tests/unit/platformCertification.test.ts
 ```
 
-`npm run e2e` owns the Next.js server and an isolated SQLite lifecycle. It deletes and recreates `.tmp/playwright`, applies every repository migration, runs 24 tests serially against that database, then removes it during global teardown. E2E cleanup uses an `lstatSync`-based safe walker (`tests/e2e/database.ts`) that handles symlinks, junctions, and broken reparse points. A process already listening on port 3000 is treated as an error; stop it rather than reusing an unknown server or database.
+`npm run e2e` owns the Next.js server and an isolated SQLite lifecycle. It deletes and recreates `.tmp/playwright`, applies every repository migration, runs 25 tests serially against that database, then removes it during global teardown. E2E cleanup uses an `lstatSync`-based safe walker (`tests/e2e/database.ts`) that handles symlinks, junctions, and broken reparse points. A process already listening on port 3000 is treated as an error; stop it rather than reusing an unknown server or database.
 
 The Coach/Growth E2E fixture writes more rows than either display window and asserts three separate contracts: Training still finds an older scoped problem, Growth totals match the complete database count while showing five activity rows, and Coach reports its 50-attempt analysis window.
 
@@ -150,4 +152,4 @@ Network errors are retryable. Invalid 400/413/415 responses and permanent 409 ev
 
 The pairing boundary assumes the local OS account and files remain trustworthy. A process that can edit the SQLite database or Chrome profile can bypass this local HTTP control; that host-compromise case is not solved by localhost bearer credentials.
 
-If SPA capture appears stale, confirm the URL changes in the address bar and inspect the content-script console for `[capture-v2]` errors. Unit tests cover both route-event-first and DOM-mutation-first transitions. AtCoder is the sole production adapter with certified public-DOM fixtures.
+If capture appears stale, confirm the exact result URL is recognized and inspect the content-script/service-worker console for `[capture-v3]` messages. For LeetCode, both `/problems/<slug>/submissions/<id>/` and `/submissions/detail/<id>/` are valid exact result forms. The popup's action status distinguishes a received click from a completed sync; `待同步结果` reaches zero only after a matching ACK. If `chrome://extensions` reports a startup error, reload the current `extension/dist`; the service worker capability-checks optional `StorageArea.setAccessLevel`, and every popup/content fire-and-forget operation now handles rejected Promises. AtCoder is the sole production adapter with certified public-DOM fixtures.

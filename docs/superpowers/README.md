@@ -1,14 +1,16 @@
 # Superpowers Documentation Index
 
-> **Status (2026-07-20):** **V0 repair and validation.** Phase 0 is complete.
-> Domestic-OJ routing, queue diagnostics, curriculum 1.0.1, and passive
-> authenticated characterization are implemented and reviewed in the working
-> tree. The former RC `b516632...` is superseded; no replacement RC exists
-> until this repair is explicitly committed.
+> **Status (2026-07-23):** **V0 capture repair and validation.** Phase 0 is
+> complete. The V3 bundle repair, cross-platform verdict foundation, real
+> LeetCode result-route correction, extension compatibility guard, and popup
+> feedback are engineering-green in the uncommitted worktree. Frozen SHA
+> `894162b264124eed7315a116cae73b8e11d717b8` remains defective and cannot
+> anchor V0 acceptance; no replacement RC exists yet.
 
-The only active execution plan is
-[`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md).
-The closeout plan is paused until a replacement RC is frozen:
+The active repair plan is
+[`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md).
+The closeout plan remains paused until a repaired build passes the user's real
+Chrome check and a replacement RC is frozen:
 [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md).
 The completed stabilization package is recorded in
 [`plans/2026-07-18-v0-stabilization-known-issues.md`](plans/2026-07-18-v0-stabilization-known-issues.md)
@@ -21,8 +23,9 @@ This directory contains both active product planning and historical implementati
 
 1. [`../../IDEA.md`](../../IDEA.md) — product definition, adopted decisions, V0/V0.5/V1/Public Beta scope.
 2. [`plans/2026-07-11-product-development-roadmap.md`](plans/2026-07-11-product-development-roadmap.md) — active release/Phase map and exit gates.
-3. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — the only active execution checklist; replacement-RC repair.
-4. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — paused closeout checklist; resumes after the repair RC.
+3. [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md) — active replacement-RC repair and real-browser gate.
+4. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — paused same-SHA observation and closeout checklist.
+5. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — earlier domestic-OJ repair implementation record.
 
 Immediate target: accepted V0. Next target: V0.5 connected OJ/basic evidence.
 Then: V1 integrated local pilot. Total product target: **Phase 7 / Public Beta

@@ -158,6 +158,15 @@ describe("verdictEventToAttemptUpdate", () => {
     });
   });
 
+  it("classifies judge failures as stuck and unknown final failures as failed", () => {
+    expect(verdictEventToAttemptUpdate(
+      verdictObservedEvent({ payload: { verdict: "Judge Error" } }),
+    ).result).toBe("stuck");
+    expect(verdictEventToAttemptUpdate(
+      verdictObservedEvent({ payload: { verdict: "Other Failure" } }),
+    ).result).toBe("failed");
+  });
+
   it("uses an explicit detector result", () => {
     expect(
       verdictEventToAttemptUpdate(

@@ -30,8 +30,8 @@
       "sourceUrl": "https://atcoder.jp/contests/agc040/tasks/agc040_d?lang=en"
     }
   ],
-  "adapterVersion": "multi-platform@0.2.0",
-  "parserVersion": "visible-verdict@0.2.0",
+  "adapterVersion": "atomic-bundle@0.1.0",
+  "parserVersion": "atomic-bundle-verdict@0.2.0",
   "t6GateArtifact": {
     "path": "work/reports/atcoder-certification-gate-verdict.json",
     "sha256": "1589BB48A962CF2F388802F654E969E2A5DCEB7EC35113032B96055F668D951D"

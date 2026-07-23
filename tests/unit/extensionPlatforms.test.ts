@@ -324,6 +324,50 @@ describe("detectVerdictFromDocument", () => {
     expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Accepted" });
   });
 
+  it("detects the observed LeetCode.cn Chinese runtime-error verdict text", () => {
+    document.body.innerHTML = '<div data-e2e-locator="submission-result">执行出错</div>';
+
+    expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Runtime Error" });
+  });
+
+  it("does not detect LeetCode.cn runtime-error wording outside the verdict node", () => {
+    document.body.innerHTML = '<main>执行出错</main>';
+
+    expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
+  });
+
+  it("normalizes the same runtime-error meaning across platform verdict regions", () => {
+    document.body.innerHTML = '<div class="coder-cont-legend">运行状态:<span>执行出错</span></div>';
+
+    expect(detectVerdictFromDocument("nowcoder", document)).toEqual({ verdict: "Runtime Error" });
+  });
+
+  it("normalizes the observed LeetCode.cn time-limit wording", () => {
+    document.body.innerHTML = '<div data-e2e-locator="submission-result">超出时间限制</div>';
+
+    expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Time Limit Exceeded" });
+  });
+
+  it("keeps a trusted pending verdict state out of completed attempts", () => {
+    document.body.innerHTML = '<div data-e2e-locator="submission-result">判题中</div>';
+
+    expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
+  });
+
+  it("records an unrecognized non-empty trusted final result instead of hanging", () => {
+    document.body.innerHTML = '<div data-e2e-locator="submission-result">平台新增失败状态</div>';
+
+    expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Other Failure" });
+  });
+
+  it("preserves useful distinctions for less common final failures", () => {
+    document.body.innerHTML = '<div data-e2e-locator="submission-result">输出超限</div>';
+    expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Output Limit Exceeded" });
+
+    document.body.innerHTML = '<span id="judge-status">IE</span>';
+    expect(detectVerdictFromDocument("atcoder", document)).toEqual({ verdict: "Judge Error" });
+  });
+
   it("detects Codeforces wrong-answer verdict text", () => {
     // The td must live inside a table/tr for the HTML parser to keep it;
     // before the body-fallback removal this test incidentally matched via

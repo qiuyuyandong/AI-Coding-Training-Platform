@@ -1,13 +1,16 @@
 import { z } from "zod";
 import {
   DEFAULT_CAPTURE_ENDPOINT,
-  isQueueItem,
   readCaptureEndpoint,
-  type CaptureQueueItem,
-} from "./transport";
+} from "./captureTransport";
+import type {
+  CaptureOutboxItem,
+  CaptureQuarantineItem,
+} from "./attemptStorage";
+import type { PendingSubmissionIntent } from "./attemptCapture";
 import { CaptureProvenanceLevelSchema } from "@/lib/domain/captureCredential";
 
-export const CAPTURE_PROTOCOL_VERSION = 2 as const;
+export const CAPTURE_PROTOCOL_VERSION = 3 as const;
 
 export const CaptureRuntimeContextSchema = z.object({
   installationId: z.string().min(1),
@@ -22,12 +25,33 @@ export type ExtensionInitializationPlan = {
   readonly captureCredential?: string;
   readonly captureEnabled: boolean;
   readonly captureEndpoint: string;
-  readonly captureProtocolVersion: 2;
-  readonly eventQueue: readonly CaptureQueueItem[];
-  readonly discardedLegacyEventCount: number;
-  readonly legacyQueueDiscardedAt?: string;
-  readonly shouldLogLegacyDiscard: boolean;
+  readonly captureProtocolVersion: 3;
+  readonly pendingSubmissionIntents: readonly PendingSubmissionIntent[];
+  readonly captureOutbox: readonly CaptureOutboxItem[];
+  readonly captureQuarantine: readonly CaptureQuarantineItem[];
+  readonly discardedPreBundleEventCount: number;
+  readonly preBundleQueueDiscardedAt?: string;
+  readonly shouldRemoveLegacyEventQueue: boolean;
 };
+
+export type ExtensionInitializationStorage = {
+  readonly set: (items: Record<string, unknown>) => Promise<void>;
+  readonly remove: (key: string) => Promise<void>;
+};
+
+export type TrustedStorageAccessController = {
+  readonly setAccessLevel?: (
+    accessOptions: { readonly accessLevel: "TRUSTED_CONTEXTS" },
+  ) => Promise<void>;
+};
+
+export async function restrictStorageToTrustedContexts(
+  storage: TrustedStorageAccessController,
+): Promise<boolean> {
+  if (storage.setAccessLevel === undefined) return false;
+  await storage.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+  return true;
+}
 
 export function planExtensionInitialization(
   stored: Record<string, unknown>,
@@ -36,17 +60,16 @@ export function planExtensionInitialization(
     readonly createInstallationId: () => string;
   },
 ): ExtensionInitializationPlan {
-  const isV2 = stored.captureProtocolVersion === CAPTURE_PROTOCOL_VERSION;
+  const isV3 = stored.captureProtocolVersion === CAPTURE_PROTOCOL_VERSION;
   const rawQueue = Array.isArray(stored.eventQueue) ? stored.eventQueue : [];
-  const eventQueue = isV2 ? rawQueue.filter(isQueueItem) : [];
   const installationId = typeof stored.installationId === "string" && stored.installationId.length > 0
     ? stored.installationId
     : options.createInstallationId();
-  const discardedLegacyEventCount = isV2
-    ? readNonnegativeInteger(stored.discardedLegacyEventCount)
+  const discardedPreBundleEventCount = isV3
+    ? readNonnegativeInteger(stored.discardedPreBundleEventCount)
     : rawQueue.length;
-  const legacyQueueDiscardedAt = isV2
-    ? readNonemptyString(stored.legacyQueueDiscardedAt)
+  const preBundleQueueDiscardedAt = isV3
+    ? readNonemptyString(stored.preBundleQueueDiscardedAt)
     : options.now;
   const base = {
     installationId,
@@ -56,13 +79,50 @@ export function planExtensionInitialization(
       stored.captureEndpoint ?? DEFAULT_CAPTURE_ENDPOINT,
     ),
     captureProtocolVersion: CAPTURE_PROTOCOL_VERSION,
-    eventQueue,
-    discardedLegacyEventCount,
-    shouldLogLegacyDiscard: !isV2,
+    pendingSubmissionIntents: isV3 && Array.isArray(stored.pendingSubmissionIntents)
+      ? stored.pendingSubmissionIntents as readonly PendingSubmissionIntent[]
+      : [],
+    captureOutbox: isV3 && Array.isArray(stored.captureOutbox)
+      ? stored.captureOutbox as readonly CaptureOutboxItem[]
+      : [],
+    captureQuarantine: isV3 && Array.isArray(stored.captureQuarantine)
+      ? stored.captureQuarantine as readonly CaptureQuarantineItem[]
+      : [],
+    discardedPreBundleEventCount,
+    shouldRemoveLegacyEventQueue: !isV3 || rawQueue.length > 0,
   };
-  return legacyQueueDiscardedAt === undefined
+  return preBundleQueueDiscardedAt === undefined
     ? base
-    : { ...base, legacyQueueDiscardedAt };
+    : { ...base, preBundleQueueDiscardedAt };
+}
+
+export function extensionInitializationStorage(
+  plan: ExtensionInitializationPlan,
+): Record<string, unknown> {
+  return {
+    installationId: plan.installationId,
+    ...(plan.captureCredential === undefined ? {} : { captureCredential: plan.captureCredential }),
+    captureEnabled: plan.captureEnabled,
+    captureEndpoint: plan.captureEndpoint,
+    captureProtocolVersion: plan.captureProtocolVersion,
+    pendingSubmissionIntents: plan.pendingSubmissionIntents,
+    captureOutbox: plan.captureOutbox,
+    captureQuarantine: plan.captureQuarantine,
+    discardedPreBundleEventCount: plan.discardedPreBundleEventCount,
+    ...(plan.preBundleQueueDiscardedAt === undefined
+      ? {}
+      : { preBundleQueueDiscardedAt: plan.preBundleQueueDiscardedAt }),
+  };
+}
+
+export async function applyExtensionInitialization(
+  storage: ExtensionInitializationStorage,
+  plan: ExtensionInitializationPlan,
+): Promise<void> {
+  await storage.set(extensionInitializationStorage(plan));
+  if (plan.shouldRemoveLegacyEventQueue) await storage.remove("eventQueue");
+  await storage.remove("outbox");
+  await storage.remove("quarantine");
 }
 
 export function runtimeContextFromPlan(

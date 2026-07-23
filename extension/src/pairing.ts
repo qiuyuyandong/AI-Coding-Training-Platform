@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { readCaptureEndpoint } from "./transport";
+import { readCaptureEndpoint } from "./captureTransport";
 
 export const PairCaptureInstallationMessageSchema = z.object({
   type: z.literal("PAIR_CAPTURE_INSTALLATION"),

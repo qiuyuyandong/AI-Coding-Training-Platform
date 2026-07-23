@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Platform, PlatformAdapterStatus } from "@/extension/src/platforms";
-import { ADAPTER_VERSION, PARSER_VERSION } from "@/extension/src/captureSession";
+import { ADAPTER_VERSION, PARSER_VERSION } from "@/extension/src/attemptCapture";
 import type {
   FixtureCoverage, PlatformGateResult,
 } from "@/tests/helpers/platformCertificationContract";

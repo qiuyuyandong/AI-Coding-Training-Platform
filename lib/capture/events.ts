@@ -14,6 +14,7 @@ export type {
 } from "./protocol";
 
 import type { VerdictObservedEvent } from "./protocol";
+import { classifyFinalCaptureVerdict } from "./verdictTaxonomy";
 
 export type AttemptUpdate = {
   readonly result: "passed" | "failed" | "partial" | "stuck";
@@ -37,26 +38,5 @@ export function verdictEventToAttemptUpdate(
 }
 
 function classifyVerdict(verdict: string): AttemptUpdate["result"] {
-  const normalized = verdict.toLowerCase();
-  if (normalized.includes("partial") || normalized.includes("partially")) {
-    return "partial";
-  }
-  if (normalized.includes("accepted") || hasVerdictToken(normalized, "ac")) {
-    return "passed";
-  }
-  if (
-    normalized.includes("time limit") ||
-    normalized.includes("memory limit") ||
-    normalized.includes("runtime") ||
-    hasVerdictToken(normalized, "tle") ||
-    hasVerdictToken(normalized, "mle") ||
-    hasVerdictToken(normalized, "re")
-  ) {
-    return "partial";
-  }
-  return "failed";
-}
-
-function hasVerdictToken(text: string, token: string): boolean {
-  return text.split(/[^a-z]+/u).includes(token);
+  return classifyFinalCaptureVerdict(verdict);
 }

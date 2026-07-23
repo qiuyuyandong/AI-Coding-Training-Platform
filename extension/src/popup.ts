@@ -1,307 +1,297 @@
-import type { CaptureEvent } from "@/lib/capture/events";
+import { settleExtensionOperation } from "./extensionOperation";
 
 const DEFAULT_ENDPOINT = "http://localhost:3000/api/capture/events";
+const BUTTON_FEEDBACK_MS = 180;
 const POPUP_STORAGE_KEYS = [
-  "captureEnabled",
-  "captureEndpoint",
-  "eventQueue",
-  "lastCaptureError",
-  "lastSuccessfulCaptureAt",
-  "lastDeliveredEventType",
-  "lastDeliveredEventId",
-  "lastDeliveredEventOccurredAt",
-  "lastDeliveredAttemptId",
-  "lastDeliveredAttemptStatus",
-  "lastDeliveredCreatedAttempt",
-  "captureCredential",
-  "captureCredentialVersion",
+  "captureEnabled", "captureEndpoint", "pendingSubmissionIntents", "captureOutbox",
+  "captureQuarantine", "lastCaptureError", "lastSuccessfulCaptureAt",
+  "lastDeliveredAttemptStatus", "captureCredential", "captureCredentialVersion",
+  "discardedPreBundleEventCount", "preBundleQueueDiscardedAt",
 ] as const;
-
-type PopupNodes = {
-  readonly enabled: HTMLInputElement | null;
-  readonly endpoint: HTMLInputElement | null;
-  readonly queue: Element | null;
-  readonly delivery: Element | null;
-  readonly deliveryMeta: Element | null;
-  readonly attempt: Element | null;
-  readonly error: Element | null;
-  readonly status: Element | null;
-  readonly pairingForm: HTMLFormElement | null;
-  readonly pairingCode: HTMLInputElement | null;
-  readonly pairButton: HTMLButtonElement | null;
-  readonly pairingState: Element | null;
-  readonly pairingResult: Element | null;
-};
 
 export type PopupPresentation = {
   readonly captureEnabled: boolean;
   readonly endpoint: string;
-  readonly queueText: string;
-  readonly deliveryText: string;
-  readonly deliveryMetaText: string;
-  readonly attemptText: string;
+  readonly pendingText: string;
+  readonly outboxText: string;
+  readonly quarantineText: string;
+  readonly lastSyncText: string;
   readonly blockingReasonText: string;
-  readonly captureStatusText: string;
+  readonly migrationText: string;
   readonly pairingStateText: string;
+  readonly quarantineDetails: readonly string[];
 };
-
-let popupInitialized = false;
 
 export function presentPopupState(value: unknown): PopupPresentation {
   const captureEnabled = readField(value, "captureEnabled") !== false;
-  const endpointValue = readField(value, "captureEndpoint");
-  const queueValue = readField(value, "eventQueue");
-  const eventType = readCaptureEventType(readField(value, "lastDeliveredEventType"));
-  const eventId = readNonEmptyString(readField(value, "lastDeliveredEventId"));
-  const eventOccurredAt = readNonEmptyString(
-    readField(value, "lastDeliveredEventOccurredAt"),
-  );
-  const deliveredAt = readNonEmptyString(readField(value, "lastSuccessfulCaptureAt"));
-  const attemptStatus = readAttemptStatus(
-    readField(value, "lastDeliveredAttemptStatus"),
-  );
-  const createdAttempt = readField(value, "lastDeliveredCreatedAttempt") === true;
-  const lastError = readNonEmptyString(readField(value, "lastCaptureError"));
+  const endpoint = readField(value, "captureEndpoint");
+  const intents = readArray(readField(value, "pendingSubmissionIntents"));
+  const activeIntents = intents.filter((intent) => readField(intent, "status") === "active");
+  const outbox = readArray(readField(value, "captureOutbox"));
+  const quarantine = readArray(readField(value, "captureQuarantine"));
+  const error = readNonEmptyString(readField(value, "lastCaptureError"));
+  const lastSync = readNonEmptyString(readField(value, "lastSuccessfulCaptureAt"));
+  const discarded = readNonnegativeInteger(readField(value, "discardedPreBundleEventCount"));
   const paired = typeof readField(value, "captureCredential") === "string";
-  const credentialVersion = readPositiveInteger(
-    readField(value, "captureCredentialVersion"),
-  );
-  const needsPairing = lastError?.startsWith("Pairing required:") === true;
-
+  const credentialVersion = readPositiveInteger(readField(value, "captureCredentialVersion"));
   return {
     captureEnabled,
-    endpoint: typeof endpointValue === "string" ? endpointValue : DEFAULT_ENDPOINT,
-    queueText: `待发送事件 ${Array.isArray(queueValue) ? queueValue.length : 0}`,
-    deliveryText: eventType === undefined
-      ? "最近送达：暂无"
-      : `最近送达：${captureEventLabel(eventType)}`,
-    deliveryMetaText: deliveryMetadata(eventId, eventOccurredAt, deliveredAt),
-    attemptText: eventType === undefined
-      ? "训练记录：暂无送达结果"
-      : createdAttempt
-        ? attemptStatus === undefined
-          ? "已形成训练记录"
-          : `已形成训练记录 · ${attemptStatusLabel(attemptStatus)}`
-        : "尚未形成训练记录",
-    blockingReasonText: lastError === undefined
-      ? "阻塞原因：无"
-      : `阻塞原因：${localizeCaptureError(lastError)}`,
-    captureStatusText: captureEnabled ? "本地采集已开启" : "本地采集已暂停",
-    pairingStateText: needsPairing
+    endpoint: typeof endpoint === "string" ? endpoint : DEFAULT_ENDPOINT,
+    pendingText: `等待判题 ${activeIntents.length}`,
+    outboxText: `待同步结果 ${outbox.length}`,
+    quarantineText: `已隔离结果 ${quarantine.length}`,
+    lastSyncText: lastSync === undefined ? "最近同步：暂无" : `最近同步：${lastSync}`,
+    blockingReasonText: error === undefined ? "阻塞原因：无" : `阻塞原因：${localizeCaptureError(error)}`,
+    migrationText: discarded === 0 ? "未发现旧误采集记录" : `已清除旧误采集记录 ${discarded} 条`,
+    pairingStateText: error?.startsWith("Pairing required:") === true
       ? "配对需要处理"
-      : paired
-        ? pairingSuccessText(credentialVersion)
-        : "未配对",
+      : paired ? pairingSuccessText(credentialVersion) : "未配对",
+    quarantineDetails: quarantine.map(quarantineSummary).filter((text) => text.length > 0),
   };
 }
 
 export function pairingSuccessText(credentialVersion: number | undefined): string {
   return credentialVersion !== undefined && credentialVersion > 1
-    ? "已配对 · 凭证已轮换"
-    : "已配对";
+    ? "已配对 · 凭证已轮换" : "已配对";
 }
 
 export function pairingResultText(credentialVersion: number): string {
   return credentialVersion > 1 ? "凭证已轮换" : "已配对";
 }
 
+let initialized = false;
 export function initializePopup(): void {
-  if (popupInitialized) return;
-  popupInitialized = true;
-
-  const nodes = queryPopupNodes();
-  nodes.enabled?.addEventListener("change", () => {
-    if (nodes.enabled === null) return;
-    void chrome.storage.local.set({ captureEnabled: nodes.enabled.checked });
-  });
-  nodes.endpoint?.addEventListener("change", () => {
-    if (nodes.endpoint === null) return;
-    void chrome.storage.local.set({ captureEndpoint: nodes.endpoint.value });
-  });
-  nodes.pairingForm?.addEventListener("submit", (event) => {
+  if (initialized) return;
+  initialized = true;
+  const enabled = document.querySelector<HTMLInputElement>("#captureEnabled");
+  const endpoint = document.querySelector<HTMLInputElement>("#captureEndpoint");
+  enabled?.addEventListener("change", () => runPopupOperation(
+    () => chrome.storage.local.set({ captureEnabled: enabled.checked }),
+  ));
+  endpoint?.addEventListener("change", () => runPopupOperation(
+    () => chrome.storage.local.set({ captureEndpoint: endpoint.value }),
+  ));
+  document.querySelector("#pairingForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
-    void pairInstallation(nodes);
+    const button = document.querySelector<HTMLButtonElement>("#pairButton");
+    if (button !== null) runPopupButton(button, "配对", pairInstallation);
   });
-  chrome.storage.onChanged.addListener((_changes, areaName) => {
-    if (areaName === "local") void renderPopup(nodes);
+  bindAction("#retryAll", { type: "RETRY_CAPTURE_OUTBOX" });
+  bindConfirmedClear("#clearOutbox", "captureOutbox", "CLEAR_CAPTURE_OUTBOX", "待同步结果");
+  bindConfirmedClear("#clearQuarantine", "captureQuarantine", "CLEAR_CAPTURE_QUARANTINE", "隔离结果");
+  chrome.storage.onChanged.addListener((_changes, area) => {
+    if (area === "local") runPopupOperation(renderPopup);
   });
-  void renderPopup(nodes);
+  runPopupOperation(renderPopup);
 }
 
-async function pairInstallation(nodes: PopupNodes): Promise<void> {
-  const code = nodes.pairingCode?.value.trim();
-  if (code === undefined || code.length === 0) return;
-  if (nodes.pairButton !== null) nodes.pairButton.disabled = true;
-  if (nodes.pairingResult !== null) nodes.pairingResult.textContent = "正在配对…";
-
-  try {
-    const result: unknown = await chrome.runtime.sendMessage({
-      type: "PAIR_CAPTURE_INSTALLATION",
-      code,
-    });
-    if (isSuccessfulPairResult(result)) {
-      if (nodes.pairingCode !== null) nodes.pairingCode.value = "";
-      if (nodes.pairingResult !== null) {
-        nodes.pairingResult.textContent = pairingResultText(result.credentialVersion);
-      }
-    } else if (nodes.pairingResult !== null) {
-      nodes.pairingResult.textContent = readPairingError(result);
-    }
-  } catch (error) {
-    if (nodes.pairingResult !== null) {
-      nodes.pairingResult.textContent = error instanceof Error
-        ? error.message
-        : "配对失败";
-    }
-  } finally {
-    if (nodes.pairButton !== null) nodes.pairButton.disabled = false;
-    await renderPopup(nodes);
-  }
-}
-
-async function renderPopup(nodes: PopupNodes): Promise<void> {
+async function renderPopup(): Promise<void> {
   const stored: unknown = await chrome.storage.local.get(POPUP_STORAGE_KEYS);
   const presentation = presentPopupState(stored);
+  setText("#pendingState", presentation.pendingText);
+  setText("#outboxState", presentation.outboxText);
+  setText("#quarantineState", presentation.quarantineText);
+  setText("#lastDelivery", presentation.lastSyncText);
+  setText("#lastError", presentation.blockingReasonText);
+  setText("#migrationState", presentation.migrationText);
+  setText("#pairingState", presentation.pairingStateText);
+  setText("#status", presentation.captureEnabled ? "本地采集已开启" : "本地采集已暂停");
+  const enabled = document.querySelector<HTMLInputElement>("#captureEnabled");
+  const endpoint = document.querySelector<HTMLInputElement>("#captureEndpoint");
+  if (enabled !== null) enabled.checked = presentation.captureEnabled;
+  if (endpoint !== null) endpoint.value = presentation.endpoint;
+  const details = document.querySelector("#quarantineDetails");
+  if (details !== null) renderQuarantine(details, readArray(readField(stored, "captureQuarantine")));
+}
 
-  if (nodes.enabled !== null) nodes.enabled.checked = presentation.captureEnabled;
-  if (nodes.endpoint !== null) nodes.endpoint.value = presentation.endpoint;
-  if (nodes.queue !== null) nodes.queue.textContent = presentation.queueText;
-  if (nodes.delivery !== null) nodes.delivery.textContent = presentation.deliveryText;
-  if (nodes.deliveryMeta !== null) {
-    nodes.deliveryMeta.textContent = presentation.deliveryMetaText;
-    nodes.deliveryMeta.toggleAttribute("hidden", presentation.deliveryMetaText.length === 0);
-  }
-  if (nodes.attempt !== null) nodes.attempt.textContent = presentation.attemptText;
-  if (nodes.error !== null) nodes.error.textContent = presentation.blockingReasonText;
-  if (nodes.status !== null) nodes.status.textContent = presentation.captureStatusText;
-  if (nodes.pairingState !== null) {
-    nodes.pairingState.textContent = presentation.pairingStateText;
+async function pairInstallation(): Promise<void> {
+  const input = document.querySelector<HTMLInputElement>("#pairingCode");
+  const resultNode = document.querySelector("#pairingResult");
+  const code = input?.value.trim();
+  if (code === undefined || code.length === 0) return;
+  const result = await requestPairing(
+    (message) => chrome.runtime.sendMessage(message),
+    code,
+  );
+  if (result.ok) {
+    if (input !== null) input.value = "";
+    if (resultNode !== null) resultNode.textContent = result.text;
+  } else if (resultNode !== null) {
+    resultNode.textContent = result.text;
   }
 }
 
-function queryPopupNodes(): PopupNodes {
-  return {
-    enabled: document.querySelector<HTMLInputElement>("#captureEnabled"),
-    endpoint: document.querySelector<HTMLInputElement>("#captureEndpoint"),
-    queue: document.querySelector("#queueState"),
-    delivery: document.querySelector("#lastDelivery"),
-    deliveryMeta: document.querySelector("#lastDeliveryMeta"),
-    attempt: document.querySelector("#attemptState"),
-    error: document.querySelector("#lastError"),
-    status: document.querySelector("#status"),
-    pairingForm: document.querySelector<HTMLFormElement>("#pairingForm"),
-    pairingCode: document.querySelector<HTMLInputElement>("#pairingCode"),
-    pairButton: document.querySelector<HTMLButtonElement>("#pairButton"),
-    pairingState: document.querySelector("#pairingState"),
-    pairingResult: document.querySelector("#pairingResult"),
-  };
+export async function requestPairing(
+  sendMessage: (message: { readonly type: "PAIR_CAPTURE_INSTALLATION"; readonly code: string }) => Promise<unknown>,
+  code: string,
+): Promise<
+  | { readonly ok: true; readonly text: string }
+  | { readonly ok: false; readonly text: string }
+> {
+  try {
+    const result = await sendMessage({ type: "PAIR_CAPTURE_INSTALLATION", code });
+    if (isSuccessfulPairResult(result)) {
+      return { ok: true, text: pairingResultText(result.credentialVersion) };
+    }
+    return {
+      ok: false,
+      text: readNonEmptyString(readField(result, "error")) ?? "配对失败",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      text: error instanceof Error ? error.message : "配对失败",
+    };
+  }
+}
+
+function bindAction(selector: string, message: Record<string, string>): void {
+  const button = document.querySelector<HTMLButtonElement>(selector);
+  button?.addEventListener("click", () => {
+    runPopupButton(button, button.textContent?.trim() ?? "操作", () =>
+      chrome.runtime.sendMessage(message));
+  });
+}
+
+function bindConfirmedClear(
+  selector: string,
+  storageKey: string,
+  type: string,
+  label: string,
+): void {
+  const button = document.querySelector<HTMLButtonElement>(selector);
+  button?.addEventListener("click", () => {
+    runPopupButton(button, button.textContent?.trim() ?? label, async () => {
+      const stored = await chrome.storage.local.get([storageKey]);
+      const count = readArray(readField(stored, storageKey)).length;
+      if (count === 0 || !window.confirm(`确定清空 ${count} 条${label}？此操作不可恢复。`)) return;
+      await chrome.runtime.sendMessage({ type });
+    });
+  });
+}
+
+export async function runButtonAction(
+  button: HTMLButtonElement,
+  operation: () => Promise<unknown>,
+  reportError: (error: unknown) => void,
+  wait: (milliseconds: number) => Promise<void> = waitFor,
+): Promise<boolean> {
+  button.classList.add("is-pressed");
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  try {
+    const [succeeded] = await Promise.all([
+      settleExtensionOperation(operation, reportError),
+      wait(BUTTON_FEEDBACK_MS),
+    ]);
+    return succeeded;
+  } finally {
+    button.classList.remove("is-pressed");
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+  }
+}
+
+function runPopupButton(
+  button: HTMLButtonElement,
+  label: string,
+  operation: () => Promise<unknown>,
+): void {
+  void runButtonAction(button, operation, reportPopupError).then((succeeded) => {
+    if (succeeded) setText("#actionResult", `已触发：${label}`);
+  });
+}
+
+function runPopupOperation(operation: () => Promise<unknown>): void {
+  void settleExtensionOperation(operation, reportPopupError);
+}
+
+function reportPopupError(error: unknown): void {
+  const message = error instanceof Error ? error.message : "扩展操作失败";
+  setText("#actionResult", `操作失败：${message}`);
+  console.warn("[capture-v3] popup operation failed", error);
+}
+
+function waitFor(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function quarantineSummary(value: unknown): string {
+  const item = readField(value, "item");
+  const bundle = readField(item, "bundle");
+  const events = readArray(readField(bundle, "events"));
+  const event = events[2];
+  const payload = readField(event, "payload");
+  const verdict = readNonEmptyString(readField(payload, "verdict"));
+  const platform = readNonEmptyString(readField(event, "platform"));
+  const problem = readNonEmptyString(readField(event, "problemExternalId"));
+  const occurredAt = readNonEmptyString(readField(event, "occurredAt"));
+  const error = readNonEmptyString(readField(value, "error"));
+  if (verdict === undefined || platform === undefined || problem === undefined
+    || occurredAt === undefined || error === undefined) return "";
+  return `${platform} · ${problem} · ${verdict} · ${occurredAt} · ${error}`;
+}
+
+function renderQuarantine(container: Element, entries: readonly unknown[]): void {
+  container.replaceChildren();
+  for (const entry of entries) {
+    const id = readNonEmptyString(readField(entry, "id"));
+    const summary = quarantineSummary(entry);
+    if (id === undefined || summary.length === 0) continue;
+    const row = document.createElement("div");
+    const text = document.createElement("p");
+    text.textContent = summary;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "重试此项";
+    retry.addEventListener("click", () => runPopupButton(retry, "重试此项", () =>
+      chrome.runtime.sendMessage({ type: "RETRY_QUARANTINED_CAPTURE", id })));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "删除此项";
+    remove.addEventListener("click", () => {
+      if (window.confirm("确定删除这条隔离结果？此操作不可恢复。")) {
+        runPopupButton(remove, "删除此项", () => chrome.runtime.sendMessage({
+          type: "DELETE_QUARANTINED_CAPTURE", id,
+        }));
+      }
+    });
+    row.append(text, retry, remove);
+    container.append(row);
+  }
+}
+
+function setText(selector: string, text: string): void {
+  const node = document.querySelector(selector);
+  if (node !== null) node.textContent = text;
 }
 
 function readField(value: unknown, key: string): unknown {
-  return typeof value === "object" && value !== null
-    ? Reflect.get(value, key)
-    : undefined;
+  return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
 }
-
+function readArray(value: unknown): readonly unknown[] { return Array.isArray(value) ? value : []; }
 function readNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
-
 function readPositiveInteger(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isInteger(value) && value > 0
-    ? value
-    : undefined;
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
 }
-
-function readCaptureEventType(value: unknown): CaptureEvent["type"] | undefined {
-  if (
-    value === "SESSION_STARTED"
-    || value === "SESSION_ENDED"
-    || value === "SUBMISSION_OBSERVED"
-    || value === "VERDICT_OBSERVED"
-  ) {
-    return value;
-  }
-  return undefined;
+function readNonnegativeInteger(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
 }
-
-function captureEventLabel(type: CaptureEvent["type"]): string {
-  if (type === "SUBMISSION_OBSERVED") return "提交动作";
-  if (type === "VERDICT_OBSERVED") return "判题结果";
-  return "页面会话";
-}
-
-function readAttemptStatus(value: unknown): string | undefined {
-  if (
-    value === "draft"
-    || value === "passed"
-    || value === "failed"
-    || value === "partial"
-    || value === "stuck"
-  ) {
-    return value;
-  }
-  return undefined;
-}
-
-function attemptStatusLabel(status: string): string {
-  if (status === "draft") return "等待判题";
-  if (status === "passed") return "已通过";
-  if (status === "failed") return "未通过";
-  if (status === "partial") return "部分通过";
-  return "仍需处理";
-}
-
-function deliveryMetadata(
-  eventId: string | undefined,
-  eventOccurredAt: string | undefined,
-  deliveredAt: string | undefined,
-): string {
-  const parts: string[] = [];
-  if (eventId !== undefined) parts.push(`事件 ${eventId}`);
-  if (eventOccurredAt !== undefined) parts.push(`发生于 ${eventOccurredAt}`);
-  if (deliveredAt !== undefined) parts.push(`送达于 ${deliveredAt}`);
-  return parts.join(" · ");
-}
-
 function localizeCaptureError(error: string): string {
   const prefixes: ReadonlyArray<readonly [string, string]> = [
-    ["Pairing required:", "需要重新配对："],
-    ["Origin rejected:", "请求来源被拒绝："],
-    ["Validation error:", "事件校验失败："],
-    ["Conflict:", "事件冲突："],
+    ["Pairing required:", "需要重新配对："], ["Origin rejected:", "请求来源被拒绝："],
+    ["Network unavailable:", "网络不可用："], ["Isolated result:", "结果已隔离："],
+    ["ACK mismatch:", "ACK 身份不匹配："],
+    ["Storage capacity reached:", "本地存储空间不足："],
   ];
   const match = prefixes.find(([prefix]) => error.startsWith(prefix));
-  return match === undefined
-    ? error
-    : `${match[1]}${error.slice(match[0].length).trim()}`;
+  return match === undefined ? error : `${match[1]}${error.slice(match[0].length).trim()}`;
+}
+function isSuccessfulPairResult(value: unknown): value is { readonly ok: true; readonly credentialVersion: number } {
+  return typeof value === "object" && value !== null && "ok" in value && value.ok === true
+    && "credentialVersion" in value && typeof value.credentialVersion === "number";
 }
 
-function isSuccessfulPairResult(
-  value: unknown,
-): value is { readonly ok: true; readonly credentialVersion: number } {
-  return typeof value === "object"
-    && value !== null
-    && "ok" in value
-    && value.ok === true
-    && "credentialVersion" in value
-    && typeof value.credentialVersion === "number"
-    && Number.isInteger(value.credentialVersion)
-    && value.credentialVersion > 0;
-}
-
-function readPairingError(value: unknown): string {
-  if (
-    typeof value === "object"
-    && value !== null
-    && "error" in value
-    && typeof value.error === "string"
-  ) {
-    return value.error;
-  }
-  return "配对失败";
-}
-
-if (typeof document !== "undefined" && typeof chrome !== "undefined") {
-  initializePopup();
-}
+if (typeof document !== "undefined" && typeof chrome !== "undefined") initializePopup();

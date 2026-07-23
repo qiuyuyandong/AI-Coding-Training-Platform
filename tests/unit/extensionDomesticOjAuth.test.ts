@@ -4,6 +4,7 @@ import {
   detectProblemFromLocation,
   detectProblemFromPage,
   detectVerdictFromDocument,
+  isExactSubmissionResultPage,
   type DetectableLocation,
   type Platform,
 } from "@/extension/src/platforms";
@@ -448,9 +449,9 @@ describe("verdictFromText token-safety on 通过", () => {
     expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Accepted" });
   });
 
-  it("REJECTS `未通过` (not passed) as a false AC", () => {
+  it("records `未通过` as an unknown failure instead of a false AC", () => {
     document.body.innerHTML = '<div data-e2e-locator="submission-result">未通过</div>';
-    expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
+    expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Other Failure" });
   });
 
   it("REJECTS `全部通过` (all passed in a multi-test summary) as a false AC", () => {
@@ -716,6 +717,40 @@ describe("manifest-to-runtime contract: domestic OJ routes", () => {
   it("manifest includes the LeetCode.cn submission detail route", () => {
     const pattern = "https://leetcode.cn/submissions/detail/*";
     expect(manifestPatterns.some((p) => p === pattern)).toBe(true);
+  });
+
+  it("recognizes the real problem-scoped LeetCode.cn result route as exact", () => {
+    const location = asLocation(
+      "https://leetcode.cn/problems/two-sum/submissions/737484505/",
+    );
+    const page = asDocument([
+      "<!doctype html><title>两数之和 - 力扣</title>",
+      '<div data-e2e-locator="submission-result">超出时间限制</div>',
+    ].join(""));
+    const problem = detectProblemFromPage(location, page);
+
+    expect(problem).toMatchObject({
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+    });
+    expect(isExactSubmissionResultPage(location, page, problem)).toBe(true);
+  });
+
+  it.each([
+    "https://leetcode.cn/problems/two-sum/submissions/",
+    "https://leetcode.cn/problems/two-sum/submissions/not-a-number/",
+    "https://leetcode.cn/problems/two-sum/submissions/737484505/extra",
+    "https://leetcode.cn/problems/two-sum/submissions/737484505/?lang=zh-cn",
+    "https://leetcode.cn/problems/two-sum/submissions/737484505/#details",
+    "https://leetcode.cn.evil.example/problems/two-sum/submissions/737484505/",
+  ])("does not treat adjacent or unsafe problem-scoped routes as exact: %s", (url) => {
+    const location = asLocation(url);
+    const page = asDocument(
+      '<div data-e2e-locator="submission-result">超出时间限制</div>',
+    );
+    const problem = detectProblemFromPage(location, page);
+
+    expect(isExactSubmissionResultPage(location, page, problem)).toBe(false);
   });
 
   it("manifest includes the NowCoder view-submission route", () => {

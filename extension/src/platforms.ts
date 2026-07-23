@@ -3,6 +3,7 @@ import {
   canonicalProblemUrl,
   normalizeProblemIdentity,
 } from "@/lib/services/canonicalProblemUrl";
+import { normalizeTrustedVerdictText } from "@/lib/capture/verdictTaxonomy";
 
 export type Platform = "leetcode" | "nowcoder" | "luogu" | "codeforces" | "atcoder";
 
@@ -706,9 +707,78 @@ function resolveLuoguProblemAnchor(pathname: string): string | null {
   return id.toUpperCase();
 }
 
+/**
+ * Returns true iff the current location+document pair is an exact submission
+ * result page that the active platform adapter recognizes from strict URL
+ * routing and one unique visible first-party problem anchor.
+ *
+ * Exact result-page evidence is the only same-document transition that the
+ * content runtime accepts on its own without observing a Waiting/Judging/null
+ * intermediate verdict. The same identity invariant used by
+ * `detectProblemFromPage` is reused here so we cannot fabricate a result page
+ * for an unrelated problem.
+ *
+ * The check is intentionally narrow:
+ *
+ *   - HTTPS, exact host, no credentials, default port.
+ *   - The URL must match a platform result route with no hash and either
+ *     zero or platform-documented query strings.
+ *   - The sanitized DOM must contain exactly one valid first-party problem
+ *     anchor — no zero, no multiple, no spoofed hosts.
+ */
+export function isExactSubmissionResultPage(
+  location: DetectableLocation,
+  pageDocument: Document,
+  detectedProblem: DetectedProblem | null,
+): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(location.href);
+  } catch (error) {
+    if (error instanceof TypeError) return false;
+    throw error;
+  }
+  if (!isSafeHttpsOrigin(parsed)) return false;
+
+  const resolved = detectProblemFromPage(location, pageDocument);
+  if (resolved === null) return false;
+  if (detectedProblem !== null
+    && problemIdentityKeyFor(resolved) !== problemIdentityKeyFor(detectedProblem)) {
+    return false;
+  }
+  return isExactResultRouteForPlatform(resolved.platform, parsed);
+}
+
+function problemIdentityKeyFor(problem: DetectedProblem): string {
+  return `${problem.platform}:${problem.problemExternalId}`;
+}
+
+function isExactResultRouteForPlatform(platform: Platform, parsed: URL): boolean {
+  if (platform === "atcoder") {
+    return /^\/contests\/[^/]+\/submissions\/\d+\/?$/u.test(parsed.pathname);
+  }
+  if (platform === "leetcode" && isLeetCodeProblemSubmissionResultRoute(parsed)) {
+    return true;
+  }
+  const domestic = DOMESTIC_ROUTES.find((route) => route.platform === platform);
+  return domestic !== undefined
+    && parsed.hostname === domestic.host
+    && domestic.matchUrl(parsed);
+}
+
+function isLeetCodeProblemSubmissionResultRoute(parsed: URL): boolean {
+  if (parsed.hostname !== "leetcode.com" && parsed.hostname !== "leetcode.cn") {
+    return false;
+  }
+  if (parsed.search !== "" || parsed.hash !== "") return false;
+  return /^\/problems\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/submissions\/\d+\/?$/iu
+    .test(parsed.pathname);
+}
+
 export function detectVerdictFromDocument(platform: Platform, pageDocument: Document): DetectedVerdict | null {
   const text = candidateTextForPlatform(platform, pageDocument);
-  return verdictFromText(text);
+  const verdict = normalizeTrustedVerdictText(text);
+  return verdict === null ? null : { verdict };
 }
 
 function candidateTextForPlatform(platform: Platform, pageDocument: Document): string {
@@ -760,62 +830,4 @@ function extractLuoguRecordRowText(pageDocument: Document): string {
   if (uniqueRowTexts.size !== 1) return "";
   const first = uniqueRowTexts.values().next();
   return first.done === true ? "" : first.value;
-}
-
-function verdictFromText(text: string): DetectedVerdict | null {
-  const normalized = text.toLowerCase();
-  if (normalized.includes("partially accepted") || text.includes("部分通过")) return { verdict: "Partially Accepted" };
-  if (normalized.includes("time limit exceeded") || hasVerdictToken(normalized, "tle") || text.includes("运行超时") || text.includes("超出时间限制")) {
-    return { verdict: "Time Limit Exceeded" };
-  }
-  if (normalized.includes("memory limit exceeded") || hasVerdictToken(normalized, "mle") || text.includes("内存超限") || text.includes("超出内存限制")) {
-    return { verdict: "Memory Limit Exceeded" };
-  }
-  if (normalized.includes("runtime error") || hasVerdictToken(normalized, "re") || text.includes("段错误")) return { verdict: "Runtime Error" };
-  if (normalized.includes("wrong answer") || hasVerdictToken(normalized, "wa") || text.includes("答案错误") || text.includes("格式错误")) {
-    return { verdict: "Wrong Answer" };
-  }
-  if (normalized.includes("compile error") || normalized.includes("compilation error") || hasVerdictToken(normalized, "ce") || text.includes("编译错误") || text.includes("编译失败")) {
-    return { verdict: "Compile Error" };
-  }
-  // `答案正确` (NowCoder) is a multi-character phrase with no plausible
-  // false-positive prefixes, so a plain `includes()` is safe.
-  // `通过` (LeetCode.cn submission page e2e locator) is two CJK characters
-  // and `includes("通过")` would match negative phrases such as `未通过`
-  // (not passed) and `全部通过` (all passed). We require the `通过` token
-  // to be delimited by whitespace or string boundaries so only the
-  // standalone AC verdict matches. This is stricter than a CJK-only
-  // lookbehind/lookahead (which would also reject legitimate phrases such
-  // as `本题通过` whose delimiter is a separate CJK character — we
-  // accept that risk because observed DOM never wraps `通过` in that
-  // form; the wrapper is narrow and contains only the verdict token).
-  const acceptedByChineseToken =
-    text.includes("答案正确") || containsStandaloneChineseToken(text, "通过");
-  if (normalized.includes("accepted") || hasVerdictToken(normalized, "ac") || acceptedByChineseToken) {
-    return { verdict: "Accepted" };
-  }
-  return null;
-}
-
-function hasVerdictToken(text: string, token: string): boolean {
-  return text.split(/[^a-z]+/u).includes(token);
-}
-
-/**
- * Token-safe Chinese substring matcher used for two-character verdict
- * labels such as `通过`. The token must be delimited by non-whitespace
- * boundaries on both sides (or string boundaries). Concretely:
- *
- *   • `未通过`     → NO  (preceded by CJK `未`, fails `(?<!\S)`)
- *   • `全部通过`   → NO  (preceded by CJK `部`, fails `(?<!\S)`)
- *   • `通过的题目` → NO  (followed by CJK `的`, fails `(?!\S)`)
- *   • `通过`        → YES (no characters on either side)
- *   • `运行结果: 通过` → YES (preceded by ASCII `:` and space)
- */
-function containsStandaloneChineseToken(text: string, token: string): boolean {
-  const pattern = new RegExp(
-    `(?<!\\S)${token}(?!\\S)`,
-    "u",
-  );
-  return pattern.test(text);
 }

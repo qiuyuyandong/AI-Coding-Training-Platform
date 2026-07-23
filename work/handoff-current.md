@@ -1,14 +1,113 @@
 # Current Handoff
 
-## Status (2026-07-20)
+## Status (2026-07-23 real Chrome extension-error closure)
 
-**V0 domestic-OJ engineering and passive characterization complete; former RC superseded;
-replacement RC, observation, final verification, and acceptance pending.**
+**ENGINEERING PASS / REAL CHROME ERROR RETEST PASS: the result-route, verdict,
+ACK, popup-feedback, and content-script lifecycle repairs are frozen by the
+local implementation commit containing this handoff. The user observed the
+repaired TLE flow clear pending state and all popup queues return to zero.
+Authorized Chrome inspection then identified and closed the remaining red
+extension-error indicator.**
 
-- Superseded implementationSha: `b5166320768355666a5c4ff3f466c29c240ea8cf`; no replacement RC SHA exists in the uncommitted worktree.
+- The final missing lifecycle fact was the URL. The user's real page was
+  `/problems/two-sum/submissions/737484505/`, but exact-result routing only
+  recognized `/submissions/detail/<id>/`. A new result document therefore saw
+  the first-frame TLE as historical and left the background intent active.
+- Strict LeetCode `.cn`/`.com` problem-scoped result routes are now exact. Tests
+  reject missing or nonnumeric IDs, extra path/query/hash data, credentials,
+  ports, and spoofed hosts.
+- The earlier same-document SPA causality and platform-neutral verdict taxonomy
+  remain intact. Trusted final states retain distinctions such as time, memory,
+  output, runtime, compile, wrong-answer, judge/system, and other failure;
+  pending text remains non-final and page-body scanning remains forbidden.
+- An isolated unpacked-extension run exposed a second compatibility failure:
+  `chrome.storage.local.setAccessLevel` is absent in some Chromium runtimes.
+  Initialization now capability-checks it, while supported browsers still
+  receive trusted-only storage access.
+- Content and popup fire-and-forget Chrome promises now terminate at one error
+  boundary. All content-script DOM, mutation, timer, and navigation callbacks
+  share a lifecycle guard: an invalidated unpacked-extension context retires
+  silently, while unrelated failures stay visible. Popup buttons show a short
+  lighter pressed state and live `已触发：<操作>` feedback without claiming the
+  server sync already succeeded.
+- Authorized inspection found two real content-script errors, both `Uncaught
+  Error: Extension context invalidated.` at `content.js:5390`, on LeetCode
+  result IDs `737406436` and `737482394`. This explains why the service-worker
+  console was empty. After rebuilding, the extension was reloaded, the two old
+  entries cleared, and the existing LeetCode result page refreshed; the
+  extension manager showed no new `Errors` button or entry.
+- Synthetic unpacked-extension smoke PASS: initialization completed; submit
+  changed active/outbox `0/0 → 1/0`; the exact TLE result changed it to `0/1`
+  with verdict `Time Limit Exceeded`; popup pressed feedback was visible; no
+  page, popup, or service-worker error was captured.
+- `npm run extension:check` PASS after the lifecycle repair: 19 files / 456
+  tests, typecheck, MV3 build, and dist parity. The final authoritative
+  `npm run quality:gate` exits 0: 68 unit files / 1031 passed / 1 capability
+  skip, 25 Playwright E2E, 19 extension files / 456 passed, lint,
+  disposable migration, curriculum validation, typecheck, MV3 build/dist
+  parity, and 20/20-page production build. Evidence:
+  `work/reports/v0-leetcode-result-route-extension-error-repair-2026-07-23.md`.
+- Owner Report 03 remains real repair QA, not formal same-SHA observation. The
+  local implementation commit containing this handoff is the replacement-RC
+  freeze point; it has not been pushed. V0 acceptance and V0.5 work have not
+  occurred.
+
+## Previous Status (2026-07-22 capture ACK P1 repair)
+
+**BLOCKED: the V3 migration was observed to clear all 32 legacy events, but a
+real submission exposed an ACK persistence bug and a high-frequency retry
+storm. The client fix is implemented in the uncommitted worktree; repaired
+Chrome verification remains mandatory before any RC or observation.**
+
+- Branch/HEAD remain `feature/v1-followup` at
+  `894162b264124eed7315a116cae73b8e11d717b8`; no replacement RC exists until
+  the implementation is explicitly committed.
+- New extension runtime creates only a local submission intent on an exact
+  submit click. A new evidence-backed final verdict creates one atomic attempt
+  bundle for `POST /api/capture/attempts`; page lifecycle activity is not a
+  user-level queue item.
+- Protocol V3 initialization was reloaded in the user's real Chrome and the
+  popup/storage observation confirmed all 32 legacy `eventQueue` entries were
+  removed. That migration result is complete and must not be repeated or
+  confused with capture delivery validation.
+- The same real run exposed one completed bundle stuck in `captureOutbox` while
+  `/api/capture/attempts` returned HTTP 200. About 11,972 identical requests in
+  about 260 seconds proved an infinite drain loop. Root cause: the success plan
+  wrote unused `outbox`/`quarantine` storage keys instead of
+  `captureOutbox`/`captureQuarantine`.
+- The uncommitted fix maps success state to the real storage keys, validates the
+  ACK bundle identity, adds bounded ACK-error backoff, and prevents concurrent
+  drain re-entry. Quarantine retry now also persists only `captureOutbox` and
+  `captureQuarantine`, resets all retry-blocking fields, and enters one
+  single-flight drain. The authoritative `npm run quality:gate` exits 0: 67
+  unit files / 1002 passed / 1 Windows capability skip, 25 Playwright E2E, and
+  18 extension files / 429 passed after adding both required regression tests.
+  The pre-test Commander baseline was 18 files / 427 tests; quarantine retry
+  raised it to 428 and the stale-key upgrade fixture raised it to 429. The file
+  count was never 20.
+  Evidence: `work/reports/v0-capture-ack-repair-2026-07-22.md`. Real repaired
+  Chrome closure has not yet been observed.
+- V3 initialization now writes and preserves authoritative `captureOutbox` and
+  `captureQuarantine` before deleting historical plain `outbox` and
+  `quarantine` keys. It never reads or merges stale-key contents. A real-bundle
+  upgrade fixture proves the retained bundle receives one matching ACK, clears
+  the authoritative outbox, and produces zero requests on the next drain.
+- No Worker is in flight. No commit or push was performed. Full bilingual UI
+  implementation remains deferred.
+- No Chrome action is authorized in this repair round. The remaining controlled
+  gate is a separately authorized reload of the gate-passing `extension/dist`
+  to verify that the existing outbox item receives one matching ACK and is
+  removed without further timer requests.
+
+## Last Frozen RC Status (2026-07-20)
+
+**V0 domestic-OJ engineering and passive characterization frozen at replacement RC;
+observation, final verification, and acceptance pending.**
+
+- Last frozen implementationSha: `894162b264124eed7315a116cae73b8e11d717b8`. It has a confirmed ACK persistence defect and cannot proceed to observation or acceptance, but it remains the last frozen RC until an authorized repair commit creates a replacement. Superseded SHA `b5166320768355666a5c4ff3f466c29c240ea8cf` also must not anchor acceptance.
 - Observation templates at `work/reports/v0-observation-owner.md` and `work/reports/v0-observation-participants.md` contain no sessions or participant windows.
 - `work/reports/v0-exit-report.md` recorded `ACCEPT_CANDIDATE` before those required observations; treat it as a superseded premature record, not a valid candidate decision.
-- Active plan: `docs/superpowers/plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`. The 2026-07-18 closeout plan is paused.
+- Active plan: `docs/superpowers/plans/2026-07-21-v0-verdict-gated-capture-repair.md`. The closeout plan remains paused until this repair has a frozen replacement RC.
 - V0 is **not** complete or accepted. After validated observations exist, F1–F4 must all approve the same implementation SHA and the user must explicitly accept it.
 - Frozen stabilization RC: full quality gate PASS on 2026-07-18 after
   repairing the plan-completion row-ID regression and related known issues.
@@ -21,12 +120,11 @@ replacement RC, observation, final verification, and acceptance pending.**
 ## Workspace
 
 - Branch: `feature/v1-followup`
-- Worktree: repository root; domestic-OJ runtime, extension UX, curriculum 1.0.1,
-  tests and current-state docs are intentionally dirty. Do not begin observations
-  or write a replacement `implementationSha` until review, full gates and an
-  explicitly authorized commit freeze this scope.
+- Worktree: repository root; V3 capture repair is frozen by the local commit
+  containing this handoff. Pre-existing user-owned document changes remain
+  outside that commit, so a dirty worktree does not change the frozen RC tree.
 - Default database: preserved during the authoritative Phase 0D Task 4, Task 6, and T8 gate verification runs (metadata-only `Get-Item`; the default `training-platform.sqlite` was never opened or hashed by those runs)
-- Fresh repair-worktree quality gate: PASS on 2026-07-20 with 65 unit files / 1008 passed / 1 capability skip, 24 E2E, 18 extension files / 457 passed, curriculum 1.0.1 validation and production build PASS. This is uncommitted worktree evidence, not a replacement RC SHA.
+- Last frozen RC quality gate: PASS on 2026-07-20 with 65 unit files / 1008 passed / 1 capability skip, 24 E2E, 18 extension files / 457 passed. This is historical evidence for the now-defective frozen RC, not the current uncommitted repair gate.
 - Independent code review: APPROVED after manifest reachability and hidden-title privacy fixes; no blocker or important finding remains.
 - Passive authenticated characterization: existing LeetCode.cn AC, NowCoder AC, and Luogu AC/Compile Error pages were inspected in user-authorized background tabs. The agent made no submissions and retained no credentials, source code, account identity, or full statements. Evidence: `work/reports/v0-domestic-oj-authenticated-characterization-matrix.md`.
 - Real mainland-local curriculum link check: 17/24 PASS, 7 LeetCode.cn URLs conservatively BLOCKED on the `请登录` marker despite HTTP 200; do not report the package as fully link-verified.
@@ -35,7 +133,7 @@ replacement RC, observation, final verification, and acceptance pending.**
 ## Current Phase
 
 - Phase 0: **complete and reconciled green on 2026-07-17.** All exit criteria satisfied; AtCoder is the sole certified production adapter.
-- V0 manual learning loop vertical slice: **implemented; domestic-OJ repair is uncommitted and currently in V0 validation.**
+- V0 manual learning loop vertical slice: **implemented; current V3 capture repair is engineering-green, synthetic-extension-smoke green, and real-Chrome extension-error-retest green in an uncommitted worktree. A replacement RC commit and later formal observation/acceptance remain pending.**
 
 ## Commit Chronology
 
@@ -78,10 +176,7 @@ replacement RC, observation, final verification, and acceptance pending.**
 
 ## Next Commander Action
 
-1. Decide whether the reviewed, quality-gate-green worktree should be committed as the replacement RC; do not reuse superseded SHA `b5166320768355666a5c4ff3f466c29c240ea8cf`.
-2. If committed, verify the same SHA and begin only user-performed real-use observation; the agent must not submit OJ answers on the user's behalf.
-3. Restart and validate the 7-day owner observation and both 14-day participant windows against the replacement RC, then run same-SHA F1–F4 and wait for explicit user acceptance.
-4. Only after acceptance, run `neat-freak`, make the final evidence/status commit, validate the RC-to-release allowlist, and begin a fresh V0.5 delta plan.
+1. Resolve and record the exact local implementation SHA, then restart formal V0 observation against only that SHA. Same-SHA F1-F4 and explicit user acceptance remain later gates; do not start V0.5.
 
 ## Known Risks
 

@@ -1,10 +1,11 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-20):** **V0 repair and validation.** Phase 0 is complete.
-> The domestic-OJ RC repair is implemented in the working tree and invalidates
-> the former frozen RC, but has not yet been committed as a replacement RC.
-> Real-use observations, same-SHA F1–F4 verification, and explicit user
-> acceptance remain pending.
+> **Status (2026-07-23):** **V0 capture repair and validation.** Phase 0 is
+> complete. The verdict-gated V3 repair, real LeetCode result-route correction,
+> extension-startup compatibility guard, and popup action feedback are
+> engineering-green in the uncommitted worktree. The repaired build still
+> requires a reload and submission check in the user's real Chrome before a
+> replacement RC can be frozen.
 
 > **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
 > real temporary-repository cases for the strict two-commit release contract.
@@ -18,7 +19,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop under repair and validation**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release. The only active plan is `docs/superpowers/plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`; closeout resumes after a replacement RC is frozen.
+This repository currently contains an implemented **V0 local learning loop under repair and validation**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release. The active repair plan is `docs/superpowers/plans/2026-07-21-v0-verdict-gated-capture-repair.md`; closeout resumes only after real-Chrome validation and a replacement RC freeze.
 
 It provides:
 
@@ -72,7 +73,7 @@ Build the Chrome MV3 extension:
 npm run extension:build
 ```
 
-Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000` so the extension can post capture events to `/api/capture/events`.
+Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000`. An exact submit click creates only a local waiting intent; a new evidence-backed final verdict creates one atomic attempt bundle and sends it to `/api/capture/attempts`. Opening, closing, navigating, running, or debugging alone does not create a pending training result.
 
 Before the first capture, open `/settings`, create a ten-minute pairing code, and paste it into the extension popup. The app stores only a hash of the long-lived credential. `/settings` can issue a targeted rotation code or revoke an installation; `installationId` remains correlation metadata and is not itself authorization.
 
@@ -81,22 +82,42 @@ Before the first capture, open `/settings`, create a ten-minute pairing code, an
 The training loop turns captured browser events into local training attempts:
 
 - `/training?platform=leetcode&externalId=two-sum&title=Two%20Sum` opens the domestic canonical `leetcode.cn` problem link and shows capture plus problem-specific attempt status;
-- `/api/capture/events` stores each V2 raw event and its deterministic session/attempt projection in one SQLite transaction;
+- `/api/capture/attempts` validates and stores each completed four-event attempt bundle in one SQLite transaction; exact replay is idempotent and any failure rolls back the whole bundle;
+- `/api/capture/events` remains available for older clients, but the V3 extension does not use it for new capture;
 - `/api/attempts/recent` accepts an explicit bounded limit and optional `platform` + `externalId` scope; the training workspace requests only its current problem;
 - `POST /api/attempts` creates a server-labelled manual attempt; correction and void endpoints require an expected revision and a reason;
 - `/coach` and `/growth` read the same local attempts to show empty-state or rule-based feedback.
 
 The Training workspace labels each attempt as `Automatic capture` or `Manual entry`. Corrections can change only result, language, duration, reflection, start time, or end time. They update the current row and append scalar old/new values in one transaction; they never create another attempt. Voiding is idempotent and traceable. Active Training, Coach, and Growth queries exclude voided rows by default.
 
-Capture protocol V2 assigns a logical `installationId`, a `captureSessionId` per observed problem visit, and a `submissionId` per observed submission. Same-problem SPA routes retain the active session; navigation to another problem emits the old-session end before the new-session start. Sessions may remain open when the optional `SESSION_ENDED` signal is not delivered. Exact event replay is idempotent; reusing an `eventId` with different content returns HTTP 409.
+Capture protocol V3 records no page-lifecycle event. An exact submit click
+creates one pending intent. A later final verdict, observed either through a
+same-document transition or an exact result document, consumes that intent and
+creates one stable four-event attempt bundle. Opening, closing, navigating,
+running samples, debugging, or directly viewing historical results does not
+create a training record.
 
-The extension owns its queue through one serialized executor and drains events FIFO in batches of at most 25. Permanent 400/409/413/415 failures are dropped, while network and retryable server failures preserve the head. A 401 preserves the queue and retry budget until the extension is paired again. The popup labels this as an event queue, distinguishes page-session delivery from submit/verdict delivery, and reports whether the server ACK materialized a training attempt; a successful ACK clears stale transport errors.
+The background worker drains completed bundles from `captureOutbox` with one
+serialized, single-flight executor. Item-specific 400/409/413/415 failures move
+only that bundle to `captureQuarantine`; capped 500 failures are quarantined;
+network and 401/403 failures preserve the complete outbox. A matching ACK
+removes exactly one bundle. The popup separates waiting, outbox, and quarantine
+counts and provides retry/delete/clear controls with pressed-state and live-text
+feedback.
 
-Extension unit tests cover SPA observation and queue concurrency directly. Playwright does not load the unpacked MV3 extension, so its SPA-shaped test validates the resulting end/start sequence through the API, SQLite projections, and problem-specific training UI.
+Extension unit tests cover SPA and cross-document result observation, storage,
+ACK matching, outbox concurrency, and popup behavior. The full Playwright E2E
+gate validates the API and SQLite projection; a separate local extension smoke
+run loads the unpacked MV3 build and validates the synthetic task-to-result
+lifecycle without performing an external OJ submission.
 
 Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with status levels `production`, `experimental`, or `disabled`. AtCoder remains the sole `production` adapter, certified with public verdict DOM fixtures on 2026-07-17 (`work/reports/phase-0-atcoder-certification.md`); LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`. User-authorized, strictly sanitized `authenticated-characterization` fixtures now cover an existing LeetCode.cn AC result, an existing NowCoder AC result, and existing Luogu AC/Compile Error records. The extension resolves those exact result routes from one first-party problem anchor, uses narrow verdict selectors or semantic extraction, and never scans the whole `body`. This evidence proves passive detector behavior only: the agent performed no submissions, LeetCode/NowCoder non-AC transitions were not observed, and authenticated characterization cannot satisfy the public-DOM production gate.
 
-The V2 cutover intentionally discarded legacy V1 capture rows and queued extension events. The extension records the one-time queue discard count and logs it locally. Existing V2 events remain intact when credential migration 0004 is applied; events observed before pairing keep `extension_unpaired` provenance even if delivered after pairing.
+The V3 extension migration intentionally discarded the legacy pre-bundle
+`eventQueue` once because those entries could not prove submit-to-verdict
+causality. It records the actual removed count locally. The user's real reload
+already confirmed 32 entries were removed; the migration never deletes server
+attempts or edits Chrome LevelDB directly.
 
 Run migrations before exercising the loop:
 
