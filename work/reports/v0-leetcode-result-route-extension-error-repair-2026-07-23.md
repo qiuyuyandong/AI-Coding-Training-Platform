@@ -1,5 +1,11 @@
 # V0 LeetCode Result Route And Extension Error Repair (2026-07-23)
 
+> Continued and corrected by
+> `work/reports/v0-leetcode-tle-semantic-result-repair-2026-07-23.md`. The
+> result-route fix in this report did not cover LeetCode restoring the problem
+> URL with a selected semantic result tab; retain this as the route/error
+> lifecycle record, not the current closure evidence.
+
 ## Decision
 
 **ENGINEERING PASS / REAL CHROME EXTENSION-ERROR RETEST PASS.**

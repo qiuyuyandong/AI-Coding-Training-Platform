@@ -725,7 +725,8 @@ describe("manifest-to-runtime contract: domestic OJ routes", () => {
     );
     const page = asDocument([
       "<!doctype html><title>两数之和 - 力扣</title>",
-      '<div data-e2e-locator="submission-result">超出时间限制</div>',
+      '<span data-e2e-locator="console-result">超出时间限制</span>',
+      '<span data-e2e-locator="console-result">超出时间限制</span>',
     ].join(""));
     const problem = detectProblemFromPage(location, page);
 
@@ -734,6 +735,52 @@ describe("manifest-to-runtime contract: domestic OJ routes", () => {
       problemExternalId: "two-sum",
     });
     expect(isExactSubmissionResultPage(location, page, problem)).toBe(true);
+    expect(detectVerdictFromDocument("leetcode", page)).toEqual({
+      verdict: "Time Limit Exceeded",
+    });
+  });
+
+  it("recognizes the selected LeetCode submission-detail tab after the SPA restores the problem URL", () => {
+    const location = asLocation("https://leetcode.cn/problems/two-sum/");
+    const page = asDocument([
+      "<!doctype html><title>两数之和 - 力扣</title>",
+      '<div id="submission-detail_tabbar_outer">',
+      '  <div class="flexlayout__tab_button flexlayout__tab_button--selected">',
+      '    <div id="submission-detail_tab">',
+      '      <div class="relative">',
+      '        <div>超出时间限制</div>',
+      '        <div>超出时间限制</div>',
+      "      </div>",
+      "    </div>",
+      "  </div>",
+      "</div>",
+    ].join(""));
+    const problem = detectProblemFromPage(location, page);
+
+    expect(problem).toMatchObject({
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+    });
+    expect(isExactSubmissionResultPage(location, page, problem)).toBe(true);
+    expect(detectVerdictFromDocument("leetcode", page)).toEqual({
+      verdict: "Time Limit Exceeded",
+    });
+  });
+
+  it("does not treat an inactive LeetCode submission-detail tab as exact result evidence", () => {
+    const location = asLocation("https://leetcode.cn/problems/two-sum/");
+    const page = asDocument([
+      "<!doctype html><title>两数之和 - 力扣</title>",
+      '<div id="submission-detail_tabbar_outer">',
+      '  <div class="flexlayout__tab_button">',
+      '    <div id="submission-detail_tab"><div>超出时间限制</div></div>',
+      "  </div>",
+      "</div>",
+    ].join(""));
+    const problem = detectProblemFromPage(location, page);
+
+    expect(isExactSubmissionResultPage(location, page, problem)).toBe(false);
+    expect(detectVerdictFromDocument("leetcode", page)).toBeNull();
   });
 
   it.each([

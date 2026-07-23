@@ -276,6 +276,68 @@ describe("background message ordering", () => {
     expect(result.outboxItem?.bundle.events[2].payload.verdict).toBe("Time Limit Exceeded");
   });
 
+  it("recovers a stored LeetCode.cn intent from the selected submission-detail tab on the restored problem URL", () => {
+    const taskLocation = asLocation("https://leetcode.cn/problems/two-sum/");
+    const taskDocument = asDocument("<!doctype html><title>两数之和 - 力扣</title>");
+    const taskProblem = detectProblemFromPage(taskLocation, taskDocument);
+    if (taskProblem === null) throw new Error("Task route did not resolve two-sum");
+    const intents = recordSubmissionIntent([], {
+      installationId: "installation_1",
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      problemTitle: "两数之和",
+      canonicalUrl: "https://leetcode.cn/problems/two-sum/",
+      captureSessionId: "session_leetcode_restored_tab",
+      submissionId: "submission_leetcode_restored_tab",
+      occurredAt: "2026-07-23T02:00:00.000Z",
+    }, "task_document");
+
+    const resultDocument = asDocument([
+      "<!doctype html><title>两数之和 - 力扣</title>",
+      '<div id="submission-detail_tabbar_outer">',
+      '  <div class="flexlayout__tab_button flexlayout__tab_button--selected">',
+      '    <div id="submission-detail_tab">',
+      '      <div class="relative">',
+      '        <div>超出时间限制</div>',
+      '        <div>超出时间限制</div>',
+      "      </div>",
+      "    </div>",
+      "  </div>",
+      "</div>",
+    ].join(""));
+    const resultProblem = detectProblemFromPage(taskLocation, resultDocument);
+    if (resultProblem === null) throw new Error("Restored result surface did not resolve two-sum");
+    const verdict = detectVerdictFromDocument("leetcode", resultDocument);
+    if (verdict === null) throw new Error("Restored result surface did not expose a verdict");
+    const resultRuntime = createCaptureContentRuntime({
+      detectProblem: () => resultProblem,
+      detectVerdict: () => ({ verdict: verdict.verdict, sourceDocumentId: "restored_document" }),
+      exactResultPage: (problem) => isExactSubmissionResultPage(
+        taskLocation,
+        resultDocument,
+        problem,
+      ),
+      now: () => "2026-07-23T02:01:00.000Z",
+      createSessionId: () => "unused_session",
+      createSubmissionIntentId: () => "unused_submission",
+      activeDocumentId: "restored_document",
+    });
+    const candidateMessage = resultRuntime.start()[0];
+    if (candidateMessage?.type !== "VERDICT_CANDIDATE_OBSERVED") {
+      throw new Error("Restored LeetCode.cn result surface did not produce a candidate");
+    }
+    const consumed = consumeVerdictCandidate({
+      intents,
+      candidate: { ...candidateMessage.candidate, installationId: "installation_1" },
+      installationId: "installation_1",
+      provenanceLevel: "extension_paired",
+    });
+
+    expect(candidateMessage.candidate.transitionEvidence).toBe("exact_result_document");
+    expect(consumed.intents).toEqual([]);
+    expect(consumed.outboxItem?.bundle.events[2].payload.verdict).toBe("Time Limit Exceeded");
+  });
+
   it("recovers when a cross-document verdict candidate is delivered before its intent", () => {
     const early = consumeVerdictCandidate({
       intents: [],

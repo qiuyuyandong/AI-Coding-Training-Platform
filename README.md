@@ -1,11 +1,13 @@
 # AI Coding Training Platform
 
 > **Status (2026-07-23):** **V0 capture repair and validation.** Phase 0 is
-> complete. The verdict-gated V3 repair, real LeetCode result-route correction,
-> extension-startup compatibility guard, and popup action feedback are
-> engineering-green in the uncommitted worktree. The repaired build still
-> requires a reload and submission check in the user's real Chrome before a
-> replacement RC can be frozen.
+> complete. The verdict-gated V3 repair now handles the current LeetCode
+> duplicate verdict locators and the selected submission-detail surface that
+> remains after LeetCode restores the problem URL. An authorized real-Chrome
+> recovery converted the user's stuck TLE into `Time Limit Exceeded`, delivered
+> it once, and returned waiting/outbox/quarantine to zero. A fresh natural
+> submit-to-verdict observation on the final commit is still required before
+> formal V0 closeout.
 
 > **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
 > real temporary-repository cases for the strict two-commit release contract.
@@ -111,7 +113,7 @@ gate validates the API and SQLite projection; a separate local extension smoke
 run loads the unpacked MV3 build and validates the synthetic task-to-result
 lifecycle without performing an external OJ submission.
 
-Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with status levels `production`, `experimental`, or `disabled`. AtCoder remains the sole `production` adapter, certified with public verdict DOM fixtures on 2026-07-17 (`work/reports/phase-0-atcoder-certification.md`); LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`. User-authorized, strictly sanitized `authenticated-characterization` fixtures now cover an existing LeetCode.cn AC result, an existing NowCoder AC result, and existing Luogu AC/Compile Error records. The extension resolves those exact result routes from one first-party problem anchor, uses narrow verdict selectors or semantic extraction, and never scans the whole `body`. This evidence proves passive detector behavior only: the agent performed no submissions, LeetCode/NowCoder non-AC transitions were not observed, and authenticated characterization cannot satisfy the public-DOM production gate.
+Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with status levels `production`, `experimental`, or `disabled`. The status is certification metadata, not a runtime feature switch. AtCoder remains the sole `production` adapter, certified with public verdict DOM fixtures on 2026-07-17 (`work/reports/phase-0-atcoder-certification.md`); LeetCode, NowCoder, Codeforces, and Luogu remain `experimental` until their own production evidence gates pass. User-authorized evidence now includes a real LeetCode.cn TLE recovery in addition to the sanitized authenticated-characterization fixtures. LeetCode extraction collapses identical visible verdict panes, rejects conflicting panes, and accepts the selected submission-detail surface only after it contains a recognized final verdict; transient labels such as `提交详情` are not failures. The extension never scans the whole `body`. This evidence improves LeetCode runtime confidence but does not by itself certify the adapter or the other experimental platforms.
 
 The V3 extension migration intentionally discarded the legacy pre-bundle
 `eventQueue` once because those entries could not prove submit-to-verdict

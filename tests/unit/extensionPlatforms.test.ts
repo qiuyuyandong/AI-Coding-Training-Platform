@@ -348,6 +348,74 @@ describe("detectVerdictFromDocument", () => {
     expect(detectVerdictFromDocument("leetcode", document)).toEqual({ verdict: "Time Limit Exceeded" });
   });
 
+  it("normalizes duplicate current LeetCode console-result nodes", () => {
+    document.body.innerHTML = [
+      '<span data-e2e-locator="console-result">超出时间限制</span>',
+      '<span data-e2e-locator="console-result">超出时间限制</span>',
+    ].join("");
+
+    expect(detectVerdictFromDocument("leetcode", document)).toEqual({
+      verdict: "Time Limit Exceeded",
+    });
+  });
+
+  it("normalizes duplicate visible verdict leaves in the LeetCode submission-detail tab", () => {
+    document.body.innerHTML = [
+      '<div id="submission-detail_tabbar_outer">',
+      '  <div class="flexlayout__tab_button flexlayout__tab_button--selected">',
+      '    <div id="submission-detail_tab">',
+      '      <div class="relative">',
+      '        <div class="medium whitespace-nowrap font-medium">超出时间限制</div>',
+      '        <div class="normal absolute whitespace-nowrap font-normal">超出时间限制</div>',
+      "      </div>",
+      "    </div>",
+      "  </div>",
+      "</div>",
+    ].join("");
+
+    expect(detectVerdictFromDocument("leetcode", document)).toEqual({
+      verdict: "Time Limit Exceeded",
+    });
+  });
+
+  it("rejects conflicting visible verdict leaves in the LeetCode submission-detail tab", () => {
+    document.body.innerHTML = [
+      '<div id="submission-detail_tabbar_outer">',
+      '  <div class="flexlayout__tab_button flexlayout__tab_button--selected">',
+      '    <div id="submission-detail_tab">',
+      '      <div class="relative">',
+      '        <div>超出时间限制</div>',
+      '        <div>执行出错</div>',
+      "      </div>",
+      "    </div>",
+      "  </div>",
+      "</div>",
+    ].join("");
+
+    expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
+  });
+
+  it("does not treat the transient LeetCode submission-detail tab label as a final failure", () => {
+    document.body.innerHTML = [
+      '<div id="submission-detail_tabbar_outer">',
+      '  <div class="flexlayout__tab_button flexlayout__tab_button--selected">',
+      '    <div id="submission-detail_tab"><div>提交详情</div></div>',
+      "  </div>",
+      "</div>",
+    ].join("");
+
+    expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
+  });
+
+  it("rejects conflicting current LeetCode console-result nodes", () => {
+    document.body.innerHTML = [
+      '<span data-e2e-locator="console-result">超出时间限制</span>',
+      '<span data-e2e-locator="console-result">执行出错</span>',
+    ].join("");
+
+    expect(detectVerdictFromDocument("leetcode", document)).toBeNull();
+  });
+
   it("keeps a trusted pending verdict state out of completed attempts", () => {
     document.body.innerHTML = '<div data-e2e-locator="submission-result">判题中</div>';
 
@@ -510,11 +578,11 @@ describe("detectVerdictFromDocument", () => {
     expect(typeof PLATFORM_ADAPTERS.luogu.extractor).toBe("function");
   });
 
-  // LeetCode selectors are narrowed: only the submission-result e2e locator
-  // is shipped; the legacy .text-green-s/.text-red-s selectors that were
-  // observer-inferred rather than evidence-backed have been removed.
-  it("LeetCode selectors are exactly ['[data-e2e-locator=\"submission-result\"]']", () => {
+  // The legacy selector remains fixture metadata. Runtime extraction also
+  // handles the observed console-result locator and collapses duplicate panes.
+  it("LeetCode keeps its legacy selector and registers a semantic extractor", () => {
     expect(PLATFORM_ADAPTERS.leetcode.selectors).toEqual(['[data-e2e-locator="submission-result"]']);
+    expect(typeof PLATFORM_ADAPTERS.leetcode.extractor).toBe("function");
   });
 
   it("detects LeetCode verdict via the e2e locator wrapper (通过)", () => {

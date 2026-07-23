@@ -9,15 +9,15 @@
 **Tech Stack:** TypeScript 5.8 strict mode, Chrome MV3 storage/runtime/alarms, Zod 3, Next.js 15 App Router route handlers, better-sqlite3 transactions, Vitest, Playwright.
 
 **Execution status (2026-07-23):** The V3 implementation, ACK repair,
-cross-platform verdict foundation, real LeetCode result-route correction,
-extension-startup compatibility guard, and popup feedback are engineering-green
-in an uncommitted worktree. The one-time migration was observed to clear 32
-legacy entries and the user later confirmed ACK synchronization works. A
-synthetic unpacked-extension TLE lifecycle passes, but the current build has not
-yet been reloaded and retested in the user's real Chrome. Evidence:
-`work/reports/v0-leetcode-result-route-extension-error-repair-2026-07-23.md`.
-All authorization-gated commits and the final repaired-browser check remain
-pending.
+cross-platform verdict foundation, extension lifecycle repair, popup feedback,
+and current LeetCode semantic TLE repair are engineering-green. The one-time
+migration cleared 32 legacy entries. A bounded real-Chrome recovery against the
+user's existing TLE result produced `Time Limit Exceeded` / `partial`, received
+a matching ACK, and returned every extension queue to zero. This did not include
+a fresh natural submit on the final commit, so formal same-SHA observation
+remains pending. Evidence:
+`work/reports/v0-leetcode-tle-semantic-result-repair-2026-07-23.md`.
+V0.5 remains out of scope.
 
 ## Global Constraints
 
@@ -685,6 +685,41 @@ Do not fabricate any result that requires the user to submit on an external OJ.
   1 Windows file-symlink capability skip, typecheck, 25 Playwright E2E,
   19 extension files / 456 passed, MV3 build/dist parity, and the 20/20-page
   production build all PASS.
+
+### Report 03 follow-up 5: restored problem URL and semantic result tab
+
+- [x] Inspect the user's existing real LeetCode TLE page and prove the current
+  UI uses duplicate `console-result` panes rather than only the legacy
+  `submission-result` locator.
+- [x] Reproduce the post-refresh lifecycle where LeetCode restores
+  `/problems/<slug>/` but retains a selected first-party submission-detail tab.
+- [x] Collapse identical visible verdict panes and reject conflicts.
+- [x] Require the semantic detail tab to be unique, visible, selected, inside
+  the official tabbar, and contain a recognized final verdict.
+- [x] Prove transient `提交详情`, inactive tabs, unknown labels, and conflicting
+  leaves do not consume the intent.
+- [x] Prove stored intent → restored problem URL → selected TLE result →
+  `Time Limit Exceeded` atomic bundle.
+- [x] Recover the user's existing stuck TLE through the real local pipeline;
+  verify `partial`, matching ACK, and active/outbox/quarantine/unmatched all
+  return to zero. Void the diagnostic transient-label attempt with an explicit
+  audit reason.
+- [x] Run `npm run quality:gate`: exit 0; 68 unit files / 1039 passed /
+  1 capability skip, 25 Playwright E2E, 19 extension files / 464 passed, lint,
+  migration, curriculum validation, typecheck, MV3 build/dist parity, and
+  20/20-page production build PASS.
+- [ ] Reload the final committed build and perform one fresh natural LeetCode
+  non-AC submission. Confirm exactly one normalized attempt and all popup
+  queues return to zero before formal observation starts.
+
+- [x] **Step 9: User-authorized repair commit checkpoint**
+
+The user asked Codex to run `/neat-freak` and autonomously decide whether the
+repair should be committed. The semantic TLE repair has focused, authoritative,
+and bounded real-Chrome evidence, so freeze it in a local repair commit after
+knowledge reconciliation. Exclude the user's pre-existing `AGENTS.md`,
+observation sheets, bilingual plan, and bilingual specification edits. Do not
+push or label the commit as an accepted release.
 
 - [x] **Step 8: Authorization-gated commit checkpoint**
 

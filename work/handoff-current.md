@@ -1,5 +1,40 @@
 # Current Handoff
 
+## Status (2026-07-23 LeetCode semantic TLE closure)
+
+**ENGINEERING PASS / BOUNDED REAL-CHROME RECOVERY PASS / FRESH SAME-SHA
+OBSERVATION PENDING.**
+
+- The previous exact-route repair was still incomplete. Current LeetCode.cn
+  renders duplicate `console-result` verdict nodes, then may restore the
+  problem URL while retaining the selected `submission-detail` result tab.
+  Neither shape was covered by the legacy single-locator assumption.
+- The LeetCode extractor now collapses identical visible panes, rejects
+  conflicts, and accepts the restored problem URL only with a unique visible
+  selected first-party detail tab containing a recognized final verdict.
+  Transient chrome such as `提交详情`, unknown labels, and inactive tabs do not
+  consume a pending intent.
+- Authorized real-Chrome recovery against the user's existing
+  `/problems/two-sum/submissions/737659968/` result produced
+  `Time Limit Exceeded` / `partial`, received a matching ACK, and left active,
+  outbox, quarantine, and unmatched counts at zero. No external OJ submission
+  was made by the agent.
+- A diagnostic build briefly classified the transient detail label as
+  `Other Failure`. That locally created diagnostic attempt was immediately
+  voided through the official API with an audit reason and is excluded from
+  default Training, Coach, and Growth views.
+- Adapter readiness is certification metadata, not a runtime switch.
+  LeetCode remains `experimental`; changing it to `production` would not fix
+  capture and would bypass the evidence gate. AtCoder remains the sole
+  certified production adapter.
+- `npm run quality:gate` exits 0: 68 unit files / 1039 passed / 1 Windows
+  capability skip, 25 Playwright E2E, 19 extension files / 464 passed, lint,
+  disposable migration, curriculum validation, typecheck, MV3 build/dist
+  parity, and 20/20-page production build.
+- Evidence:
+  `work/reports/v0-leetcode-tle-semantic-result-repair-2026-07-23.md`.
+  V0.5 was not merged or started.
+
 ## Status (2026-07-23 real Chrome extension-error closure)
 
 **ENGINEERING PASS / REAL CHROME ERROR RETEST PASS: the result-route, verdict,
@@ -176,7 +211,12 @@ observation, final verification, and acceptance pending.**
 
 ## Next Commander Action
 
-1. Resolve and record the exact local implementation SHA, then restart formal V0 observation against only that SHA. Same-SHA F1-F4 and explicit user acceptance remain later gates; do not start V0.5.
+1. Commit the semantic TLE repair without the user's unrelated document
+   changes, then perform one fresh natural LeetCode non-AC submission against
+   that exact build. If waiting/outbox/quarantine return to zero and the
+   normalized attempt appears once, restart formal V0 observation against only
+   that SHA. Same-SHA F1-F4 and explicit user acceptance remain later gates;
+   do not start V0.5.
 
 ## Known Risks
 

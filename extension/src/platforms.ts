@@ -47,11 +47,12 @@ export const PLATFORM_ADAPTERS: Record<Platform, PlatformAdapterRecord> = {
   leetcode: {
     status: "experimental",
     label: "LeetCode",
-    // Single source of truth: the public submission page exposes verdict text
-    // inside the [data-e2e-locator="submission-result"] node. Legacy `.text-*`
-    // classes were observer-inferred rather than evidence-backed and are not
-    // promoted into the registry; keep one narrow selector.
+    // The legacy authenticated fixture uses submission-result. The current
+    // problem-scoped result page uses duplicate console-result nodes for its
+    // two synchronized panes. The extractor below accepts either locator,
+    // collapses identical visible values, and rejects conflicting panes.
     selectors: ['[data-e2e-locator="submission-result"]'],
+    extractor: extractLeetCodeVerdictText,
   },
   codeforces: {
     status: "experimental",
@@ -709,8 +710,9 @@ function resolveLuoguProblemAnchor(pathname: string): string | null {
 
 /**
  * Returns true iff the current location+document pair is an exact submission
- * result page that the active platform adapter recognizes from strict URL
- * routing and one unique visible first-party problem anchor.
+ * result surface that the active platform adapter recognizes from strict URL
+ * routing or an evidence-backed active result tab, plus one unique visible
+ * first-party problem identity.
  *
  * Exact result-page evidence is the only same-document transition that the
  * content runtime accepts on its own without observing a Waiting/Judging/null
@@ -722,7 +724,9 @@ function resolveLuoguProblemAnchor(pathname: string): string | null {
  *
  *   - HTTPS, exact host, no credentials, default port.
  *   - The URL must match a platform result route with no hash and either
- *     zero or platform-documented query strings.
+ *     zero or platform-documented query strings. LeetCode may restore its
+ *     problem URL while keeping a selected submission-detail tab visible;
+ *     that exact first-party tab is accepted as equivalent route evidence.
  *   - The sanitized DOM must contain exactly one valid first-party problem
  *     anchor — no zero, no multiple, no spoofed hosts.
  */
@@ -745,6 +749,11 @@ export function isExactSubmissionResultPage(
   if (detectedProblem !== null
     && problemIdentityKeyFor(resolved) !== problemIdentityKeyFor(detectedProblem)) {
     return false;
+  }
+  if (resolved.platform === "leetcode"
+    && isLeetCodeProblemRootRoute(parsed)
+    && hasActiveLeetCodeSubmissionDetail(pageDocument)) {
+    return true;
   }
   return isExactResultRouteForPlatform(resolved.platform, parsed);
 }
@@ -775,6 +784,19 @@ function isLeetCodeProblemSubmissionResultRoute(parsed: URL): boolean {
     .test(parsed.pathname);
 }
 
+function isLeetCodeProblemRootRoute(parsed: URL): boolean {
+  if (parsed.hostname !== "leetcode.com" && parsed.hostname !== "leetcode.cn") {
+    return false;
+  }
+  if (parsed.search !== "" || parsed.hash !== "") return false;
+  return /^\/problems\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/?$/iu
+    .test(parsed.pathname);
+}
+
+function hasActiveLeetCodeSubmissionDetail(pageDocument: Document): boolean {
+  return extractLeetCodeDetailVerdictText(pageDocument) !== "";
+}
+
 export function detectVerdictFromDocument(platform: Platform, pageDocument: Document): DetectedVerdict | null {
   const text = candidateTextForPlatform(platform, pageDocument);
   const verdict = normalizeTrustedVerdictText(text);
@@ -796,6 +818,72 @@ function textFromSelectors(pageDocument: Document, selectors: readonly string[])
     .flatMap((selector) => Array.from(pageDocument.querySelectorAll(selector)))
     .map((element) => element.textContent ?? "")
     .join("\n");
+}
+
+/**
+ * Extract a LeetCode verdict from its two observed first-party locators.
+ *
+ * The current result UI renders the same verdict in two visible panes. Joining
+ * both strings would produce "TLE\nTLE", which is not a verdict token. Collapse
+ * identical values instead. If two visible panes disagree, return no evidence
+ * rather than guessing which pane is authoritative.
+ */
+function extractLeetCodeVerdictText(pageDocument: Document): string {
+  const selectors = [
+    '[data-e2e-locator="submission-result"]',
+    '[data-e2e-locator="console-result"]',
+  ] as const;
+  const locatorTexts = new Set<string>();
+  for (const selector of selectors) {
+    for (const element of Array.from(pageDocument.querySelectorAll(selector))) {
+      if (isElementHidden(element)) continue;
+      const text = (element.textContent ?? "").trim();
+      if (text !== "") locatorTexts.add(text);
+    }
+  }
+  if (locatorTexts.size > 0) return singleUniqueText(locatorTexts);
+
+  // The restored problem URL has no verdict locator; its selected
+  // submission-detail tab is the fallback evidence surface. That tab briefly
+  // renders generic chrome such as "Submission details" before the verdict.
+  // Unlike a first-party verdict locator, an unknown detail-tab label is not
+  // enough to prove a final failure, so wait for a recognized final verdict.
+  return extractLeetCodeDetailVerdictText(pageDocument);
+}
+
+function extractLeetCodeDetailVerdictText(pageDocument: Document): string {
+  const detailTabs = pageDocument.querySelectorAll("#submission-detail_tab");
+  if (detailTabs.length !== 1) return "";
+  const detailTab = detailTabs.item(0);
+  if (isElementHidden(detailTab)) return "";
+  const selectedTab = detailTab.closest(".flexlayout__tab_button--selected");
+  if (selectedTab === null || isElementHidden(selectedTab)) return "";
+  if (detailTab.closest("#submission-detail_tabbar_outer") === null) return "";
+
+  const detailTexts = new Set<string>();
+  collectVisibleLeafTexts(detailTab, detailTexts);
+  const detailText = singleUniqueText(detailTexts);
+  if (detailText === "") return "";
+  const normalized = normalizeTrustedVerdictText(detailText);
+  return normalized === null || normalized === "Other Failure" ? "" : detailText;
+}
+
+function singleUniqueText(texts: ReadonlySet<string>): string {
+  if (texts.size !== 1) return "";
+  const first = texts.values().next();
+  return first.done === true ? "" : first.value;
+}
+
+function collectVisibleLeafTexts(root: Element, output: Set<string>): void {
+  for (const element of [root, ...Array.from(root.querySelectorAll("*"))]) {
+    if (isElementHidden(element)) continue;
+    const hasTextChild = Array.from(element.children).some(
+      (child) => (child.textContent ?? "").trim() !== "",
+    );
+    if (hasTextChild) continue;
+    const text = (element.textContent ?? "").trim();
+    if (text !== "") output.add(text);
+  }
 }
 
 /**
