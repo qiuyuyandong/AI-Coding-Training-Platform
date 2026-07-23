@@ -1,19 +1,23 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-23):** **V0 capture repair and validation.** Phase 0 is
+> **Status (2026-07-24):** **V0 capture repair validated; formal observation
+> pending.** Phase 0 is
 > complete. The verdict-gated V3 repair now handles the current LeetCode
 > duplicate verdict locators and the selected submission-detail surface that
 > remains after LeetCode restores the problem URL. An authorized real-Chrome
 > recovery converted the user's stuck TLE into `Time Limit Exceeded`, delivered
-> it once, and returned waiting/outbox/quarantine to zero. A fresh natural
-> submit-to-verdict observation on the final commit is still required before
-> formal V0 closeout.
+> it once, and returned waiting/outbox/quarantine to zero. On 2026-07-24 the
+> user reloaded the final build from implementation commit
+> `2f4f5d895ea8d965fb64d19dc784ca5514480688` and confirmed the same LeetCode
+> submission case passes naturally. Formal multi-session observation,
+> same-SHA F1–F4, and explicit V0 acceptance remain separate gates.
 
 > **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
 > real temporary-repository cases for the strict two-commit release contract.
-> `b5166320768355666a5c4ff3f466c29c240ea8cf` is now the superseded RC; no
-> replacement implementation SHA exists until this repair is reviewed and
-> explicitly committed.
+> `b5166320768355666a5c4ff3f466c29c240ea8cf`,
+> `894162b264124eed7315a116cae73b8e11d717b8`, and
+> `c587bfbcce2eab108a1c98455b2e6b481f71b290` are superseded repair baselines;
+> use `2f4f5d895ea8d965fb64d19dc784ca5514480688` for the repaired runtime.
 
 > **Post-candidate stabilization:** The frozen RC repairs the
 > plan-completion row-ID regression, stale projection, later-pass L2 promotion,
@@ -21,7 +25,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop under repair and validation**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release. The active repair plan is `docs/superpowers/plans/2026-07-21-v0-verdict-gated-capture-repair.md`; closeout resumes only after real-Chrome validation and a replacement RC freeze.
+This repository currently contains an implemented **V0 local learning loop in formal validation**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release. The capture repair plan is complete; formal observation and closeout continue through `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md`.
 
 It provides:
 

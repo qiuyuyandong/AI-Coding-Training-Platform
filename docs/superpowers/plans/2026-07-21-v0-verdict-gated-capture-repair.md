@@ -8,14 +8,15 @@
 
 **Tech Stack:** TypeScript 5.8 strict mode, Chrome MV3 storage/runtime/alarms, Zod 3, Next.js 15 App Router route handlers, better-sqlite3 transactions, Vitest, Playwright.
 
-**Execution status (2026-07-23):** The V3 implementation, ACK repair,
+**Execution status (2026-07-24): COMPLETE.** The V3 implementation, ACK repair,
 cross-platform verdict foundation, extension lifecycle repair, popup feedback,
 and current LeetCode semantic TLE repair are engineering-green. The one-time
 migration cleared 32 legacy entries. A bounded real-Chrome recovery against the
 user's existing TLE result produced `Time Limit Exceeded` / `partial`, received
-a matching ACK, and returned every extension queue to zero. This did not include
-a fresh natural submit on the final commit, so formal same-SHA observation
-remains pending. Evidence:
+a matching ACK, and returned every extension queue to zero. On 2026-07-24 the
+user confirmed the same LeetCode case passes through a fresh natural submission
+on implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`.
+Formal multi-session observation and V0 acceptance remain pending. Evidence:
 `work/reports/v0-leetcode-tle-semantic-result-repair-2026-07-23.md`.
 V0.5 remains out of scope.
 
@@ -708,9 +709,10 @@ Do not fabricate any result that requires the user to submit on an external OJ.
   1 capability skip, 25 Playwright E2E, 19 extension files / 464 passed, lint,
   migration, curriculum validation, typecheck, MV3 build/dist parity, and
   20/20-page production build PASS.
-- [ ] Reload the final committed build and perform one fresh natural LeetCode
+- [x] Reload the final committed build and perform one fresh natural LeetCode
   non-AC submission. Confirm exactly one normalized attempt and all popup
-  queues return to zero before formal observation starts.
+  queues return to zero before formal observation starts. User confirmation:
+  2026-07-24, the same LeetCode test case passed.
 
 - [x] **Step 9: User-authorized repair commit checkpoint**
 

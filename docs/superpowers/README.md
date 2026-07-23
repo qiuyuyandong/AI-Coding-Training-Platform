@@ -1,17 +1,19 @@
 # Superpowers Documentation Index
 
-> **Status (2026-07-23):** **V0 capture repair and validation.** Phase 0 is
-> complete. The V3 bundle repair, cross-platform verdict foundation, real
-> LeetCode result-route correction, extension compatibility guard, and popup
-> feedback are engineering-green in the uncommitted worktree. Frozen SHA
-> `894162b264124eed7315a116cae73b8e11d717b8` remains defective and cannot
-> anchor V0 acceptance; no replacement RC exists yet.
+> **Status (2026-07-24):** **V0 capture repair validated; formal observation
+> pending.** Phase 0 is complete. The repaired runtime is frozen at
+> `2f4f5d895ea8d965fb64d19dc784ca5514480688`; the user confirmed the final
+> LeetCode submission case passes naturally on 2026-07-24. Engineering and
+> capture validation are complete, but formal observation, same-SHA F1–F4, and
+> explicit V0 acceptance remain pending.
 
-The active repair plan is
+The completed repair implementation record is
 [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md).
-The closeout plan remains paused until a repaired build passes the user's real
-Chrome check and a replacement RC is frozen:
+The active closeout plan is:
 [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md).
+The bilingual interface plan is approved future scope and must remain deferred
+until V0 is explicitly accepted:
+[`plans/2026-07-21-v0-bilingual-user-interface.md`](plans/2026-07-21-v0-bilingual-user-interface.md).
 The completed stabilization package is recorded in
 [`plans/2026-07-18-v0-stabilization-known-issues.md`](plans/2026-07-18-v0-stabilization-known-issues.md)
 with RC evidence at
@@ -23,9 +25,10 @@ This directory contains both active product planning and historical implementati
 
 1. [`../../IDEA.md`](../../IDEA.md) — product definition, adopted decisions, V0/V0.5/V1/Public Beta scope.
 2. [`plans/2026-07-11-product-development-roadmap.md`](plans/2026-07-11-product-development-roadmap.md) — active release/Phase map and exit gates.
-3. [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md) — active replacement-RC repair and real-browser gate.
-4. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — paused same-SHA observation and closeout checklist.
-5. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — earlier domestic-OJ repair implementation record.
+3. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — active same-SHA observation and closeout checklist.
+4. [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md) — completed replacement-RC repair and real-browser validation record.
+5. [`plans/2026-07-21-v0-bilingual-user-interface.md`](plans/2026-07-21-v0-bilingual-user-interface.md) — approved but deferred post-V0 implementation plan.
+6. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — earlier domestic-OJ repair implementation record.
 
 Immediate target: accepted V0. Next target: V0.5 connected OJ/basic evidence.
 Then: V1 integrated local pilot. Total product target: **Phase 7 / Public Beta

@@ -1,9 +1,9 @@
 # Current Handoff
 
-## Status (2026-07-23 LeetCode semantic TLE closure)
+## Status (2026-07-24 LeetCode natural submission validation)
 
-**ENGINEERING PASS / BOUNDED REAL-CHROME RECOVERY PASS / FRESH SAME-SHA
-OBSERVATION PENDING.**
+**ENGINEERING PASS / REAL-CHROME NATURAL SUBMISSION PASS / FORMAL OBSERVATION
+PENDING.**
 
 - The previous exact-route repair was still incomplete. Current LeetCode.cn
   renders duplicate `console-result` verdict nodes, then may restore the
@@ -19,6 +19,10 @@ OBSERVATION PENDING.**
   `Time Limit Exceeded` / `partial`, received a matching ACK, and left active,
   outbox, quarantine, and unmatched counts at zero. No external OJ submission
   was made by the agent.
+- On 2026-07-24 the user reloaded the final build from implementation commit
+  `2f4f5d895ea8d965fb64d19dc784ca5514480688` and confirmed the same LeetCode
+  case passes through a fresh natural submission. This closes the repair
+  validation gate without fabricating formal observation sessions.
 - A diagnostic build briefly classified the transient detail label as
   `Other Failure`. That locally created diagnostic attempt was immediately
   voided through the official API with an audit reason and is excluded from
@@ -168,7 +172,7 @@ observation, final verification, and acceptance pending.**
 ## Current Phase
 
 - Phase 0: **complete and reconciled green on 2026-07-17.** All exit criteria satisfied; AtCoder is the sole certified production adapter.
-- V0 manual learning loop vertical slice: **implemented; current V3 capture repair is engineering-green, synthetic-extension-smoke green, and real-Chrome extension-error-retest green in an uncommitted worktree. A replacement RC commit and later formal observation/acceptance remain pending.**
+- V0 manual learning loop vertical slice: **implemented; V3 capture repair is engineering-green and user-confirmed in a fresh real LeetCode submission at implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`. Formal observation, same-SHA F1–F4, and explicit acceptance remain pending.**
 
 ## Commit Chronology
 
@@ -211,12 +215,9 @@ observation, final verification, and acceptance pending.**
 
 ## Next Commander Action
 
-1. Commit the semantic TLE repair without the user's unrelated document
-   changes, then perform one fresh natural LeetCode non-AC submission against
-   that exact build. If waiting/outbox/quarantine return to zero and the
-   normalized attempt appears once, restart formal V0 observation against only
-   that SHA. Same-SHA F1-F4 and explicit user acceptance remain later gates;
-   do not start V0.5.
+1. Start formal V0 observation against implementation commit
+   `2f4f5d895ea8d965fb64d19dc784ca5514480688`, then execute same-SHA F1–F4 and
+   request explicit user acceptance. Do not start V0.5 before those gates pass.
 
 ## Known Risks
 

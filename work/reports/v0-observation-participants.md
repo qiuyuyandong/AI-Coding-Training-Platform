@@ -2,7 +2,7 @@
 {
   "type": "v0-observation-participants",
   "schemaVersion": "v0-observation-participants-1",
-  "implementationSha": "b5166320768355666a5c4ff3f466c29c240ea8cf",
+  "implementationSha": "2f4f5d895ea8d965fb64d19dc784ca5514480688",
   "status": "HOLD",
   "participants": []
 }

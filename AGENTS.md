@@ -112,22 +112,26 @@
 
 # Agent Handoff Guide
 
-> **Status (2026-07-20):** **V0 validation.** Phase 0 is complete; the V0
-> vertical slice, domestic-OJ repair, and passive authenticated characterization
-> are implemented in the uncommitted worktree. No replacement RC exists.
-> Real-use observations, same-SHA F1–F4 verification, and explicit user
-> acceptance remain pending. The previous `ACCEPT_CANDIDATE` report was
-> premature because its observation artifacts contain no sessions.
+> **Status (2026-07-24):** **V0 capture repair validation complete; formal
+> observation pending.** Phase 0 is complete. The verdict-gated V3 repair,
+> route/startup/popup fixes, and content-script lifecycle guard are frozen at
+> implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`.
+> The user confirmed the same LeetCode case passes through a fresh natural
+> submission on that build. Earlier SHA
+> `c587bfbcce2eab108a1c98455b2e6b481f71b290` lacked the semantic result-tab
+> repair, and `894162b264124eed7315a116cae73b8e11d717b8` has confirmed capture
+> defects; neither can anchor acceptance. Formal observation, same-SHA F1–F4,
+> and explicit V0 acceptance remain pending.
 
 > **Superseded V0 RC:** `b5166320768355666a5c4ff3f466c29c240ea8cf`
 > predates the domestic-OJ runtime changes and must not anchor acceptance.
-> The latest uncommitted quality gate passes; evidence is recorded in the
+> The latest RC quality gate passes; evidence is recorded in the
 > active plan and `work/handoff-current.md`.
 > `tests/unit/v0ReportValidators.test.ts` now contains 21 real
 > temporary-repository cases for the two-commit release contract. Its focused
 > suite, lint, typecheck, and authoritative quality gate pass.
 
-This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, 0D, and the Phase 0 AtCoder production certification (T1–T8) are implemented. Phase 0 is complete and reconciled green on 2026-07-17; AtCoder is the sole certified production adapter. The V0 manual learning loop vertical slice is implemented and in validation, not accepted. The domestic-OJ repair is implemented, passively characterized, reviewed, and quality-gate green in the uncommitted worktree; `b5166320768355666a5c4ff3f466c29c240ea8cf` is superseded and no replacement RC exists yet. The only active execution plan is `docs/superpowers/plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`; the 2026-07-18 closeout plan is paused until a new RC is frozen.
+This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, 0D, and the Phase 0 AtCoder production certification (T1–T8) are implemented. Phase 0 is complete and reconciled green on 2026-07-17; AtCoder is the sole certified production adapter. The V0 manual learning loop vertical slice is implemented and in validation, not accepted. The verdict-gated capture repair is frozen at implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`; resume `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md` for formal same-SHA observation and closeout. Do not start V0.5.
 
 `IDEA.md` and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` define the future V0/V0.5/V1/Public Beta direction. `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud SaaS as the eventual target but explicitly defers implementation until the Phase 7 gate.
 
@@ -135,8 +139,8 @@ This repository currently implements a local-first AI coding training prototype.
 
 - Next.js App Router application with SQLite persistence through `better-sqlite3`.
 - Chrome MV3 extension source lives under `extension/src`; build output is generated under ignored `extension/dist`.
-- Paired capture events enter through `POST /api/capture/events`; raw events and deterministic session/attempt projections are written in one transaction with content-sensitive replay safeguards.
-- The Chrome extension detects supported problem pages and visible verdict text, including English verdict tokens plus Chinese verdict labels used by NowCoder/Luogu-style UIs. A formal `PLATFORM_ADAPTERS` registry in `extension/src/platforms.ts` declares each platform's readiness as `experimental`, `production`, or `disabled`. AtCoder is `production` (certified 2026-07-17); LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`.
+- The V3 extension sends completed four-event attempt bundles through `POST /api/capture/attempts`; all four raw events and the deterministic attempt projection are written in one SQLite transaction. `POST /api/capture/events` remains only for backward compatibility.
+- The Chrome extension records an intent only for an exact submit control, then waits for a trusted final verdict. It recognizes LeetCode's real `/problems/<slug>/submissions/<id>/` result route as well as the legacy detail route, normalizes cross-platform final verdict categories, contains rejected Chrome-operation Promises, and retires stale content-script callbacks after unpacked-extension context invalidation. A formal `PLATFORM_ADAPTERS` registry declares readiness; AtCoder is `production`, while LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`.
 - `/training` supports automatic and manual attempts, optimistic corrections, correction history, and logical voiding. Capture identity fields remain immutable.
 - `/training`, `/coach`, and `/growth` use active, non-voided attempts by default; Growth labels automatic and manual sources.
 - Domestic authenticated-characterization fixtures live under `tests/fixtures/{leetcode,nowcoder,luogu/authenticated}/`. They are strictly sanitized, prove passive detector behavior, and can never satisfy the production gate. The historical public-DOM Luogu certification corpus and BLOCKED artifact remain unchanged.
@@ -145,7 +149,7 @@ This repository currently implements a local-first AI coding training prototype.
 
 ## V0 manual learning loop (implemented; validation pending)
 
-The V0 vertical slice and domestic-OJ repair pass the automated quality gate in the uncommitted worktree, but no replacement RC exists. It is **not yet an accepted release**: passive evidence covers LeetCode.cn AC, NowCoder AC, and Luogu AC/Compile Error without any agent submission, while user-performed LeetCode/NowCoder non-AC transitions, real-use observations, a new RC, and same-SHA F1–F4 remain pending. SHA `b5166320768355666a5c4ff3f466c29c240ea8cf` is superseded and must not anchor acceptance. The following surface exists in code today and is exercised by the offline-core Playwright gate:
+The V0 vertical slice and V3 repair at implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688` pass the automated quality gate, bounded recovery, and a user-confirmed fresh natural LeetCode submission. Frozen SHAs `c587bfbcce2eab108a1c98455b2e6b481f71b290` and `894162b264124eed7315a116cae73b8e11d717b8` are defective and are not current implementation candidates. The repaired build is **not yet an accepted release**: formal observations and same-SHA F1–F4 remain pending. The following surface exists in code today and is exercised by the offline-core Playwright gate:
 
 - Curriculum catalog: `content/tracks/software-development-foundations-v1/` (12 published nodes, 13 prerequisite edges, 12 reviewed resources, 12 practice mappings) and `content/careers/career-directions-v1.json` (9 career summaries). Migration 0006 adds the catalog tables; the CLI scripts `validate-curriculum.mjs` and `check-curriculum-links.mjs` gate the package.
 - Learner and plan persistence: migration 0007 adds `learner_profiles`, `learner_goals`, `diagnostic_sessions`, `diagnostic_responses`, `learner_node_baselines`, `learning_plans`, `daily_plan_snapshots`, `plan_items`, `task_feedback`, `plan_revision_events`.
@@ -216,4 +220,4 @@ These are current implementation boundaries, not a permanent rejection of the ap
   Phase 0D plan: `docs/superpowers/plans/2026-07-15-phase-0d-engineering-quality-gates.md`. Evidence: `work/reports/phase-0d-engineering-gates.md`. Current Commander state: `work/handoff-current.md`.
 - Phase 0C2 completed on 2026-07-14 and is merged at `983e10a`.
 - Phase 0B4 (Luogu adapter certification) executed on 2026-07-14 with BLOCKED terminal state. The Luogu certification gate confirmed no production adapter existed at that time. The blocker artifact (`work/reports/luogu-adapter-blocker.json`) documents the missing public verdict DOM as the reason. Re-attempting Luogu production-adapter certification requires a publicly accessible Luogu page with verdict DOM or a new design decision to accept characterization-only evidence.
-- Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. The current product action is executing `docs/superpowers/plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`; resume the paused 2026-07-18 closeout plan only after a replacement RC is frozen. Do not re-execute the completed 0A-0C2, 0B4, AtCoder T1–T8, or V0 implementation plans; they are retained as implementation records. Do not start V0.5 until V0 is explicitly accepted.
+- Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. The current product action is formal observation through `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md` against implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`. Do not re-execute the completed capture repair, 0A-0C2, 0B4, AtCoder T1–T8, or V0 implementation plans; they are retained as implementation records. Do not start V0.5 until V0 is explicitly accepted.

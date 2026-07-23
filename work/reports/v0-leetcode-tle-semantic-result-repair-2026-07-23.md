@@ -2,7 +2,7 @@
 
 ## Decision
 
-**ENGINEERING PASS / BOUNDED REAL-CHROME RECOVERY PASS / FRESH SUBMISSION OBSERVATION PENDING.**
+**ENGINEERING PASS / REAL-CHROME NATURAL SUBMISSION PASS / FORMAL OBSERVATION PENDING.**
 
 The extension now captures the current LeetCode.cn TLE surface even when the
 site restores the problem URL after a result navigation. The user's stuck
@@ -10,7 +10,7 @@ intent was recovered against the existing real result, normalized to
 `Time Limit Exceeded`, delivered once to the local app, and left active
 intents, outbox, quarantine, and unmatched candidates at zero. This is strong
 runtime evidence, but it is not a fresh natural click-to-final observation and
-does not certify LeetCode as a production adapter.
+did not by itself certify LeetCode as a production adapter.
 
 ## First-Principles Diagnosis
 
@@ -79,8 +79,14 @@ pipeline produced:
 - matching ACK recorded as the last delivered attempt.
 
 This proves the real DOM extractor, result-surface recognition, background
-matching, atomic API, ACK removal, and queue cleanup together. A fresh
-user-driven submit on the final commit remains the formal observation gate.
+matching, atomic API, ACK removal, and queue cleanup together.
+
+On 2026-07-24 the user reloaded the final build from implementation commit
+`2f4f5d895ea8d965fb64d19dc784ca5514480688` and explicitly confirmed that the
+same LeetCode test case passes through a fresh natural submission. No additional
+browser telemetry or fabricated session data was added. This closes the capture
+repair validation gate; formal multi-session observation, same-SHA F1–F4, and
+explicit V0 acceptance remain separate.
 
 ## Verification
 
@@ -125,5 +131,6 @@ mandatory junction safety coverage passed.
 - V0.5 was not merged into V0. Capture is an entry-level V0 dependency, while
   V0.5 has separate scope and acceptance gates; combining them would enlarge
   the unstable validation surface without fixing this causal join.
-- No external OJ submission, push, release, V0 acceptance, or V0.5
-  implementation was performed.
+- The agent performed no external OJ submission. The user performed and
+  confirmed the final natural LeetCode validation.
+- No release, V0 acceptance, or V0.5 implementation was performed.
