@@ -6,6 +6,7 @@ import {
   type DetectableLocation,
   getPlatformAdapterStatus,
   getProductionPlatforms,
+  type PlatformAdapterRecord,
   PLATFORM_ADAPTERS,
 } from "@/extension/src/platforms";
 
@@ -690,13 +691,21 @@ describe("adapter status registry", () => {
     // Each adapter must declare either a non-empty selectors array or a
     // semantic extractor (or both). Empty selectors WITHOUT an extractor
     // would mean "we ship no evidence at all" for a platform, which this
-    // registry contract explicitly forbids.
-    for (const record of Object.values(PLATFORM_ADAPTERS)) {
+    // registry contract explicitly forbids. Iterate over the union-typed
+    // `PlatformAdapterRecord` array explicitly so optional `extractor`
+    // and the new `v4NetworkStatus` / `version` / `hostOwnership` fields
+    // are visible regardless of per-record narrowing.
+    const records: readonly PlatformAdapterRecord[] = Object.values(PLATFORM_ADAPTERS);
+    for (const record of records) {
       expect(typeof record.label).toBe("string");
       expect(record.label.length).toBeGreaterThan(0);
+      expect(record.label).toBe(record.label.trim());
+      expect(record.version.length).toBeGreaterThan(0);
       expect(Array.isArray(record.selectors)).toBe(true);
+      expect(Array.isArray(record.hostOwnership)).toBe(true);
+      expect(record.hostOwnership.length).toBeGreaterThan(0);
       const hasSelectors = record.selectors.length > 0;
-      const hasExtractor = typeof record.extractor === "function";
+      const hasExtractor = record.extractor !== undefined;
       expect(hasSelectors || hasExtractor).toBe(true);
     }
   });

@@ -1,95 +1,35 @@
 import {
+  type DetectableLocation,
+  type DetectedProblem,
+  type DetectedVerdict,
+  type Platform,
+  type PlatformAdapterRecord,
+  type PlatformAdapterStatus,
+} from "@/extension/src/adapters/contract";
+import { PLATFORM_ADAPTERS } from "@/extension/src/adapters/registry";
+import { extractLeetCodeDetailVerdictText } from "@/extension/src/adapters/leetcode/verdict";
+import { isElementHidden } from "@/extension/src/adapters/dom";
+import {
   CanonicalProblemUrlError,
   canonicalProblemUrl,
   normalizeProblemIdentity,
 } from "@/lib/services/canonicalProblemUrl";
 import { normalizeTrustedVerdictText } from "@/lib/capture/verdictTaxonomy";
 
-export type Platform = "leetcode" | "nowcoder" | "luogu" | "codeforces" | "atcoder";
-
-export type PlatformAdapterStatus = "production" | "experimental" | "disabled";
-
-/**
- * Optional per-platform semantic extractor used by `detectVerdictFromDocument`
- * when CSS selectors alone cannot disambiguate real verdict spans from
- * unrelated colored text or navigation chrome. Each extractor receives a
- * document and returns a strictly narrowed candidate string — never the bare
- * body. Returning an empty string is equivalent to "no evidence observed";
- * `detectVerdictFromDocument` then maps that to `null`.
- */
-export type PlatformCandidateExtractor = (pageDocument: Document) => string;
-
-export type PlatformAdapterRecord = {
-  readonly status: PlatformAdapterStatus;
-  readonly label: string;
-  /**
-   * Narrow CSS selectors used as fallback evidence. Selectors are evaluated
-   * against the verified-public-DOM contract and explicitly excluded from
-   * broad fallbacks such as `body`. Platforms whose verdict DOM is best
-   * reached via a semantic extractor (e.g. Luogu record rows) may declare an
-   * empty `selectors` array together with `extractor`.
-   */
-  readonly selectors: readonly string[];
-  readonly extractor?: PlatformCandidateExtractor;
-};
-
-// Verdict detection selectors remain deliberately narrow. The earlier "body"
-// fallback made the detector scan the entire document text, which produced
-// false positives like any page mentioning "AC" or "答案正确" in navigation
-// chrome, headlines, or comment threads. Only the explicitly evidence-backed
-// selectors/extractors below are used. Three-platform real verdict selectors
-// (LeetCode.cn / NowCoder / Luogu record verdict DOM) ship here as either
-// narrow CSS selectors or semantic extractors; their fixtures live under
-// `tests/fixtures/{leetcode,nowcoder,luogu}` and carry the
-// `authenticated-characterization` evidence tier so they can never satisfy
-// the public-DOM certification gate.
-export const PLATFORM_ADAPTERS: Record<Platform, PlatformAdapterRecord> = {
-  leetcode: {
-    status: "experimental",
-    label: "LeetCode",
-    // The legacy authenticated fixture uses submission-result. The current
-    // problem-scoped result page uses duplicate console-result nodes for its
-    // two synchronized panes. The extractor below accepts either locator,
-    // collapses identical visible values, and rejects conflicting panes.
-    selectors: ['[data-e2e-locator="submission-result"]'],
-    extractor: extractLeetCodeVerdictText,
-  },
-  codeforces: {
-    status: "experimental",
-    label: "Codeforces",
-    selectors: [".status-cell", "td.status-small", ".verdict-accepted"],
-  },
-  atcoder: {
-    status: "production",
-    label: "AtCoder",
-    selectors: ["#judge-status"],
-  },
-  nowcoder: {
-    status: "experimental",
-    label: "NowCoder",
-    // The public view-submission page wraps the verdict under
-    // `<div class="coder-cont-legend">运行状态:<span class="font-green">答案正确</span></div>`.
-    // The previously registered `.result`, `.submission-result` and `.judge-result`
-    // selectors matched zero observed nodes and have been removed to keep the
-    // registry evidence-backed.
-    selectors: [".coder-cont-legend"],
-  },
-  luogu: {
-    status: "experimental",
-    label: "Luogu",
-    // Luogu records expose verdict text inside an unlabeled semantic row
-    // keyed by the exact label "评测状态" and a sibling `<span style="color: rgb(82, 196, 26)">`.
-    // We deliberately do NOT register CSS selectors here: the previously
-    // recorded `.status`, `.record-status`, `.submission-status` matched zero
-    // observed nodes and would have produced false positives on dev pages.
-    // The semantic extractor below walks every node, requires a uniquely
-    // labelled "评测状态" leaf, and reads the entire row text. Empty rows
-    // produce empty candidate text, which forces `verdictFromText` to return
-    // null rather than guessing.
-    selectors: [],
-    extractor: extractLuoguRecordRowText,
-  },
-};
+// Compatibility re-exports. Existing callers (tests and modules) import
+// the platform types and PLATFORM_ADAPTERS from `@/extension/src/platforms`;
+// the actual definitions now live in the adapter tree and are re-exported
+// here unchanged.
+export {
+  type DetectableLocation,
+  type DetectedProblem,
+  type DetectedVerdict,
+  type Platform,
+  type PlatformAdapterRecord,
+  type PlatformAdapterStatus,
+  type PlatformCandidateExtractor,
+} from "@/extension/src/adapters/contract";
+export { PLATFORM_ADAPTERS } from "@/extension/src/adapters/registry";
 
 export function getPlatformAdapterStatus(platform: Platform): PlatformAdapterStatus {
   return PLATFORM_ADAPTERS[platform].status;
@@ -100,18 +40,20 @@ export function getProductionPlatforms(): Platform[] {
   return all.filter((p) => PLATFORM_ADAPTERS[p].status === "production");
 }
 
-export type DetectableLocation = Pick<Location, "href" | "hostname" | "pathname">;
-
-export type DetectedProblem = {
-  platform: Platform;
-  problemExternalId: string;
-  problemTitle: string;
-  canonicalUrl: string;
-};
-
-export type DetectedVerdict = {
-  readonly verdict: string;
-};
+/**
+ * Host ownership gate backed by the registry's `hostOwnership` field.
+ * Returns true iff the platform's adapter declares the supplied hostname
+ * as one of its owned hosts. Module-internal so call sites cannot bypass
+ * the registry metadata contract via external imports.
+ *
+ * The explicit `PlatformAdapterRecord` widening on the indexed entry lets
+ * us call `.hostOwnership` directly on a value pulled from the literal
+ * registry type without further per-record optional checks.
+ */
+function adapterOwnsHost(platform: Platform, hostname: string): boolean {
+  const record: PlatformAdapterRecord = PLATFORM_ADAPTERS[platform];
+  return record.hostOwnership.includes(hostname);
+}
 
 export function detectProblemFromLocation(location: DetectableLocation, documentTitle: string): DetectedProblem | null {
   let parsed: URL;
@@ -184,7 +126,7 @@ function detectLeetCodeProblem(
   location: DetectableLocation,
   parsed: URL,
 ): { readonly externalId: string } | null {
-  if (parsed.hostname !== "leetcode.com" && parsed.hostname !== "leetcode.cn") {
+  if (!adapterOwnsHost("leetcode", parsed.hostname)) {
     return null;
   }
   // Match `/problems/<slug>` with optional trailing path segments such as
@@ -203,7 +145,7 @@ function detectCodeforcesProblem(
   location: DetectableLocation,
   parsed: URL,
 ): { readonly externalId: string } | null {
-  if (parsed.hostname !== "codeforces.com") return null;
+  if (!adapterOwnsHost("codeforces", parsed.hostname)) return null;
   const match = parsed.pathname.match(
     /^\/problemset\/problem\/(\d+)\/([A-Za-z][A-Za-z0-9]*)\/?$/u,
   );
@@ -218,7 +160,7 @@ function detectAtCoderProblem(
   location: DetectableLocation,
   parsed: URL,
 ): { readonly externalId: string } | null {
-  if (parsed.hostname !== "atcoder.jp") return null;
+  if (!adapterOwnsHost("atcoder", parsed.hostname)) return null;
   const match = parsed.pathname.match(
     /^\/contests\/([^/]+)\/tasks\/([^/]+?)\/?$/u,
   );
@@ -234,15 +176,19 @@ function tryDetectNowCoderProblem(
   // Reject other NowCoder pages (login, registration, contest home, company
   // home) so we never fabricate an externalId from an unrelated route. The
   // strict path check throws; catch it here so detectProblemFromLocation can
-  // return null instead of propagating the error to the caller.
+  // return null instead of propagating the error to the caller. Host
+  // ownership flows through the registry so a registry edit that drops a
+  // NowCoder host immediately disables detection for that subdomain.
   try {
-    if (parsed.hostname === "www.nowcoder.com") {
-      const id = readNowCoderSegment(parsed.pathname, "/practice/", "www.nowcoder.com");
-      return { externalId: `practice/${id}` };
-    }
-    if (parsed.hostname === "ac.nowcoder.com") {
-      const id = readNowCoderSegment(parsed.pathname, "/acm/problem/", "ac.nowcoder.com");
-      return { externalId: `acm/problem/${id}` };
+    if (adapterOwnsHost("nowcoder", parsed.hostname)) {
+      if (parsed.hostname === "www.nowcoder.com") {
+        const id = readNowCoderSegment(parsed.pathname, "/practice/", parsed.hostname);
+        return { externalId: `practice/${id}` };
+      }
+      if (parsed.hostname === "ac.nowcoder.com") {
+        const id = readNowCoderSegment(parsed.pathname, "/acm/problem/", parsed.hostname);
+        return { externalId: `acm/problem/${id}` };
+      }
     }
     return null;
   } catch (error) {
@@ -269,7 +215,7 @@ function detectLuoguProblem(
   location: DetectableLocation,
   parsed: URL,
 ): { readonly externalId: string } | null {
-  if (parsed.hostname !== "www.luogu.com.cn") return null;
+  if (!adapterOwnsHost("luogu", parsed.hostname)) return null;
   // Only `/problem/<id>` is a problem identity reachable from URL alone.
   // Record pages (`/record/<digits>`) require authenticated, sanitized DOM
   // with exactly one unique problem anchor and are therefore resolved only
@@ -325,7 +271,7 @@ export function detectProblemFromPage(
   // First-party AtCoder page identity: https, exact host, no credentials,
   // default port. Submission pages resolve via the unique on-page task
   // anchor; task URLs fall through to URL-only detection below.
-  if (parsed.hostname === "atcoder.jp") {
+  if (adapterOwnsHost("atcoder", parsed.hostname)) {
     const contest = matchAtCoderSubmissionPath(parsed.pathname);
     if (contest !== null) {
       return detectProblemFromAtCoderSubmissionPage(contest, pageDocument);
@@ -411,7 +357,7 @@ function detectProblemFromAtCoderSubmissionPage(
 
 function isExactAtCoderFirstPartyOrigin(parsed: URL): boolean {
   return parsed.protocol === "https:"
-    && parsed.hostname === "atcoder.jp"
+    && adapterOwnsHost("atcoder", parsed.hostname)
     && parsed.username === ""
     && parsed.password === ""
     && parsed.port === ""
@@ -539,6 +485,10 @@ function detectProblemFromDomesticSubmissionPage(
   pageDocument: Document,
 ): DetectedProblem | null {
   for (const route of DOMESTIC_ROUTES) {
+    // Gate by registry metadata: a registry edit that removes the
+    // platform or its host must drop the corresponding DOMESTIC_ROUTE
+    // even though its host constant stays as a narrower route-shape key.
+    if (!adapterOwnsHost(route.platform, route.host)) continue;
     if (parsed.hostname !== route.host) continue;
     if (parsed.protocol !== "https:") continue;
     if (parsed.username !== "" || parsed.password !== "" || parsed.port !== "") continue;
@@ -584,27 +534,6 @@ function safeAnchorTitle(anchor: Element): string | null {
   if (/[\x00-\x1f\x7f]/.test(normalized)) return null;
 
   return normalized;
-}
-
-function isElementHidden(element: Element): boolean {
-  const view = element.ownerDocument.defaultView;
-  let current: Element | null = element;
-  while (current !== null) {
-    if (current.hasAttribute("hidden")) return true;
-    if (current.getAttribute("aria-hidden")?.trim().toLowerCase() === "true") return true;
-
-    const inlineStyle = current.getAttribute("style") ?? "";
-    if (/(?:^|;)\s*display\s*:\s*none\s*(?:;|$)/iu.test(inlineStyle)) return true;
-    if (/(?:^|;)\s*visibility\s*:\s*(?:hidden|collapse)\s*(?:;|$)/iu.test(inlineStyle)) return true;
-
-    if (view !== null) {
-      const computed = view.getComputedStyle(current);
-      if (computed.display === "none") return true;
-      if (computed.visibility === "hidden" || computed.visibility === "collapse") return true;
-    }
-    current = current.parentElement;
-  }
-  return false;
 }
 
 function resolveDomesticRoute(
@@ -764,19 +693,21 @@ function problemIdentityKeyFor(problem: DetectedProblem): string {
 
 function isExactResultRouteForPlatform(platform: Platform, parsed: URL): boolean {
   if (platform === "atcoder") {
-    return /^\/contests\/[^/]+\/submissions\/\d+\/?$/u.test(parsed.pathname);
+    return adapterOwnsHost("atcoder", parsed.hostname)
+      && /^\/contests\/[^/]+\/submissions\/\d+\/?$/u.test(parsed.pathname);
   }
   if (platform === "leetcode" && isLeetCodeProblemSubmissionResultRoute(parsed)) {
     return true;
   }
   const domestic = DOMESTIC_ROUTES.find((route) => route.platform === platform);
   return domestic !== undefined
+    && adapterOwnsHost(domestic.platform, domestic.host)
     && parsed.hostname === domestic.host
     && domestic.matchUrl(parsed);
 }
 
 function isLeetCodeProblemSubmissionResultRoute(parsed: URL): boolean {
-  if (parsed.hostname !== "leetcode.com" && parsed.hostname !== "leetcode.cn") {
+  if (!adapterOwnsHost("leetcode", parsed.hostname)) {
     return false;
   }
   if (parsed.search !== "" || parsed.hash !== "") return false;
@@ -785,7 +716,7 @@ function isLeetCodeProblemSubmissionResultRoute(parsed: URL): boolean {
 }
 
 function isLeetCodeProblemRootRoute(parsed: URL): boolean {
-  if (parsed.hostname !== "leetcode.com" && parsed.hostname !== "leetcode.cn") {
+  if (!adapterOwnsHost("leetcode", parsed.hostname)) {
     return false;
   }
   if (parsed.search !== "" || parsed.hash !== "") return false;
@@ -804,7 +735,7 @@ export function detectVerdictFromDocument(platform: Platform, pageDocument: Docu
 }
 
 function candidateTextForPlatform(platform: Platform, pageDocument: Document): string {
-  const adapter = PLATFORM_ADAPTERS[platform];
+  const adapter: PlatformAdapterRecord = PLATFORM_ADAPTERS[platform];
   if (adapter.extractor !== undefined) {
     // Per-platform semantic extractor. Never falls back to the body; returns
     // an empty string when no evidence-backed candidate is found.
@@ -820,102 +751,11 @@ function textFromSelectors(pageDocument: Document, selectors: readonly string[])
     .join("\n");
 }
 
-/**
- * Extract a LeetCode verdict from its two observed first-party locators.
- *
- * The current result UI renders the same verdict in two visible panes. Joining
- * both strings would produce "TLE\nTLE", which is not a verdict token. Collapse
- * identical values instead. If two visible panes disagree, return no evidence
- * rather than guessing which pane is authoritative.
- */
-function extractLeetCodeVerdictText(pageDocument: Document): string {
-  const selectors = [
-    '[data-e2e-locator="submission-result"]',
-    '[data-e2e-locator="console-result"]',
-  ] as const;
-  const locatorTexts = new Set<string>();
-  for (const selector of selectors) {
-    for (const element of Array.from(pageDocument.querySelectorAll(selector))) {
-      if (isElementHidden(element)) continue;
-      const text = (element.textContent ?? "").trim();
-      if (text !== "") locatorTexts.add(text);
-    }
-  }
-  if (locatorTexts.size > 0) return singleUniqueText(locatorTexts);
-
-  // The restored problem URL has no verdict locator; its selected
-  // submission-detail tab is the fallback evidence surface. That tab briefly
-  // renders generic chrome such as "Submission details" before the verdict.
-  // Unlike a first-party verdict locator, an unknown detail-tab label is not
-  // enough to prove a final failure, so wait for a recognized final verdict.
-  return extractLeetCodeDetailVerdictText(pageDocument);
-}
-
-function extractLeetCodeDetailVerdictText(pageDocument: Document): string {
-  const detailTabs = pageDocument.querySelectorAll("#submission-detail_tab");
-  if (detailTabs.length !== 1) return "";
-  const detailTab = detailTabs.item(0);
-  if (isElementHidden(detailTab)) return "";
-  const selectedTab = detailTab.closest(".flexlayout__tab_button--selected");
-  if (selectedTab === null || isElementHidden(selectedTab)) return "";
-  if (detailTab.closest("#submission-detail_tabbar_outer") === null) return "";
-
-  const detailTexts = new Set<string>();
-  collectVisibleLeafTexts(detailTab, detailTexts);
-  const detailText = singleUniqueText(detailTexts);
-  if (detailText === "") return "";
-  const normalized = normalizeTrustedVerdictText(detailText);
-  return normalized === null || normalized === "Other Failure" ? "" : detailText;
-}
-
-function singleUniqueText(texts: ReadonlySet<string>): string {
-  if (texts.size !== 1) return "";
-  const first = texts.values().next();
-  return first.done === true ? "" : first.value;
-}
-
-function collectVisibleLeafTexts(root: Element, output: Set<string>): void {
-  for (const element of [root, ...Array.from(root.querySelectorAll("*"))]) {
-    if (isElementHidden(element)) continue;
-    const hasTextChild = Array.from(element.children).some(
-      (child) => (child.textContent ?? "").trim() !== "",
-    );
-    if (hasTextChild) continue;
-    const text = (element.textContent ?? "").trim();
-    if (text !== "") output.add(text);
-  }
-}
-
-/**
- * Luogu record verdict extractor.
- *
- * Locates every leaf whose trimmed textContent is exactly the label
- * 评测状态, then reads the enclosing row's full text. The leaf must be a
- * genuine text node (no children) so comment boilerplate or arbitrary
- * heading copy cannot satisfy the matcher. We collect ALL qualifying
- * rows so a multi-row verdict table is handled honestly:
- *
- *   • Zero rows                  → empty string → `null` verdict.
- *   • One row                    → use that row text.
- *   • Multiple rows, all identical → collapse and use the single row text.
- *   • Multiple rows, conflicting → empty string → `null` verdict
- *     (we never silently pick one of two divergent rows).
- */
-function extractLuoguRecordRowText(pageDocument: Document): string {
-  const candidates = Array.from(pageDocument.querySelectorAll("span, em, b, i, p, div, td, th, li"))
-    .filter((el) => el.children.length === 0);
-  const uniqueRowTexts = new Set<string>();
-  for (const candidate of candidates) {
-    const text = (candidate.textContent ?? "").trim();
-    if (text !== "评测状态") continue;
-    const row = candidate.closest("div, tr, li, section");
-    if (row === null) continue;
-    const rowText = (row.textContent ?? "").trim();
-    if (rowText === "") continue;
-    uniqueRowTexts.add(rowText);
-  }
-  // Collapse identical rows. Conflicting rows yield no candidate text.
-  if (uniqueRowTexts.size !== 1) return "";
-  const first = uniqueRowTexts.values().next();
-  return first.done === true ? "" : first.value;
-}
+// LeetCode verdict extraction (`extractLeetCodeVerdictText` and
+// `extractLeetCodeDetailVerdictText`) and the Luogu record verdict extractor
+// (`extractLuoguRecordRowText`) now live in
+// `extension/src/adapters/leetcode/verdict.ts` and
+// `extension/src/adapters/luogu/verdict.ts`. The shared visibility helper
+// (`isElementHidden`) lives in `extension/src/adapters/dom.ts`. The page
+// detection logic above continues to call `extractLeetCodeDetailVerdictText`
+// from the new module location.
