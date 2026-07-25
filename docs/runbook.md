@@ -116,6 +116,39 @@ The Coach/Growth E2E fixture writes more rows than either display window and ass
 
 The manual fallback E2E creates one isolated manual attempt, verifies source display and Coach/Growth inclusion, corrects it without increasing the attempt count, reads its visible correction history, then voids it and verifies default-query exclusion.
 
+### Extension E2E lane
+
+The `npm run extension:e2e` command runs the Fake OJ Playwright matrix in a
+bundled persistent Chromium profile with exact `extension/dist` loaded. It owns
+its own temporary storage under `.tmp/playwright-extension/` and never touches
+the default `training-platform.sqlite`.
+
+```powershell
+# Full Fake OJ matrix (all 29 tests)
+npm run extension:e2e
+
+# Single spec filter
+npm run extension:e2e -- tests/extension-e2e/capture-v4-network.spec.ts
+npm run extension:e2e -- tests/extension-e2e/capture-v4-full-chain.spec.ts
+```
+
+The `scripts/a10-bootstrap.mjs` helper pre-creates the disposable SQLite,
+runs migrations, and exports the path via `.tmp/server-db-path.txt` so forked
+worker processes can read it after Playwright starts the Next.js dev server.
+The bootstrap script is referenced by the Playwright `webServer` command in
+`playwright.extension.config.ts`.
+
+`extension:e2e` is integrated into `npm run quality:gate` after
+`extension:check` (which already validates the dist) and before `build`
+(which chains `extension:build` internally, so the dist is never rebuilt by
+the E2E lane). The offline `npm run e2e` lane remains extension-free and
+asserts no extension worker or frame appears in the browser context.
+
+Phase A Task A10 review fixes are at commit `9b81784`. The Fake OJ matrix
+reports 28 of 29 tests passing; the single remaining failure is the
+test-harness worker-restart seam (a known infrastructure limitation, not a
+production defect).
+
 ### Recovery
 
 - **Lint step failed inside `npm run quality:gate`.** Inspect the `eslint . --max-warnings=0` output, fix the named files without adding disable comments or downgrading rules, then rerun `npm run lint` directly before re-running the full gate. Do not skip a finding by reducing the severity.

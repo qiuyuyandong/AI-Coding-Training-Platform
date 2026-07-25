@@ -20,12 +20,13 @@ const EXPECTED_STAGE_SCRIPT_NAMES = [
   "typecheck",
   "e2e",
   "extension:check",
+  "extension:e2e",
   "build",
 ];
 
 describe("scripts/quality-gate.mjs", () => {
   describe("QUALITY_GATE_STAGES", () => {
-    it("declares the canonical eight-stage order for the V0 quality gate", () => {
+    it("declares the canonical nine-stage order for the V0 quality gate", () => {
       const scriptNames = QUALITY_GATE_STAGES.map((args) => args[1]);
       expect(scriptNames).toEqual(EXPECTED_STAGE_SCRIPT_NAMES);
     });

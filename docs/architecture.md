@@ -151,10 +151,19 @@ remaining failure is the test-harness worker-restart seam (a known
 infrastructure limitation, not a production defect; the module
 docblock in `capture-v4-network.spec.ts` honestly documents this).
 `extension/src/mainWorldRelay.ts` was hardened with a recursive
-forbidden-key gate as part of A9 closeout. Phase A closeout at A9
-deliberately defers A10 (real extension → SQLite chain) and A11/A12
-(quality gate integration / independent review) to a fresh user
-authorization.
+forbidden-key gate as part of A9 closeout.
+
+Task A10 adds `tests/extension-e2e/capture-v4-full-chain.spec.ts`, a
+smoke test that exercises the real extension → API → SQLite chain through
+the Next.js dev server. Task A11 integrates `npm run extension:e2e` into the
+canonical nine-stage `quality:gate` (after `extension:check` and before
+`build`), giving each E2E lane its own temporary storage lifecycle:
+`.tmp/playwright/` for the offline lane and `.tmp/playwright-extension/`
+for the extension lane. The `scripts/a10-bootstrap.mjs` helper creates
+the extension lane's disposable SQLite, runs migrations, and exports the
+path to `.tmp/server-db-path.txt` so forked Playwright workers can read it.
+Phase A closeout deliberately defers A12 (independent review) to a fresh
+user authorization.
 
 
 The service worker stores the long-lived credential in Chrome local storage;
