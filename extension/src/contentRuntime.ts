@@ -1,9 +1,9 @@
 import type { DetectedProblem } from "./platforms";
 import {
   type AttemptCaptureRuntimeMessage,
-  type SubmissionIntentDraft,
   problemIdentityKey,
 } from "./attemptCapture";
+import type { UiHintMessage } from "./uiHint";
 
 export type CaptureContentRuntimeDependencies = {
   readonly detectProblem: () => DetectedProblem | null;
@@ -15,8 +15,6 @@ export type CaptureContentRuntimeDependencies = {
     detected: DetectedProblem,
   ) => boolean;
   readonly now: () => string;
-  readonly createSessionId: () => string;
-  readonly createSubmissionIntentId: () => string;
   readonly activeDocumentId?: string;
 };
 
@@ -24,15 +22,13 @@ export type CaptureContentRuntime = {
   readonly start: () => readonly AttemptCaptureRuntimeMessage[];
   readonly locationObserved: () => readonly AttemptCaptureRuntimeMessage[];
   readonly documentMutated: () => readonly AttemptCaptureRuntimeMessage[];
-  readonly submissionObserved: () => readonly AttemptCaptureRuntimeMessage[];
+  readonly uiHintObserved: () => readonly UiHintMessage[];
   readonly pageHidden: () => readonly AttemptCaptureRuntimeMessage[];
   readonly pageShown: () => readonly AttemptCaptureRuntimeMessage[];
-  readonly currentBaselineVerdict: () => string | undefined;
 };
 
 type RuntimeState = {
   readonly detected: DetectedProblem | null;
-  readonly baselineVerdict?: string;
   // The verdict span most recently observed by `detectVerdict`. `null`
   // records an explicit Waiting/Judging/null phase (transition evidence).
   readonly lastVerdictSnapshot?:
@@ -41,10 +37,6 @@ type RuntimeState = {
   // Used to recognize a real transition when the document identity flips.
   readonly lastExactResultActive?: boolean;
   readonly lastExactResultVerdict?: string;
-  // Local causality witness retained across same-document SPA navigation.
-  // A fresh document cannot inherit this value and therefore still relies on
-  // the background worker's stored intent + Chrome document identity checks.
-  readonly awaitingProblemKey?: string;
 };
 
 /**
@@ -55,13 +47,11 @@ type RuntimeState = {
  *   * Page open/close, route changes, editor interactions, debug runs, and
  *     direct opens of historical result pages do not emit any server-bound
  *     message.
- *   * Only an exact submit click writes one intent message; only a fresh
- *     final verdict (distinct text, explicit null phase, or navigation to
- *     an exact result document) observed after that intent emits one
- *     verdict-candidate message.
- *   * The background worker is the only place that may construct a
- *     `PendingSubmissionIntent` with `sender.documentId`; this runtime
- *     never fakes document identity.
+ *   * A qualifying click emits only an E0 UI hint. It cannot create waiting
+ *     state, a pending submission, a bundle, or server traffic.
+ *   * Visible final verdict candidates remain passive detector output for
+ *     compatibility, but Phase 0 has no path that can pair them with a new
+ *     submission intent.
  */
 export function createCaptureContentRuntime(
   dependencies: CaptureContentRuntimeDependencies,
@@ -88,33 +78,19 @@ export function createCaptureContentRuntime(
     };
   }
 
-  function recordSubmissionIntent(): readonly AttemptCaptureRuntimeMessage[] {
+  function recordUiHint(): readonly UiHintMessage[] {
     const detected = state.detected;
     if (detected === null) return [];
-    const snapshot = currentVerdictSnapshot();
-    const baseline = snapshot?.verdict ?? undefined;
-    const intent: SubmissionIntentDraft = {
-      installationId: "runtime",
-      platform: detected.platform,
-      problemExternalId: detected.problemExternalId,
-      problemTitle: detected.problemTitle,
-      canonicalUrl: detected.canonicalUrl,
-      captureSessionId: dependencies.createSessionId(),
-      submissionId: dependencies.createSubmissionIntentId(),
-      occurredAt: dependencies.now(),
-      ...(baseline === undefined ? {} : { baselineVerdict: baseline }),
-    };
-    state = {
-      ...state,
-      baselineVerdict: baseline,
-      awaitingProblemKey: problemIdentityKey(detected),
-      lastVerdictSnapshot: snapshot === null
-        ? undefined
-        : { verdict: snapshot.verdict, observedAt: dependencies.now() },
-    };
     return [{
-      type: "SUBMISSION_INTENT_OBSERVED",
-      intent,
+      type: "UI_HINT_OBSERVED",
+      hint: {
+        schemaVersion: 1,
+        tier: "E0",
+        kind: "ui_hint",
+        platform: detected.platform,
+        problemExternalId: detected.problemExternalId,
+        observedAt: dependencies.now(),
+      },
     }];
   }
 
@@ -159,13 +135,11 @@ export function createCaptureContentRuntime(
     // remains responsible for proving intent, identity, time, and document
     // continuity before constructing a bundle.
     if (exactResult === true && state.lastExactResultActive !== true) {
-      const hasLocalSubmitCausality = state.awaitingProblemKey === problemIdentityKey(detected);
       state = {
         ...state,
         lastExactResultActive: true,
         lastExactResultVerdict: snapshot.verdict,
         lastVerdictSnapshot: { verdict: snapshot.verdict, observedAt: dependencies.now() },
-        awaitingProblemKey: undefined,
       };
       return [{
         type: "VERDICT_CANDIDATE_OBSERVED",
@@ -175,9 +149,7 @@ export function createCaptureContentRuntime(
           problemExternalId: detected.problemExternalId,
           verdict: snapshot.verdict,
           observedAt: dependencies.now(),
-          transitionEvidence: hasLocalSubmitCausality
-            ? "same_document_transition"
-            : "exact_result_document",
+          transitionEvidence: "exact_result_document",
           ...(snapshot.sourceDocumentId === undefined && dependencies.activeDocumentId === undefined
             ? {}
             : { sourceDocumentId: snapshot.sourceDocumentId ?? dependencies.activeDocumentId ?? "" }),
@@ -188,13 +160,11 @@ export function createCaptureContentRuntime(
     if (exactResult === true
       && state.lastExactResultVerdict !== snapshot.verdict
       && state.lastVerdictSnapshot?.verdict === null) {
-      const hasLocalSubmitCausality = state.awaitingProblemKey === problemIdentityKey(detected);
       state = {
         ...state,
         lastExactResultActive: true,
         lastExactResultVerdict: snapshot.verdict,
         lastVerdictSnapshot: { verdict: snapshot.verdict, observedAt: dependencies.now() },
-        awaitingProblemKey: undefined,
       };
       return [{
         type: "VERDICT_CANDIDATE_OBSERVED",
@@ -204,9 +174,7 @@ export function createCaptureContentRuntime(
           problemExternalId: detected.problemExternalId,
           verdict: snapshot.verdict,
           observedAt: dependencies.now(),
-          transitionEvidence: hasLocalSubmitCausality
-            ? "same_document_transition"
-            : "exact_result_document",
+          transitionEvidence: "exact_result_document",
           ...(snapshot.sourceDocumentId === undefined && dependencies.activeDocumentId === undefined
             ? {}
             : { sourceDocumentId: snapshot.sourceDocumentId ?? dependencies.activeDocumentId ?? "" }),
@@ -247,7 +215,6 @@ export function createCaptureContentRuntime(
     state = {
       ...state,
       lastVerdictSnapshot: { verdict: snapshot.verdict, observedAt: dependencies.now() },
-      awaitingProblemKey: undefined,
     };
     return [{
       type: "VERDICT_CANDIDATE_OBSERVED",
@@ -272,19 +239,11 @@ export function createCaptureContentRuntime(
       return evaluateVerdictCandidate();
     },
     locationObserved: () => {
-      const awaitingProblemKey = state.awaitingProblemKey;
       observeDetectedProblem();
       clearVerdictTransitions();
-      const samePendingProblem = state.detected !== null
-        && awaitingProblemKey === problemIdentityKey(state.detected);
       state = {
         ...state,
-        awaitingProblemKey: samePendingProblem ? awaitingProblemKey : undefined,
-        // A same-problem route change after a local submit is real transition
-        // evidence even when the OJ keeps the same Chrome document alive.
-        lastVerdictSnapshot: samePendingProblem
-          ? { verdict: null, observedAt: dependencies.now() }
-          : undefined,
+        lastVerdictSnapshot: undefined,
       };
       return evaluateVerdictCandidate();
     },
@@ -292,7 +251,7 @@ export function createCaptureContentRuntime(
       observeDetectedProblem();
       return evaluateVerdictCandidate();
     },
-    submissionObserved: () => recordSubmissionIntent(),
+    uiHintObserved: () => recordUiHint(),
     pageHidden: () => {
       clearVerdictTransitions();
       state = { ...state, lastVerdictSnapshot: undefined };
@@ -304,6 +263,5 @@ export function createCaptureContentRuntime(
       state = { ...state, lastVerdictSnapshot: undefined };
       return evaluateVerdictCandidate();
     },
-    currentBaselineVerdict: () => state.baselineVerdict,
   };
 }

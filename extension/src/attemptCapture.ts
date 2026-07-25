@@ -20,11 +20,6 @@ export type PendingSubmissionIntent = SubmissionIntentDraft & {
   readonly status: "active" | "superseded" | "expired";
 };
 
-export type SubmissionIntentMessage = {
-  readonly type: "SUBMISSION_INTENT_OBSERVED";
-  readonly intent: SubmissionIntentDraft;
-};
-
 export type VerdictTransitionEvidence =
   | "same_document_transition"
   | "exact_result_document";
@@ -41,26 +36,6 @@ export type VerdictCandidateMessage = {
     readonly sourceDocumentId?: string;
   };
 };
-
-/**
- * Type guard for content-runtime intent messages.
- */
-export function isSubmissionIntentMessage(value: unknown): value is SubmissionIntentMessage {
-  if (typeof value !== "object" || value === null) return false;
-  if (!("type" in value) || value.type !== "SUBMISSION_INTENT_OBSERVED") return false;
-  if (!("intent" in value) || typeof value.intent !== "object" || value.intent === null) {
-    return false;
-  }
-  const intent = value.intent;
-  return hasString(intent, "installationId")
-    && hasPlatform(intent, "platform")
-    && hasString(intent, "problemExternalId")
-    && hasString(intent, "problemTitle")
-    && hasString(intent, "canonicalUrl")
-    && hasString(intent, "captureSessionId")
-    && hasString(intent, "submissionId")
-    && hasString(intent, "occurredAt");
-}
 
 export function isVerdictCandidateMessage(value: unknown): value is VerdictCandidateMessage {
   if (typeof value !== "object" || value === null) return false;
@@ -101,9 +76,7 @@ export type AttemptCaptureRuntimeInputs = {
   readonly detectedVerdict: DetectedVerdictSnapshot;
 };
 
-export type AttemptCaptureRuntimeMessage =
-  | SubmissionIntentMessage
-  | VerdictCandidateMessage;
+export type AttemptCaptureRuntimeMessage = VerdictCandidateMessage;
 
 export type AttemptCaptureRuntimeResult = {
   readonly messages: readonly AttemptCaptureRuntimeMessage[];

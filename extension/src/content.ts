@@ -8,11 +8,11 @@ import {
   detectVerdictFromDocument,
   isExactSubmissionResultPage,
 } from "@/extension/src/platforms";
+import { isVerdictCandidateMessage } from "@/extension/src/attemptCapture";
 import {
-  isSubmissionIntentMessage,
-  isVerdictCandidateMessage,
-} from "@/extension/src/attemptCapture";
-import { isExactSubmitControl } from "@/extension/src/submissionControl";
+  isEligibleUiHint,
+  isUiHintMessage,
+} from "@/extension/src/uiHint";
 import {
   createExtensionContextGuard,
   isExtensionContextInvalidatedError,
@@ -22,7 +22,7 @@ import {
 const NAVIGATION_POLL_MS = 500;
 
 void run().catch((error: unknown) => {
-  reportContentRuntimeError("[capture-v3] content runtime failed", error);
+  reportContentRuntimeError("[capture-v4] content runtime failed", error);
 });
 
 async function run(): Promise<void> {
@@ -45,8 +45,6 @@ async function run(): Promise<void> {
     exactResultPage: (detected) =>
       isExactSubmissionResultPage(window.location, document, detected),
     now: () => new Date().toISOString(),
-    createSessionId: () => createCaptureId("session"),
-    createSubmissionIntentId: () => createCaptureId("submission"),
     activeDocumentId: getActiveDocumentId(),
   });
 
@@ -54,7 +52,7 @@ async function run(): Promise<void> {
   let pollId: number | undefined;
   let observer: MutationObserver | undefined;
   const contextGuard = createExtensionContextGuard((error) => {
-    console.error("[capture-v3] content callback failed", error);
+    console.error("[capture-v4] content callback failed", error);
   });
 
   function observeLocation(): boolean {
@@ -117,16 +115,16 @@ async function run(): Promise<void> {
     contextGuard.run(() => {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      // Strict submit gate: page must resolve to a supported problem page AND
-      // the click target must resolve to an exact platform-allowed submit
-      // control. Substring matches (登录并提交, 提交记录, Submit Solution Now)
-      // are silently rejected. The runtime records one intent message per
-      // qualifying click; subsequent clicks supersede previous intents at the
-      // background layer.
+      // A click is only a bounded diagnostic hint. Waiting state requires
+      // server-confirmed evidence in a later V4 phase.
       const detected = detectProblemFromPage(window.location, document);
       if (detected === null) return;
-      if (!isExactSubmitControl(detected.platform, target)) return;
-      forwardMessages(runtime.submissionObserved());
+      if (!isEligibleUiHint({
+        isTrusted: event.isTrusted,
+        platform: detected.platform,
+        target,
+      })) return;
+      forwardMessages(runtime.uiHintObserved());
     });
   });
   window.addEventListener("popstate", () => {
@@ -164,14 +162,14 @@ async function run(): Promise<void> {
 function forwardMessages(messages: readonly unknown[]): void {
   for (const message of messages) {
     if (
-      isSubmissionIntentMessage(message) ||
+      isUiHintMessage(message) ||
       isVerdictCandidateMessage(message)
     ) {
       void settleExtensionOperation(
         () => chrome.runtime.sendMessage(message),
         (error) =>
           reportContentRuntimeError(
-            "[capture-v3] runtime message was not delivered",
+            "[capture-v4] runtime message was not delivered",
             error,
           ),
       );
@@ -189,11 +187,4 @@ function getActiveDocumentId(): string | undefined {
   // background worker. The runtime treats this as trusted, but the content
   // script never reads or recomputes it from page-script data.
   return undefined;
-}
-
-function createCaptureId(kind: "session" | "submission"): string {
-  if (typeof crypto.randomUUID === "function") {
-    return `${kind}_${crypto.randomUUID()}`;
-  }
-  return `${kind}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
