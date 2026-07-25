@@ -17,6 +17,7 @@
     "extension:test": "vitest run --config vitest.extension.config.ts",
     "extension:build": "node extension/build.mjs",
     "extension:check": "npm run typecheck && npm run extension:test && npm run extension:build && node scripts/check-extension-dist.mjs",
+    "extension:e2e": "npm run extension:build && node scripts/check-extension-dist.mjs && playwright test --config playwright.extension.config.ts",
     "curriculum:validate": "node --import tsx scripts/validate-curriculum.mjs",
     "curriculum:check-links": "node --import tsx scripts/check-curriculum-links.mjs",
     "quality:gate": "node scripts/quality-gate.mjs"
