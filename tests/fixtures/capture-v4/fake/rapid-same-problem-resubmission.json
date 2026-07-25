@@ -1,0 +1,14 @@
+{
+  "scenario": "rapid-same-problem-resubmission",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 },
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Rapid resubmission: two consecutive POST requests for the same problem. The orchestrator must record two E1 lifecycles and reject any attempt to merge them under one requestId.",
+  "forbiddenFields": []
+}

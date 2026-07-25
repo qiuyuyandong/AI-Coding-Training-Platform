@@ -1,0 +1,13 @@
+{
+  "scenario": "judging-then-final",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Judging-then-final: the submit response reports status=judging and the Fake OJ later delivers the final verdict through V4_E3_RECORDED. The scenario exercises the E1 → E2 → E3 chronological chain.",
+  "forbiddenFields": []
+}

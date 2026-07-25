@@ -1,0 +1,14 @@
+{
+  "scenario": "two-concurrent-submissions",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 },
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Two concurrent submissions: two fetch() calls in parallel from the same page. The orchestrator must observe two distinct E1 lifecycles and treat them as concurrent pending.",
+  "forbiddenFields": []
+}

@@ -1,0 +1,13 @@
+{
+  "scenario": "spa-result-url",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "SPA result URL: the page issues a real fetch and then performs history.pushState to the SPA result path. The orchestrator only sees the original POST; the SPA navigation is page-internal.",
+  "forbiddenFields": []
+}

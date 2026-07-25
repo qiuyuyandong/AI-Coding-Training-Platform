@@ -1,0 +1,13 @@
+{
+  "scenario": "browser-restart-after-e1-and-after-e2",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Browser restart: a fresh BrowserContext reuses the same persistent profile. Local storage values survive; session storage (transient E1) is reset by Chrome.",
+  "forbiddenFields": []
+}

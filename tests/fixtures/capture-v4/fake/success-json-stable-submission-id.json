@@ -1,0 +1,13 @@
+{
+  "scenario": "success-json-stable-submission-id",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Default happy path: 200 JSON with stable submission id, no redirect, no nested objects. Every field belongs to the A1 safe envelope.",
+  "forbiddenFields": []
+}

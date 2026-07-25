@@ -1,0 +1,13 @@
+{
+  "scenario": "immediate-final",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Immediate final: the same response carries the final verdict. The orchestrator must observe the E1 immediately followed by E2 (bridge) and E3 (verdict).",
+  "forbiddenFields": []
+}

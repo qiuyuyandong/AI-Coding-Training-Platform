@@ -1,0 +1,13 @@
+{
+  "scenario": "direct-historical-result-page",
+  "platform": "nowcoder",
+  "method": "GET",
+  "endpointKey": "result",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/result", "method": "GET", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Direct historical result: the user opens a result page directly with no preceding submit. The orchestrator must observe the E1 but create no confirmed submission or bundle.",
+  "forbiddenFields": []
+}

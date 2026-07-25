@@ -1,0 +1,13 @@
+{
+  "scenario": "forged-bridge-summary",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Forged bridge summary: the page posts a V4_MAIN_BRIDGE_SUMMARY whose payload contains forbidden fields (body, headers). The bridge validator must reject the payload before any state change.",
+  "forbiddenFields": ["body", "headers", "code", "token", "username", "account"]
+}

@@ -1,0 +1,14 @@
+{
+  "scenario": "one-summary-multiple-e1-candidates",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 },
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Multiple E1 candidates: two POST requests share the same identity window as one bridge summary. The correlator must return AMBIGUOUS instead of guessing.",
+  "forbiddenFields": []
+}

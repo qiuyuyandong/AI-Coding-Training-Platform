@@ -1,0 +1,13 @@
+{
+  "scenario": "cancellation-network-error",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 0 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Cancellation: the page aborts the fetch before completion. The orchestrator must observe an error_occurred lifecycle and never create a confirmed submission.",
+  "forbiddenFields": []
+}

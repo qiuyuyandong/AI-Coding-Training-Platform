@@ -1,0 +1,13 @@
+{
+  "scenario": "duplicate-verdict",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Duplicate verdict: the same final verdict is delivered twice through V4_E3_RECORDED. The orchestrator must reject the duplicate E3.",
+  "forbiddenFields": []
+}

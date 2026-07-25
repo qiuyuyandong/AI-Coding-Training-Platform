@@ -1,0 +1,14 @@
+{
+  "scenario": "duplicate-submission-id",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 },
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Duplicate submission id: both submissions report externalSubmissionId=duplicate-42. The orchestrator must dedupe on platform:externalSubmissionId and never create a second confirmed submission.",
+  "forbiddenFields": []
+}

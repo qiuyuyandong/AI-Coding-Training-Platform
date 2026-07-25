@@ -1,0 +1,13 @@
+{
+  "scenario": "http-200-business-rejection",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Business rejection: transport succeeds with HTTP 200 but the body reports a rejected business state. The orchestrator must not create waiting or a bundle from this scenario.",
+  "forbiddenFields": []
+}

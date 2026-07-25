@@ -1,0 +1,13 @@
+{
+  "scenario": "http-4xx",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 400 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "HTTP 400: transport-level rejection. The orchestrator must record an E1 with a non-final lifecycle and never create a confirmed submission.",
+  "forbiddenFields": []
+}

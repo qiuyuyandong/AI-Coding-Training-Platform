@@ -1,0 +1,13 @@
+{
+  "scenario": "cross-tab-frame-document-result",
+  "platform": "nowcoder",
+  "method": "POST",
+  "endpointKey": "submit",
+  "redirectEndpointKey": null,
+  "expectedWebRequestCalls": [
+    { "url": "https://www.nowcoder.com/__capture_v4_fake_oj__/submit", "method": "POST", "statusCode": 200 }
+  ],
+  "safeEnvelopeOnly": true,
+  "notes": "Cross-tab/frame/document: the bridge summary carries a documentId that does not match the captured document. The relay must reject the summary by the documentId gate.",
+  "forbiddenFields": []
+}
