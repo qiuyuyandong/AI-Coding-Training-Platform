@@ -1,54 +1,53 @@
 /**
  * Phase A Task A10 — Disposable SQLite database helpers.
  *
- * Provides lstatSync-based safe DB creation under a fresh mkdtempSync
- * directory, schema migration against the disposable file, count readers
- * for capture_events / training_sessions / training_attempts, default
- * database snapshot / verify utilities, and ordered teardown. All paths
- * are validated before use to prevent arbitrary file deletion.
+ * Provides relative-path-based safe DB creation under a fresh
+ * `mkdtempSync` directory, schema migration against the disposable file,
+ * count readers for `capture_events` / `training_sessions` /
+ * `training_attempts`, default database snapshot / verify utilities, and
+ * ordered teardown. All paths are validated against the workspace
+ * `.tmp/` boundary and the `capture-v4-full-chain-` prefix before any
+ * filesystem mutation.
  */
 
 import {
   existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   rmSync,
   unlinkSync,
 } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 
 import Database from "better-sqlite3";
 
 const WORKSPACE_ROOT = resolve(process.cwd());
-const ALLOWED_DB_PREFIX = "capture-v4-full-chain-";
-const ALLOWED_PROFILE_PREFIX = "playwright-extension";
+const TEMP_ROOT = resolve(WORKSPACE_ROOT, ".tmp");
+const DB_PREFIX = "capture-v4-full-chain-";
+const PROFILE_PREFIX = "playwright-extension";
+const DEFAULT_DB_BASENAME = "training-platform.sqlite";
+const DEFAULT_DB_PATH = resolve(WORKSPACE_ROOT, DEFAULT_DB_BASENAME);
 
 function isUnderWorkspace(target: string): boolean {
-  return resolve(WORKSPACE_ROOT, target).startsWith(WORKSPACE_ROOT);
+  if (!isAbsolute(target)) return false;
+  const rel = relative(WORKSPACE_ROOT, target);
+  return rel !== "" && rel !== ".." && !rel.startsWith(".." + sep) && !rel.startsWith("../") && !isAbsolute(rel);
 }
 
 function assertSafePath(target: string, name: string): void {
-  if (!isAbsolute(target)) throw new Error(`${name} must be an absolute path`);
+  if (!isAbsolute(target)) throw new Error(`${name} must be an absolute path: ${target}`);
   if (!isUnderWorkspace(target)) throw new Error(`${name} must be under workspace: ${target}`);
 }
 
-export function createDisposableDirectory(prefix: string): {
-  readonly dirPath: string;
-  readonly dispose: () => void;
-} {
-  if (!prefix.startsWith(ALLOWED_DB_PREFIX) && !prefix.startsWith(ALLOWED_PROFILE_PREFIX)) {
-    throw new Error(`Refusing to create directory outside allowed prefix: ${prefix}`);
+function assertSafeDisposableDir(parent: string): void {
+  assertSafePath(parent, "disposable directory");
+  const name = basename(parent);
+  if (!name.startsWith(DB_PREFIX) && !name.startsWith(PROFILE_PREFIX)) {
+    throw new Error(`Disposable directory must start with ${DB_PREFIX} or ${PROFILE_PREFIX}: ${name}`);
   }
-  const tempRoot = mkdtempSync(join(WORKSPACE_ROOT, ".tmp", `${prefix}`));
-  assertSafePath(tempRoot, "disposable directory");
-  return {
-    dirPath: tempRoot,
-    dispose: (): void => {
-      removePath(tempRoot);
-    },
-  };
 }
 
 function removePath(target: string): void {
@@ -62,12 +61,27 @@ function removePath(target: string): void {
   rmSync(target, { recursive: false });
 }
 
+export function createDisposableDirectory(): {
+  readonly dirPath: string;
+  readonly dispose: () => void;
+} {
+  mkdirSync(TEMP_ROOT, { recursive: true });
+  const tempRoot = mkdtempSync(join(TEMP_ROOT, DB_PREFIX));
+  assertSafeDisposableDir(tempRoot);
+  return {
+    dirPath: tempRoot,
+    dispose: (): void => {
+      removePath(tempRoot);
+    },
+  };
+}
+
 export function createDisposableDatabase(): {
   readonly dbPath: string;
   readonly dirPath: string;
 } {
-  const { dirPath } = createDisposableDirectory(ALLOWED_DB_PREFIX);
-  const dbPath = join(dirPath, "training-platform.sqlite");
+  const { dirPath } = createDisposableDirectory();
+  const dbPath = join(dirPath, DEFAULT_DB_BASENAME);
   assertSafePath(dbPath, "dbPath");
   return { dbPath, dirPath };
 }
@@ -129,8 +143,6 @@ export function readDatabaseCounts(dbPath: string): {
     db.close();
   }
 }
-
-const DEFAULT_DB_PATH = resolve(WORKSPACE_ROOT, "training-platform.sqlite");
 
 export type DefaultDbSnapshot = Readonly<{
   readonly exists: boolean;

@@ -1,11 +1,14 @@
 /**
  * Phase A Task A10 — Global setup for the extension E2E lane.
  *
- * Creates a fresh disposable database file under `.tmp/capture-v4-full-chain-*`,
- * runs migrations against it, sets `TRAINING_DB_PATH` so the Next.js dev
- * server spawned by Playwright's webServer config uses the disposable DB,
- * and persists the DB path so workers can read it in
- * `beforeEach`/`afterEach` for count assertions.
+ * Provisions a fresh disposable SQLite database under `.tmp/` and runs
+ * migrations against it. The path is persisted to
+ * `.tmp/server-db-path.txt` and to `process.env.TRAINING_DB_PATH` so
+ * worker processes can read it for count assertions in `afterEach`.
+ *
+ * This setup runs in the Playwright main process before any test; it
+ * is intentionally NOT a `webServer` lifecycle hook because the A10
+ * smoke test does not require the Next.js dev server.
  */
 
 import { writeFileSync } from "node:fs";
@@ -13,11 +16,11 @@ import { resolve } from "node:path";
 
 import { createDisposableDatabase, runMigrations } from "./database";
 
-const SERVER_DB_PATH_FILE = resolve(process.cwd(), ".tmp", "server-db-path.txt");
+const PATH_FILE = resolve(process.cwd(), ".tmp", "server-db-path.txt");
 
 export default async function globalSetup(): Promise<void> {
   const { dbPath } = createDisposableDatabase();
   runMigrations(dbPath);
+  writeFileSync(PATH_FILE, dbPath, "utf8");
   process.env.TRAINING_DB_PATH = dbPath;
-  writeFileSync(SERVER_DB_PATH_FILE, dbPath, "utf8");
 }
