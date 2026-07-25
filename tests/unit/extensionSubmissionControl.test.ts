@@ -6,6 +6,7 @@ import {
   resolveSubmitControl,
 } from "@/extension/src/submissionControl";
 import { detectProblemFromPage, type DetectableLocation } from "@/extension/src/platforms";
+import { isEligibleUiHint } from "@/extension/src/uiHint";
 
 function asLocation(url: string): DetectableLocation {
   const parsed = new URL(url);
@@ -254,6 +255,20 @@ describe("isExactSubmitControl (click-handler integration)", () => {
 
   it("returns false for null targets", () => {
     expect(isExactSubmitControl("leetcode", null)).toBe(false);
+  });
+
+  it("does not promote a broad NowCoder submit control into a V4 UI hint", () => {
+    document.body.innerHTML = '<button id="b">提交</button>';
+    const target = document.getElementById("b");
+    expect(target).not.toBeNull();
+    if (target !== null) {
+      expect(isExactSubmitControl("nowcoder", target)).toBe(true);
+      expect(isEligibleUiHint({
+        isTrusted: true,
+        platform: "nowcoder",
+        target,
+      })).toBe(false);
+    }
   });
 });
 

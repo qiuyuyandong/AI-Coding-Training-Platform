@@ -13,6 +13,7 @@ import {
   isAllowedSubmitLabel,
   isExactSubmitControl,
 } from "@/extension/src/submissionControl";
+import { isEligibleUiHint } from "@/extension/src/uiHint";
 import {
   isCertifyingEvidence,
   isNoncertifyingEvidence,
@@ -316,6 +317,11 @@ describe("submission controls: NowCoder 保存并提交 label", () => {
     if (btn !== null) {
       expect(isAllowedSubmitLabel("nowcoder", btn)).toBe(true);
       expect(isExactSubmitControl("nowcoder", btn)).toBe(true);
+      expect(isEligibleUiHint({
+        isTrusted: true,
+        platform: "nowcoder",
+        target: btn,
+      })).toBe(true);
     }
   });
 
