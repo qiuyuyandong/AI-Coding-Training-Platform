@@ -14,6 +14,7 @@ export type {
 } from "./protocol";
 
 import type { VerdictObservedEvent } from "./protocol";
+import type { SubmissionObservedAction } from "./protocol";
 import { classifyFinalCaptureVerdict } from "./verdictTaxonomy";
 
 export type AttemptUpdate = {
@@ -22,6 +23,17 @@ export type AttemptUpdate = {
   readonly language?: string;
   readonly endedAt: string;
 };
+
+/**
+ * Re-export the closed submission action enum for downstream consumers.
+ * `submit_clicked` is the historical V3 DOM-click inference; `submission_confirmed`
+ * is the V4 E2 correlator-driven confirmation. The enum is additive; legacy
+ * captures with `submit_clicked` continue to flow through this module.
+ */
+export type { SubmissionObservedAction } from "./protocol";
+export { SUBMISSION_OBSERVED_ACTIONS } from "./protocol";
+const _actionShape: SubmissionObservedAction = "submit_clicked";
+void _actionShape;
 
 export function verdictEventToAttemptUpdate(
   event: VerdictObservedEvent,

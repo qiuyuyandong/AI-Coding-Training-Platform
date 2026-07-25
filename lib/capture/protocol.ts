@@ -23,10 +23,24 @@ export const SessionStartedEventSchema = BaseCaptureEventSchema.extend({
   payload: z.object({ source: z.literal("content_script") }).strict(),
 }).strict();
 
+/**
+ * Closed action enum for `SUBMISSION_OBSERVED`. Historical V3 captures used
+ * `submit_clicked` (DOM click hint inferred from content script); V4 E2
+ * confirmed submissions use `submission_confirmed` (server-issued stable
+ * submission id matched by the correlator). The enum is additive: legacy
+ * payloads remain accepted; the reducer emits `submission_confirmed` only
+ * when the projection is driven by A1 E2 / correlator results.
+ */
+export const SUBMISSION_OBSERVED_ACTIONS = [
+  "submit_clicked",
+  "submission_confirmed",
+] as const;
+export type SubmissionObservedAction = typeof SUBMISSION_OBSERVED_ACTIONS[number];
+
 export const SubmissionObservedEventSchema = BaseCaptureEventSchema.extend({
   type: z.literal("SUBMISSION_OBSERVED"),
   submissionId: z.string().min(1),
-  payload: z.object({ action: z.literal("submit_clicked") }).strict(),
+  payload: z.object({ action: z.enum(SUBMISSION_OBSERVED_ACTIONS) }).strict(),
 }).strict();
 
 export const VerdictObservedEventSchema = BaseCaptureEventSchema.extend({

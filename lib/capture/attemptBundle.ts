@@ -49,6 +49,10 @@ export const CaptureAttemptBundleSchema = z.object({
       message: "Capture attempt bundle identity or chronology is inconsistent",
     });
   }
+  // The `submission_confirmed` action is reserved for V4 E2-driven bundles;
+  // V3 historical bundles retain `submit_clicked`. We intentionally do not
+  // require any specific action here so legacy bundles keep validating.
+  void submitted.payload.action;
 });
 
 export type CaptureAttemptBundle = z.infer<typeof CaptureAttemptBundleSchema>;
