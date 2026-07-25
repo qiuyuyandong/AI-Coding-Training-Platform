@@ -1,12 +1,14 @@
 import { settleExtensionOperation } from "./extensionOperation";
+import { readConfirmedSubmissions } from "./confirmedSubmission";
+import type { OrchestratorState } from "./backgroundOrchestrator";
 
 const DEFAULT_ENDPOINT = "http://localhost:3000/api/capture/events";
 const BUTTON_FEEDBACK_MS = 180;
 const POPUP_STORAGE_KEYS = [
-  "captureEnabled", "captureEndpoint", "pendingSubmissionIntents", "captureOutbox",
+  "captureEnabled", "captureEndpoint", "confirmedSubmissions", "captureOutbox",
   "captureQuarantine", "lastCaptureError", "lastSuccessfulCaptureAt",
   "lastDeliveredAttemptStatus", "captureCredential", "captureCredentialVersion",
-  "discardedPreBundleEventCount", "preBundleQueueDiscardedAt",
+  "v4ClickIntentMigration",
 ] as const;
 
 export type PopupPresentation = {
@@ -18,6 +20,7 @@ export type PopupPresentation = {
   readonly lastSyncText: string;
   readonly blockingReasonText: string;
   readonly migrationText: string;
+  readonly transitionText: string;
   readonly pairingStateText: string;
   readonly quarantineDetails: readonly string[];
 };
@@ -25,24 +28,31 @@ export type PopupPresentation = {
 export function presentPopupState(value: unknown): PopupPresentation {
   const captureEnabled = readField(value, "captureEnabled") !== false;
   const endpoint = readField(value, "captureEndpoint");
-  const intents = readArray(readField(value, "pendingSubmissionIntents"));
-  const activeIntents = intents.filter((intent) => readField(intent, "status") === "active");
+  const confirmedSubmissions = readConfirmedSubmissions(
+    readField(value, "confirmedSubmissions"),
+  );
   const outbox = readArray(readField(value, "captureOutbox"));
   const quarantine = readArray(readField(value, "captureQuarantine"));
   const error = readNonEmptyString(readField(value, "lastCaptureError"));
   const lastSync = readNonEmptyString(readField(value, "lastSuccessfulCaptureAt"));
-  const discarded = readNonnegativeInteger(readField(value, "discardedPreBundleEventCount"));
+  const migration = readField(value, "v4ClickIntentMigration");
+  const removedClickIntents = readNonnegativeInteger(
+    readField(migration, "removedActiveIntentCount"),
+  );
   const paired = typeof readField(value, "captureCredential") === "string";
   const credentialVersion = readPositiveInteger(readField(value, "captureCredentialVersion"));
   return {
     captureEnabled,
     endpoint: typeof endpoint === "string" ? endpoint : DEFAULT_ENDPOINT,
-    pendingText: `等待判题 ${activeIntents.length}`,
+    pendingText: `等待判题 ${confirmedSubmissions.length}`,
     outboxText: `待同步结果 ${outbox.length}`,
     quarantineText: `已隔离结果 ${quarantine.length}`,
     lastSyncText: lastSync === undefined ? "最近同步：暂无" : `最近同步：${lastSync}`,
     blockingReasonText: error === undefined ? "阻塞原因：无" : `阻塞原因：${localizeCaptureError(error)}`,
-    migrationText: discarded === 0 ? "未发现旧误采集记录" : `已清除旧误采集记录 ${discarded} 条`,
+    migrationText: removedClickIntents === 0
+      ? "未发现点击创建的等待记录"
+      : `已移除未经服务器确认的等待记录 ${removedClickIntents} 条`,
+    transitionText: "网络确认采集尚未启用",
     pairingStateText: error?.startsWith("Pairing required:") === true
       ? "配对需要处理"
       : paired ? pairingSuccessText(credentialVersion) : "未配对",
@@ -86,14 +96,70 @@ export function initializePopup(): void {
 }
 
 async function renderPopup(): Promise<void> {
+  const state = await fetchCaptureStateSnapshot();
+  if (state !== undefined) {
+    renderOrchestratorSnapshot(state);
+    return;
+  }
   const stored: unknown = await chrome.storage.local.get(POPUP_STORAGE_KEYS);
   const presentation = presentPopupState(stored);
+  renderLegacyPresentation(presentation, stored);
+}
+
+async function fetchCaptureStateSnapshot(): Promise<OrchestratorState | undefined> {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "GET_CAPTURE_STATE" });
+    if (isOrchestratorStateLike(response)) return response;
+  } catch {
+    // fall back to legacy renderer below
+  }
+  return undefined;
+}
+
+function isOrchestratorStateLike(value: unknown): value is OrchestratorState {
+  return typeof value === "object" && value !== null
+    && "waitingCount" in value && typeof Reflect.get(value, "waitingCount") === "number"
+    && "outboxCount" in value && typeof Reflect.get(value, "outboxCount") === "number"
+    && "quarantineCount" in value && typeof Reflect.get(value, "quarantineCount") === "number"
+    && "sessionCount" in value && typeof Reflect.get(value, "sessionCount") === "number"
+    && "finalizedCount" in value && typeof Reflect.get(value, "finalizedCount") === "number"
+    && "installationId" in value && typeof Reflect.get(value, "installationId") === "string";
+}
+
+export function renderOrchestratorSnapshot(state: OrchestratorState): void {
+  setText("#pendingState", `等待判题 ${state.waitingCount}`);
+  setText("#outboxState", `待同步结果 ${state.outboxCount}`);
+  setText("#quarantineState", `已隔离结果 ${state.quarantineCount}`);
+  setText("#lastDelivery", state.lastSuccessfulCaptureAt === undefined
+    ? "最近同步：暂无"
+    : `最近同步：${state.lastSuccessfulCaptureAt}`);
+  setText("#lastError", state.lastCaptureError === undefined
+    ? "阻塞原因：无"
+    : `阻塞原因：${localizeCaptureError(state.lastCaptureError)}`);
+  setText("#migrationState", state.migrationRemovedActiveIntentCount === 0
+    ? "未发现点击创建的等待记录"
+    : `已移除未经服务器确认的等待记录 ${state.migrationRemovedActiveIntentCount} 条`);
+  setText("#transitionState", "网络确认采集尚未启用");
+  setText("#pairingState", state.provenanceLevel === "extension_paired"
+    ? pairingSuccessText(state.captureCredentialVersion)
+    : "未配对");
+  setText("#status", state.captureEnabled ? "本地采集已开启" : "本地采集已暂停");
+  const enabled = document.querySelector<HTMLInputElement>("#captureEnabled");
+  const endpoint = document.querySelector<HTMLInputElement>("#captureEndpoint");
+  if (enabled !== null) enabled.checked = state.captureEnabled;
+  if (endpoint !== null) endpoint.value = state.captureEndpoint;
+  const details = document.querySelector("#quarantineDetails");
+  if (details !== null) renderQuarantine(details, state.quarantineDetails.map((line) => ({ summary: line })));
+}
+
+function renderLegacyPresentation(presentation: PopupPresentation, stored: unknown): void {
   setText("#pendingState", presentation.pendingText);
   setText("#outboxState", presentation.outboxText);
   setText("#quarantineState", presentation.quarantineText);
   setText("#lastDelivery", presentation.lastSyncText);
   setText("#lastError", presentation.blockingReasonText);
   setText("#migrationState", presentation.migrationText);
+  setText("#transitionState", presentation.transitionText);
   setText("#pairingState", presentation.pairingStateText);
   setText("#status", presentation.captureEnabled ? "本地采集已开启" : "本地采集已暂停");
   const enabled = document.querySelector<HTMLInputElement>("#captureEnabled");
@@ -148,8 +214,10 @@ export async function requestPairing(
 function bindAction(selector: string, message: Record<string, string>): void {
   const button = document.querySelector<HTMLButtonElement>(selector);
   button?.addEventListener("click", () => {
-    runPopupButton(button, button.textContent?.trim() ?? "操作", () =>
-      chrome.runtime.sendMessage(message));
+    runPopupButton(button, button.textContent?.trim() ?? "操作", async () => {
+      await chrome.runtime.sendMessage(message);
+      await renderPopup();
+    });
   });
 }
 
@@ -166,6 +234,7 @@ function bindConfirmedClear(
       const count = readArray(readField(stored, storageKey)).length;
       if (count === 0 || !window.confirm(`确定清空 ${count} 条${label}？此操作不可恢复。`)) return;
       await chrome.runtime.sendMessage({ type });
+      await renderPopup();
     });
   });
 }
@@ -209,7 +278,7 @@ function runPopupOperation(operation: () => Promise<unknown>): void {
 function reportPopupError(error: unknown): void {
   const message = error instanceof Error ? error.message : "扩展操作失败";
   setText("#actionResult", `操作失败：${message}`);
-  console.warn("[capture-v3] popup operation failed", error);
+  console.warn("[capture-v4] popup operation failed", error);
 }
 
 function waitFor(milliseconds: number): Promise<void> {
