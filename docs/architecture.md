@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-23
+Last updated: 2026-07-24
 
 ## Overview
 
@@ -24,17 +24,138 @@ Manual Training form
 -> /training, /coach, /growth
 ```
 
-The browser extension detects supported problem pages and visible verdict state.
-Browsing does not create a session or queue item. An exact submit creates one
-pending intent; a matching final verdict creates one stable V3 four-event
-bundle in Chrome local storage. The server still stores the bundle's ordered
-session/submission/verdict/end events for backward-compatible projection, but
-the extension treats the completed bundle—not page activity—as the delivery
-unit.
+The V4 Phase 0 extension detects supported problem pages and visible verdict
+state without treating a click as a submission fact. A trusted, visible,
+enabled exact control may create one bounded E0 hint in
+`chrome.storage.session`; the hint cannot create waiting, a bundle, or server
+traffic. Passive verdict candidates are also unable to create bundles in this
+phase. The V3 four-event bundle remains the durable delivery format for items
+already present in `captureOutbox`.
 
-`extension/src/contentRuntime.ts` owns the verdict-gated state machine. `content.ts` adapts Chrome `popstate`, `hashchange`, DOM mutations, `pagehide`, `pageshow`, and a 500 ms URL poll fallback. Submit clicks must resolve to an exact platform label on a real button/input/role-button while an exact problem route is active; the sole anchor exception is Luogu's observed `a.title[href="javascript:void 0"]` with an exact inner `提交` label. Arbitrary text containing “submit/提交” is ignored. Browsing emits no user-level queue item. A submit creates a local intent; only a later final verdict with transition evidence can consume that intent.
+`extension/src/contentRuntime.ts` owns passive verdict observation and minimal
+E0 construction. `content.ts` adapts Chrome `popstate`, `hashchange`, DOM
+mutations, `pagehide`, `pageshow`, and a 500 ms URL poll fallback. It rejects
+untrusted, hidden, disabled, and `aria-disabled` clicks. NowCoder E0 is limited
+to visible enabled `button.btn-submit` controls labelled exactly `保存并提交`;
+broader historical label matching no longer reaches capture state.
 
-`extension/src/serializedWork.ts` orders initialization, intent matching, outbox mutation, and delivery. `attemptStorage.ts` creates stable four-event bundles and enforces the storage reserve. `outboxDrain.ts` isolates item-specific failures in quarantine and continues with later bundles; network, 401, and 403 failures preserve the complete outbox and pause only the current drain. The popup separately reports waiting intents, pending bundles, quarantined bundles, migration count, and recovery controls.
+`extension/src/serializedWork.ts` orders initialization, session-hint storage,
+outbox mutation, and delivery. The V3-to-V4 migration writes protocol V4,
+validated empty `confirmedSubmissions`, and a migration audit before removing
+`pendingSubmissionIntents`. `outboxDrain.ts` continues to deliver completed V3
+bundles and isolate item-specific failures. The popup reads waiting only from
+validated confirmed submissions and separately reports transition, outbox,
+quarantine, migration, and recovery state.
+
+### V4 evidence core and data plane (Phase A closeout scope, 2026-07-24)
+
+The V4 Phase A infrastructure (Tasks A0-A9) is a framework, not a real
+network matcher. Every real platform's `V4NetworkStatus` remains
+`uncharacterized`. The seven canonical capture states (IDLE /
+REQUEST_OBSERVED / REJECTED / AMBIGUOUS / EXPIRED / SUBMISSION_CONFIRMED /
+FINALIZED) are projections of a 9-kind input stream: 4 V3 event variants
+(`v3_session_started`, `v3_submission_observed`, `v3_verdict_observed`,
+`v3_session_ended`), V4 Safe Evidence (`e1_recorded` / `e0_recorded` / etc.),
+and 4 A3 correlator outcomes (`main_bridge_correlated` /
+`main_bridge_ambiguous` / `main_bridge_no_match` / `main_bridge_rejected`).
+The closed 4-effect union (bundle / rejected / ambiguous / ignored) is the
+only mutation surface; every effect carries `observedAt`. Waiting only
+increments on `SUBMISSION_CONFIRMED`. V3 historical `submit_clicked`
+remains accepted; V4 E2-driven bundles carry the additive action
+`submission_confirmed`.
+
+`extension/src/evidence.ts` defines the Safe Evidence discriminated union
+(E0 / E1 / E2 / E3 / Ambiguity / Rejection). `parseSafeEvidence` is
+the only trust boundary: structural parse via Zod, recursive
+forbidden-key gate (`body` / `code` / `headers` / `token` / `username`
+/ `account` etc., any depth, cycle-safe via WeakSet), canonical
+UTC ISO `receivedAt` with real Gregorian date validation, and E1's
+required Chrome `apiTimeStamp`.
+
+`extension/src/submissionCorrelator.ts` is a pure correlator with frozen
+state, closed discriminated-union outcomes, deterministic
+`parseMainBridgeSummary` (canonical UTC + numeric + non-negative +
+recursive forbidden-key gate). The `e1_window_expired` ambiguity path is
+reachable when at least one in-window + one out-of-window candidate exist.
+External submission id never appears inside the correlator without
+`parseMainBridgeSummary` validation.
+
+`extension/src/captureStateMachine.ts` is the canonical 7-state reducer.
+`bundle_${sha256HexBytes(canonical)}` uses a pure-JS SHA-256
+(byte-identical to Node's `createHash("sha256")` for the canonical A4
+fixture `bundle_91b8a3600f18390ffdee270d325ddd1d92295484e6552dc4b8b5f866782ca7f2`)
+and a 4-byte big-endian uint32 length-prefix encoder. The pure-JS path
+replaces `node:crypto` / `Buffer` so the module bundles under Chrome MV3
+without Node-only APIs.
+
+`extension/src/adapters/{contract,registry}.ts` is the single source of
+truth for host ownership, DOM status, V4 network status, version, and
+`networkPolicy`. `extension/src/platforms.ts` re-exports the contract
+for backward compatibility. `extension/src/extensionAdapterContract.test.ts`
+runs the AST-based dependency graph that blocks direct/transitive
+storage / outbox / transport / state-machine imports inside
+`extension/src/adapters/**`.
+
+`extension/src/networkObserver.ts` registers five host-scoped
+`chrome.webRequest` lifecycle listeners (onBeforeRequest / onBeforeRedirect
+/ onResponseStarted / onCompleted / onErrorOccurred) over the four OJ
+host families (leetcode/nowcoder/luogu/codeforces), with
+`OJ_RESOURCE_TYPES` (xmlhttprequest/main_frame/sub_frame). AtCoder is
+explicitly excluded so the synthetic AtCoder spike listener continues
+to work. Every detail is validated through `parseSafeEvidence`; raw
+fields like `body` / `requestHeaders` produce `ignored corrupt_record`.
+
+`extension/src/mainWorldBridge.ts` is the IIFE MAIN-world bridge (built
+as `extension/dist/main-world-bridge.js` via `extension/build.mjs`,
+gated to the four OJ hosts through `extension/manifest.json`'s
+`web_accessible_resources`). The `mainWorldBridge.ts` parser rejects
+synthetic inputs that exceed 18 fields, have nested arrays/objects beyond
+the schema, or contain any A1-forbidden key. `mainWorldRelay.ts` is
+the ISOLATED-world relay that re-validates each summary, runs a
+recursive forbidden-key gate, and emits a frozen `V4_FORWARD_BRIDGE`
+envelope to the background.
+
+`extension/src/backgroundOrchestrator.ts` is the pure data plane (no
+`chrome.*` calls, every side effect through the injected
+`ExtensionInitializationStorageSplit`). It accepts 9 input kinds
+including the 4 A3 correlator outcomes and the synthetic `e1_recorded` /
+`e0_recorded` / `v3_verdict_observed` / `user_action` / `v3_submission_intent_recorded`
+events. `pruneOrchestratorSession` is called on every apply path; the
+`expireCaptureUiHints` alarm is re-established even on empty-diff prune
+via a `periodInMinutes: 1` fallback so the slot is never lost.
+
+`extension/src/transientEvidenceStorage.ts` (session-only) and
+`extension/src/confirmedSubmissionStorage.ts` (local-only) own the
+dual-domain storage. The session surface (UI hints 30 s, E1 5 min,
+page contexts 30 min, unmatched E3 60 s, ambiguity diagnostics 24 h)
+carries V4 transient evidence; nested E1/E3 records are revalidated
+through `parseSafeEvidence`. The local surface
+(`${platform}:${externalSubmissionId}` storageKey; bounded tombstones
+256 by default) carries confirmed submissions and tombstones; the
+`applyExtensionInitializationSplit` write plan is a structural diff that
+preserves durable outbox / quarantine / pairing / tombstones and only
+re-emits keys whose value differs.
+
+### V4 test infrastructure (Phase A closeout)
+
+`tests/extension-e2e/capture-v4-network.spec.ts` is the Fake OJ matrix:
+29 Playwright tests covering 18 named scenarios from the Phase A plan
+(success / 302 redirect / SPA / business rejection / 4xx / cancellation /
+judging-then-final / immediate final / rapid resubmission / two concurrent /
+duplicate submission id / forged bridge / one-summary-multiple-E1 /
+cross-tab-frame-document / service-worker restart / browser restart /
+direct historical result / duplicate verdict) plus 3 cross-platform
+smoke tests (LeetCode / Codeforces / Luogu) and 8 supporting seam
+tests. The full suite reports 28 of 29 tests passing; the single
+remaining failure is the test-harness worker-restart seam (a known
+infrastructure limitation, not a production defect; the module
+docblock in `capture-v4-network.spec.ts` honestly documents this).
+`extension/src/mainWorldRelay.ts` was hardened with a recursive
+forbidden-key gate as part of A9 closeout. Phase A closeout at A9
+deliberately defers A10 (real extension → SQLite chain) and A11/A12
+(quality gate integration / independent review) to a fresh user
+authorization.
+
 
 The service worker stores the long-lived credential in Chrome local storage;
 when the runtime exposes `StorageArea.setAccessLevel`, it restricts that area to
@@ -136,5 +257,13 @@ Playwright enforces a disposable `TRAINING_DB_PATH`, refuses to reuse an existin
 GitHub Actions mirrors the same gate. `.github/workflows/quality-gate.yml` runs `windows-latest` with Node 22, installs Chromium, and calls only `npm run quality:gate`. CI does not deploy, upload database artifacts, read secrets, or call external product, OJ, AI, or analytics APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner.
 
 Extension unit tests cover actual SPA runtime decisions. Playwright does not load the unpacked MV3 extension; its SPA-shaped scenario validates the resulting end/start event sequence through the API, SQLite, and problem-specific UI. The extension's `vitest.extension.config.ts` runs only the focused set of extension-owned unit and certification tests; the full unit suite still uses `vitest.config.ts`.
+
+That statement applies to ordinary `npm run e2e`, which remains extension-free.
+Phase A Task A0 adds a separate `npm run extension:e2e` spike that loads exact
+production `extension/dist` in bundled persistent Chromium. Its temporary exact
+synthetic POST seam proves `route.fulfill()` reaches both Playwright and MV3
+`webRequest`, and CDP verifies worker `stopped -> running`. This is framework
+evidence only: no E2, response interpretation, real-platform network policy,
+API/SQLite chain, or V4 adapter readiness exists yet.
 
 The localhost credential protects the HTTP ingestion boundary, not a compromised host. A process able to modify SQLite or the Chrome profile is outside this Pre-V0 boundary.

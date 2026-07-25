@@ -1,6 +1,6 @@
 # AI Coding Growth Platform Product Development Roadmap
 
-> **Status (2026-07-18):** **V0 validation — functional slice implemented and stabilized; real-use observation, final verification, and user acceptance pending.** Phase 0 is complete. The provisional exit-candidate report is not a valid release decision because its owner and participant observations are still empty. The only active execution plan is [`2026-07-18-v0-closeout-observation-final-verification.md`](./2026-07-18-v0-closeout-observation-final-verification.md).
+> **Status (2026-07-24):** **V4 Phase 0 stopgap complete; Phase A A0-A9 closeout scope complete; V0 observation blocked.** Phase 0 remains complete. The click-only waiting defect invalidates the historical V3 implementation as a current acceptance anchor. The Phase A infrastructure engineering pass (A0-A9) is closed at user direction; A10-A12 are deliberately deferred. V4 Phase B (NowCoder network pilot) requires fresh explicit authorization; the V0 closeout plan remains blocked until the V4 replacement-candidate gates pass.
 
 > **RC note:** The stabilized implementation is frozen at
 > `b5166320768355666a5c4ff3f466c29c240ea8cf` and passes the fresh full quality

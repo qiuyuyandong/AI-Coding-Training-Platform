@@ -3,7 +3,7 @@
 > **Status reconciled 2026-07-18:** The V0 functional implementation (Todos
 > 1–25) exists and the known runtime defects are fixed in the current
 > uncommitted worktree. The documentation and validator coverage intended by
-> Todo 26 have been superseded by the active closeout plan's tested two-commit
+> Todo 26 have been superseded by the now-blocked closeout plan's tested two-commit
 > contract; Todo 27 evidence must be regenerated on the stabilized RC SHA.
 > This file is now an implementation
 > record, not the active execution checklist. Todos 28–29 were previously

@@ -6,8 +6,9 @@
 > `neat-freak` only after observation, F1–F4, and explicit user acceptance.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Paused — superseded on 2026-07-20 by the blocking domestic-OJ RC
-repair plan. Resume only after a replacement implementation SHA is frozen.
+**Status:** Blocked by V4 — the reported click-only waiting defect invalidates
+`2f4f5d895ea8d965fb64d19dc784ca5514480688` as a current acceptance anchor.
+Do not resume formal observation until the V4 replacement-candidate gates pass.
 
 **Goal:** Remove the planned VS Code behavior-footprint collector, retain
 editor-agnostic project learning with explicit evidence, repair the V0 release
@@ -36,7 +37,8 @@ strict TypeScript, Git, PowerShell, Next.js quality gates.
   input editor-agnostic and user-initiated.
 - Do not add a CLI helper, GitHub integration, file watcher, project scanner,
   external AI transfer, cloud sync, or new runtime capture implementation.
-- Keep the Chrome MV3 OJ extension unchanged.
+- Keep this closeout plan blocked while the separately authorized V4 plans
+  change the Chrome MV3 OJ extension.
 - Keep the 7-calendar-day owner observation and two 14-calendar-day participant
   observations. Never fabricate time spans or feedback.
 - Successful closeout uses two commits: one RC implementation freeze and one

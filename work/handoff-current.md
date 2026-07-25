@@ -1,9 +1,130 @@
 # Current Handoff
 
-## Status (2026-07-24 LeetCode natural submission validation)
+## Status (2026-07-24 V4 Phase A closeout scope A0-A9 complete)
 
-**ENGINEERING PASS / REAL-CHROME NATURAL SUBMISSION PASS / FORMAL OBSERVATION
-PENDING.**
+**V4 PHASE 0 ENGINEERING PASS / FORMAL V0 OBSERVATION BLOCKED.**
+
+Phase A closeout at user direction declared the authoritative Phase A scope
+to be Tasks A0-A9; A10-A12 are deliberately deferred and must not be
+claimed as complete in this repository.
+
+- Phase A Task A9 (Fake OJ matrix) is complete as the closeout seam.
+  `tests/extension-e2e/{fakeOj,fakeOjScenarios,capture-v4-network.spec}.ts`
+  cover 18 named scenarios + 3 cross-platform smoke tests; 28 of 29
+  Playwright tests pass. The single remaining failure is a test-harness
+  worker-restart seam (a known infrastructure limitation, not a production
+  defect; the module docblock in `capture-v4-network.spec.ts` honestly
+  documents this). The production-side `extension/src/mainWorldRelay.ts`
+  was hardened with a recursive forbidden-key gate so the relay now
+  refuses any forbidden raw field at any depth.
+- Phase A Task A8 (background orchestrator) is complete.
+  `extension/src/backgroundOrchestrator.ts` is a pure data plane: zero
+  `chrome.*` calls, every side effect through the injected
+  `ExtensionInitializationStorageSplit`. 9 input kinds (4 V3 event
+  variants, V4 Safe Evidence, 4 A3 correlator outcomes plus
+  `e0_recorded` / `e3_recorded` / `v3_submission_intent_recorded` /
+  `user_action`); closed 4-effect union with `observedAt`; waiting only
+  increments on `SUBMISSION_CONFIRMED`; E3-before-E2 retention parked by
+  stable submission key with most-recent-wins; browser-restart recovery
+  produces a bundle from confirmed submission + new E3 without requiring
+  transientE1. `extension/src/captureStateMachine.ts` was made Chrome-
+  bundleable in parallel: `node:crypto` / `Buffer` replaced with pure-JS
+  SHA-256 (byte-identical to Node `createHash("sha256")` for the canonical
+  A4 fixture `bundle_91b8a3600f18390ffdee270d325ddd1d92295484e6552dc4b8b5f866782ca7f2`)
+  and a 4-byte big-endian uint32 length-prefix encoder.
+- Phase A Task A7 (MAIN bridge) is complete. `mainWorldBridge.ts` provides
+  the IIFE MAIN-world bridge (built as `extension/dist/main-world-bridge.js`
+  via `extension/build.mjs`, gated to the four OJ hosts through
+  `extension/manifest.json`'s `web_accessible_resources`).
+  `mainWorldRelay.ts` is the ISOLATED-world relay that re-validates the
+  summary through `parseMainBridgeSummary` and adds the recursive
+  forbidden-key gate before emitting the `V4_FORWARD_BRIDGE` envelope.
+  MAIN evidence alone can never confirm a submission; it must match one
+  unique webRequest E1.
+- Phase A Task A6 (webRequest observer) is complete. Five host-scoped
+  Chrome webRequest lifecycle listeners cover leetcode/nowcoder/luogu/
+  codeforces; AtCoder is explicitly excluded. Each detail is validated
+  synchronously through `parseSafeEvidence`; forbidden raw fields produce
+  `ignored corrupt_record`; missing documentId / invalid tab/frame produce
+  `missing_document_id`; non-adapted hosts and unsafe URLs produce
+  `non_adapted_host` / `normalize_endpoint_failed`. Lifecycle merging
+  keeps the earliest `receivedAt` and the latest `apiTimeStamp`;
+  `error_occurred` never carries a `statusCode`. `registerNetworkObserverListeners`
+  is a pure dependency-injected helper that `extension/src/background.ts`
+  routes through the existing serialized executor.
+- A0-A5 are recorded historically in the Phase A plan file and the
+  earlier handoff snapshots; A0 webRequest spike GO, A1 Safe Evidence, A2
+  adapter contract split, A3 strict correlator, A4 capture state machine,
+  A5 session/local storage split.
+- Phase A closeout verification: `npm run typecheck` and `npm run lint`
+  pass; `npm run extension:check` passes with 30 files / 950 tests
+  across 26 unit + 4 dedicated E2E files; full Playwright suite reports
+  28 of 29 tests passing. Independent final reviews for A4 (40 tests),
+  A5 (39 tests), A6 (19 tests), A7 (57 tests), A8 (35 tests), A9 (29 tests)
+  are all APPROVED with no blocker or important issue.
+- Every real platform's `V4NetworkStatus` remains `uncharacterized`. No
+  real OJ network capture path has been exercised; the Phase A closeout
+  is a framework engineering pass, not a real-platform certification.
+- Formal V0 observation, replacement-RC work, and V0.5 remain blocked
+  until Phase B (or a separately authorized characterization) succeeds.
+  requires explicit authorization.
+  started and requires explicit authorization.
+- Phase A Task A2 is complete. `extension/src/adapters/registry.ts` is the
+  single registry source for platform identity, exact host ownership, existing
+  DOM status, independent V4 network status, and adapter version. AtCoder alone
+  remains DOM `production`; all five V4 network statuses remain
+  `uncharacterized`, with no real network policy or matcher attached.
+- The branded network-policy factory reparses every candidate return through the
+  A1 Safe Evidence boundary and fails closed on invalid data or exceptions. A
+  TypeScript-AST dependency graph rejects direct and transitive adapter imports
+  into storage, outbox, transport, state, correlator, and background boundaries.
+  Registry host ownership now gates existing page/result detectors while route-
+  specific constraints remain narrow.
+- A2 verification passes: focused 4 files / 327 tests, lint, typecheck, and final
+  `extension:check` with 22 files / 692 tests, MV3 build, and dist parity.
+  Independent final review is APPROVE with no blocker or important issue.
+- Phase A Task A1 is complete. Strict Safe Evidence schemas now cover E0, E1
+  lifecycle, E2, E3, ambiguity, and rejection records. The only exported
+  raw-to-safe boundary returns a Zod-normalized plain object; request bodies,
+  source code, headers, credentials, user identity, unsafe URLs, unknown fields,
+  and malformed timestamps are rejected before state or persistence can use
+  them.
+- Every browser-document record requires tab/frame/document identity and
+  background `receivedAt`. webRequest E1 evidence additionally requires Chrome
+  `apiTimeStamp`; page timestamps remain non-authoritative. Final verdicts reuse
+  the existing 12-value product taxonomy.
+- A1 verification passes: focused 177/177 tests, lint, typecheck, and final
+  `extension:check` with 21 files / 645 tests, MV3 build, and dist parity.
+  Independent final review is APPROVE with no blocker or important issue.
+- Phase A Task A0 is GO: bundled Chromium `138.0.7204.23` loaded exact
+  production `extension/dist`; repeated fresh-profile runs recorded two
+  Playwright-fulfilled exact POSTs and two MV3 markers across
+  `stopped -> running`, with wrong method/path rejected.
+- Final A0 network controls combine page-level default abort with worker-level
+  no-proxy/DNS denial. One pre-fix synthetic GET reached an AtCoder denial-probe
+  path because the system proxy bypassed DNS; no submission, body, credential,
+  user data, or source code was involved. The failed run was not accepted, and
+  two post-fix runs passed. Evidence:
+  `work/reports/v4-phase-a-a0-webrequest-spike-2026-07-24.md`.
+
+- A NowCoder browse-only false positive exposed the V3 architectural defect:
+  a qualifying click can create active waiting state before any server-confirmed
+  submission exists.
+- The completed execution entry is
+  `2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`.
+  Formal V0 observation is blocked until V4 reaches its required replacement
+  candidate gates. V0.5 remains out of scope.
+- Commit `2f4f5d895ea8d965fb64d19dc784ca5514480688` remains historical evidence for
+  the repaired V3 LeetCode flow, not a current acceptance anchor.
+- Clicks now create at most a bounded, alarm-expired E0 session hint. Waiting
+  reads only validated confirmed submissions; Phase 0 has no E2 producer.
+  Existing completed outbox/quarantine/pairing state remains preserved.
+- Final gates: 70 unit files / 1046 passed / 1 Windows capability skip, 25 E2E,
+  20 extension files / 468 passed, and 20/20-page production build. Independent
+  review has no blocking or important runtime finding. Evidence:
+  `work/reports/v4-phase-0-click-ingress-stopgap-2026-07-24.md`.
+
+## Previous Status (2026-07-24 LeetCode natural submission validation)
 
 - The previous exact-route repair was still incomplete. Current LeetCode.cn
   renders duplicate `console-result` verdict nodes, then may restore the
@@ -172,7 +293,7 @@ observation, final verification, and acceptance pending.**
 ## Current Phase
 
 - Phase 0: **complete and reconciled green on 2026-07-17.** All exit criteria satisfied; AtCoder is the sole certified production adapter.
-- V0 manual learning loop vertical slice: **implemented; V3 capture repair is engineering-green and user-confirmed in a fresh real LeetCode submission at implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`. Formal observation, same-SHA F1–F4, and explicit acceptance remain pending.**
+- V0 manual learning loop vertical slice: **implemented but not accepted; V4 Phase 0 is complete, while formal observation remains blocked until the later replacement-candidate gates pass.**
 
 ## Commit Chronology
 
@@ -215,14 +336,40 @@ observation, final verification, and acceptance pending.**
 
 ## Next Commander Action
 
-1. Start formal V0 observation against implementation commit
-   `2f4f5d895ea8d965fb64d19dc784ca5514480688`, then execute same-SHA F1–F4 and
-   request explicit user acceptance. Do not start V0.5 before those gates pass.
+1. Phase A closeout is declared at A9 (2026-07-24). A10-A12 are deferred
+   and must not be claimed as complete. Phase B (NowCoder network pilot)
+   requires fresh explicit authorization. Do not resume formal V0
+   observation, replacement-RC work, or V0.5 without the applicable gate.
+2. The Fake OJ matrix `capture-v4-network.spec.ts` reports 28 of 29 tests
+   passing; the single remaining failure (`service-worker restart
+   between every major state`) is a known test-harness limitation, not
+   a production defect. Address it only if a fresh user authorization
+   re-opens A10/A11.
 
 ## Known Risks
 
-- AtCoder is the sole production adapter; LeetCode, Codeforces, NowCoder, and Luogu remain experimental
-- Luogu production-adapter certification remains BLOCKED on missing public verdict DOM (historical record preserved in `work/reports/luogu-adapter-blocker.json`; no longer a Phase 0 blocker)
-- The Windows file-symlink capability test may remain skipped under EPERM; mandatory junction safety tests must pass
-- Phase 1–3 and 5 capability portfolios contain implemented V0 thin slices but are not complete; Phase 4 and 6 are future. None is an active line-by-line implementation plan.
-- Final review-work QA hash deviation (Phase 0D): a later final review-work QA lane once mistakenly invoked `Get-FileHash` on the default `training-platform.sqlite` during its initial state capture; the hash was discarded immediately, no write occurred, and default DB `Length` 73728 / `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z remained unchanged
+- Every real platform's `V4NetworkStatus` remains `uncharacterized`. The
+  Phase A closeout is a framework engineering pass, not a real-platform
+  certification. AtCoder is the sole production DOM adapter; LeetCode,
+  Codeforces, NowCoder, and Luogu remain `experimental`.
+- Luogu production-adapter certification remains BLOCKED on missing public
+  verdict DOM (historical record preserved in
+  `work/reports/luogu-adapter-blocker.json`).
+- The Windows file-symlink capability test may remain skipped under EPERM;
+  mandatory junction safety tests must pass.
+- The Fake OJ matrix reports 28 of 29 tests passing; the single
+  remaining failure is a test-harness worker-restart seam (a known
+  infrastructure limitation, not a production defect; the module
+  docblock in `capture-v4-network.spec.ts` honestly documents this).
+- The Phase A closeout deliberately defers A10 (real extension → SQLite
+  chain), A11 (quality gate integration), A12 (independent review). A
+  fresh user authorization is required before re-opening any of them.
+- Phase 1– and 5 capability portfolios contain implemented V0 thin
+  slices but are not complete; Phase 4 and 6 are future. None is an
+  active line-by-line implementation plan.
+- Final review-work QA hash deviation (Phase 0D): a later final
+  review-work QA lane once mistakenly invoked `Get-FileHash` on the
+  default `training-platform.sqlite` during its initial state capture;
+  the hash was discarded immediately, no write occurred, and default
+  DB `Length` 73728 / `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z
+  remained unchanged.

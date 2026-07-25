@@ -1,23 +1,21 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-24):** **V0 capture repair validated; formal observation
-> pending.** Phase 0 is
-> complete. The verdict-gated V3 repair now handles the current LeetCode
-> duplicate verdict locators and the selected submission-detail surface that
-> remains after LeetCode restores the problem URL. An authorized real-Chrome
-> recovery converted the user's stuck TLE into `Time Limit Exceeded`, delivered
-> it once, and returned waiting/outbox/quarantine to zero. On 2026-07-24 the
-> user reloaded the final build from implementation commit
-> `2f4f5d895ea8d965fb64d19dc784ca5514480688` and confirmed the same LeetCode
-> submission case passes naturally. Formal multi-session observation,
-> same-SHA F1–F4, and explicit V0 acceptance remain separate gates.
+> **Status (2026-07-24):** **V4 Phase 0 click-ingress stopgap engineering
+> complete.** A qualifying UI click can now produce only a
+> bounded session-only E0 hint. It cannot create waiting state, an attempt
+> bundle, or local API traffic. V3 click intents are removed by an idempotent
+> V4 migration, while completed outbox/quarantine items and pairing state are
+> preserved. Phase A Task A0 separately proved that exact production dist can
+> observe a locally fulfilled synthetic POST through MV3 `webRequest`, including
+> worker stop/reawaken. Automatic network-confirmed capture is not implemented.
 
 > **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
 > real temporary-repository cases for the strict two-commit release contract.
 > `b5166320768355666a5c4ff3f466c29c240ea8cf`,
 > `894162b264124eed7315a116cae73b8e11d717b8`, and
 > `c587bfbcce2eab108a1c98455b2e6b481f71b290` are superseded repair baselines;
-> use `2f4f5d895ea8d965fb64d19dc784ca5514480688` for the repaired runtime.
+> `2f4f5d895ea8d965fb64d19dc784ca5514480688` is historical V3 repair evidence,
+> not a current acceptance anchor.
 
 > **Post-candidate stabilization:** The frozen RC repairs the
 > plan-completion row-ID regression, stale projection, later-pass L2 promotion,
@@ -25,7 +23,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop in formal validation**. The product direction is a learning-navigation and code-growth platform; the implemented app has not yet been accepted as a complete V0 release. The capture repair plan is complete; formal observation and closeout continue through `docs/superpowers/plans/2026-07-18-v0-closeout-observation-final-verification.md`.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. The active runtime work is `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`; formal observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 
@@ -96,20 +94,22 @@ The training loop turns captured browser events into local training attempts:
 
 The Training workspace labels each attempt as `Automatic capture` or `Manual entry`. Corrections can change only result, language, duration, reflection, start time, or end time. They update the current row and append scalar old/new values in one transaction; they never create another attempt. Voiding is idempotent and traceable. Active Training, Coach, and Growth queries exclude voided rows by default.
 
-Capture protocol V3 records no page-lifecycle event. An exact submit click
-creates one pending intent. A later final verdict, observed either through a
-same-document transition or an exact result document, consumes that intent and
-creates one stable four-event attempt bundle. Opening, closing, navigating,
-running samples, debugging, or directly viewing historical results does not
-create a training record.
+Capture protocol V4 Phase 0 records no page-lifecycle event and creates no
+submission from a click. A trusted, visible, enabled exact control may produce
+one short-lived E0 hint in `chrome.storage.session`; NowCoder is restricted to
+the observed `button.btn-submit` / `保存并提交` contract. Hints and passive verdict
+candidates cannot create waiting or a bundle. Opening, closing, navigating,
+running samples, debugging, clicking submit, or directly viewing historical
+results therefore creates no new automatic training record in this stopgap.
 
 The background worker drains completed bundles from `captureOutbox` with one
 serialized, single-flight executor. Item-specific 400/409/413/415 failures move
 only that bundle to `captureQuarantine`; capped 500 failures are quarantined;
 network and 401/403 failures preserve the complete outbox. A matching ACK
-removes exactly one bundle. The popup separates waiting, outbox, and quarantine
-counts and provides retry/delete/clear controls with pressed-state and live-text
-feedback.
+removes exactly one bundle. The popup counts waiting only from validated V4
+confirmed submissions, which have no producer in Phase 0, and separately shows
+outbox, quarantine, migration, and transition state. Retry/delete/clear controls
+retain pressed-state and live-text feedback.
 
 Extension unit tests cover SPA and cross-document result observation, storage,
 ACK matching, outbox concurrency, and popup behavior. The full Playwright E2E
@@ -124,6 +124,11 @@ The V3 extension migration intentionally discarded the legacy pre-bundle
 causality. It records the actual removed count locally. The user's real reload
 already confirmed 32 entries were removed; the migration never deletes server
 attempts or edits Chrome LevelDB directly.
+
+The V4 stopgap migration separately removes every V3
+`pendingSubmissionIntents` record, records only the removed active count and
+migration reason/time, and never promotes one into a confirmed submission. It
+preserves completed delivery and pairing data.
 
 Run migrations before exercising the loop:
 

@@ -4,6 +4,19 @@ This file describes the **current local V0 implementation under validation**. It
 
 The product uses this rule: use browser session, do not extract browser session.
 
+The V3 click-created waiting model is blocked from V0 acceptance because a UI
+action does not prove server acceptance. The completed V4 Phase 0 stopgap retains
+only a bounded, session-only UI hint; it cannot turn that hint into waiting,
+an attempt bundle, or local API traffic. Later network work remains separately
+gated and may not retain request bodies, code, credentials, or complete headers.
+
+Phase A Task A0 adds only ordinary `webRequest` observation permission. Its
+temporary exact synthetic matcher stores request ID, method, normalized endpoint
+key, tab/frame/document IDs, and receipt time in session storage. It requests no
+body/header data and makes no real-platform readiness claim. The extension E2E
+harness denies page traffic by default and denies worker DNS with proxy disabled;
+localhost remains the only network exclusion for later local API tests.
+
 Allowed in the current implementation:
 
 - store problem IDs, titles, tags, difficulty, source URLs, and user training records;

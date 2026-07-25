@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-23
+Last updated: 2026-07-24
 
 ## Setup
 
@@ -33,21 +33,32 @@ Build the Chrome MV3 extension:
 npm run extension:build
 ```
 
-Load `extension/dist` as an unpacked Chrome extension. Open `http://localhost:3000/settings`, create a pairing code, and paste it into the popup. The code expires after ten minutes and is consumed once. The popup reports `等待判题`, `待同步结果`, and `已隔离结果` separately, together with migration and blocking diagnostics. Reloading a V3 build runs the one-time local migration that removes the pre-bundle `eventQueue` and records the actual removed count; verify the popup count before claiming the user's old entries were cleared.
+Run the bounded production-dist MV3 spike:
+
+```powershell
+npm run extension:e2e -- tests/extension-e2e/webrequest-spike.spec.ts
+```
+
+This A0 command launches bundled Chromium with a fresh persistent profile,
+loads exact `extension/dist`, denies external page and worker networking, and
+proves a synthetic fulfilled POST is observed before and after worker
+stop/reawaken. It does not test a real OJ protocol or automatic capture.
+
+Load `extension/dist` as an unpacked Chrome extension. Open `http://localhost:3000/settings`, create a pairing code, and paste it into the popup. The code expires after ten minutes and is consumed once. The V4 Phase 0 popup reports confirmed-only `等待判题`, `待同步结果`, and `已隔离结果` separately, together with transition, migration, and blocking diagnostics. `等待判题` remains zero because Phase 0 has no network-confirmed submission producer.
 
 Use `/settings` to rotate or revoke credentials. Rotation creates a code scoped to that installation; paste it into the same extension to atomically replace the old credential. Revocation causes capture requests to return 401 until an explicit targeted rotation code pairs it again.
 
-Verdict capture is expected to detect visible accepted, wrong-answer, compile-error, runtime-error, time-limit, memory-limit, and partial verdict text. English verdict tokens and Chinese verdict labels are normalized before being sent to the local app.
+Visible accepted, wrong-answer, compile-error, runtime-error, time-limit, memory-limit, and partial verdict text remains passively detectable. In Phase 0 those candidates cannot create a new bundle or training record.
 
-Capture protocol V3 creates no result for page lifecycle activity. An exact submit control creates one local intent. A new final verdict after that intent creates a stable bundle containing `SESSION_STARTED`, `SUBMISSION_OBSERVED`, `VERDICT_OBSERVED`, and `SESSION_ENDED`; the local app commits the bundle atomically.
+Capture protocol V4 Phase 0 creates no result for page lifecycle activity or a click. A trusted, visible, enabled exact submit control may create only a bounded E0 hint in `chrome.storage.session`; NowCoder additionally requires `button.btn-submit` labelled exactly `保存并提交`. An MV3 alarm removes hints after 30 seconds even when no later click occurs. E0 never contributes to waiting, outbox, or API traffic.
 
-`pagehide`, ordinary navigation, running samples, and debugging do not create training records or outbox entries. Exact result documents may emit an internal candidate, but the background discards it unless a matching active intent exists.
+`pagehide`, ordinary navigation, running samples, debugging, and direct result-page opens do not create training records or outbox entries. Exact result documents may emit an internal passive candidate, but the Phase 0 background cannot turn it into a bundle.
 
 Outbox delivery is serialized by bundle. Network errors and 401/403 preserve every bundle and stop the current drain. A 400/409/413/415 isolates only that bundle and continues; repeated 500 responses move that bundle to quarantine at the retry cap. The popup can retry or delete an isolated item and clears outbox and quarantine only through separate confirmed actions. Capacity failures are visible and never evict older results.
 
 The supported domestic problem routes are `leetcode.cn/problems/<slug>`, `www.nowcoder.com/practice/<id>`, `ac.nowcoder.com/acm/problem/<id>`, and `www.luogu.com.cn/problem/<id>`. Exact result routes are also injected for passive detection: LeetCode `/problems/<slug>/submissions/<digits>/` and `/submissions/detail/<digits>/`, NowCoder `/acm/contest/view-submission?submissionId=<digits>`, and Luogu `/record/<digits>`. LeetCode may restore `/problems/<slug>/` while retaining the selected submission-detail tab; that surface is accepted only when it is the unique visible selected tab in the first-party tabbar and contains a recognized final verdict. Duplicate identical verdict panes are collapsed, conflicts are rejected, and transient labels such as `提交详情` remain pending. Runtime checks reject malformed IDs, extra query/hash data, spoofed hosts, ambiguous anchors, and hidden or overlong title text. Sanitized `authenticated-characterization` fixtures cover LeetCode AC, NowCoder AC, and Luogu AC/Compile Error; they never certify production.
 
-On the first V3 extension startup, any pre-bundle `eventQueue` entries are discarded once. Chrome local storage records `discardedPreBundleEventCount` and `preBundleQueueDiscardedAt`; the user's real reload confirmed an actual count of 32. `installationId` is only a correlation identifier; the separately stored credential authorizes requests. The migration does not modify server records.
+On V4 initialization, authoritative V4 state and the click-intent migration audit are written before `pendingSubmissionIntents` is removed. No V3 intent becomes a confirmed submission. Existing completed outbox, quarantine, pairing, endpoint, installation, and earlier migration state is preserved. The earlier V3 migration of the pre-bundle `eventQueue` remains historical and is not rerun or reinterpreted. Neither migration modifies server records.
 
 ## Verification
 
@@ -71,23 +82,26 @@ npm run quality:gate
 
 The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses a server on port 3000. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
 
-The latest 2026-07-23 capture repair gate ran 1039 passing unit tests plus 1 capability skip across 68 files. The skip is a file-symlink escape test that reports EPERM on Windows without Developer Mode; all mandatory junction tests pass. The same gate ran 25 Playwright E2E tests and 464 extension tests across 19 files. Named test files of interest:
+The latest 2026-07-24 V4 Phase A closeout gate ran 950 passing extension unit tests across 30 files (the new Phase A scope). `npm run extension:check` (typecheck → extension:test → extension:build → check-extension-dist) covers the V4 modules end-to-end: `extension/src/evidence.ts` (Safe Evidence), `extension/src/submissionCorrelator.ts` (closed-tag-union correlator with frozen state), `extension/src/captureStateMachine.ts` (pure reducer; pure-JS SHA-256 with byte-identical output to Node `createHash("sha256")` for the canonical A4 fixture `bundle_91b8a3600f18390ffdee270d325ddd1d92295484e6552dc4b8b5f866782ca7f2`), `extension/src/adapters/contract.ts` + `extension/src/adapters/registry.ts` (single registry with host-ownership / DOM status / V4 network status), `extension/src/networkObserver.ts` (host-scoped webRequest lifecycle), `extension/src/mainWorldBridge.ts` (MAIN-world IIFE bridge), `extension/src/mainWorldRelay.ts` (ISOLATED-world relay with recursive forbidden-key gate), `extension/src/backgroundOrchestrator.ts` (pure 9-event reducer), `extension/src/transientEvidenceStorage.ts` (session-only storage) and `extension/src/confirmedSubmissionStorage.ts` (local-only durable storage) with deterministic `${platform}:${externalSubmissionId}` storageKey and bounded tombstones. The Fake OJ matrix `tests/extension-e2e/capture-v4-network.spec.ts` reports 28 of 29 tests passing; the single remaining failure is the test-harness worker-restart seam (a known infrastructure limitation, not a production defect). The earlier Phase 0 1046-test V0 gate remains historical.
+
+Named Phase A test files of interest:
 
 | File | Tests | Role |
 |---|---|---|
-| `tests/unit/extensionDomesticOjAuth.test.ts` | 142 | Authenticated-characterization fixtures, restored LeetCode result surface, privacy and spoof guards |
-| `tests/unit/extensionPlatforms.test.ts` | 110 | Strict routes, duplicate/conflicting verdict panes, transient-label guard, adapter registry |
-| `tests/unit/extensionSubmissionControl.test.ts` | 29 | Exact submit-control and false-positive guards |
-| `tests/unit/extensionTransport.test.ts` | 4 | Strict attempt endpoint and typed ACK transport |
-| `tests/unit/extensionOperation.test.ts` | 2 | Rejected Chrome Promise containment |
-| `tests/unit/extensionPopup.test.ts` | 6 | Status presentation, pairing errors, and pressed-state recovery |
-| `tests/unit/domesticOjCurriculum.test.ts` | 9 | Curriculum 1.0.1 domestic OJ and package coexistence |
-| `tests/unit/extensionAtcoderCertificationBlocked.test.ts` | 34 | Certification gate BLOCKED path coverage |
-| `tests/unit/extensionAtcoderFixtures.test.ts` | 28 | AtCoder fixture loading and characterization |
-| `tests/unit/extensionAtcoderPromotion.test.ts` | 16 | Production promotion guard (forged/malformed artifact rejection) |
-| `tests/unit/luoguFixtureLoader.test.ts` | 17 | Luogu fixture characterization (historical BLOCKED evidence) |
-| `tests/unit/platformCertification.test.ts` | 14 | Read-only certification gate (on-disk BLOCKED + synthetic CERTIFIED) |
-| `tests/unit/e2eDatabase.test.ts` | 7 + 1 skip | lstat-safe teardown (6 mandatory junction tests pass; 1 symlink skip expected) |
+| `tests/unit/extensionEvidence.test.ts` | 177 | Safe Evidence schema, recursive forbidden-key gate, real Gregorian date, all 12 final verdicts |
+| `tests/unit/extensionAdapterContract.test.ts` | 47 | Branded policy factory, AST dependency gate, host ownership, registry identity |
+| `tests/unit/extensionCaptureStateMachine.test.ts` | 40 | 9-input reducer, 7-state model, SHA-256 bundle id, chronologic invariants |
+| `tests/unit/extensionSubmissionCorrelator.test.ts` | 79 | Pure correlator, E3-before-E2 retention, disambiguation, time-window guard |
+| `tests/unit/extensionBackgroundOrchestrator.test.ts` | 35 | Pure orchestrator, E1→E2→E3 seam, prune lifecycle, dual-domain persistence |
+| `tests/unit/extensionMainWorldBridge.test.ts` | 57 | MAIN bridge validation, forbidden-key defense, relay revalidation |
+| `tests/unit/extensionNetworkObserver.test.ts` | 12 | Pure observer lifecycle + rejection reasons |
+| `tests/unit/extensionNetworkObserverIntegration.test.ts` | 7 | Background listener registration + filters + outcome routing |
+| `tests/unit/extensionTransientEvidenceStorage.test.ts` | 10 | Session-only parse/plan/write/prune + parseSafeEvidence revalidation |
+| `tests/unit/extensionConfirmedSubmissionStorage.test.ts` | 9 | Local-only durable state, idempotent finalize, bounded tombstones |
+| `tests/unit/extensionInstallation.test.ts` | 20 | V4 split init, tombstone preservation, no-overwrite of stable fields |
+| `tests/unit/extensionPlatforms.test.ts` | 110 | Backward-compat adapter registry export |
+| `tests/unit/extensionUiHint.test.ts` | 11 | V4 E0 hint routing |
+| `tests/unit/extensionPopup.test.ts` | 7 | Read-only popup presentation |
 
 To run fixture loader or certification gate in isolation:
 
@@ -140,16 +154,16 @@ Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
 
 Stop the stale process before rerunning e2e. Avoid starting manual long-running servers for routine smoke QA.
 
-### Extension events queue but do not arrive
+### Existing completed bundles do not arrive
 
 1. Confirm the local app is reachable at `http://localhost:3000`.
 2. Confirm the popup says paired and capture is enabled. If it says pairing needs attention, create a new or targeted rotation code in `/settings` and pair again.
-3. Open `/training?platform=leetcode&externalId=two-sum` and a supported original problem page.
-4. Check `CaptureStatusPanel` for recent events and `AttemptStatusPanel` for materialized attempts.
-5. If the page is visible but the attempt stays in `draft`, inspect whether the platform's visible verdict text is covered by `extension/src/platforms.ts` and `tests/unit/extensionPlatforms.test.ts`.
+3. Check the popup's `待同步结果` and `已隔离结果`; Phase 0 does not create new automatic bundles.
+4. Check `CaptureStatusPanel` only for delivery of bundles that already existed before the V4 migration.
+5. Use the manual attempt form for new training records until a later V4 network-confirmed adapter passes its gates.
 
 Network errors are retryable. Invalid 400/413/415 responses and permanent 409 event-ID conflicts are dropped to avoid retry loops. A 401 is retained for pairing recovery. If a 409 occurs, inspect whether one producer reused an `eventId` for different event content.
 
 The pairing boundary assumes the local OS account and files remain trustworthy. A process that can edit the SQLite database or Chrome profile can bypass this local HTTP control; that host-compromise case is not solved by localhost bearer credentials.
 
-If capture appears stale, inspect both the current URL and the selected result tab before changing verdict aliases. For LeetCode, `/problems/<slug>/submissions/<id>/` and `/submissions/detail/<id>/` are exact result forms, while a restored `/problems/<slug>/` is valid only with the selected semantic submission-detail surface. A generic `提交详情` label is an intermediate state, not `Other Failure`; wait for a recognized final verdict. Inspect the content-script and service-worker consoles for `[capture-v3]` messages. The popup's action status distinguishes a received click from a completed sync; `待同步结果` reaches zero only after a matching ACK. If `chrome://extensions` reports a startup error, reload the current `extension/dist`; the service worker capability-checks optional `StorageArea.setAccessLevel`, and every popup/content fire-and-forget operation handles rejected Promises. Adapter status does not enable or disable capture: AtCoder is the sole production adapter because it alone has certified public-DOM evidence.
+If passive verdict detection appears stale, inspect both the current URL and the selected result tab before changing verdict aliases. For LeetCode, `/problems/<slug>/submissions/<id>/` and `/submissions/detail/<id>/` are exact result forms, while a restored `/problems/<slug>/` is valid only with the selected semantic submission-detail surface. A generic `提交详情` label is non-final, not `Other Failure`. Inspect the content-script and service-worker consoles for `[capture-v4]` messages. The popup's action status distinguishes a received control action from a completed sync; `待同步结果` reaches zero only after a matching ACK for an existing completed bundle. If `chrome://extensions` reports a startup error, reload the current `extension/dist`; the service worker capability-checks optional `StorageArea.setAccessLevel`, and every popup/content fire-and-forget operation handles rejected Promises. Adapter DOM status does not enable V4 network capture: AtCoder is the sole production DOM adapter, while every V4 network status remains uncharacterized.

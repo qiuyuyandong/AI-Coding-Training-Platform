@@ -1,15 +1,20 @@
 # Superpowers Documentation Index
 
-> **Status (2026-07-24):** **V0 capture repair validated; formal observation
-> pending.** Phase 0 is complete. The repaired runtime is frozen at
-> `2f4f5d895ea8d965fb64d19dc784ca5514480688`; the user confirmed the final
-> LeetCode submission case passes naturally on 2026-07-24. Engineering and
-> capture validation are complete, but formal observation, same-SHA F1–F4, and
-> explicit V0 acceptance remain pending.
+> **Status (2026-07-24):** **V4 Phase 0 click-ingress stopgap complete.** A
+> NowCoder browse-only false positive exposed that V3 can create waiting state
+> from a qualifying click without server confirmation. Formal V0 observation,
+> replacement-RC work, same-SHA F1–F4, and acceptance are blocked until the V4
+> gates are satisfied. Commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`
+> remains historical V3 repair evidence, not a current acceptance anchor.
+> Phase A Tasks A0-A9 are complete at user direction (2026-07-24 closeout
+> scope); A10-A12 are deferred. Phase B (NowCoder network pilot) requires
+> fresh explicit authorization.
 
 The completed repair implementation record is
 [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md).
-The active closeout plan is:
+The completed execution entry is:
+[`plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`](plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md).
+The V0 closeout plan remains blocked:
 [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md).
 The bilingual interface plan is approved future scope and must remain deferred
 until V0 is explicitly accepted:
@@ -25,10 +30,12 @@ This directory contains both active product planning and historical implementati
 
 1. [`../../IDEA.md`](../../IDEA.md) — product definition, adopted decisions, V0/V0.5/V1/Public Beta scope.
 2. [`plans/2026-07-11-product-development-roadmap.md`](plans/2026-07-11-product-development-roadmap.md) — active release/Phase map and exit gates.
-3. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — active same-SHA observation and closeout checklist.
-4. [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md) — completed replacement-RC repair and real-browser validation record.
-5. [`plans/2026-07-21-v0-bilingual-user-interface.md`](plans/2026-07-21-v0-bilingual-user-interface.md) — approved but deferred post-V0 implementation plan.
-6. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — earlier domestic-OJ repair implementation record.
+3. [`plans/2026-07-24-v4-network-confirmed-capture-refactor-master.md`](plans/2026-07-24-v4-network-confirmed-capture-refactor-master.md) — active V4 phase hierarchy and gates.
+4. [`plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`](plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md) — completed execution entry; removes click-only waiting before network evidence work. Phase A awaits separate authorization.
+5. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — blocked V0 observation and closeout checklist.
+6. [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md) — completed historical V3 repair and real-browser validation record.
+7. [`plans/2026-07-21-v0-bilingual-user-interface.md`](plans/2026-07-21-v0-bilingual-user-interface.md) — approved but deferred post-V0 implementation plan.
+8. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — earlier domestic-OJ repair implementation record.
 
 Immediate target: accepted V0. Next target: V0.5 connected OJ/basic evidence.
 Then: V1 integrated local pilot. Total product target: **Phase 7 / Public Beta
