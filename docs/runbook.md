@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-24
+Last updated: 2026-07-26 (V4 Phase A A0-A12 closeout)
 
 ## Setup
 
@@ -67,14 +67,16 @@ Use the full local gate before handoff:
 ```powershell
 npm run lint
 npm run db:migrate
+npm run curriculum:validate
 npm run test
 npm run typecheck
 npm run e2e
 npm run extension:check
+npm run extension:e2e
 npm run build
 ```
 
-`npm run quality:gate` runs all seven commands above in this exact order using an OS-temporary database, so it is the recommended single verification:
+`npm run quality:gate` runs all nine commands above in this exact order using an OS-temporary database, so it is the recommended single verification:
 
 ```powershell
 npm run quality:gate
@@ -82,7 +84,7 @@ npm run quality:gate
 
 The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses a server on port 3000. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
 
-The latest 2026-07-24 V4 Phase A closeout gate ran 950 passing extension unit tests across 30 files (the new Phase A scope). `npm run extension:check` (typecheck → extension:test → extension:build → check-extension-dist) covers the V4 modules end-to-end: `extension/src/evidence.ts` (Safe Evidence), `extension/src/submissionCorrelator.ts` (closed-tag-union correlator with frozen state), `extension/src/captureStateMachine.ts` (pure reducer; pure-JS SHA-256 with byte-identical output to Node `createHash("sha256")` for the canonical A4 fixture `bundle_91b8a3600f18390ffdee270d325ddd1d92295484e6552dc4b8b5f866782ca7f2`), `extension/src/adapters/contract.ts` + `extension/src/adapters/registry.ts` (single registry with host-ownership / DOM status / V4 network status), `extension/src/networkObserver.ts` (host-scoped webRequest lifecycle), `extension/src/mainWorldBridge.ts` (MAIN-world IIFE bridge), `extension/src/mainWorldRelay.ts` (ISOLATED-world relay with recursive forbidden-key gate), `extension/src/backgroundOrchestrator.ts` (pure 9-event reducer), `extension/src/transientEvidenceStorage.ts` (session-only storage) and `extension/src/confirmedSubmissionStorage.ts` (local-only durable storage) with deterministic `${platform}:${externalSubmissionId}` storageKey and bounded tombstones. The Fake OJ matrix `tests/extension-e2e/capture-v4-network.spec.ts` reports 28 of 29 tests passing; the single remaining failure is the test-harness worker-restart seam (a known infrastructure limitation, not a production defect). The earlier Phase 0 1046-test V0 gate remains historical.
+The latest 2026-07-26 V4 Phase A closeout gate ran 950 passing extension unit tests across 30 files (the new Phase A scope). `npm run extension:check` (typecheck → extension:test → extension:build → check-extension-dist) covers the V4 modules end-to-end: `extension/src/evidence.ts` (Safe Evidence), `extension/src/submissionCorrelator.ts` (closed-tag-union correlator with frozen state), `extension/src/captureStateMachine.ts` (pure reducer; pure-JS SHA-256 with byte-identical output to Node `createHash("sha256")` for the canonical A4 fixture `bundle_91b8a3600f18390ffdee270d325ddd1d92295484e6552dc4b8b5f866782ca7f2`), `extension/src/adapters/contract.ts` + `extension/src/adapters/registry.ts` (single registry with host-ownership / DOM status / V4 network status), `extension/src/networkObserver.ts` (host-scoped webRequest lifecycle), `extension/src/mainWorldBridge.ts` (MAIN-world IIFE bridge), `extension/src/mainWorldRelay.ts` (ISOLATED-world relay with recursive forbidden-key gate), `extension/src/backgroundOrchestrator.ts` (pure 9-event reducer), `extension/src/transientEvidenceStorage.ts` (session-only storage) and `extension/src/confirmedSubmissionStorage.ts` (local-only durable storage) with deterministic `${platform}:${externalSubmissionId}` storageKey and bounded tombstones. The Fake OJ matrix `tests/extension-e2e/capture-v4-network.spec.ts` reports 31 passed and 1 skipped; the skipped scenario is the service-worker-restart seam (a known test-harness infrastructure limitation, not a production defect; the `test.skip` annotation documents this). The earlier Phase 0 1046-test V0 gate remains historical.
 
 Named Phase A test files of interest:
 
@@ -132,23 +134,27 @@ npm run extension:e2e -- tests/extension-e2e/capture-v4-network.spec.ts
 npm run extension:e2e -- tests/extension-e2e/capture-v4-full-chain.spec.ts
 ```
 
-The `scripts/a10-bootstrap.mjs` helper pre-creates the disposable SQLite,
-runs migrations, and exports the path via `.tmp/server-db-path.txt` so forked
-worker processes can read it after Playwright starts the Next.js dev server.
-The bootstrap script is referenced by the Playwright `webServer` command in
-`playwright.extension.config.ts`.
+The `scripts/a10-bootstrap.mjs` helper is a reusable, idempotent
+bootstrap that pre-creates the disposable SQLite, runs migrations, and
+exports the path via `.tmp/server-db-path.txt` so forked worker
+processes can read it. It is intended for future webServer-based A11+
+integrations; the current A11 gate does not start the Next.js dev
+server (Playwright `webServer` starts before `globalSetup`, so a
+disposable DB path would not reach the server subprocess). The
+extension lane is therefore intentionally driven through the Fake OJ
+matrix + the production artifact load, not through a real API round-trip.
 
 `extension:e2e` is integrated into `npm run quality:gate` after
-`extension:check` (which already validates the dist) and before `build`
-(which chains `extension:build` internally, so the dist is never rebuilt by
-the E2E lane). The offline `npm run e2e` lane remains extension-free and
-asserts no extension worker or frame appears in the browser context.
+`extension:check` (which already validates the dist) and before `build`.
+The offline `npm run e2e` lane remains extension-free and asserts no
+extension worker or frame appears in the browser context.
 
-Phase A Task A10 review fixes are at commit `9b81784`. After the A11
-gate integration the Fake OJ matrix reports 31 passed and 1 skipped;
-the service-worker-restart scenario is skipped because of the
-test-harness worker-restart seam (a known infrastructure limitation,
-not a production defect).
+Phase A Task A10 review fixes are at commit `9b81784`. A11 review
+fixes are at `6401e17`. A12 review fixes are at `30f3d73`. After the
+A11 gate integration the Fake OJ matrix reports 31 passed and 1
+skipped; the service-worker-restart scenario is `test.skip` because
+of the test-harness worker-restart seam (a known infrastructure
+limitation, not a production defect).
 
 ### Recovery
 
@@ -194,7 +200,7 @@ Stop the stale process before rerunning e2e. Avoid starting manual long-running 
 2. Confirm the popup says paired and capture is enabled. If it says pairing needs attention, create a new or targeted rotation code in `/settings` and pair again.
 3. Check the popup's `待同步结果` and `已隔离结果`; Phase 0 does not create new automatic bundles.
 4. Check `CaptureStatusPanel` only for delivery of bundles that already existed before the V4 migration.
-5. Use the manual attempt form for new training records until a later V4 network-confirmed adapter passes its gates.
+5. Use the manual attempt form for new training records until a later V4 network-confirmed adapter passes its gates (none exist today; every real platform's `V4NetworkStatus` remains `uncharacterized`).
 
 Network errors are retryable. Invalid 400/413/415 responses and permanent 409 event-ID conflicts are dropped to avoid retry loops. A 401 is retained for pairing recovery. If a 409 occurs, inspect whether one producer reused an `eventId` for different event content.
 

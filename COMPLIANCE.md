@@ -7,15 +7,33 @@ The product uses this rule: use browser session, do not extract browser session.
 The V3 click-created waiting model is blocked from V0 acceptance because a UI
 action does not prove server acceptance. The completed V4 Phase 0 stopgap retains
 only a bounded, session-only UI hint; it cannot turn that hint into waiting,
-an attempt bundle, or local API traffic. Later network work remains separately
-gated and may not retain request bodies, code, credentials, or complete headers.
+an attempt bundle, or local API traffic. The V4 Phase A closeout (A0-A12,
+2026-07-26) builds the evidence core, strict correlator, pure capture state
+machine, session/local storage split, production webRequest observer, optional
+MAIN bridge, background orchestrator, Fake OJ matrix, disposable SQLite
+lifecycle, and the canonical nine-stage quality gate. The framework engineering
+pass is complete; no real OJ protocol is implemented yet, so `等待判题` stays
+zero until Phase B ships. The V4 evidence boundary rejects forbidden raw fields
+recursively at every parse: `body`, `rawBody`, `responseBody`, `code`, `headers`,
+`requestHeaders`, `responseHeaders`, `extraHeaders`, `cookie`, `authorization`,
+`csrf`, `token`, `username`, `account` (any depth, cycle-safe via WeakSet).
+Later network work remains separately gated and may not retain request bodies,
+code, credentials, or complete headers.
 
-Phase A Task A0 adds only ordinary `webRequest` observation permission. Its
-temporary exact synthetic matcher stores request ID, method, normalized endpoint
-key, tab/frame/document IDs, and receipt time in session storage. It requests no
-body/header data and makes no real-platform readiness claim. The extension E2E
-harness denies page traffic by default and denies worker DNS with proxy disabled;
-localhost remains the only network exclusion for later local API tests.
+V4 Phase A adds only ordinary `webRequest` observation permission and the
+optional `web_accessible_resources` entry for the MAIN bridge. The webRequest
+observer stores only request ID, method, normalized endpoint key, tab/frame/
+document IDs, lifecycle phase, status code, and receipt time in session
+storage. It requests no body/header data and makes no real-platform readiness
+claim. The MAIN bridge is gated to the four OJ host families
+(leetcode/nowcoder/luogu/codeforces) and its messages are revalidated in the
+ISOLATED-world relay against the recursive forbidden-key gate before any state
+mutation. The extension E2E harness denies page traffic by default and denies
+worker DNS with proxy disabled; localhost remains the only network exclusion
+for later local API tests. `npm run extension:e2e` writes only to
+`.tmp/playwright-extension/` (its own disposable SQLite under
+`.tmp/capture-v4-full-chain-*/`) and is forbidden from opening the default
+`training-platform.sqlite`.
 
 Allowed in the current implementation:
 
@@ -102,7 +120,7 @@ Authenticated localhost transport uses a deliberate one-time pairing code, a has
 
 Disposable test and migration databases are owned by the verification stack, not by users:
 
-- `npm run e2e` writes only to `.tmp/playwright/training-platform.sqlite` and removes it during teardown; `npm run extension:e2e` writes only to `.tmp/playwright-extension/` and removes it during teardown; `npm run quality:gate` writes only to an OS-temporary `ai-training-quality-gate-*` directory and removes it in a `finally` block.
+- `npm run e2e` writes only to `.tmp/playwright/training-platform.sqlite` and removes it during teardown; `npm run extension:e2e` writes only to `.tmp/playwright-extension/` (its own disposable SQLite under `.tmp/capture-v4-full-chain-*/`) and removes it during teardown; `npm run quality:gate` writes only to an OS-temporary `ai-training-quality-gate-*` directory and removes it in a `finally` block.
 - These databases contain only synthetic test fixtures and migration rows; they never hold production capture data, training records, attempts, manual reflections, credentials, or any user-derived content.
 - The default `training-platform.sqlite` at the repository root is the developer's local source of truth. The aggregate gate never opens, hashes, or migrates it; `npm run e2e`, `npm run extension:e2e`, and `npm run quality:gate` are the only commands that own disposable databases; neither E2E lane ever opens the default SQLite file.
-- GitHub Actions (`windows-latest`, Node 22) installs dependencies and Chromium, then runs only `npm run quality:gate`. CI does not deploy, expose secrets, upload database artifacts, or call external LLM, analytics, sync, OJ, or third-party APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner.
+- GitHub Actions (`windows-latest`, Node 22) installs dependencies and Chromium, then runs only `npm run quality:gate`. CI does not deploy, expose secrets, upload database artifacts, or call external LLM, analytics, sync, OJ, or third-party APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner. The Phase A A11 workflow (`workflows/quality-gate.yml`) carries `permissions: contents: read`, `timeout-minutes: 20`, and the `**` branch triggers; it is local-only and never uploads artifacts.

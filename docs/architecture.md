@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-24
+Last updated: 2026-07-26 (V4 Phase A A0-A12 closeout)
 
 ## Overview
 
@@ -47,9 +47,9 @@ bundles and isolate item-specific failures. The popup reads waiting only from
 validated confirmed submissions and separately reports transition, outbox,
 quarantine, migration, and recovery state.
 
-### V4 evidence core and data plane (Phase A closeout scope, 2026-07-24)
+### V4 evidence core and data plane (Phase A closeout scope, 2026-07-26)
 
-The V4 Phase A infrastructure (Tasks A0-A9) is a framework, not a real
+The V4 Phase A infrastructure (Tasks A0-A12) is a framework, not a real
 network matcher. Every real platform's `V4NetworkStatus` remains
 `uncharacterized`. The seven canonical capture states (IDLE /
 REQUEST_OBSERVED / REJECTED / AMBIGUOUS / EXPIRED / SUBMISSION_CONFIRMED /
@@ -157,16 +157,18 @@ document the skip and reference the Phase A closeout report).
 forbidden-key gate as part of A9 closeout.
 
 Task A10 adds `tests/extension-e2e/capture-v4-full-chain.spec.ts`, a
-smoke test that exercises the real extension → API → SQLite chain through
-the Next.js dev server. Task A11 integrates `npm run extension:e2e` into the
+smoke test that proves the disposable SQLite lifecycle + production
+extension artifact + scenario identity helpers + default-DB
+preservation. The full E2->E3->real-popup-pair->real-API->SQLite
+delivery probe and the worker-restart recovery probe remain out of
+Phase A scope. Task A11 integrates `npm run extension:e2e` into the
 canonical nine-stage `quality:gate` (after `extension:check` and before
 `build`), giving each E2E lane its own temporary storage lifecycle:
 `.tmp/playwright/` for the offline lane and `.tmp/playwright-extension/`
-for the extension lane. The `scripts/a10-bootstrap.mjs` helper creates
-the extension lane's disposable SQLite, runs migrations, and exports the
-path to `.tmp/server-db-path.txt` so forked Playwright workers can read it.
-Phase A closeout deliberately defers A12 (independent review) to a fresh
-user authorization.
+for the extension lane. The `scripts/a10-bootstrap.mjs` helper is a
+reusable, idempotent bootstrap for future webServer-based integrations
+(currently unused by the A11 gate). A12 reconciles the plan and produces
+the final closeout report; see `work/reports/phase-a-final-closeout.md`.
 
 
 The service worker stores the long-lived credential in Chrome local storage;
@@ -264,7 +266,7 @@ Attempt repository queries require an explicit limit between 1 and 100 and exclu
 
 Playwright enforces a disposable `TRAINING_DB_PATH`, refuses to reuse an existing port-3000 server, and removes `.tmp/playwright` during teardown. Playwright owns `.tmp/playwright/training-platform.sqlite` exclusively and never writes to the default `training-platform.sqlite`. E2E database cleanup uses an `lstatSync`-based safe walker that handles symlinks, junctions, and broken reparse points without following their targets. A corresponding unit test suite (`tests/unit/e2eDatabase.test.ts`) exercises junction/symlink scenarios; one file-symlink capability test is skipped under EPERM (standard on Windows without Developer Mode), while all mandatory junction tests pass.
 
-`scripts/quality-gate.mjs` owns a separate disposable aggregate gate. It creates its own OS-temporary directory under `os.tmpdir()`, sets `TRAINING_DB_PATH` to that directory for every subcommand, runs lint, disposable migration, unit tests, typecheck, E2E, extension parity, and production build in that order, then removes the directory in a `finally` block. The runner never opens, hashes, or migrates the default `training-platform.sqlite`; that database remains the developer's local source of truth. A `git diff --check` clean check plus the `git check-ignore` verification of `extension/dist` keep the gate's generated state out of the working tree.
+`scripts/quality-gate.mjs` owns a separate disposable aggregate gate. It creates its own OS-temporary directory under `os.tmpdir()`, sets `TRAINING_DB_PATH` to that directory for every subcommand, runs the nine stages (lint, disposable migration, curriculum:validate, unit tests, typecheck, E2E, extension parity, extension E2E, production build) in that order, then removes the directory in a `finally` block. The runner never opens, hashes, or migrates the default `training-platform.sqlite`; that database remains the developer's local source of truth. A `git check-ignore` verification of `extension/dist` keeps the gate's generated state out of the working tree.
 
 GitHub Actions mirrors the same gate. `.github/workflows/quality-gate.yml` runs `windows-latest` with Node 22, installs Chromium, and calls only `npm run quality:gate`. CI does not deploy, upload database artifacts, read secrets, or call external product, OJ, AI, or analytics APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner.
 

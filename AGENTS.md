@@ -112,42 +112,106 @@
 
 # Agent Handoff Guide
 
-> **Status (2026-07-24):** **V4 Phase 0 click-ingress stopgap complete; Phase A
-> Tasks A0-A9 closeout scope complete; formal V0 observation blocked.** Phase 0 is complete. The verdict-gated V3 repair,
-> route/startup/popup fixes, and content-script lifecycle guard are frozen at
-> implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`.
-> The user confirmed the same LeetCode case passes through a fresh natural
-> submission on that build. Earlier SHA
-> `c587bfbcce2eab108a1c98455b2e6b481f71b290` lacked the semantic result-tab
-> repair, and `894162b264124eed7315a116cae73b8e11d717b8` has confirmed capture
-> defects; neither can anchor acceptance. The click-only waiting defect means
-> `2f4f5d8` is also historical evidence rather than a current acceptance anchor.
-
+> **Status (2026-07-26):** **V4 infrastructure engineering PASS
+> (scope-reduced)** for Phase A Tasks A0-A12; **formal V0 observation
+> blocked**. Phase 0 click-ingress stopgap (`2f4f5d8` and earlier V3
+> repair work) remains historical evidence, not a current acceptance
+> anchor. Phase A0-A12 (`b3ec8cb` and the 12 follow-on commits
+> through `0dc3fbf`) is the authoritative V4 framework engineering
+> pass: Safe Evidence boundary, strict Evidence Correlator, pure
+> Capture State Machine, session/local storage split, production
+> webRequest observer, optional MAIN bridge, background orchestrator,
+> Fake OJ matrix (31 passed / 1 known skip), disposable SQLite
+> lifecycle + production extension E2E smoke test, canonical
+> nine-stage quality gate integration, and plan reconciliation. Every
+> authoritative gate command exits 0. The full orchestrated
+> E2->E3->real-popup-pair->real-API->SQLite delivery probe and the
+> worker-restart recovery probe remain out of Phase A scope. Real
+> platforms remain `V4 uncharacterized`. Phase B (NowCoder network
+> pilot) and the full delivery probe require fresh explicit user
+> authorization.
+>
 > **Superseded V0 RC:** `b5166320768355666a5c4ff3f466c29c240ea8cf`
-> predates the domestic-OJ runtime changes and must not anchor acceptance.
-> The latest RC quality gate passes; evidence is recorded in the
-> active plan and `work/handoff-current.md`.
-> `tests/unit/v0ReportValidators.test.ts` now contains 21 real
-> temporary-repository cases for the two-commit release contract. Its focused
-> suite, lint, typecheck, and authoritative quality gate pass.
-
-This repository currently implements a local-first AI coding training prototype. It is on branch `feature/v1-followup`; Phase 0A, 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, 0D, and the Phase 0 AtCoder production certification (T1–T8) are implemented. Phase 0 is complete and reconciled green on 2026-07-17; AtCoder is the sole certified production adapter. The V0 manual learning loop vertical slice is implemented but not accepted. V4 Phase 0 is complete; Phase A Tasks A0-A9 are complete as the authoritative Phase A closeout scope (2026-07-24), and A10-A12 are deliberately deferred at user direction. A fresh user authorization is required before re-opening A10 (real extension → SQLite chain), A11 (quality gate integration), or A12 (independent Phase A review). Phase B (NowCoder network pilot) requires fresh explicit authorization. Formal observation and replacement-RC work remain blocked. Do not start V0.5.
-
-`IDEA.md` and `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` define the future V0/V0.5/V1/Public Beta direction. `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud SaaS as the eventual target but explicitly defers implementation until the Phase 7 gate.
+> predates the domestic-OJ runtime changes and must not anchor
+> acceptance. Earlier Phase 0 stopgap `2f4f5d8` is historical V3
+> repair evidence, not a current acceptance anchor. The
+> authoritative V4 Phase A A0-A12 closeout lives in
+> `work/reports/phase-a-final-closeout.md` and `work/handoff-current.md`.
+> `tests/unit/v0ReportValidators.test.ts` contains 21 real
+> temporary-repository cases for the two-commit release contract.
+>
+> This repository currently implements a local-first AI coding
+> training prototype. It is on branch `feature/v1-followup`. Phase 0A,
+> 0B1-0B3, 0B4 (BLOCKED), 0C1-0C2, 0D, the Phase 0 AtCoder production
+> certification (T1–T8), the V0 manual learning loop vertical slice
+> (implemented; observation and acceptance pending), the V4 Phase 0
+> click-ingress stopgap, and the V4 Phase A A0-A12 closeout scope are
+> all on the branch. AtCoder is the sole certified production DOM
+> adapter. Phase B (NowCoder network pilot) requires fresh explicit
+> authorization; do not start it without re-authorization. Formal
+> observation and replacement-RC work remain blocked. Do not start
+> V0.5.
+>
+> `IDEA.md` and
+> `docs/superpowers/plans/2026-07-11-product-development-roadmap.md`
+> define the future V0/V0.5/V1/Public Beta direction.
+> `docs/decisions/0001-local-pilot-to-cloud-saas.md` accepts cloud
+> SaaS as the eventual target but explicitly defers implementation
+> until the Phase 7 gate.
 
 ## Current shape
 
-- Next.js App Router application with SQLite persistence through `better-sqlite3`.
-- Chrome MV3 extension source lives under `extension/src`; build output is generated under ignored `extension/dist`.
-- The V3 extension sends completed four-event attempt bundles through `POST /api/capture/attempts`; all four raw events and the deterministic attempt projection are written in one SQLite transaction. `POST /api/capture/events` remains only for backward compatibility.
-- The V4 Phase 0 extension never creates waiting from a click. A trusted visible enabled exact control may create only a bounded E0 hint in `chrome.storage.session`; NowCoder additionally requires `button.btn-submit` labelled exactly `保存并提交`. Waiting reads only validated `confirmedSubmissions`, which have no Phase 0 producer. Existing completed outbox items still use the V3 four-event/API contract. A formal `PLATFORM_ADAPTERS` registry declares DOM readiness; AtCoder is `production`, while LeetCode, NowCoder, Codeforces, and Luogu remain `experimental` and all V4 network statuses remain uncharacterized.
-- Phase A A1 defines strict Safe Evidence schemas and a single normalization parser. It rejects forbidden raw/body/header/credential/user fields and URL-shaped endpoint keys, requires browser-document identity plus background `receivedAt`, and requires Chrome `apiTimeStamp` on webRequest E1 evidence. No adapter matching, state transition, or persistence integration exists yet.
-- Phase A A2 splits adapter contracts and registry ownership while retaining `platforms.ts` compatibility exports. Exact hosts, DOM status, V4 network status, and version are explicit; all V4 statuses remain `uncharacterized`. A branded policy factory reparses outputs as Safe Evidence, and an AST dependency graph blocks direct/transitive state, storage, outbox, and transport imports. No real network matcher exists yet.
-- `/training` supports automatic and manual attempts, optimistic corrections, correction history, and logical voiding. Capture identity fields remain immutable.
-- `/training`, `/coach`, and `/growth` use active, non-voided attempts by default; Growth labels automatic and manual sources.
-- Domestic authenticated-characterization fixtures live under `tests/fixtures/{leetcode,nowcoder,luogu/authenticated}/`. They are strictly sanitized, prove passive detector behavior, and can never satisfy the production gate. The historical public-DOM Luogu certification corpus and BLOCKED artifact remain unchanged.
-- E2E database teardown uses `lstatSync`-based safe deletion (handles symlinks, junctions, and broken reparse points). One file-symlink capability test is skipped under EPERM; all mandatory junction tests pass.
-- Playwright e2e smoke tests own the local browser QA server lifecycle through `playwright.config.ts`.
+- Next.js App Router application with SQLite persistence through
+  `better-sqlite3`.
+- Chrome MV3 extension source lives under `extension/src`; build output
+  is generated under ignored `extension/dist`.
+- The V3 extension sends completed four-event attempt bundles through
+  `POST /api/capture/attempts`; all four raw events and the
+  deterministic attempt projection are written in one SQLite
+  transaction. `POST /api/capture/events` remains only for backward
+  compatibility.
+- The V4 Phase 0 extension never creates waiting from a click. A
+  trusted visible enabled exact control may create only a bounded E0
+  hint in `chrome.storage.session`; NowCoder additionally requires
+  `button.btn-submit` labelled exactly `保存并提交`. Waiting reads
+  only validated `confirmedSubmissions`. Existing completed outbox
+  items still use the V3 four-event/API contract. A formal
+  `PLATFORM_ADAPTERS` registry declares DOM readiness; AtCoder is
+  `production`, while LeetCode, NowCoder, Codeforces, and Luogu remain
+  `experimental` and all V4 network statuses remain uncharacterized.
+- V4 Phase A0-A12 (commits `7d6bf9e` through `b3ec8cb`, with review
+  fix-up commits `9b81784`, `6401e17`, `30f3d73`, and the closeout
+  `0dc3fbf`):
+  - A0 webRequest test path GO. A1 Safe Evidence boundary.
+  - A2 adapter contracts + AST dependency gate. A3 strict Evidence
+    Correlator. A4 pure Capture State Machine (7-state model,
+    SHA-256 bundle id, additive V3 `submission_confirmed` action).
+    A5 session/local storage split. A6 production webRequest
+    observer. A7 optional MAIN bridge (with recursive
+    forbidden-key defense). A8 background orchestrator (pure data
+    plane, no `chrome.*`). A9 Fake OJ matrix (18 scenarios + 3
+    cross-platform smoke + 1 webRequest spike = 32 spec; 31 passed /
+    1 known skip). A10 disposable SQLite lifecycle + production
+    extension E2E smoke test. A11 nine-stage quality gate
+    integration. A12 plan reconciliation + closeout report.
+  - Every authoritative gate command exits 0. Real platforms
+    remain V4 uncharacterized.
+- `/training` supports automatic and manual attempts, optimistic
+  corrections, correction history, and logical voiding. Capture
+  identity fields remain immutable.
+- `/training`, `/coach`, and `/growth` use active, non-voided
+  attempts by default; Growth labels automatic and manual sources.
+- Domestic authenticated-characterization fixtures live under
+  `tests/fixtures/{leetcode,nowcoder,luogu/authenticated}/`. They
+  are strictly sanitized, prove passive detector behavior, and can
+  never satisfy the production gate. The historical public-DOM
+  Luogu certification corpus and BLOCKED artifact remain unchanged.
+- E2E database teardown uses `lstatSync`-based safe deletion
+  (handles symlinks, junctions, and broken reparse points). One
+  file-symlink capability test is skipped under EPERM; all mandatory
+  junction tests pass.
+- Playwright e2e smoke tests own the local browser QA server
+  lifecycle through `playwright.config.ts`.
 
 ## V0 manual learning loop (implemented; validation pending)
 
@@ -168,16 +232,24 @@ Use these commands for verification:
 ```powershell
 npm run lint
 npm run db:migrate
+npm run curriculum:validate
 npm run test
 npm run typecheck
 npm run e2e
 npm run extension:check
-npm run extension:e2e -- tests/extension-e2e/webrequest-spike.spec.ts
+npm run extension:e2e
 npm run build
 npm run quality:gate
 ```
 
-`npm run lint` runs the strict ESLint flat config. `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run quality:gate` runs the seven commands above in this exact order under an OS-temporary database and is the safe single verification.
+`npm run lint` runs the strict ESLint flat config. `npm run
+extension:check` chains typecheck, focused extension tests, the MV3
+build, and the `extension/dist` parity/ignore check. `npm run
+extension:e2e` runs the new bundled-Chromium Playwright lane that
+loads the exact production `extension/dist` (Fake OJ matrix + A10
+full-chain smoke). `npm run quality:gate` runs the nine commands
+above in this exact order under an OS-temporary database and is the
+safe single verification.
 
 For browser smoke QA, Playwright owns the server lifecycle; do not start a separate long-running server. Its prepare/teardown flow creates and removes `.tmp/playwright/training-platform.sqlite` and refuses to reuse a server on port 3000. For other migration or build checks, set `TRAINING_DB_PATH` to a disposable path when the default database must remain untouched.
 
@@ -229,6 +301,8 @@ These are current implementation boundaries, not a permanent rejection of the ap
 - Phase A A6 implements the production webRequest observer. Five host-scoped lifecycle listeners (onBeforeRequest / onBeforeRedirect / onResponseStarted / onCompleted / onErrorOccurred) cover leetcode/nowcoder/luogu/codeforces and call `parseSafeEvidence` synchronously. Forbidden raw fields produce `ignored corrupt_record`; missing documentId / invalid tab/frame produce `missing_document_id`; non-adapted hosts and unsafe URLs produce `non_adapted_host` / `normalize_endpoint_failed`. `registerNetworkObserverListeners` is a pure dependency-injected helper that background.ts routes through the existing serialized executor. The AtCoder synthetic spike listener is preserved unchanged.
 - Phase A A7 implements the optional low-trust MAIN bridge. `mainWorldBridge.ts` provides the IIFE MAIN-world script (built as `extension/dist/main-world-bridge.js` and gated to the four OJ hosts through `manifest.json`'s `web_accessible_resources`); `mainWorldRelay.ts` is the ISOLATED-world relay that re-validates the summary through `parseMainBridgeSummary` and adds a recursive forbidden-key gate (any of `body`/`rawBody`/`responseBody`/`code`/`headers`/`requestHeaders`/`responseHeaders`/`extraHeaders`/`cookie`/`authorization`/`csrf`/`token`/`username`/`account` at any depth) before emitting `V4_FORWARD_BRIDGE`. MAIN evidence alone can never confirm a submission; it must match one unique webRequest E1.
 - Phase A A8 implements the pure Capture State Machine + background orchestrator. `captureStateMachine.ts` is the canonical 7-state reducer; `bundle_${sha256HexBytes(canonical)}` uses a pure-JS SHA-256 (byte-identical to Node `createHash("sha256")`) and a fixed-width uint32 length-prefix encoder so the module bundles under Chrome MV3 without Node-only APIs. `backgroundOrchestrator.ts` is the pure data plane: zero `chrome.*` calls, every side effect through the injected `ExtensionInitializationStorageSplit`. It accepts 9 input kinds (4 V3 event variants, V4 Safe Evidence, 4 A3 correlator outcomes plus `e0_recorded` / `e3_recorded` / `v3_submission_intent_recorded` / `user_action`); emits a closed 4-effect union (bundle / rejected / ambiguous / ignored) with `observedAt`; waiting only increments on `SUBMISSION_CONFIRMED`; E3-before-E2 retention is parked by stable submission key with most-recent-wins; browser-restart recovery produces a bundle from confirmed submission + new E3 without requiring transientE1; rejected diagnostics dedupe by reason + `summary.evidenceId` + tab/frame/document id/endpointKey.
-- Phase A A9 completes the Fake OJ matrix. `tests/extension-e2e/{fakeOj,fakeOjScenarios,capture-v4-network.spec}.ts` cover 18 named scenarios + 3 cross-platform smoke tests; 28 of 29 Playwright tests pass. The single remaining failure is a test-harness worker-restart seam (a known infrastructure limitation, not a production defect; the module docblock in `capture-v4-network.spec.ts` honestly documents this). A10-A12 are deliberately deferred at user direction.
-- Phase A A6 implements the production webRequest observer. Five host-scoped lifecycle listeners (onBeforeRequest / onBeforeRedirect / onResponseStarted / onCompleted / onErrorOccurred) cover leetcode/nowcoder/luogu/codeforces and call `parseSafeEvidence` synchronously. Forbidden raw fields produce `ignored corrupt_record`; missing documentId / invalid tab/frame produce `missing_document_id`; non-adapted hosts and unsafe URLs produce `non_adapted_host` / `normalize_endpoint_failed`. `registerNetworkObserverListeners` is a pure dependency-injected helper that background.ts routes through the existing serialized executor. The AtCoder synthetic spike listener is preserved unchanged.
-- Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. V4 Phase 0 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`. The Phase A closeout scope (A0-A9) is complete and approved at user direction; A10-A12 are deliberately deferred and must not be claimed as complete in this repository. Do not re-execute completed historical plans, resume formal V0 observation, or start V0.5 before the V4 gates permit it.
+- Phase A A9 completes the Fake OJ matrix. `tests/extension-e2e/{fakeOj,fakeOjScenarios,capture-v4-network.spec}.ts` cover 18 named scenarios + 3 cross-platform smoke tests; 31 of 32 Playwright tests pass with 1 known skip (the service-worker-restart scenario is `test.skip` because of a known test-harness infrastructure limitation in Playwright bundled Chromium; the module docblock in `capture-v4-network.spec.ts` honestly documents this).
+- Phase A A10 adds the disposable SQLite lifecycle + production extension E2E smoke test. `tests/extension-e2e/database.ts` provides disposable directory, DB creation, migrations via `npm.cmd`, count readers, and default-DB snapshot / verify utilities with relative-path-based safe deletion under `.tmp/`. `tests/extension-e2e/capture-v4-full-chain.spec.ts` proves the disposable DB + production extension artifact + scenario identity helpers + default-DB preservation. `scripts/a10-bootstrap.mjs` is a reusable helper for future webServer-based integrations (currently unused). Independent review found and fixed 4 HIGH issues (path check prefix collision, stale path file teardown, missing `.tmp` mkdir, profile cleanup replacement) in commit `9b81784`.
+- Phase A A11 integrates the new extension E2E lane into the canonical quality gate. `scripts/quality-gate.mjs` adds `npm run extension:e2e` as stage 7; the frozen `QUALITY_GATE_STAGES` array is now 9 stages. `.github/workflows/quality-gate.yml` is created as a local-only CI workflow with `permissions: contents: read`, `timeout-minutes: 20`, and `**` branch triggers. Independent review found and fixed 6 issues (HIGH npm ci / permissions, MEDIUM triggers / timeout, LOW docs accuracy / incorrect comment) in commit `6401e17`.
+- Phase A A12 reconciles the plan and produces the final closeout report. `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` now has per-task execution result blocks with commit SHA, verification command, and review findings. `work/reports/phase-a-final-closeout.md` is the dated closeout report. Independent review found and fixed 4 issues (HIGH verdict honesty, MEDIUM missing SHAs / dev-server claim, LOW module list) in commit `30f3d73`. Phase A verdict is `V4 infrastructure engineering PASS (scope-reduced)`: the framework engineering pass is complete and every authoritative gate command exits 0, but the full E2->E3->real-popup-pair->real-API->SQLite delivery probe and the worker-restart recovery probe remain out of Phase A scope.
+- Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. V4 Phase 0 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`. V4 Phase A A0-A12 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` with verdict `V4 infrastructure engineering PASS (scope-reduced)`. Do not re-execute completed historical plans, resume formal V0 observation, or start V0.5 before the V4 gates permit it.

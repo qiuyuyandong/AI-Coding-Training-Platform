@@ -1,14 +1,20 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-24):** **V4 Phase 0 click-ingress stopgap engineering
-> complete.** A qualifying UI click can now produce only a
-> bounded session-only E0 hint. It cannot create waiting state, an attempt
-> bundle, or local API traffic. V3 click intents are removed by an idempotent
-> V4 migration, while completed outbox/quarantine items and pairing state are
-> preserved. Phase A Task A0 separately proved that exact production dist can
-> observe a locally fulfilled synthetic POST through MV3 `webRequest`, including
-> worker stop/reawaken. Automatic network-confirmed capture is not implemented.
-
+> **Status (2026-07-26):** **V4 infrastructure engineering PASS
+> (scope-reduced)** for Phase A Tasks A0-A12. Phase 0 click-ingress
+> stopgap is complete: a qualifying UI click produces only a bounded
+> session-only E0 hint and cannot create waiting state, an attempt
+> bundle, or local API traffic. V3 click intents are removed by an
+> idempotent V4 migration, while completed outbox/quarantine items
+> and pairing state are preserved. Phase A0-A9 built the V4 evidence
+> core and Fake OJ matrix (31 passed / 1 known skip); A10 added the
+> disposable SQLite lifecycle + production extension E2E smoke test;
+> A11 integrated the new lane into the canonical nine-stage quality
+> gate; A12 reconciled the plan and produced the final closeout
+> report. Automatic network-confirmed capture is not implemented;
+> every real platform's `V4NetworkStatus` remains `uncharacterized`.
+> Final closeout: `work/reports/phase-a-final-closeout.md`.
+>
 > **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
 > real temporary-repository cases for the strict two-commit release contract.
 > `b5166320768355666a5c4ff3f466c29c240ea8cf`,
@@ -16,14 +22,14 @@
 > `c587bfbcce2eab108a1c98455b2e6b481f71b290` are superseded repair baselines;
 > `2f4f5d895ea8d965fb64d19dc784ca5514480688` is historical V3 repair evidence,
 > not a current acceptance anchor.
-
+>
 > **Post-candidate stabilization:** The frozen RC repairs the
 > plan-completion row-ID regression, stale projection, later-pass L2 promotion,
 > optional-AI lookup and Windows link-check harness. A fresh eight-stage quality
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. The active runtime work is `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`; formal observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. The active runtime work is `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` (Phase A closeout scope A0-A12); formal observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 
@@ -61,13 +67,14 @@ npm run typecheck
 npm run test
 npm run e2e
 npm run extension:check
+npm run extension:e2e
 npm run build
 npm run quality:gate
 ```
 
-`npm run lint` runs the strict ESLint flat config (`eslint . --max-warnings=0`). `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run quality:gate` runs lint, a disposable migration, unit tests, typecheck, E2E, extension parity, and production build in that order using an OS-temporary database and is the safe all-in-one gate. Use it instead of running individual commands when you want one reproducible verification.
+`npm run lint` runs the strict ESLint flat config (`eslint . --max-warnings=0`). `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run extension:e2e` runs the new bundled-Chromium Playwright lane that loads the exact production `extension/dist` (Fake OJ matrix + A10 full-chain smoke). `npm run quality:gate` runs lint, a disposable migration, curriculum validation, unit tests, typecheck, E2E, extension parity, extension E2E, and production build in that order using an OS-temporary database and is the safe all-in-one gate. Use it instead of running individual commands when you want one reproducible verification.
 
-`npm run e2e` creates a freshly migrated database at `.tmp/playwright/training-platform.sqlite`, starts and stops its own Next.js server, and removes the disposable database afterward. It never reuses a server on port 3000 and never writes to the default `training-platform.sqlite`.
+`npm run e2e` creates a freshly migrated database at `.tmp/playwright/training-platform.sqlite`, starts and stops its own Next.js server, and removes the disposable database afterward. It never reuses a server on port 3000 and never writes to the default `training-platform.sqlite`. `npm run extension:e2e` writes only to `.tmp/playwright-extension/` (its own disposable SQLite under `.tmp/capture-v4-full-chain-*/`) and is forbidden from opening the default `training-platform.sqlite`.
 
 ## Browser Extension
 
@@ -77,7 +84,7 @@ Build the Chrome MV3 extension:
 npm run extension:build
 ```
 
-Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000`. An exact submit click creates only a local waiting intent; a new evidence-backed final verdict creates one atomic attempt bundle and sends it to `/api/capture/attempts`. Opening, closing, navigating, running, or debugging alone does not create a pending training result.
+Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000`. The V4 Phase 0 click-ingress stopgap ensures that an exact submit click creates only a short-lived E0 hint, not waiting state or a local intent; only the existing completed `captureOutbox` items still use the V3 four-event bundle path. V4 Phase A introduces the Safe Evidence boundary, the pure Capture State Machine, the production webRequest observer, the optional MAIN bridge, and the Fake OJ matrix (31 passed / 1 known skip), but does not yet produce an automatic E2 confirmation; only manually entered attempts and the legacy V3 outbox deliver to `/api/capture/attempts` in this scope. Opening, closing, navigating, running, or debugging alone does not create a pending training result.
 
 Before the first capture, open `/settings`, create a ten-minute pairing code, and paste it into the extension popup. The app stores only a hash of the long-lived credential. `/settings` can issue a targeted rotation code or revoke an installation; `installationId` remains correlation metadata and is not itself authorization.
 
@@ -101,6 +108,11 @@ the observed `button.btn-submit` / `保存并提交` contract. Hints and passive
 candidates cannot create waiting or a bundle. Opening, closing, navigating,
 running samples, debugging, clicking submit, or directly viewing historical
 results therefore creates no new automatic training record in this stopgap.
+V4 Phase A (A0-A12, framework engineering pass) builds the Safe Evidence
+boundary, strict correlator, pure capture state machine, session/local storage
+split, production webRequest observer, optional MAIN bridge, background
+orchestrator, Fake OJ matrix, and disposable SQLite lifecycle; no real OJ
+protocol is implemented yet, so `等待判题` stays zero until Phase B ships.
 
 The background worker drains completed bundles from `captureOutbox` with one
 serialized, single-flight executor. Item-specific 400/409/413/415 failures move
