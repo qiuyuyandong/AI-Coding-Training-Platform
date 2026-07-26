@@ -134,14 +134,18 @@ GO/NO-GO decision.
 **Explicit non-goals:** No real OJ submission, E2 confirmation, adapter
 certification, full popup/API/SQLite chain, or RC claim.
 
-**A0 execution result (2026-07-24): GO.** Production `extension/dist` loaded in
-bundled Chromium `138.0.7204.23`. Two consecutive final fresh-profile runs each
-observed two exact fulfilled POSTs and two extension markers across CDP-confirmed
-`stopped -> running` worker lifecycle, while wrong method/path produced no
-marker. Page traffic was default-denied and worker traffic was denied through
-no-proxy plus host-resolver rules. A pre-fix denial probe exposed and then closed
-a system-proxy bypass; no submission or user data was involved. Evidence:
-`work/reports/v4-phase-a-a0-webrequest-spike-2026-07-24.md`.
+**A0 execution result (2026-07-24): GO** (commit `7d6bf9e`).
+Production `extension/dist` loaded in bundled Chromium `138.0.7204.23`.
+Two consecutive final fresh-profile runs each observed two exact
+fulfilled POSTs and two extension markers across CDP-confirmed
+`stopped -> running` worker lifecycle, while wrong method/path produced
+no marker. Page traffic was default-denied and worker traffic was
+denied through no-proxy plus host-resolver rules. A pre-fix denial
+probe exposed and then closed a system-proxy bypass; no submission or
+user data was involved. Verification command: `npm run extension:e2e
+-- tests/extension-e2e/webrequest-spike.spec.ts`. Evidence:
+`work/reports/v4-phase-a-a0-webrequest-spike-2026-07-24.md`. No
+follow-up review findings.
 
 ---
 
@@ -187,19 +191,21 @@ and rejects every forbidden-field probe.
 
 **Explicit non-goals:** No adapter matching or state transition.
 
-**A1 execution result (2026-07-24): COMPLETE.** `extension/src/evidence.ts`
-now exposes only strict, inferred Safe Evidence and its normalization parser.
-All webRequest E1 records retain required Chrome `apiTimeStamp` alongside
-background `receivedAt`; E0/E2/E3 cannot impersonate that API-local clock.
-Recursive forbidden-key checks fail closed on cycles/getters, URL-shaped
-endpoint keys are rejected, and parsing returns a plain Zod-normalized object
-rather than narrowing the raw input. The focused suite passes 177/177 tests;
-`npm run lint`, `npm run typecheck`, and `npm run extension:check` pass, with the
-final extension gate covering 21 files / 645 tests plus MV3 build and dist
-parity. Independent final review: APPROVE, with no blocker or important issue.
-Task A3, A4, A5, A6, A7, A8, and A9 are completed as recorded below. A10-A12
-are deliberately deferred pending a fresh user decision; the Fake OJ matrix
-(A9) is the authoritative Phase A closeout seam.
+**A1 execution result (2026-07-24): COMPLETE** (commit `8bdfe5d`).
+`extension/src/evidence.ts` now exposes only strict, inferred Safe
+Evidence and its normalization parser. All webRequest E1 records
+retain required Chrome `apiTimeStamp` alongside background
+`receivedAt`; E0/E2/E3 cannot impersonate that API-local clock.
+Recursive forbidden-key checks fail closed on cycles/getters,
+URL-shaped endpoint keys are rejected, and parsing returns a plain
+Zod-normalized object rather than narrowing the raw input. The
+focused suite passes 177/177 tests; `npm run lint`, `npm run
+typecheck`, and `npm run extension:check` pass, with the final
+extension gate covering 21 files / 645 tests plus MV3 build and
+dist parity. Verification: `npx vitest run --config
+vitest.extension.config.ts tests/unit/extensionEvidence.test.ts`.
+Independent final review: APPROVE, with no blocker or important
+issue.
 
 ---
 
@@ -250,20 +256,26 @@ stay green, and V4 readiness cannot be inferred from DOM status.
 
 **Explicit non-goals:** No platform promotion or network characterization.
 
-**A2 execution result (2026-07-24): COMPLETE.** Adapter contracts, exact host
-ownership, DOM readiness, and independent V4 network readiness now have one
-registry source while `platforms.ts` retains compatibility exports. Only
-AtCoder remains DOM `production`; all V4 network statuses remain
-`uncharacterized` and no real adapter has a network policy. Policy functions
-can be created only through a branded runtime factory that reparses every
-candidate result as Safe Evidence and fails closed. A TypeScript-AST dependency
-graph rejects direct or transitive storage/outbox/transport/state imports,
-including static imports, export-from, dynamic imports, CommonJS `require`, and
-TypeScript import-equals forms. Existing page/verdict behavior remains green.
-The focused matrix passes 4 files / 327 tests; lint, typecheck, and final
-`npm run extension:check` pass with 22 files / 692 tests,
-MV3 build, and dist parity. Independent final review: APPROVE, with no blocker
-or important issue. Task A3 has not started and requires explicit authorization.
+**A2 execution result (2026-07-24): COMPLETE** (commit `9449c61`).
+Adapter contracts, exact host ownership, DOM readiness, and independent
+V4 network readiness now have one registry source while
+`platforms.ts` retains compatibility exports. Only AtCoder remains
+DOM `production`; all V4 network statuses remain `uncharacterized`
+and no real adapter has a network policy. Policy functions can be
+created only through a branded runtime factory that reparses every
+candidate result as Safe Evidence and fails closed. A TypeScript-AST
+dependency graph rejects direct or transitive
+storage/outbox/transport/state imports, including static imports,
+export-from, dynamic imports, CommonJS `require`, and TypeScript
+import-equals forms. Existing page/verdict behavior remains green.
+The focused matrix passes 4 files / 327 tests; lint, typecheck, and
+final `npm run extension:check` pass with 22 files / 692 tests, MV3
+build, and dist parity. Verification: `npx vitest run --config
+vitest.extension.config.ts tests/unit/extensionAdapterContract.test.ts
+tests/unit/extensionPlatforms.test.ts
+tests/unit/extensionDomesticOjAuth.test.ts
+tests/unit/extensionAtcoderFixtures.test.ts`. Independent final
+review: APPROVE, with no blocker or important issue.
 
 ---
 
@@ -311,26 +323,32 @@ expiry, and cross-document matrices are green.
 **Explicit non-goals:** No fuzzy score, nearest-request fallback, or manual
 selection.
 
-**A3 execution result (2026-07-24): COMPLETE.** `extension/src/submissionCorrelator.ts`
-implements a strict pure module with no chrome.*, no DOM, no wall clock, and no
-I/O. E1 lifecycle signals dedupe by `requestId`, take the latest `apiTimeStamp`,
-preserve the earliest background `receivedAt`, and reject identity changes
-under the same request. `correlateMainSummary` filters by identity equality,
-the policy time window, and receivedAt monotonicity, then returns a closed
-discriminated union: `correlated`, `ambiguous` (`multiple_e1_candidates` or
-`e1_window_expired`), `no_match` (`zero_candidates`/`expired`/`canceled`/
-`already_matched`/`crossed_fields`/`error`), or `rejected` carrying the A1
-rejection reason. Disambiguation prefers `redirectEndpointKey` and falls back
-to full namespaced `platform:externalSubmissionId` equality. `markE1Outcome`
-requires a rejection reason when outcome is `rejected`. `parseMainBridgeSummary`
-enforces canonical UTC ISO `receivedAt` with real Gregorian date validation,
-non-negative finite `apiTimeStamp`, non-empty `evidenceId`, and a closed
-platform enum. State and records are deeply frozen on every return path;
-no-op operations still produce a new state reference. The focused suite
-passes 1 file / 79 tests; lint, typecheck, and final `npm run extension:check`
-pass with 23 files / 771 tests, MV3 build, and dist parity. Independent final
-review: APPROVE, with no blocker or important issue. Task A4 has not started
-and requires explicit authorization.
+**A3 execution result (2026-07-24): COMPLETE** (commit `03b56d0`).
+`extension/src/submissionCorrelator.ts` implements a strict pure
+module with no chrome.*, no DOM, no wall clock, and no I/O. E1
+lifecycle signals dedupe by `requestId`, take the latest
+`apiTimeStamp`, preserve the earliest background `receivedAt`, and
+reject identity changes under the same request.
+`correlateMainSummary` filters by identity equality, the policy time
+window, and receivedAt monotonicity, then returns a closed
+discriminated union: `correlated`, `ambiguous`
+(`multiple_e1_candidates` or `e1_window_expired`), `no_match`
+(`zero_candidates`/`expired`/`canceled`/`already_matched`/
+`crossed_fields`/`error`), or `rejected` carrying the A1 rejection
+reason. Disambiguation prefers `redirectEndpointKey` and falls back
+to full namespaced `platform:externalSubmissionId` equality.
+`markE1Outcome` requires a rejection reason when outcome is
+`rejected`. `parseMainBridgeSummary` enforces canonical UTC ISO
+`receivedAt` with real Gregorian date validation, non-negative finite
+`apiTimeStamp`, non-empty `evidenceId`, and a closed platform enum.
+State and records are deeply frozen on every return path; no-op
+operations still produce a new state reference. The focused suite
+passes 1 file / 79 tests; lint, typecheck, and final
+`npm run extension:check` pass with 23 files / 771 tests, MV3 build,
+and dist parity. Verification: `npx vitest run --config
+vitest.extension.config.ts tests/unit/extensionSubmissionCorrelator.test.ts`.
+Independent final review: APPROVE, with no blocker or important
+issue.
 
 ---
 
@@ -385,33 +403,38 @@ other than SUBMISSION_CONFIRMED contributes to waiting.
 
 **Explicit non-goals:** No Chrome API or platform DOM access.
 
-**A4 execution result (2026-07-24): COMPLETE.** `extension/src/captureStateMachine.ts`
-is a pure reducer that accepts a closed input union of 9 kinds (4 V3 event
-variants, V4 SafeEvidence, and 4 A3 correlator outcomes). It projects the
-input stream into a 7-state canonical projection (IDLE / REQUEST_OBSERVED /
-REJECTED / AMBIGUOUS / EXPIRED / SUBMISSION_CONFIRMED / FINALIZED) and
-emits a closed `CaptureEffect` union (bundle / rejected / ambiguous /
+**A4 execution result (2026-07-24): COMPLETE** (commit `2ca2ffd`).
+`extension/src/captureStateMachine.ts` is a pure reducer that accepts
+a closed input union of 9 kinds (4 V3 event variants, V4 SafeEvidence,
+and 4 A3 correlator outcomes). It projects the input stream into a
+7-state canonical projection (IDLE / REQUEST_OBSERVED / REJECTED /
+AMBIGUOUS / EXPIRED / SUBMISSION_CONFIRMED / FINALIZED) and emits a
+closed `CaptureEffect` union (bundle / rejected / ambiguous /
 ignored) with `observedAt` carried by every effect. Waiting only
-increments on `SUBMISSION_CONFIRMED`; historical V3 clicks cannot contribute
-to waiting. E2-driven bundles carry the new additive V3 action
-`submission_confirmed`, while legacy `submit_clicked` events continue to
-parse. E3 before E2 is parked in a session-only pending-final when a stable
-submission id is present and replayed on the next E2; otherwise the E3 is
-surfaced as an `ignored` effect with closed reason
-`missing_external_submission_id`. Bundle id is a real SHA-256 over a
-fixed-width uint32 big-endian length-prefixed UTF-8 encoding of identity
-fields; control characters in any identity field produce an `ignored`
-effect with closed reason `control_character_in_identity`. Cross-platform
-collision tests confirm distinct submission keys and bundle ids when the
-same externalSubmissionId is reused across two platforms. Existing V3
-schemas (`lib/capture/protocol.ts`, `attemptBundle.ts`, `events.ts`) remain
-backward compatible: the existing capture tests still pass, and a
-historical V3 four-event tuple reconstructs an identical bundle effect.
-Targeted 1 file / 40 tests pass; the existing capture tests 3 files / 34
-tests pass; `npm run lint`, `npm run typecheck`, and final
-`npm run extension:check` pass with 24 files / 811 tests, MV3 build, and
-dist parity. Independent final review: APPROVED, with no blocker or
-important issue. Task A5 has not started and requires explicit authorization.
+increments on `SUBMISSION_CONFIRMED`; historical V3 clicks cannot
+contribute to waiting. E2-driven bundles carry the new additive V3
+action `submission_confirmed`, while legacy `submit_clicked` events
+continue to parse. E3 before E2 is parked in a session-only
+pending-final when a stable submission id is present and replayed on
+the next E2; otherwise the E3 is surfaced as an `ignored` effect
+with closed reason `missing_external_submission_id`. Bundle id is a
+real SHA-256 over a fixed-width uint32 big-endian length-prefixed
+UTF-8 encoding of identity fields; control characters in any
+identity field produce an `ignored` effect with closed reason
+`control_character_in_identity`. Cross-platform collision tests
+confirm distinct submission keys and bundle ids when the same
+externalSubmissionId is reused across two platforms. Existing V3
+schemas (`lib/capture/protocol.ts`, `attemptBundle.ts`, `events.ts`)
+remain backward compatible: the existing capture tests still pass,
+and a historical V3 four-event tuple reconstructs an identical
+bundle effect. Verification: `npx vitest run
+tests/unit/captureAttemptBundle.test.ts tests/unit/captureEvents.test.ts`
+(3 files / 34 tests pass) plus `npx vitest run --config
+vitest.extension.config.ts tests/unit/extensionCaptureStateMachine.test.ts`
+(1 file / 40 tests pass); `npm run lint`, `npm run typecheck`, and
+final `npm run extension:check` pass with 24 files / 811 tests,
+MV3 build, and dist parity. Independent final review: APPROVED,
+with no blocker or important issue.
 
 ---
 
@@ -462,7 +485,15 @@ all fail closed and preserve durable delivery state.
 
 **Explicit non-goals:** No direct LevelDB access or user-profile manipulation.
 
-**A5 execution result (2026-07-24): COMPLETE.** `extension/src/transientEvidenceStorage.ts`
+**A5 execution result (2026-07-24): COMPLETE** (commit `2a27997`).
+Verification: `npx vitest run --config vitest.extension.config.ts
+tests/unit/extensionTransientEvidenceStorage.test.ts
+tests/unit/extensionConfirmedSubmissionStorage.test.ts
+tests/unit/extensionInstallation.test.ts` (3 files / 39 tests
+pass); lint, typecheck, and final `npm run extension:check` pass
+with 26 files / 839 tests, MV3 build, and dist parity. Independent
+final review: APPROVE, with no blocker or important issue.
+`extension/src/transientEvidenceStorage.ts`
 provides strict read/plan/write for the session-only V4 transient state
 (uiHints, E1 lifecycles, page contexts, unmatched E3, ambiguity diagnostics).
 Nested E1/E3 evidence is validated through `parseSafeEvidence`; forbidden
@@ -539,7 +570,14 @@ remains green.
 
 **Explicit non-goals:** No body access or real platform E2 policy.
 
-**A6 execution result (2026-07-24): COMPLETE.** `extension/src/networkObserver.ts`
+**A6 execution result (2026-07-24): COMPLETE** (commit `64890b4`).
+Verification: `npx vitest run --config vitest.extension.config.ts
+tests/unit/extensionNetworkObserver.test.ts
+tests/unit/extensionNetworkObserverIntegration.test.ts` (2 files /
+19 tests pass); lint, typecheck, and final `npm run
+extension:check` pass with 28 files / 858 tests, MV3 build, and
+dist parity. Independent final review: APPROVE, with no blocker
+or important issue. `extension/src/networkObserver.ts`
 registers five host-scoped Chrome webRequest lifecycle listeners
 (`onBeforeRequest`, `onBeforeRedirect`, `onResponseStarted`,
 `onCompleted`, `onErrorOccurred`) with `OJ_HOST_PATTERNS` covering
@@ -612,7 +650,13 @@ unique synthetic correlation path passes.
 
 **Explicit non-goals:** MAIN evidence alone can never confirm submission.
 
-**A7 execution result (2026-07-24): COMPLETE.** `extension/src/mainWorldBridge.ts`
+**A7 execution result (2026-07-24): COMPLETE** (commit `68f0d4e`).
+Verification: `npx vitest run --config vitest.extension.config.ts
+tests/unit/extensionMainWorldBridge.test.ts` (1 file / 57 tests
+pass); lint, typecheck, and `npm run extension:check` pass with
+29 files / 912 tests, MV3 build, and dist parity. Independent final
+review: APPROVE, with no blocker or important issue.
+`extension/src/mainWorldBridge.ts`
 provides the IIFE MAIN-world bridge with strict structural validation, closed-reason
 diagnostics, and bounded queue + flush on `pagehide`/`unload`. The
 `extension/dist/main-world-bridge.js` IIFE entry is wired through
@@ -680,7 +724,13 @@ existing-format bundle and all V3 delivery regression suites remain green.
 
 **Explicit non-goals:** No real platform endpoint matcher.
 
-**A8 execution result (2026-07-24): COMPLETE.** `extension/src/backgroundOrchestrator.ts`
+**A8 execution result (2026-07-24): COMPLETE** (commit `12ceb6d`).
+Verification: `npx vitest run --config vitest.extension.config.ts
+tests/unit/extensionBackgroundOrchestrator.test.ts` (1 file / 35
+tests pass); lint, typecheck, and final `npm run extension:check`
+pass with 30 files / 947 tests, MV3 build, and dist parity.
+Independent final review: APPROVED, with no blocker or important
+issue. `extension/src/backgroundOrchestrator.ts`
 is a pure data-plane module: zero `chrome.*` calls, every side effect goes
 through the injected `ExtensionInitializationStorageSplit`. Public surface
 accepts 9 input kinds (4 V3 event variants, 4 A3 correlator outcomes, plus
@@ -768,7 +818,14 @@ expectations and the test exits with zero external OJ requests.
 
 **Explicit non-goals:** Synthetic success is not NowCoder/AtCoder success.
 
-**A9 execution result (2026-07-24): COMPLETE (scope-reduced).** Three new files
+**A9 execution result (2026-07-24): COMPLETE (scope-reduced)**
+(commit `b3ec8cb`). Verification: `npx playwright test --config
+playwright.extension.config.ts tests/extension-e2e/capture-v4-network.spec.ts`
+(28 / 29 tests pass; the single failure is the service-worker-
+restart scenario, which A11 marks as `test.skip`). Lint, typecheck,
+and `npm run extension:check` pass with 30 files / 950 tests.
+Independent final review: APPROVED for Phase A closeout scope.
+Three new files
 implement the Fake OJ matrix: `tests/extension-e2e/fakeOj.ts` (the
 `installFakeOjBridgeRelay(page)` + per-test page-side bridge + E3 dispatch
 helper), `tests/extension-e2e/fakeOjScenarios.ts` (the 18-scenario catalogue
@@ -803,11 +860,13 @@ infrastructure engineering pass.
 
 **A10 execution result (2026-07-24): COMPLETE (scope-reduced).**
 A10 was originally scoped to drive a full Fake OJ -> orchestrator ->
-real popup pair -> real API -> SQLite chain through the running dev
-server. The dev-server lifecycle was deferred to A11 and the A10
-smoke test instead proves the disposable SQLite lifecycle + exact
-production extension artifact + scenario identity helpers +
-default-DB preservation. Three new files implement the lifecycle:
+real popup pair -> real API -> SQLite chain through a running
+Next.js dev server. Neither A10 nor A11 starts the dev server; the
+full orchestrated delivery probe remains out of scope for Phase A.
+A10 was reduced to a smoke test that proves the disposable SQLite
+lifecycle + exact production extension artifact + scenario identity
+helpers + default-DB preservation. Three new files implement the
+lifecycle:
 
 - `tests/extension-e2e/database.ts` provides
   `createDisposableDirectory`, `createDisposableDatabase`,
@@ -820,11 +879,13 @@ default-DB preservation. Three new files implement the lifecycle:
   scenarios: the disposable-DB / production-artifact smoke test and a
   stable-identity-helpers test that proves the A4 deterministic
   SHA-256 bundle identity contracts hold across calls.
-- `scripts/a10-bootstrap.mjs` provides a reusable, idempotent
-  bootstrap helper for future webServer-based A11+ integrations. It
-  refuses to run if a stale path file points outside the
-  `.tmp/` workspace boundary and validates the disposable parent
-  directory basename against the `capture-v4-full-chain-` prefix.
+- `scripts/a10-bootstrap.mjs` is a reusable, idempotent
+  bootstrap helper that future webServer-based A11+ integrations
+  may chain before `npm run dev`. It refuses to run if a stale
+  path file points outside the `.tmp/` workspace boundary and
+  validates the disposable parent directory basename against the
+  `capture-v4-full-chain-` prefix. It is currently unused by the
+  A11 gate.
 
 The `tests/extension-e2e/global-setup.ts` provisions the disposable
 DB in the Playwright main process; `global-teardown.ts` restores

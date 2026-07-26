@@ -3,7 +3,11 @@
 **Scope:** Phase A Tasks A0-A12 (V4 evidence core + real extension E2E +
 quality gate integration + closeout)
 **Declared closeout at:** 2026-07-24
-**Result:** `V4 infrastructure engineering PASS`. Real platforms remain
+**Result:** `V4 infrastructure engineering PASS (scope-reduced)`:
+A0-A12 are complete and every authoritative gate command exits 0, but
+the full E2->E3->real-popup-pair->real-API->SQLite delivery probe and
+the worker-restart scenario remain out of Phase A scope. See
+section 7 for the explicit non-claims. Real platforms remain
 `V4 uncharacterized`.
 
 > This report supersedes `work/reports/v4-phase-a-closeout-2026-07-24.md`
@@ -110,6 +114,9 @@ the V4 Phase 0 + Phase A closeout.
 - `tests/extension-e2e/fakeOj.ts`, `fakeOjScenarios.ts`,
   `capture-v4-network.spec.ts`, `webrequest-spike.spec.ts` — Fake
   OJ matrix.
+- `tests/extension-e2e/fixtures.ts`, `servers.ts` — extension E2E
+  test infrastructure (persistent context setup + Fake OJ route
+  server + localhost API allowlist).
 - `tests/fixtures/capture-v4/fake/{18-scenario}.json` — synthetic
   fixtures.
 - `playwright.extension.config.ts` — extension E2E Playwright
@@ -241,19 +248,25 @@ sourcemaps.
 
 ## 8. Phase A closeout verdict
 
-Phase A is `V4 infrastructure engineering PASS`. Every authoritative
-gate command exits 0. Independent reviews for A10 and A11 found and
-fixed all Critical and Important findings; only acknowledged Minor
-limitations remain (worker-restart `test.skip`, scope-reduced A10
-smoke test).
+Phase A is `V4 infrastructure engineering PASS (scope-reduced)`:
+the framework engineering pass (evidence core, correlator, state
+machine, storage split, observer, bridge, orchestrator, Fake OJ
+matrix, disposable DB lifecycle, gate integration, plan
+reconciliation) is complete and every authoritative gate command
+exits 0; the **full E2->E3->real-popup-pair->real-API->SQLite
+delivery probe** and the **worker-restart recovery probe** remain
+out of Phase A scope (scope-reduced A10 smoke test + `test.skip` for
+the worker-restart harness limitation). Independent reviews for A10
+and A11 found and fixed all Critical and Important findings; only
+acknowledged Minor limitations remain.
 
 The next explicit user decisions are:
 
 - Phase B (NowCoder network pilot) requires fresh explicit
   authorization.
 - A follow-on full-chain E2->E3 delivery probe (Fake OJ ->
-  orchestrator -> real popup pair -> real API -> SQLite) is
-  out of scope for Phase A and requires fresh explicit
-  authorization if pursued.
+  orchestrator -> real popup pair -> real API -> SQLite) plus a
+  real worker-restart recovery probe is out of scope for Phase A and
+  requires fresh explicit authorization if pursued.
 - The replacement RC work remains blocked until V4 reaches the
   RC gates defined in the master plan section 19.
