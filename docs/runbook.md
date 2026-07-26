@@ -144,10 +144,11 @@ The bootstrap script is referenced by the Playwright `webServer` command in
 the E2E lane). The offline `npm run e2e` lane remains extension-free and
 asserts no extension worker or frame appears in the browser context.
 
-Phase A Task A10 review fixes are at commit `9b81784`. The Fake OJ matrix
-reports 28 of 29 tests passing; the single remaining failure is the
-test-harness worker-restart seam (a known infrastructure limitation, not a
-production defect).
+Phase A Task A10 review fixes are at commit `9b81784`. After the A11
+gate integration the Fake OJ matrix reports 31 passed and 1 skipped;
+the service-worker-restart scenario is skipped because of the
+test-harness worker-restart seam (a known infrastructure limitation,
+not a production defect).
 
 ### Recovery
 

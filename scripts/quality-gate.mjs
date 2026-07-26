@@ -16,8 +16,8 @@ import { spawnSync } from "node:child_process";
 // Todo 24 so migrations are validated against the committed content package
 // before any test runs. Stage 7 (extension:e2e) was added by Task A11 so the
 // Fake OJ Playwright lane runs after extension:check (which already validates
-// the dist) and before build (which chains extension:build internally).
-// Tests and downstream tooling assert against this frozen array.
+// the dist) and before build. Tests and downstream tooling assert against this
+// frozen array.
 export const QUALITY_GATE_STAGES = Object.freeze([
   Object.freeze(["run", "lint"]),
   Object.freeze(["run", "db:migrate"]),

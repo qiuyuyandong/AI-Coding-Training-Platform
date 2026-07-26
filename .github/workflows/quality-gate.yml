@@ -2,16 +2,20 @@ name: Quality Gate
 
 on:
   push:
-    branches: [main, feature/**]
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: ["**"]
 
 # No artifact upload, no OJ, no AI, no external network.
 # Local-only gate mirrors `npm run quality:gate` exactly.
+permissions:
+  contents: read
+
 jobs:
   quality-gate:
     name: quality-gate
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,11 +25,11 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Install Chromium
         run: npx playwright install chromium
-
-      - name: Install dependencies
-        run: npm install
 
       - name: Run quality gate
         run: npm run quality:gate
