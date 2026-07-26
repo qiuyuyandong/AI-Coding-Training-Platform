@@ -1,12 +1,123 @@
 # Current Handoff
 
-## Status (2026-07-24 V4 Phase A closeout scope A0-A9 complete)
+## Status (2026-07-24 V4 Phase A closeout A0-A12 complete)
 
-**V4 PHASE 0 ENGINEERING PASS / FORMAL V0 OBSERVATION BLOCKED.**
+**V4 INFRASTRUCTURE ENGINEERING PASS (SCOPE-REDUCED) / FORMAL V0
+OBSERVATION BLOCKED.**
 
-Phase A closeout at user direction declared the authoritative Phase A scope
-to be Tasks A0-A9; A10-A12 are deliberately deferred and must not be
-claimed as complete in this repository.
+The user explicitly authorized re-opening A10-A12 on 2026-07-24 after
+the A0-A9 interim closeout. Phase A is now the authoritative V4
+infrastructure scope spanning Tasks A0-A12: the framework engineering
+pass (evidence core, correlator, state machine, storage split,
+observer, bridge, orchestrator, Fake OJ matrix, disposable DB
+lifecycle, gate integration, plan reconciliation) is complete and
+every authoritative gate command exits 0. The full E2->E3->real-popup-
+pair->real-API->SQLite delivery probe and the worker-restart recovery
+probe remain out of Phase A scope (scope-reduced A10 smoke test +
+`test.skip` for the worker-restart harness limitation). Real platforms
+remain `V4 uncharacterized`. Final closeout report:
+`work/reports/phase-a-final-closeout.md`.
+
+- **A0-A9 (interim closeout, 19 atomic commits):**
+  - Phase 0 click-ingress stopgap: T0.1 docs + validator
+    (`8321a07`); T0.2 RED tests (`fb2cc15`); T0.3 bounded E0 UI
+    hints (`4b9cb2e`); T0.4 V3-to-V4 stopgap migration
+    (`d683a7a`); T0.5 popup confirmed-only semantics (`6d8fe63`).
+  - Phase A infrastructure: A0 webRequest spike GO (`7d6bf9e`);
+    A1 safe evidence schemas (`8bdfe5d`); A2 adapter contracts
+    (`9449c61`); A3 strict correlator (`03b56d0`); A4 capture
+    state machine (`2ca2ffd`); A5 storage split (`2a27997`); A6
+    webRequest observer (`64890b4`); A7 MAIN bridge (`68f0d4e`);
+    A8 background orchestrator (`12ceb6d`); A9 Fake OJ matrix
+    (`b3ec8cb`).
+
+- **A10 (disposable SQLite lifecycle, `c8680e8` + review fixes
+  `9b81784`):**
+  - `tests/extension-e2e/database.ts` provides disposable directory,
+    DB creation, migrations via `npm.cmd`, count readers, and
+    default-DB snapshot / verify utilities with relative-path-based
+    safe deletion under `.tmp/`.
+  - `tests/extension-e2e/capture-v4-full-chain.spec.ts` proves the
+    disposable DB + production extension artifact + scenario
+    identity helpers + default-DB preservation.
+  - `scripts/a10-bootstrap.mjs` is a reusable bootstrap helper for
+    future webServer-based A11+ integrations (currently unused).
+  - Independent review found 4 HIGH issues (path check prefix
+    collision, stale path file teardown, missing `.tmp` mkdir,
+    profile cleanup replacement); all fixed in `9b81784`.
+
+- **A11 (gate integration, `9556890` + review fixes `6401e17`):**
+  - `scripts/quality-gate.mjs` adds `extension:e2e` as stage 7; the
+    frozen `QUALITY_GATE_STAGES` array is now 9 stages.
+  - `tests/extension-e2e/capture-v4-network.spec.ts` marks the
+    service-worker-restart scenario as `test.skip` with a docblock
+    referencing the closeout report.
+  - `.github/workflows/quality-gate.yml` is created as a local-only
+    CI workflow with `permissions: contents: read`,
+    `timeout-minutes: 20`, and the canonical `npm run quality:gate`.
+  - `docs/runbook.md`, `docs/architecture.md`, `COMPLIANCE.md`
+    document the new lane and its boundaries.
+  - Independent review found 6 issues (HIGH workflow npm ci /
+    permissions, MEDIUM triggers / timeout, LOW docs accuracy /
+    incorrect comment); all fixed in `6401e17`.
+
+- **A12 (closeout, `77e6f30` + review fixes `30f3d73`):**
+  - This plan file is reconciled: every A0-A12 task has an
+    execution result block with commit SHA, verification command,
+    test counts, and review findings + fixes.
+  - `work/reports/phase-a-final-closeout.md` is the dated Phase A
+    closeout report. It supersedes
+    `work/reports/v4-phase-a-closeout-2026-07-24.md` for the A0-A12
+    scope but preserves the A0-A9 verdict unchanged.
+  - Independent review found 4 issues (HIGH scope honesty in
+    verdict, MEDIUM missing SHAs / commands + dev-server claim, LOW
+    module list); all fixed in `30f3d73`. Phase A verdict adjusted
+    from `PASS` to `PASS (scope-reduced)` to honor the A10 smoke
+    test and the worker-restart `test.skip`.
+
+- **Phase A quality gate (final, after A12 review fixes):**
+  - `npm run lint` PASS
+  - `npm run typecheck` PASS
+  - `npm run db:migrate` (disposable) PASS
+  - `npm run curriculum:validate` PASS
+  - `npm run test` 80 files / 1528 passed / 1 skipped
+  - `npm run e2e` 25 passed
+  - `npm run extension:check` 30 files / 950 passed; MV3 build
+    OK; dist parity OK
+  - `npm run extension:e2e` 31 passed (1 known skip)
+  - `npm run build` 20/20-page production build
+  - `npm run quality:gate` EXIT 0
+
+- **Phase A commit chronology (Phase 0 + Phase A closeout):**
+
+  | Phase | Task | SHA | Subject |
+  |-------|------|-----|---------|
+  | P0 | T0.1 | `8321a07` | docs: V4 plans + reconcile authority |
+  | P0 | T0.2 | `fb2cc15` | test: RED tests for click-only waiting |
+  | P0 | T0.3 | `4b9cb2e` | feat: bounded E0 UI hints |
+  | P0 | T0.4 | `d683a7a` | feat: V3-to-V4 stopgap migration |
+  | P0 | T0.5 | `6d8fe63` | feat: popup confirmed-only |
+  | PA | A0 | `7d6bf9e` | test: webRequest test path GO |
+  | PA | A1 | `8bdfe5d` | feat: Safe Evidence schemas |
+  | PA | A2 | `9449c61` | feat: adapter contract split |
+  | PA | A3 | `03b56d0` | feat: strict Evidence Correlator |
+  | PA | A4 | `2ca2ffd` | feat: pure Capture State Machine |
+  | PA | A5 | `2a27997` | feat: storage split |
+  | PA | A6 | `64890b4` | feat: webRequest observer |
+  | PA | A7 | `68f0d4e` | feat: MAIN bridge |
+  | PA | A8 | `12ceb6d` | feat: background orchestrator |
+  | PA | A9 | `b3ec8cb` | test: Fake OJ matrix |
+  | PA | A10 | `c8680e8` | test: A10 smoke + disposable DB |
+  | PA | A10 fix | `9b81784` | fix: A10 path safety + profile cleanup |
+  | PA | A11 | `9556890` | build: gate integration |
+  | PA | A11 fix | `6401e17` | fix: A11 workflow + docs accuracy |
+  | PA | A12 | `77e6f30` | docs: A12 plan + closeout report |
+  | PA | A12 fix | `30f3d73` | docs: A12 verdict honesty + SHAs |
+
+  21 commits total (5 Phase 0 + 10 Phase A task + 4 review fix +
+  2 A12 docs).
+
+## Previous Status (2026-07-24 A0-A9 interim closeout)
 
 - Phase A Task A9 (Fake OJ matrix) is complete as the closeout seam.
   `tests/extension-e2e/{fakeOj,fakeOjScenarios,capture-v4-network.spec}.ts`
