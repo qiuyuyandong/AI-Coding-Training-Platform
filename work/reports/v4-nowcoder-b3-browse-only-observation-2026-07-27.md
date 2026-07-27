@@ -2,7 +2,9 @@
 
 **Date:** 2026-07-27
 
-**Result:** `BLOCKED`
+**Result:** `BLOCKED` — the authorized no-submit navigation completed with
+waiting at zero, but worker-restart fail-closed cleanup prevented the required
+strict two-E0 export.
 
 ## Authorized Scope
 
@@ -14,43 +16,47 @@
 
 ## Build Identity
 
-- Git HEAD: `f286fdb336000e796a7d2dd5c3716e05a7aec220`
-- Source state: dirty; the B0-B2 implementation was not committed, so this is
-  not a same-Git-SHA observation candidate.
+- Git HEAD / extension source SHA:
+  `6862f462978352fda7ab1e90639a5c1fbd960810`
+- Source state at reload: committed extension source; no extension source file
+  changed between this SHA's build and the observation.
 - Reloaded extension artifact hashes:
   - `extension/dist/background.js` SHA-256:
-    `B52D1BE9DDA1EE8271EB298A50A9F7E41D221873F3EEF23367AF12327E961168`
+    `0F888E45CFEE379730DC012D617BE5625D20626E201CCFF35508141D8B9207CB`
+  - `extension/dist/content.js` SHA-256:
+    `84549508C587AE60E0C5BEEB7ACAED601AC75412CAAD52868E8A3464A0BEE243`
   - `extension/dist/popup.js` SHA-256:
-    `AC7678CBE090B27FEAF70F11DAF4E67077D1D37D1688104C3E42F61A72023226`
+    `FA8734E9BCED8E775840D1B98A2ACB0A9B9637AF7F7196F224C38393E7C3701A`
 
 ## Observation
 
-1. The development extension was reloaded from the locally built artifact.
-2. Diagnostic mode was explicitly started for `ac.nowcoder.com` and marked as
-   authenticated characterization. It isolated NowCoder production ingress.
-3. The browser attempted the local resources entry, but the local server
-   returned `net::ERR_CONNECTION_REFUSED`; this did not create waiting state.
-4. The browser then navigated to the contest list and the authorized problem
-   page without a submission action.
-5. The popup displayed `等待判题 0` before and after navigation, with zero outbox
-   and quarantine entries.
-6. The active diagnostic session reported `0/100` retained records. It was
-   explicitly stopped afterwards, which cleared the session state; both tabs
-   created for the observation were closed.
+1. The unpacked `Unified OJ Capture` extension was reloaded from the build of
+   the SHA above. CDP used only three newly created background tabs
+   (extensions manager, popup, and navigation); all were closed afterwards.
+2. Popup diagnostic mode was explicitly started for `ac.nowcoder.com` with the
+   authenticated-characterization checkbox enabled. Before navigation it showed
+   waiting `0`, outbox `0`, quarantine `0`, and retained records `0/100`.
+3. The navigation tab first opened `http://localhost:3000/resources`; Chrome
+   returned `ERR_CONNECTION_REFUSED`. This created no waiting state.
+4. The same main-frame tab then reached exactly `/acm/contest/18839`, followed
+   by exactly `/acm/contest/18839/1001`. No submit control or code interaction
+   occurred.
+5. After the problem navigation, popup still displayed waiting `0`, outbox `0`,
+   and quarantine `0`, but diagnostic mode was no longer enabled and export was
+   disabled. No fixture was downloaded.
 
 ## Blocking Evidence
 
-The B3 flow is a valid negative result for waiting state, but it cannot produce
-the required retained fixture:
+The B3 flow proves the negative waiting outcome within the authorized path, but
+cannot produce the required retained fixture:
 
-- `extension/src/networkTranscriptContract.ts` requires at least one signal and
-  at least one evidence item in every transcript document.
-- The real browse-only flow yielded zero diagnostic E1 records.
-- `extension/src/characterization.ts` therefore rejects export with `no records
-  to export`.
+- During list-to-problem navigation the MV3 worker restarted/initialized. The
+  B2 fail-closed initialization rule cleared the active session, so the E0 list
+  witness could not persist to pair with the problem witness.
+- The resulting popup state had no active session and disabled export. This is
+  stricter than retaining a partial session, but prevents the B3 export gate.
 
-Creating a non-empty E1 fixture would falsely claim observed request evidence.
 No fixture, test, or adapter policy was fabricated. B4-B8 must not proceed
-until a reviewed contract change can represent a schema-valid zero-signal
-negative observation and the B0-B2 implementation has an immutable build
-identity.
+until a reviewed design reconciles fail-closed restart behavior with the
+two-E0 export requirement, followed by a new immutable build and fresh explicit
+browse-only authorization.

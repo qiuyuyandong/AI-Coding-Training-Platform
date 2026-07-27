@@ -24,7 +24,7 @@ function createSessionStorage() {
 }
 
 describe("background characterization production ingress guard", () => {
-  it.each(["webRequest E1", "MAIN bridge", "E3", "verdict candidate", "E0 UI hint"]) 
+  it.each(["webRequest E1", "MAIN bridge", "E3", "verdict candidate", "E0 UI hint"])
   ("blocks NowCoder %s using session state after a worker restart", async () => {
     const storage = createSessionStorage();
     const firstWorker = createCharacterizationController(storage, () => NOW);

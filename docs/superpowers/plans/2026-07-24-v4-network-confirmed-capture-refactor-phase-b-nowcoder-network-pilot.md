@@ -273,17 +273,17 @@ waiting at zero throughout the no-submit flow.
 **Explicit non-goals:** This negative observation does not reveal the submit
 protocol.
 
-**Execution result (2026-07-27):** `BLOCKED`. The authorized no-submit
-navigation reached the contest list and selected problem while the popup kept
-waiting at zero. The active diagnostic session retained zero E1 records, which
-is the expected negative capture outcome. B1 currently rejects transcript
-documents with zero signals/evidence, and B2 consequently rejects export with
-`no records to export`; a non-empty fixture would fabricate evidence. The local
-resources entry also returned `net::ERR_CONNECTION_REFUSED`. Evidence and
-artifact hashes are recorded in
+**Execution result (2026-07-27):** `BLOCKED`. The exact committed extension
+SHA `6862f462978352fda7ab1e90639a5c1fbd960810` was rebuilt, reloaded, and used
+for the authorized no-submit route: localhost resources (which returned
+`ERR_CONNECTION_REFUSED`) -> contest list -> authorized problem. Popup waiting,
+outbox, and quarantine remained `0`; no submit control or code interaction
+occurred. However, the worker-restart fail-closed initialization cleared the
+active diagnostic session between the two documents, leaving export disabled
+before the required E0 pair could be produced. No fixture was fabricated. See
 `work/reports/v4-nowcoder-b3-browse-only-observation-2026-07-27.md`. Do not
-start B4 until a reviewed zero-signal negative-transcript representation and an
-immutable build identity are available.
+start B4 until a reviewed design reconciles fail-closed restart behavior with
+the two-E0 export requirement, then receives fresh authorization.
 
 ---
 

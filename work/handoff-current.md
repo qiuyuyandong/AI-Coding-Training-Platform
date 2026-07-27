@@ -1,21 +1,23 @@
 # Current Handoff
 
-## Status (2026-07-27 V4 Phase B B2 complete)
+## Status (2026-07-27 V4 Phase B B3 browse-only observation BLOCKED)
 
 **V4 INFRASTRUCTURE ENGINEERING PASS (SCOPE-REDUCED) / FORMAL V0
-OBSERVATION BLOCKED / PHASE B B2 DIAGNOSTIC MODE COMPLETE AND
-INDEPENDENTLY REVIEWED.**
+OBSERVATION BLOCKED / PHASE B B3 BROWSE-ONLY OBSERVATION BLOCKED.**
 
 Phase B Buthorization B0, schema B1, and diagnostic-mode B2 are complete
-and merged into the uncommitted worktree. B2 passed independent privacy
+and frozen at `6862f462978352fda7ab1e90639a5c1fbd960810`. B2 passed independent privacy
 review after four iterative rounds. The diagnostic mode provides
 NowCoder-only opt-in session-backed safe network characterization with
 worker-restart fail-closed, exact B1-compatible export, and hard
 production-path isolation. Authorization is recorded at
 `work/reports/v4-nowcoder-characterization-authorization.md`.
-The user authorized `ac.nowcoder.com/acm/contest/18839/1001` for one
-browse-only observation and at most one natural submission. No real
-NowCoder observation has occurred; B3 remains pending.
+The authorized B3 no-submit observation used that exact SHA and reached
+localhost resources (connection refused), contest list, then the authorized
+problem in one background tab. Waiting/outbox/quarantine remained zero and no
+code or submit control was touched. The worker-restart fail-closed rule cleared
+the diagnostic session before strict E0 export, so no fixture exists and B3 is
+`BLOCKED`; see `work/reports/v4-nowcoder-b3-browse-only-observation-2026-07-27.md`.
 
 - **B0 (authorization contract):** Authorization report validated by
   `scripts/validate-v4-characterization-authorization.mjs` and 7 tests.
@@ -51,9 +53,10 @@ NowCoder observation has occurred; B3 remains pending.
   - Independent code-reviewer APPROVED with no blockers.
   - `npm run extension:check`: 32 files / 1055 tests PASS.
 
-Phase A A0-A12 closeout is authoritative (see below). B0-B2 are the
-only Phase B scope executed; B3 (real browse-only observation) requires
-fresh user authorization. Do not start B3-B8 without it.
+Phase A A0-A12 closeout is authoritative (see below). B0-B2 are complete and
+B3 has a truthful blocked terminal observation. Do not start B4-B8 without a
+reviewed B3 restart/export design, a new immutable build, and fresh user
+authorization.
 
 ---
 

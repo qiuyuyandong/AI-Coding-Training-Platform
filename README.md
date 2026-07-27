@@ -16,7 +16,10 @@
 > transcript schema, and an independently-reviewed opt-in NowCoder
 > diagnostic mode with session-backed production ingress isolation,
 > fail-closed worker-restart, and exact B1-compatible export download;
-> no real NowCoder observation has occurred yet.
+> the one authorized B3 browse-only observation reached the exact list and
+> problem routes with waiting at zero, but is BLOCKED because worker-restart
+> fail-closed cleanup prevented the required two-E0 export. It does not
+> characterize NowCoder's submission protocol or promote any adapter.
 > Automatic network-confirmed capture is not implemented;
 > every real platform's `V4NetworkStatus` remains `uncharacterized`.
 > Final closeout: `work/reports/phase-a-final-closeout.md`.
