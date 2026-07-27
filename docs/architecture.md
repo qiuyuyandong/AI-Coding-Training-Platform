@@ -281,3 +281,10 @@ evidence only: no E2, response interpretation, real-platform network policy,
 API/SQLite chain, or V4 adapter readiness exists yet.
 
 The localhost credential protects the HTTP ingestion boundary, not a compromised host. A process able to modify SQLite or the Chrome profile is outside this Pre-V0 boundary.
+
+## NowCoder B3 Browse-Only Observation
+
+The authorized 2026-07-27 no-submit route reached the exact contest list then
+problem with waiting at zero. It is not protocol characterization: MV3
+worker-restart fail-closed cleanup cleared the diagnostic session before the
+required two-E0 export, so B3 is BLOCKED and contributes no adapter evidence.
