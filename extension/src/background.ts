@@ -32,6 +32,7 @@ import {
 } from "./networkObserver";
 import {
   createCharacterizationController,
+  createBrowseOnlyNavigationExportDocument,
   characterizeSessionStatus,
   type CharacterizationController,
 } from "./characterization";
@@ -695,21 +696,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
         }
         const e0Records = buildB3E0Records(b3State);
         if (e0Records !== undefined) {
-          // Build B3 export document with exact 2 E0 records only
-          const b3Document = {
-            meta: Object.freeze({
-              fixtureName: `nowcoder-b3-export-${characterizationClock().slice(0, 10)}`,
-              sourceUrl: "https://ac.nowcoder.com/",
-              captureDate: characterizationClock().slice(0, 10),
-              captureMethod: "extension b3 witness export",
-              authenticated: session.authenticated,
-              sanitized: true,
-              evidenceTier: session.authenticated ? "authenticated-characterization" : "characterization-derived",
-              productionEligible: false,
-              signals: Object.freeze([{ kind: "navigation_witness", platform: "nowcoder", tier: "E0" }]),
-            }),
-            evidence: e0Records,
-          };
+          const b3Document = createBrowseOnlyNavigationExportDocument(
+            e0Records,
+            characterizationClock(),
+            "ac.nowcoder.com",
+            session.authenticated,
+          );
+          if (b3Document === undefined) {
+            sendResponse({ ok: false, reason: "browse-only export validation failed", isB3Export: true });
+            return;
+          }
           // Stop after successful B3 export
           await stopB3Session();
           await characterizationController.stop();
