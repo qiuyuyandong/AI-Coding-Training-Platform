@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "fixtureName": "nowcoder-browse-only-2026-07-27",
+    "sourceUrl": "https://ac.nowcoder.com/",
+    "captureDate": "2026-07-27",
+    "captureMethod": "extension characterization export",
+    "authenticated": true,
+    "sanitized": true,
+    "evidenceTier": "authenticated-characterization",
+    "productionEligible": false,
+    "signals": [
+      { "kind": "navigation_witness", "platform": "nowcoder", "tier": "E0" }
+    ]
+  },
+  "evidence": [
+    {
+      "schemaVersion": 1,
+      "evidenceId": "e0_nowcoder_3785963303577654E9562AE682A2E811_contest_list",
+      "platform": "nowcoder",
+      "tier": "E0",
+      "kind": "navigation_witness",
+      "receivedAt": "2026-07-27T14:52:05.645Z",
+      "tabId": 1454624027,
+      "frameId": 0,
+      "documentId": "3785963303577654E9562AE682A2E811",
+      "relativeTimingOrder": 0,
+      "pageClass": "contest_list"
+    },
+    {
+      "schemaVersion": 1,
+      "evidenceId": "e0_nowcoder_821C8DEB5DA9A725ABA6C8F0F56BDCB8_contest_problem",
+      "platform": "nowcoder",
+      "tier": "E0",
+      "kind": "navigation_witness",
+      "receivedAt": "2026-07-27T14:52:43.304Z",
+      "tabId": 1454624027,
+      "frameId": 0,
+      "documentId": "821C8DEB5DA9A725ABA6C8F0F56BDCB8",
+      "relativeTimingOrder": 1,
+      "pageClass": "contest_problem"
+    }
+  ]
+}
