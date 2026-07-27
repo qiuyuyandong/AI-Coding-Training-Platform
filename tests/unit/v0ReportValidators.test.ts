@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -20,11 +20,34 @@ type CommandResult = {
 const validatorPath = resolve(process.cwd(), "scripts/validate-v0-exit.mjs");
 const tempRoots: string[] = [];
 
-function git(cwd: string, args: string[]): string {
-  const result = spawnSync("git", args, {
-    cwd,
-    encoding: "utf8",
-    env: { ...process.env, GIT_MASTER: "1" },
+function runCommand(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<CommandResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => { stdout += chunk; });
+    child.stderr.on("data", (chunk: string) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (status) => resolve({ status, stdout, stderr }));
+  });
+}
+
+async function git(cwd: string, args: string[]): Promise<string> {
+  const result = await runCommand("git", args, cwd, {
+    ...process.env,
+    GIT_MASTER: "1",
   });
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
@@ -102,23 +125,23 @@ function participantsReport(
   };
 }
 
-function createValidTwoCommitFixture(
+async function createValidTwoCommitFixture(
   extraFinalDocs: ReadonlyArray<readonly [string, string]> = [],
-): {
+): Promise<{
   root: string;
   implementationSha: string;
   releaseSha: string;
-} {
+}> {
   const root = mkdtempSync(join(tmpdir(), "v0-validator-"));
   tempRoots.push(root);
-  git(root, ["init"]);
-  git(root, ["config", "user.email", "validator@example.invalid"]);
-  git(root, ["config", "user.name", "V0 Validator"]);
+  await git(root, ["init"]);
+  await git(root, ["config", "user.email", "validator@example.invalid"]);
+  await git(root, ["config", "user.name", "V0 Validator"]);
 
   write(root, "app-marker.txt", "frozen implementation\n");
-  git(root, ["add", "."]);
-  git(root, ["commit", "-m", "test: freeze implementation"]);
-  const implementationSha = git(root, ["rev-parse", "HEAD"]);
+  await git(root, ["add", "."]);
+  await git(root, ["commit", "-m", "test: freeze implementation"]);
+  const implementationSha = await git(root, ["rev-parse", "HEAD"]);
 
   write(
     root,
@@ -190,9 +213,9 @@ function createValidTwoCommitFixture(
     write(root, path, content);
   }
 
-  git(root, ["add", "."]);
-  git(root, ["commit", "-m", "docs: accept V0"]);
-  const releaseSha = git(root, ["rev-parse", "HEAD"]);
+  await git(root, ["add", "."]);
+  await git(root, ["commit", "-m", "docs: accept V0"]);
+  const releaseSha = await git(root, ["rev-parse", "HEAD"]);
   return { root, implementationSha, releaseSha };
 }
 
@@ -200,11 +223,11 @@ function runFinalValidator(fixture: {
   root: string;
   implementationSha: string;
   releaseSha: string;
-}, options: { readonly omitReleaseSha?: boolean } = {}): CommandResult {
+}, options: { readonly omitReleaseSha?: boolean } = {}): Promise<CommandResult> {
   const releaseArgs = options.omitReleaseSha
     ? []
     : ["--release-sha", fixture.releaseSha];
-  const result = spawnSync(
+  return runCommand(
     process.execPath,
     [
       validatorPath,
@@ -226,13 +249,8 @@ function runFinalValidator(fixture: {
       "--accepted-date",
       "2026-07-18",
     ],
-    { cwd: fixture.root, encoding: "utf8" },
+    fixture.root,
   );
-  return {
-    status: result.status,
-    stdout: result.stdout,
-    stderr: result.stderr,
-  };
 }
 
 function expectRejected(
@@ -252,10 +270,10 @@ afterEach(() => {
 });
 
 describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
-  test("accepts one frozen implementation commit and one final release commit", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("accepts one frozen implementation commit and one final release commit", async () => {
+    const fixture = await createValidTwoCommitFixture();
 
-    const result = runFinalValidator(fixture);
+    const result = await runFinalValidator(fixture);
 
     expect(result.status, result.stderr).toBe(0);
     const parsed = JSON.parse(result.stdout) as JsonObject;
@@ -265,38 +283,38 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
 
   test(
     "accepts documentation reconciled by neat-freak in the final commit",
-    () => {
-      const fixture = createValidTwoCommitFixture([
+    async () => {
+      const fixture = await createValidTwoCommitFixture([
         ["docs/architecture.md", "V0 accepted architecture reconciliation\n"],
         ["COMPLIANCE.md", "V0 accepted compliance reconciliation\n"],
       ]);
 
-      const result = runFinalValidator(fixture);
+      const result = await runFinalValidator(fixture);
 
       expect(result.status, result.stdout).toBe(0);
     },
     15_000,
   );
 
-  test("requires the final release SHA", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("requires the final release SHA", async () => {
+    const fixture = await createValidTwoCommitFixture();
 
-    const result = runFinalValidator(fixture, { omitReleaseSha: true });
+    const result = await runFinalValidator(fixture, { omitReleaseSha: true });
 
     expect(result.status).toBe(2);
   });
 
-  test("rejects using the implementation commit as the release commit", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects using the implementation commit as the release commit", async () => {
+    const fixture = await createValidTwoCommitFixture();
     fixture.releaseSha = fixture.implementationSha;
 
-    expectRejected(runFinalValidator(fixture), "git.releaseSha.afterImplementation");
+    expectRejected(await runFinalValidator(fixture), "git.releaseSha.afterImplementation");
   });
 
-  test("rejects a release commit that is not descended from the implementation", () => {
-    const fixture = createValidTwoCommitFixture();
-    const tree = git(fixture.root, ["rev-parse", `${fixture.implementationSha}^{tree}`]);
-    fixture.releaseSha = git(fixture.root, [
+  test("rejects a release commit that is not descended from the implementation", async () => {
+    const fixture = await createValidTwoCommitFixture();
+    const tree = await git(fixture.root, ["rev-parse", `${fixture.implementationSha}^{tree}`]);
+    fixture.releaseSha = await git(fixture.root, [
       "commit-tree",
       tree,
       "-m",
@@ -304,69 +322,69 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
     ]);
 
     expectRejected(
-      runFinalValidator(fixture),
+      await runFinalValidator(fixture),
       "git.releaseSha.descendsFromImplementation",
     );
   });
 
-  test("rejects an arbitrary documentation path after the RC freeze", () => {
-    const fixture = createValidTwoCommitFixture([
+  test("rejects an arbitrary documentation path after the RC freeze", async () => {
+    const fixture = await createValidTwoCommitFixture([
       ["docs/unrelated-history.md", "unbounded documentation mutation\n"],
     ]);
 
-    expectRejected(runFinalValidator(fixture), "git.releaseDiff.allowlist");
+    expectRejected(await runFinalValidator(fixture), "git.releaseDiff.allowlist");
   });
 
-  test("rejects an intermediate commit between the RC and final release", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects an intermediate commit between the RC and final release", async () => {
+    const fixture = await createValidTwoCommitFixture();
     const originalReleaseSha = fixture.releaseSha;
-    git(fixture.root, ["reset", "--hard", fixture.implementationSha]);
+    await git(fixture.root, ["reset", "--hard", fixture.implementationSha]);
     write(fixture.root, "README.md", "intermediate allowed-document change\n");
-    git(fixture.root, ["add", "README.md"]);
-    git(fixture.root, ["commit", "-m", "docs: intermediate evidence"]);
-    git(fixture.root, ["checkout", originalReleaseSha, "--", "."]);
-    git(fixture.root, ["add", "."]);
-    git(fixture.root, ["commit", "-m", "docs: final V0 acceptance"]);
-    fixture.releaseSha = git(fixture.root, ["rev-parse", "HEAD"]);
+    await git(fixture.root, ["add", "README.md"]);
+    await git(fixture.root, ["commit", "-m", "docs: intermediate evidence"]);
+    await git(fixture.root, ["checkout", originalReleaseSha, "--", "."]);
+    await git(fixture.root, ["add", "."]);
+    await git(fixture.root, ["commit", "-m", "docs: final V0 acceptance"]);
+    fixture.releaseSha = await git(fixture.root, ["rev-parse", "HEAD"]);
 
-    expectRejected(runFinalValidator(fixture), "git.releaseSha.singleFinalCommit");
+    expectRejected(await runFinalValidator(fixture), "git.releaseSha.singleFinalCommit");
   });
 
-  test("rejects a HOLD owner observation in final mode", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects a HOLD owner observation in final mode", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(
       fixture.root,
       "work/reports/v0-observation-owner.md",
       report(ownerReport(fixture.implementationSha, { status: "HOLD" })),
     );
 
-    expectRejected(runFinalValidator(fixture), "owner.status.finalPass");
+    expectRejected(await runFinalValidator(fixture), "owner.status.finalPass");
   });
 
-  test("rejects the owner six-day boundary", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects the owner six-day boundary", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(
       fixture.root,
       "work/reports/v0-observation-owner.md",
       report(ownerReport(fixture.implementationSha, { windowEnd: "2026-07-07" })),
     );
 
-    expectRejected(runFinalValidator(fixture), "owner.datesSpan.days");
+    expectRejected(await runFinalValidator(fixture), "owner.datesSpan.days");
   });
 
-  test("rejects an impossible calendar date", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects an impossible calendar date", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(
       fixture.root,
       "work/reports/v0-observation-owner.md",
       report(ownerReport(fixture.implementationSha, { windowStart: "2026-02-31" })),
     );
 
-    expectRejected(runFinalValidator(fixture), "owner.windowStart.isoDate");
+    expectRejected(await runFinalValidator(fixture), "owner.windowStart.isoDate");
   });
 
-  test("rejects an owner session outside the declared window", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects an owner session outside the declared window", async () => {
+    const fixture = await createValidTwoCommitFixture();
     const effectiveSessions = ["2026-06-30", "2026-07-04", "2026-07-08"].map(
       (date) => ({
         date,
@@ -386,13 +404,13 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
     );
 
     expectRejected(
-      runFinalValidator(fixture),
+      await runFinalValidator(fixture),
       "owner.effectiveSessions.withinWindow",
     );
   });
 
-  test("rejects the participant thirteen-day boundary", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects the participant thirteen-day boundary", async () => {
+    const fixture = await createValidTwoCommitFixture();
     const participants = ["P1", "P2"].map((id) => ({
       id,
       windowStart: "2026-07-01",
@@ -408,11 +426,11 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
       report(participantsReport(fixture.implementationSha, { participants })),
     );
 
-    expectRejected(runFinalValidator(fixture), "participants.datesSpan.allOk");
+    expectRejected(await runFinalValidator(fixture), "participants.datesSpan.allOk");
   });
 
-  test("rejects one participant", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects one participant", async () => {
+    const fixture = await createValidTwoCommitFixture();
     const participants = [
       {
         id: "P1",
@@ -430,11 +448,11 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
       report(participantsReport(fixture.implementationSha, { participants })),
     );
 
-    expectRejected(runFinalValidator(fixture), "participants.ids");
+    expectRejected(await runFinalValidator(fixture), "participants.ids");
   });
 
-  test("rejects missing reason-comprehension evidence", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects missing reason-comprehension evidence", async () => {
+    const fixture = await createValidTwoCommitFixture();
     const participants = ["P1", "P2"].map((id) => ({
       id,
       windowStart: "2026-07-01",
@@ -450,13 +468,13 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
     );
 
     expectRejected(
-      runFinalValidator(fixture),
+      await runFinalValidator(fixture),
       "participants.reasonComprehensionAnswer.allOk",
     );
   });
 
-  test("rejects missing owner loop evidence", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects missing owner loop evidence", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(
       fixture.root,
       "work/reports/v0-observation-owner.md",
@@ -464,13 +482,13 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
     );
 
     expectRejected(
-      runFinalValidator(fixture),
+      await runFinalValidator(fixture),
       "owner.fullLoop.mapPlanTodayCompletionNext",
     );
   });
 
-  test("rejects missing participant choice-friction evidence", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects missing participant choice-friction evidence", async () => {
+    const fixture = await createValidTwoCommitFixture();
     const participants = ["P1", "P2"].map((id) => ({
       id,
       windowStart: "2026-07-01",
@@ -486,13 +504,13 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
     );
 
     expectRejected(
-      runFinalValidator(fixture),
+      await runFinalValidator(fixture),
       "participants.choiceFrictionAnswer.allOk",
     );
   });
 
-  test("rejects an observation from another implementation SHA", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects an observation from another implementation SHA", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(
       fixture.root,
       "work/reports/v0-observation-participants.md",
@@ -500,13 +518,13 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
     );
 
     expectRejected(
-      runFinalValidator(fixture),
+      await runFinalValidator(fixture),
       "participants.implementationSha",
     );
   });
 
-  test("rejects any non-APPROVE final review", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects any non-APPROVE final review", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(
       fixture.root,
       "work/reports/v0-final-verification.md",
@@ -523,24 +541,24 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
     );
 
     expectRejected(
-      runFinalValidator(fixture),
+      await runFinalValidator(fixture),
       "finalVerification.f2CodeQualitySecurity",
     );
   });
 
-  test("rejects premature accepted documents without a V0.5 next action", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects premature accepted documents without a V0.5 next action", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(
       fixture.root,
       "README.md",
       `V0 accepted and verified\nimplementationSha ${fixture.implementationSha}\nacceptedDate 2026-07-18\n`,
     );
 
-    expectRejected(runFinalValidator(fixture), "acceptance.README.md.nextAction");
+    expectRejected(await runFinalValidator(fixture), "acceptance.README.md.nextAction");
   });
 
-  test("rejects accepted-document SHA disagreement", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects accepted-document SHA disagreement", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(
       fixture.root,
       "AGENTS.md",
@@ -554,18 +572,18 @@ describe("V0 two-commit report validator", { timeout: 15_000 }, () => {
     );
 
     expectRejected(
-      runFinalValidator(fixture),
+      await runFinalValidator(fixture),
       "acceptance.AGENTS.md.implementationSha",
     );
   });
 
-  test("rejects a runtime source change after the RC freeze", () => {
-    const fixture = createValidTwoCommitFixture();
+  test("rejects a runtime source change after the RC freeze", async () => {
+    const fixture = await createValidTwoCommitFixture();
     write(fixture.root, "lib/runtime.ts", "export const changed = true;\n");
-    git(fixture.root, ["add", "."]);
-    git(fixture.root, ["commit", "-m", "feat: mutate runtime after observation"]);
-    fixture.releaseSha = git(fixture.root, ["rev-parse", "HEAD"]);
+    await git(fixture.root, ["add", "."]);
+    await git(fixture.root, ["commit", "-m", "feat: mutate runtime after observation"]);
+    fixture.releaseSha = await git(fixture.root, ["rev-parse", "HEAD"]);
 
-    expectRejected(runFinalValidator(fixture), "git.releaseDiff.allowlist");
+    expectRejected(await runFinalValidator(fixture), "git.releaseDiff.allowlist");
   });
 });

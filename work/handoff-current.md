@@ -1,6 +1,63 @@
 # Current Handoff
 
-## Status (2026-07-24 V4 Phase A closeout A0-A12 complete)
+## Status (2026-07-27 V4 Phase B B2 complete)
+
+**V4 INFRASTRUCTURE ENGINEERING PASS (SCOPE-REDUCED) / FORMAL V0
+OBSERVATION BLOCKED / PHASE B B2 DIAGNOSTIC MODE COMPLETE AND
+INDEPENDENTLY REVIEWED.**
+
+Phase B Buthorization B0, schema B1, and diagnostic-mode B2 are complete
+and merged into the uncommitted worktree. B2 passed independent privacy
+review after four iterative rounds. The diagnostic mode provides
+NowCoder-only opt-in session-backed safe network characterization with
+worker-restart fail-closed, exact B1-compatible export, and hard
+production-path isolation. Authorization is recorded at
+`work/reports/v4-nowcoder-characterization-authorization.md`.
+The user authorized `ac.nowcoder.com/acm/contest/18839/1001` for one
+browse-only observation and at most one natural submission. No real
+NowCoder observation has occurred; B3 remains pending.
+
+- **B0 (authorization contract):** Authorization report validated by
+  `scripts/validate-v4-characterization-authorization.mjs` and 7 tests.
+  Exact NowCoder hostname required; non-NowCoder domains and templates
+  rejected.
+- **B1 (safe transcript schema):** Strict B1 `network_request_observed`,
+  `submission_confirmed`, and `final_verdict_confirmed` contract with CLI
+  validator; 129 tests. Rejects raw data, free-text metadata, unsafe
+  source URLs, unknown evidence kinds, and characterization-derived
+  production claims. Shared runtime-TS parser extracted to
+  `extension/src/networkTranscriptContract.ts`.
+- **B2 (diagnostic mode):** Files: `extension/src/characterization.ts`,
+  `characterizationStorage.ts`, `characterizationIngress.ts`,
+  `networkTranscriptContract.ts`; modified `background.ts`,
+  `networkObserver.ts`, `popup.ts`, `popup.html`, `manifest.json`,
+  `package.json`, `vitest.config.ts`. Tests: 64 characterization + 10
+  background-integration tests. Key properties:
+  - Disabled by default and after worker restart (`initialization` and
+    `onStartup` call `stop()`).
+  - Explicit opt-in via popup with hostname and authenticated state.
+  - 5-minute TTL with alarm-driven proactive cleanup.
+  - Synchronous `characterizationProductionGuard` prevents production
+    observer from even scheduling NowCoder work.
+  - Session-backed `blocksNowCoderProductionIngress` guards all
+    production ingress including E0 hints, E1 webRequest, MAIN bridge,
+    E3, and V3 verdicts; survives worker restart.
+  - Recursive forbidden-key checks (full B1 alias set) in both
+    production and characterization observers.
+  - Export produces validated B1 `{ meta, evidence }` document
+    downloadable via popup.
+  - No response body, code, headers, cookies, tokens, or account
+    data are ever retained.
+  - Independent code-reviewer APPROVED with no blockers.
+  - `npm run extension:check`: 32 files / 1055 tests PASS.
+
+Phase A A0-A12 closeout is authoritative (see below). B0-B2 are the
+only Phase B scope executed; B3 (real browse-only observation) requires
+fresh user authorization. Do not start B3-B8 without it.
+
+---
+
+## Previous Status (2026-07-24 V4 Phase A closeout A0-A12 complete)
 
 **V4 INFRASTRUCTURE ENGINEERING PASS (SCOPE-REDUCED) / FORMAL V0
 OBSERVATION BLOCKED.**

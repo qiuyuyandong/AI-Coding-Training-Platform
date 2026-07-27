@@ -13,6 +13,101 @@ import type {
   TransientEvidenceStorage,
 } from "@/extension/src/transientEvidenceStorage";
 
+// ---------------------------------------------------------------------------
+// Forbidden key checks (recursive, fail-closed)
+// ---------------------------------------------------------------------------
+
+/**
+ * Forbidden keys that must never appear in webRequest details.
+ * Checked recursively at any depth in the object tree.
+ */
+const FORBIDDEN_RAW_KEYS: readonly string[] = [
+  "body",
+  "rawBody",
+  "raw_body",
+  "responseBody",
+  "response_body",
+  "responseText",
+  "response_text",
+  "code",
+  "source",
+  "sourceCode",
+  "source_code",
+  "requestHeaders",
+  "request_headers",
+  "responseHeaders",
+  "response_headers",
+  "extraHeaders",
+  "headers",
+  "cookie",
+  "cookies",
+  "authorization",
+  "auth",
+  "csrf",
+  "csrfToken",
+  "csrf_token",
+  "token",
+  "requestBody",
+  "request_body",
+  "user",
+  "username",
+  "account",
+  "accountId",
+  "account_id",
+  "email",
+  "userId",
+  "user_id",
+  "fullStatement",
+  "full_statement",
+  "problemStatement",
+  "problem_statement",
+];
+
+/**
+ * Recursively check for forbidden keys at any depth in an object.
+ * Returns the key and path if found, null otherwise.
+ * Uses WeakSet for cycle detection.
+ */
+function findForbiddenKey(
+  node: unknown,
+  visited = new WeakSet<object>(),
+  currentPath = "",
+): { key: string; path: string } | null {
+  if (typeof node !== "object" || node === null) return null;
+  if (visited.has(node)) return null;
+  visited.add(node);
+
+  const record = node as Record<string, unknown>;
+  for (const key of FORBIDDEN_RAW_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(record, key)) {
+      return { key, path: currentPath ? `${currentPath}.${key}` : key };
+    }
+  }
+
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      const found = findForbiddenKey(node[i], visited, currentPath ? `${currentPath}[${i}]` : `[${i}]`);
+      if (found) return found;
+    }
+  } else {
+    for (const [k, v] of Object.entries(record)) {
+      if (typeof v === "object" && v !== null) {
+        const found = findForbiddenKey(v, visited, currentPath ? `${currentPath}.${k}` : k);
+        if (found) return found;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Check if details contain any forbidden keys at any depth.
+ * Fail-closed: returns true if any forbidden key is found.
+ */
+function hasForbiddenKey(details: unknown): boolean {
+  return findForbiddenKey(details) !== null;
+}
+
 export type WebRequestDetails = Readonly<{
   requestId: string;
   url: string;
@@ -40,6 +135,7 @@ export type LifecycleOutcome =
   | { readonly kind: "rejected"; readonly reason: CorrelatorRejectionReason; readonly lifecycle: SafeEvidence };
 
 export interface WebRequestObserver {
+  clear(): void;
   handleBeforeRequest(details: WebRequestDetails): LifecycleOutcome;
   handleBeforeRedirect(details: WebRequestDetails, redirectUrl: string): LifecycleOutcome;
   handleResponseStarted(details: WebRequestDetails, statusCode: number): LifecycleOutcome;
@@ -103,8 +199,7 @@ export function createWebRequestObserver(deps: RequestLifecyleSource): WebReques
     lifecycle: Lifecycle,
     additions: Readonly<{ statusCode?: number; redirectUrl?: string }> = {},
   ): LifecycleOutcome => {
-    const forbiddenRawKeys = ["body", "requestBody", "requestHeaders", "responseHeaders", "extraHeaders"];
-    if (forbiddenRawKeys.some((key) => key in details)) return { kind: "ignored", reason: "corrupt_record" };
+    if (hasForbiddenKey(details)) return { kind: "ignored", reason: "corrupt_record" };
     if (!METHODS.has(details.method.toUpperCase())) return { kind: "ignored", reason: "unsupported_method" };
     if (details.type !== undefined && !RESOURCE_TYPES.has(details.type)) return { kind: "ignored", reason: "non_adapted_host" };
     if (details.tabId < 0 || details.frameId < 0 || details.documentId === undefined || details.documentId === "") {
@@ -154,6 +249,7 @@ export function createWebRequestObserver(deps: RequestLifecyleSource): WebReques
   };
 
   return Object.freeze({
+    clear: () => { records.clear(); },
     handleBeforeRequest: (details: WebRequestDetails) => handle(details, "before_request"),
     handleBeforeRedirect: (details: WebRequestDetails, redirectUrl: string) => handle(details, "before_redirect", { redirectUrl }),
     handleResponseStarted: (details: WebRequestDetails, statusCode: number) => handle(details, "response_started", { statusCode }),
@@ -209,6 +305,155 @@ export function createRegistryRequestLifecycleSource(now: () => string): Request
     now,
     observedDocumentIds: null,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Characterization observer (NowCoder-only, separate from production)
+// ---------------------------------------------------------------------------
+
+/** Characterization-specific observer that only processes NowCoder requests. */
+export interface CharacterizationObserver {
+  clear(): void;
+  handleBeforeRequest(details: WebRequestDetails): LifecycleOutcome;
+  handleBeforeRedirect(details: WebRequestDetails, redirectUrl: string): LifecycleOutcome;
+  handleResponseStarted(details: WebRequestDetails, statusCode: number): LifecycleOutcome;
+  handleCompleted(details: WebRequestDetails): LifecycleOutcome;
+  handleErrorOccurred(details: WebRequestDetails, error: string): LifecycleOutcome;
+}
+
+/**
+ * Create an observer specifically for characterization mode.
+ * This observer is identical to the production observer but scoped to NowCoder only.
+ * It produces the same Safe Evidence but routes to a separate characterization
+ * storage path instead of production transient evidence.
+ */
+export function createCharacterizationObserver(deps: RequestLifecyleSource): CharacterizationObserver {
+  // Re-use the same handle logic as the production observer but filter to NowCoder only
+  const records = new Map<string, E1RequestObserved>();
+
+  const handle = (
+    details: WebRequestDetails,
+    lifecycle: Lifecycle,
+    additions: Readonly<{ statusCode?: number; redirectUrl?: string }> = {},
+  ): LifecycleOutcome => {
+    if (hasForbiddenKey(details)) return { kind: "ignored", reason: "corrupt_record" };
+    if (!METHODS.has(details.method.toUpperCase())) return { kind: "ignored", reason: "unsupported_method" };
+    if (details.type !== undefined && !RESOURCE_TYPES.has(details.type)) return { kind: "ignored", reason: "non_adapted_host" };
+    if (details.tabId < 0 || details.frameId < 0 || details.documentId === undefined || details.documentId === "") {
+      return { kind: "ignored", reason: "missing_document_id" };
+    }
+    if (deps.observedDocumentIds !== null && !deps.observedDocumentIds.has(details.documentId)) {
+      return { kind: "ignored", reason: "missing_document_id" };
+    }
+    const platform = platformForUrl(details.url);
+    // Characterization is NowCoder-only
+    if (platform !== "nowcoder") return { kind: "ignored", reason: "non_adapted_host" };
+    let hostname: string;
+    try { hostname = new URL(details.url).hostname; } catch { return { kind: "ignored", reason: "non_adapted_host" }; }
+    if (!deps.hostOwns(hostname, details.url)) return { kind: "ignored", reason: "non_adapted_host" };
+    const endpointKey = deps.normalizeEndpointKey(details.url);
+    if (endpointKey === null) return { kind: "ignored", reason: "normalize_endpoint_failed" };
+    const redirectEndpointKey = additions.redirectUrl === undefined ? undefined : deps.normalizeEndpointKey(additions.redirectUrl);
+    if (additions.redirectUrl !== undefined && redirectEndpointKey === null) {
+      return { kind: "ignored", reason: "normalize_endpoint_failed" };
+    }
+    const prior = records.get(details.requestId);
+    const now = deps.now();
+    const receivedAt = prior !== undefined && Date.parse(prior.receivedAt) > Date.parse(now) ? prior.receivedAt : now;
+    const candidate: unknown = {
+      schemaVersion: 1,
+      evidenceId: `e1_nowcoder_${details.requestId}`,
+      platform: "nowcoder",
+      tier: "E1",
+      kind: "request_observed",
+      receivedAt,
+      tabId: details.tabId,
+      frameId: details.frameId,
+      documentId: details.documentId,
+      adapterVersion: PLATFORM_ADAPTERS.nowcoder.version,
+      apiTimeStamp: Math.max(prior?.apiTimeStamp ?? 0, details.timeStamp),
+      requestId: details.requestId,
+      method: details.method.toUpperCase(),
+      endpointKey,
+      resourceType: details.type ?? "xmlhttprequest",
+      lifecycle,
+      ...(additions.statusCode === undefined || lifecycle === "error_occurred" ? {} : { statusCode: additions.statusCode }),
+      ...(redirectEndpointKey === undefined ? {} : { redirectEndpointKey }),
+    };
+    const parsed = parseSafeEvidence(candidate);
+    if (!parsed.ok || parsed.value.kind !== "request_observed") return { kind: "ignored", reason: "corrupt_record" };
+    records.set(details.requestId, parsed.value);
+    return { kind: "recorded", lifecycle: parsed.value };
+  };
+
+  return Object.freeze({
+    clear: () => { records.clear(); },
+    handleBeforeRequest: (details: WebRequestDetails) => handle(details, "before_request"),
+    handleBeforeRedirect: (details: WebRequestDetails, redirectUrl: string) => handle(details, "before_redirect", { redirectUrl }),
+    handleResponseStarted: (details: WebRequestDetails, statusCode: number) => handle(details, "response_started", { statusCode }),
+    handleCompleted: (details: WebRequestDetails) => handle(details, "completed"),
+    handleErrorOccurred: (details: WebRequestDetails) => handle(details, "error_occurred"),
+  });
+}
+
+/** NowCoder host patterns for characterization. */
+export const NOWCODER_HOST_PATTERNS: readonly string[] = PLATFORM_ADAPTERS.nowcoder.hostOwnership.map(
+  (host) => `https://${host}/*`,
+);
+
+/**
+ * Callback type for characterization observer listeners.
+ * Called once per `recorded` outcome to enqueue characterization collection work.
+ */
+export type CharacterizationCollectCallback = (evidence: E1RequestObserved, hostname: string) => Promise<void>;
+
+/**
+ * Attaches five Chrome webRequest listeners specifically for NowCoder characterization.
+ * This is separate from the production observer and routes to characterization storage.
+ *
+ * This function is pure — no chrome.* references — so it is fully testable
+ * by passing fake register / collect / schedule callbacks.
+ */
+export function registerCharacterizationObserverListeners(
+  register: RegisterCallback,
+  observer: CharacterizationObserver,
+  collect: CharacterizationCollectCallback,
+  executorSchedule: ExecutorScheduleCallback,
+): void {
+  const filter: WebRequestFilter = Object.freeze({
+    urls: NOWCODER_HOST_PATTERNS,
+    types: [...OJ_RESOURCE_TYPES],
+  });
+
+  const scheduleCollection = (outcome: LifecycleOutcome, details: WebRequestDetails): void => {
+    if (outcome.kind !== "recorded") return;
+    let hostname: string;
+    try { hostname = new URL(details.url).hostname; } catch { return; }
+    executorSchedule(async () => {
+      const parsed = parseSafeEvidence(outcome.lifecycle);
+      if (parsed.ok && parsed.value.kind === "request_observed") await collect(parsed.value, hostname);
+    });
+  };
+
+  register("onBeforeRequest", (details) => {
+    scheduleCollection(observer.handleBeforeRequest(details), details);
+  }, filter);
+
+  register("onBeforeRedirect", (details, redirectUrl) => {
+    scheduleCollection(observer.handleBeforeRedirect(details, redirectUrl as string), details);
+  }, filter);
+
+  register("onResponseStarted", (details, statusCode) => {
+    scheduleCollection(observer.handleResponseStarted(details, statusCode as number), details);
+  }, filter);
+
+  register("onCompleted", (details) => {
+    scheduleCollection(observer.handleCompleted(details), details);
+  }, filter);
+
+  register("onErrorOccurred", (details, error) => {
+    scheduleCollection(observer.handleErrorOccurred(details, error as string), details);
+  }, filter);
 }
 
 // ---------------------------------------------------------------------------

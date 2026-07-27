@@ -6,8 +6,11 @@
 > **Required predecessor:**
 > [Phase A evidence core and real extension E2E](./2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md)
 
-**Status:** Proposed and externally gated. Do not execute real characterization
-without a fresh, explicit user authorization for the exact NowCoder actions.
+**Status:** B0 authorized; B1-B2 complete and independently reviewed. B2
+diagnostic mode APPROVED by privacy review on 2026-07-27. Real characterization
+remains gated on B3 (user-authorized browse-only observation).
+The user authorized `ac.nowcoder.com/acm/contest/18839/1001` for one browse-only
+observation and at most one natural submission that the user alone performs.
 
 **Goal:** Characterize NowCoder's current submission protocol safely, implement
 one evidence-backed experimental V4 adapter, prove the reported browse-only
@@ -94,6 +97,11 @@ scope in the conversation. A template or assumed approval does not pass.
 
 **Explicit non-goals:** No browser action or fixture acquisition yet.
 
+**Execution result (2026-07-26):** User authorization was recorded in
+`work/reports/v4-nowcoder-characterization-authorization.md`. The local
+validator and its seven tests pass. No browser action or fixture acquisition has
+occurred.
+
 ---
 
 ### Task B1: Define and test the safe Network Transcript schema
@@ -141,6 +149,12 @@ npx vitest run tests/unit/v4NetworkTranscriptValidator.test.ts
 probe fails for the intended reason.
 
 **Explicit non-goals:** No live traffic and no NowCoder assumptions.
+
+**Execution result (2026-07-26):** A strict safe transcript contract, CLI
+validator, fixture-corpus guidance, and 129 B1 tests were added. The contract
+rejects raw data, free-text metadata, unsafe source URLs, unknown evidence kinds,
+schema-version drift, and any characterization-derived production claim. No live
+traffic or NowCoder protocol assumption was used.
 
 ---
 
@@ -199,6 +213,24 @@ schema values can leave the diagnostic function.
 **Explicit non-goals:** Diagnostic mode cannot create E2, bundles, attempts, or
 adapter readiness.
 
+**Execution result (2026-07-27):** B2 completed after iterative independent
+privacy review and four rounds of targeted fixes. Key deliverables:
+`extension/src/characterization.ts`, `characterizationStorage.ts`,
+`characterizationIngress.ts`, and `networkTranscriptContract.ts` (shared B1
+parser); `tests/unit/extensionCharacterization.test.ts` (64 tests) and
+`extensionCharacterizationBackgroundIntegration.test.ts` (10 tests); popup
+diagnostic UI with explicit opt-in start/stop and safe B1-format export download.
+Session-backed guard (`blocksNowCoderProductionIngress`) isolates every NowCoder
+production ingress (E1 webRequest, MAIN bridge, E3, E0 hint, V3 verdict) during
+active diagnosis; worker restart clears diagnostic session immediately via
+`initialization` and `onStartup` stop; synchronous `characterizationProductionGuard`
+prevents production observer from even scheduling NowCoder work during diagnosis;
+TTL expiry alarm proactively removes session; recursive forbidden-key checks cover
+full B1 alias set in both production and characterization observers. Extension
+check reports 32 files / 1055 tests PASS. Independent code-reviewer APPROVED with
+no blockers. No real NowCoder observation has occurred; B3 remains pending user
+authorization.
+
 ---
 
 ### Task B3: Acquire the browse-only negative transcript
@@ -240,6 +272,18 @@ waiting at zero throughout the no-submit flow.
 
 **Explicit non-goals:** This negative observation does not reveal the submit
 protocol.
+
+**Execution result (2026-07-27):** `BLOCKED`. The authorized no-submit
+navigation reached the contest list and selected problem while the popup kept
+waiting at zero. The active diagnostic session retained zero E1 records, which
+is the expected negative capture outcome. B1 currently rejects transcript
+documents with zero signals/evidence, and B2 consequently rejects export with
+`no records to export`; a non-empty fixture would fabricate evidence. The local
+resources entry also returned `net::ERR_CONNECTION_REFUSED`. Evidence and
+artifact hashes are recorded in
+`work/reports/v4-nowcoder-b3-browse-only-observation-2026-07-27.md`. Do not
+start B4 until a reviewed zero-signal negative-transcript representation and an
+immutable build identity are available.
 
 ---
 

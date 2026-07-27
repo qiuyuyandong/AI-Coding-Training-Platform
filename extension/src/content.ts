@@ -58,6 +58,7 @@ async function run(): Promise<void> {
   function observeLocation(): boolean {
     if (window.location.href === lastHref) return false;
     lastHref = window.location.href;
+    sendCharacterizationNavigationWitness();
     const messages = runtime.locationObserved();
     forwardMessages(messages);
     return true;
@@ -87,6 +88,7 @@ async function run(): Promise<void> {
   }
 
   function observeInitialDocument(): void {
+    sendCharacterizationNavigationWitness();
     forwardMessages(runtime.locationObserved());
     startWatchers();
   }
@@ -157,6 +159,13 @@ async function run(): Promise<void> {
     forwardMessages(runtime.start());
     startWatchers();
   });
+}
+
+function sendCharacterizationNavigationWitness(): void {
+  void settleExtensionOperation(
+    () => chrome.runtime.sendMessage({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }),
+    (error) => reportContentRuntimeError("[capture-v4] navigation witness was not delivered", error),
+  );
 }
 
 function forwardMessages(messages: readonly unknown[]): void {

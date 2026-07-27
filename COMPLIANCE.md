@@ -20,6 +20,13 @@ recursively at every parse: `body`, `rawBody`, `responseBody`, `code`, `headers`
 Later network work remains separately gated and may not retain request bodies,
 code, credentials, or complete headers.
 
+Phase B B3 diagnostics may retain a session-only E0 navigation witness only
+after explicit popup opt-in. A witness contains a fixed page class plus tab,
+frame, and Chrome document identity; it never retains a URL, path, query,
+fragment, page text, source code, or account data. Successful export clears the
+diagnostic session and is a user-triggered local download of the strict
+sanitized transcript.
+
 V4 Phase A adds only ordinary `webRequest` observation permission and the
 optional `web_accessible_resources` entry for the MAIN bridge. The webRequest
 observer stores only request ID, method, normalized endpoint key, tab/frame/

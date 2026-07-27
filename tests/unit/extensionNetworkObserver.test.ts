@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createRegistryRequestLifecycleSource,
+  createCharacterizationObserver,
   createWebRequestObserver,
   normalizeOjEndpointKey,
   persistRecordedLifecycle,
@@ -69,6 +70,34 @@ describe("V4 network observer", () => {
     expect(normalizeOjEndpointKey("https://leetcode.com/submit?next=https://evil.test")).toBeNull();
     const raw = { ...details(hosts.leetcode), body: undefined };
     expect(observer().handleBeforeRequest(raw)).toEqual({ kind: "ignored", reason: "corrupt_record" });
+  });
+
+  it.each([
+    { responseBody: { nested: { rawBody: "must-not-inspect" } } },
+    { response: { headers: { cookie: "must-not-inspect" } } },
+    { metadata: [{ token: "must-not-inspect" }] },
+    { responseBody: "x".repeat(1024 * 1024) },
+    { responseBody: new Uint8Array([0, 255, 1]) },
+  ])("fails closed for recursive and non-JSON raw representations", (unsafe) => {
+    const raw = Object.assign({}, details(hosts.nowcoder), unsafe);
+    expect(observer().handleBeforeRequest(raw)).toEqual({ kind: "ignored", reason: "corrupt_record" });
+    expect(createCharacterizationObserver(createRegistryRequestLifecycleSource(
+      () => "2026-07-24T01:00:00.000Z",
+    )).handleBeforeRequest(raw)).toEqual({ kind: "ignored", reason: "corrupt_record" });
+  });
+
+  it.each([
+    "requestBody", "request_body", "raw_body", "response_body", "response_text",
+    "sourceCode", "source_code", "request_headers", "response_headers", "headers",
+    "cookies", "auth", "csrfToken", "csrf_token", "accountId", "account_id",
+    "userId", "user_id", "fullStatement", "full_statement", "problemStatement", "problem_statement",
+  ])("rejects the B1 forbidden alias %s recursively in both observers", (alias) => {
+    const unsafe = { nested: { [alias]: "must-not-inspect" } };
+    const raw = Object.assign({}, details(hosts.nowcoder), unsafe);
+    expect(observer().handleBeforeRequest(raw)).toEqual({ kind: "ignored", reason: "corrupt_record" });
+    expect(createCharacterizationObserver(createRegistryRequestLifecycleSource(
+      () => "2026-07-24T01:00:00.000Z",
+    )).handleBeforeRequest(raw)).toEqual({ kind: "ignored", reason: "corrupt_record" });
   });
 
   it.each([

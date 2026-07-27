@@ -1,6 +1,8 @@
 import { settleExtensionOperation } from "./extensionOperation";
 import { readConfirmedSubmissions } from "./confirmedSubmission";
 import type { OrchestratorState } from "./backgroundOrchestrator";
+import type { CharacterizationExportDocument } from "./characterization";
+import { parseNetworkTranscriptDocument } from "./networkTranscriptContract";
 
 const DEFAULT_ENDPOINT = "http://localhost:3000/api/capture/events";
 const BUTTON_FEEDBACK_MS = 180;
@@ -89,10 +91,18 @@ export function initializePopup(): void {
   bindAction("#retryAll", { type: "RETRY_CAPTURE_OUTBOX" });
   bindConfirmedClear("#clearOutbox", "captureOutbox", "CLEAR_CAPTURE_OUTBOX", "待同步结果");
   bindConfirmedClear("#clearQuarantine", "captureQuarantine", "CLEAR_CAPTURE_QUARANTINE", "隔离结果");
+
+  // Characterization controls
+  bindCharacterizationStart();
+  bindCharacterizationStop();
+  bindCharacterizationExport();
+
   chrome.storage.onChanged.addListener((_changes, area) => {
     if (area === "local") runPopupOperation(renderPopup);
+    if (area === "session") runPopupOperation(renderCharacterization);
   });
   runPopupOperation(renderPopup);
+  runPopupOperation(renderCharacterization);
 }
 
 async function renderPopup(): Promise<void> {
@@ -361,6 +371,143 @@ function localizeCaptureError(error: string): string {
 function isSuccessfulPairResult(value: unknown): value is { readonly ok: true; readonly credentialVersion: number } {
   return typeof value === "object" && value !== null && "ok" in value && value.ok === true
     && "credentialVersion" in value && typeof value.credentialVersion === "number";
+}
+
+// ---------------------------------------------------------------------------
+// Characterization controls
+// ---------------------------------------------------------------------------
+
+export function readCharacterizationStartSelection(
+  hostname: unknown,
+  authenticated: unknown,
+): { readonly hostname: "www.nowcoder.com" | "ac.nowcoder.com"; readonly authenticated: boolean } | undefined {
+  if ((hostname !== "www.nowcoder.com" && hostname !== "ac.nowcoder.com") || typeof authenticated !== "boolean") {
+    return undefined;
+  }
+  return { hostname, authenticated };
+}
+
+function bindCharacterizationStart(): void {
+  const button = document.querySelector<HTMLButtonElement>("#characterizationStart");
+  button?.addEventListener("click", () => {
+    runPopupButton(button, "开始诊断", async () => {
+      const hostname = document.querySelector<HTMLSelectElement>("#characterizationHostname")?.value;
+      const authenticated = document.querySelector<HTMLInputElement>("#characterizationAuthenticated")?.checked;
+      const start = readCharacterizationStartSelection(hostname, authenticated);
+      if (start === undefined) {
+        setText("#characterizationResult", "启动失败: 请选择有效主机和登录状态");
+        return;
+      }
+      const result = await chrome.runtime.sendMessage({ type: "CHARACTERIZATION_START", ...start });
+      if (isCharacterizationResult(result)) {
+        setText("#characterizationState", result.session.active ? "诊断模式进行中" : "诊断模式未启用");
+        updateCharacterizationButtons(result.session.active);
+        setText("#characterizationResult", result.session.active ? "已开始" : "启动失败");
+      }
+    });
+  });
+}
+
+function bindCharacterizationStop(): void {
+  const button = document.querySelector<HTMLButtonElement>("#characterizationStop");
+  button?.addEventListener("click", () => {
+    runPopupButton(button, "停止诊断", async () => {
+      const result = await chrome.runtime.sendMessage({ type: "CHARACTERIZATION_STOP" });
+      if (isCharacterizationResult(result)) {
+        setText("#characterizationState", "诊断模式未启用");
+        updateCharacterizationButtons(false);
+        setText("#characterizationResult", "已停止");
+      }
+    });
+  });
+}
+
+function bindCharacterizationExport(): void {
+  const button = document.querySelector<HTMLButtonElement>("#characterizationExport");
+  button?.addEventListener("click", () => {
+    runPopupButton(button, "导出记录", async () => {
+      const result = await chrome.runtime.sendMessage({ type: "CHARACTERIZATION_EXPORT" });
+      if (isCharacterizationExportResult(result)) {
+        if (result.ok && result.document !== undefined) {
+          const delivery = await deliverCharacterizationExport(result.document);
+          setText("#characterizationResult", delivery.ok
+            ? `已下载 ${delivery.count} 条记录`
+            : `导出失败: ${delivery.reason}`);
+        } else {
+          setText("#characterizationResult", `导出失败: ${result.reason}`);
+        }
+      }
+    });
+  });
+}
+
+async function renderCharacterization(): Promise<void> {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "CHARACTERIZATION_STATUS" });
+    if (isCharacterizationStatusResponse(response)) {
+      setText("#characterizationState", response.status);
+      updateCharacterizationButtons(response.session.active);
+    }
+  } catch {
+    setText("#characterizationState", "诊断模式未启用");
+    updateCharacterizationButtons(false);
+  }
+}
+
+function updateCharacterizationButtons(active: boolean): void {
+  const startBtn = document.querySelector<HTMLButtonElement>("#characterizationStart");
+  const stopBtn = document.querySelector<HTMLButtonElement>("#characterizationStop");
+  const exportBtn = document.querySelector<HTMLButtonElement>("#characterizationExport");
+  if (startBtn !== null) startBtn.disabled = active;
+  if (stopBtn !== null) stopBtn.disabled = !active;
+  if (exportBtn !== null) exportBtn.disabled = !active;
+}
+
+function isCharacterizationResult(value: unknown): value is { readonly ok: boolean; readonly session: { readonly active: boolean } } {
+  return typeof value === "object" && value !== null
+    && "ok" in value && typeof value.ok === "boolean"
+    && "session" in value && typeof value.session === "object" && value.session !== null
+    && "active" in value.session && typeof value.session.active === "boolean";
+}
+
+export async function deliverCharacterizationExport(
+  value: unknown,
+  download: (url: string, filename: string) => Promise<unknown> = async (url, filename) =>
+    chrome.downloads.download({ url, filename, saveAs: true }),
+): Promise<{ readonly ok: true; readonly count: number } | { readonly ok: false; readonly reason: string }> {
+  if (!isCharacterizationExportDocument(value)) {
+    return { ok: false, reason: "导出文档未通过 B1 安全校验" };
+  }
+  const blobUrl = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], {
+    type: "application/json",
+  }));
+  try {
+    await download(blobUrl, `nowcoder-characterization-${value.meta.captureDate}.json`);
+    return { ok: true, count: value.evidence.length };
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : "下载失败" };
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
+}
+
+function isCharacterizationExportResult(value: unknown): value is {
+  readonly ok: boolean;
+  readonly document?: unknown;
+  readonly reason?: string;
+} {
+  return typeof value === "object" && value !== null && "ok" in value
+    && typeof Reflect.get(value, "ok") === "boolean";
+}
+
+export function isCharacterizationExportDocument(value: unknown): value is CharacterizationExportDocument {
+  return parseNetworkTranscriptDocument(value).ok;
+}
+
+function isCharacterizationStatusResponse(value: unknown): value is { readonly session: { readonly active: boolean }; readonly status: string } {
+  return typeof value === "object" && value !== null
+    && "session" in value && typeof value.session === "object"
+    && "status" in value && typeof value.status === "string";
 }
 
 if (typeof document !== "undefined" && typeof chrome !== "undefined") initializePopup();

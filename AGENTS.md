@@ -112,24 +112,21 @@
 
 # Agent Handoff Guide
 
-> **Status (2026-07-26):** **V4 infrastructure engineering PASS
-> (scope-reduced)** for Phase A Tasks A0-A12; **formal V0 observation
-> blocked**. Phase 0 click-ingress stopgap (`2f4f5d8` and earlier V3
-> repair work) remains historical evidence, not a current acceptance
-> anchor. Phase A0-A12 (`b3ec8cb` and the 12 follow-on commits
-> through `0dc3fbf`) is the authoritative V4 framework engineering
-> pass: Safe Evidence boundary, strict Evidence Correlator, pure
-> Capture State Machine, session/local storage split, production
-> webRequest observer, optional MAIN bridge, background orchestrator,
-> Fake OJ matrix (31 passed / 1 known skip), disposable SQLite
-> lifecycle + production extension E2E smoke test, canonical
-> nine-stage quality gate integration, and plan reconciliation. Every
-> authoritative gate command exits 0. The full orchestrated
-> E2->E3->real-popup-pair->real-API->SQLite delivery probe and the
-> worker-restart recovery probe remain out of Phase A scope. Real
-> platforms remain `V4 uncharacterized`. Phase B (NowCoder network
-> pilot) and the full delivery probe require fresh explicit user
-> authorization.
+> **Status (2026-07-27):** **V4 infrastructure engineering PASS
+> (scope-reduced)** for Phase A Tasks A0-A12; **Phase B B2 (NowCoder
+> diagnostic mode) complete and independently reviewed**; **formal V0
+> observation blocked**. Phase B B0 authorization and B1 safe transcript
+> schema are also complete. Phase 0 click-ingress stopgap (`2f4f5d8`
+> and earlier V3 repair work) remains historical evidence, not a
+> current acceptance anchor. Phase A0-A12 (`b3ec8cb` and the 12
+> follow-on commits through `0dc3fbf`) is the authoritative V4
+> framework engineering pass. Phase B B2 added an opt-in NowCoder
+> diagnostic mode with session-backed production ingress isolation,
+> worker-restart fail-closed, and exact safe transcript export;
+> independent privacy review APPROVED on 2026-07-27.
+> Real platforms remain `V4 uncharacterized`. Phase B B3 (real
+> browse-only observation) requires fresh explicit user authorization.
+> The full delivery probe remains out of scope.
 >
 > **Superseded V0 RC:** `b5166320768355666a5c4ff3f466c29c240ea8cf`
 > predates the domestic-OJ runtime changes and must not anchor

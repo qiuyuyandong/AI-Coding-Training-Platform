@@ -95,6 +95,12 @@
       details { margin-top: 10px; }
       summary { color: #64748b; font-size: 11px; cursor: pointer; }
       details .field { display: block; margin-top: 8px; }
+      .characterization { padding: 12px; }
+      .characterization .section-heading { margin-bottom: 8px; }
+      .characterization .diagnostic-row { padding: 0; border: none; }
+      .characterization .diagnostic-row button { margin-right: 6px; }
+      .characterization .meta { margin-bottom: 8px; }
+      .characterization-info { color: #68758a; font-size: 10px; }
     </style>
   </head>
   <body>
@@ -154,6 +160,30 @@
           <input id="captureEndpoint" type="url" />
         </label>
       </details>
+
+      <section class="panel characterization" aria-labelledby="characterizationHeading">
+        <div class="section-heading">
+          <h2 id="characterizationHeading">NowCoder 诊断</h2>
+          <p id="characterizationState">诊断模式未启用</p>
+        </div>
+        <p class="meta" id="characterizationInfo">仅记录所选 NowCoder 主机的网络请求元数据，5分钟自动过期</p>
+        <label class="field" for="characterizationHostname">
+          目标主机
+          <select id="characterizationHostname">
+            <option value="www.nowcoder.com">www.nowcoder.com</option>
+            <option value="ac.nowcoder.com">ac.nowcoder.com</option>
+          </select>
+        </label>
+        <label class="field" for="characterizationAuthenticated">
+          <input id="characterizationAuthenticated" type="checkbox" /> 当前页面已登录
+        </label>
+        <div class="diagnostic-row">
+          <button id="characterizationStart" type="button">开始诊断</button>
+          <button id="characterizationStop" type="button" disabled>停止诊断</button>
+          <button id="characterizationExport" type="button" disabled>导出记录</button>
+        </div>
+        <p id="characterizationResult" role="status" aria-live="polite"></p>
+      </section>
     </main>
     <script type="module" src="popup.js"></script>
   </body>

@@ -5,7 +5,31 @@ import {
   presentPopupState,
   requestPairing,
   runButtonAction,
+  deliverCharacterizationExport,
+  isCharacterizationExportDocument,
+  readCharacterizationStartSelection,
 } from "@/extension/src/popup";
+import { parseNetworkTranscriptEvidence, parseNetworkTranscriptMeta } from "@/tests/helpers/networkTranscriptContract";
+
+const exportDocument = {
+  meta: {
+    fixtureName: "nowcoder-characterization-2026-07-26",
+    sourceUrl: "https://www.nowcoder.com/",
+    captureDate: "2026-07-26",
+    captureMethod: "extension characterization export",
+    authenticated: false,
+    sanitized: true,
+    evidenceTier: "characterization-derived",
+    productionEligible: false,
+    signals: [{ kind: "network_request_observed", platform: "nowcoder", tier: "E1" }],
+  },
+  evidence: [{
+    schemaVersion: 1, evidenceId: "e1_nowcoder_export", platform: "nowcoder", tier: "E1",
+    kind: "network_request_observed", receivedAt: "2026-07-26T12:00:00.000Z",
+    tabId: 1, frameId: 0, documentId: "doc-export", requestId: "request-export",
+    method: "POST", normalizedPath: "/submit", resourceType: "xmlhttprequest",
+  }],
+} as const;
 
 describe("extension popup presenter", () => {
   it("distinguishes waiting, outbox, quarantine, and migration counts", () => {
@@ -108,5 +132,61 @@ describe("extension popup presenter", () => {
     expect(errors).toEqual([failure]);
     expect(button.classList.contains("is-pressed")).toBe(false);
     expect(button.disabled).toBe(false);
+  });
+
+  it("preserves required hostname and authentication choices at start", () => {
+    expect(readCharacterizationStartSelection("ac.nowcoder.com", true)).toEqual({
+      hostname: "ac.nowcoder.com", authenticated: true,
+    });
+    expect(readCharacterizationStartSelection("www.nowcoder.com", false)).toEqual({
+      hostname: "www.nowcoder.com", authenticated: false,
+    });
+    expect(readCharacterizationStartSelection("example.com", false)).toBeUndefined();
+  });
+
+  it("downloads only a complete B1 document and the actual B1 parsers accept it", async () => {
+    expect(isCharacterizationExportDocument(exportDocument)).toBe(true);
+    expect(parseNetworkTranscriptMeta(exportDocument.meta).ok).toBe(true);
+    expect(parseNetworkTranscriptEvidence(exportDocument.evidence[0]).ok).toBe(true);
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = () => "blob:characterization-export";
+    URL.revokeObjectURL = () => undefined;
+    const downloads: Array<readonly [string, string]> = [];
+    try {
+      await expect(deliverCharacterizationExport(exportDocument, async (url, filename) => {
+        downloads.push([url, filename]);
+      })).resolves.toEqual({ ok: true, count: 1 });
+    } finally {
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+    }
+    expect(downloads).toEqual([["blob:characterization-export", "nowcoder-characterization-2026-07-26.json"]]);
+  });
+
+  it("accepts authenticated ac.nowcoder.com output and rejects dishonest unauthenticated metadata", () => {
+    const authenticated = {
+      ...exportDocument,
+      meta: {
+        ...exportDocument.meta,
+        sourceUrl: "https://ac.nowcoder.com/",
+        authenticated: true,
+        evidenceTier: "authenticated-characterization",
+      },
+    };
+    expect(isCharacterizationExportDocument(authenticated)).toBe(true);
+    expect(isCharacterizationExportDocument({
+      ...authenticated,
+      meta: { ...authenticated.meta, authenticated: false },
+    })).toBe(false);
+    expect(isCharacterizationExportDocument(exportDocument)).toBe(true);
+  });
+
+  it("does not deliver an incomplete or unsafe export payload", async () => {
+    const invalid = { ...exportDocument, evidence: [{ ...exportDocument.evidence[0], requestBody: "unsafe" }] };
+    let delivered = false;
+    await expect(deliverCharacterizationExport(invalid, async () => { delivered = true; }))
+      .resolves.toEqual({ ok: false, reason: "导出文档未通过 B1 安全校验" });
+    expect(delivered).toBe(false);
   });
 });

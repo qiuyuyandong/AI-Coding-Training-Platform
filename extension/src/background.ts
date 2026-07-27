@@ -26,8 +26,17 @@ import {
   createRegistryRequestLifecycleSource,
   createWebRequestObserver,
   registerNetworkObserverListeners,
+  createCharacterizationObserver,
+  registerCharacterizationObserverListeners,
   type WebRequestDetails,
 } from "./networkObserver";
+import {
+  createCharacterizationController,
+  characterizeSessionStatus,
+  type CharacterizationController,
+} from "./characterization";
+import { blocksNowCoderProductionIngress } from "./characterizationIngress";
+import { readNavigationWitness } from "./characterizationNavigationWitness";
 import { settleExtensionOperation } from "./extensionOperation";
 import { isUiHintMessage, UI_HINT_TTL_MS } from "./uiHint";
 import { MAIN_WORLD_RELAY_FORWARD_TYPE } from "./mainWorldRelay";
@@ -58,11 +67,21 @@ import {
 
 const FLUSH_ALARM_NAME = "flushCaptureOutbox";
 const UI_HINT_CLEANUP_ALARM_NAME = "expireCaptureUiHints";
+const CHARACTERIZATION_EXPIRY_ALARM_NAME = "expireNowCoderCharacterization";
 const WEBREQUEST_SPIKE_URL =
   "https://atcoder.jp/__capture_v4_webrequest_spike__/submit";
 const WEBREQUEST_SPIKE_MARKER_LIMIT = 8;
 let activeOutboxFlush: Promise<void> | undefined;
 let cachedSnapshot: OrchestratorState | undefined;
+const characterizationClock = (): string => new Date().toISOString();
+
+/**
+ * Synchronous snapshot of whether NowCoder characterization is active.
+ * Set true BEFORE the serialized start-task is scheduled so the production
+ * webRequest observer can skip scheduling any NowCoder work synchronously
+ * (the session-backed check still acts as a worker-restart safety net).
+ */
+let characterizationProductionGuard = false;
 
 const orchestrator: Orchestrator = createBackgroundOrchestrator({
   storage: {
@@ -74,6 +93,30 @@ const orchestrator: Orchestrator = createBackgroundOrchestrator({
     await flushOutbox();
   },
 });
+
+/** Characterization controller - session-only, never affects production state. */
+const characterizationController: CharacterizationController = createCharacterizationController({
+
+  get: async (keys: readonly string[]) => {
+    return chrome.storage.session.get([...keys]);
+  },
+  set: async (items: Record<string, unknown>) => {
+    await chrome.storage.session.set(items);
+  },
+  remove: async (key: string) => {
+    await chrome.storage.session.remove(key);
+  },
+}, characterizationClock);
+
+async function scheduleCharacterizationExpiry(session: { readonly active: boolean; readonly expiresAt: string }): Promise<void> {
+  if (!session.active) {
+    await chrome.alarms.clear(CHARACTERIZATION_EXPIRY_ALARM_NAME);
+    return;
+  }
+  const when = Date.parse(session.expiresAt);
+  if (!Number.isFinite(when)) return;
+  await chrome.alarms.create(CHARACTERIZATION_EXPIRY_ALARM_NAME, { when });
+}
 
 const PRUNE_DEADLINE_KEYS = [
   "uiHints",
@@ -179,6 +222,7 @@ async function scheduleUiHintCleanupAlarmFromSession(): Promise<void> {
 }
 
 const initialization = (async (): Promise<void> => {
+  await characterizationController.stop();
   const effects = await orchestrator.install();
   await applyPersistence(effects);
 })();
@@ -225,6 +269,11 @@ const networkObserver = createWebRequestObserver(
   createRegistryRequestLifecycleSource(() => new Date().toISOString()),
 );
 
+function skipNowCoderProduction(details: ChromeObserverDetails): boolean {
+  if (!characterizationProductionGuard) return false;
+  try { return new URL(details.url).hostname === "ac.nowcoder.com" || new URL(details.url).hostname === "www.nowcoder.com"; } catch { return false; }
+}
+
 registerNetworkObserverListeners(
   (kind, callback, filter) => {
     const chromeFilter: chrome.webRequest.RequestFilter = {
@@ -234,14 +283,14 @@ registerNetworkObserverListeners(
     switch (kind) {
       case "onBeforeRequest":
         chrome.webRequest.onBeforeRequest.addListener(
-          (details) => { callback(toObserverDetails(details)); return undefined; },
+          (details) => { if (!skipNowCoderProduction(details)) callback(toObserverDetails(details)); return undefined; },
           chromeFilter,
         );
         break;
       case "onBeforeRedirect":
         chrome.webRequest.onBeforeRedirect.addListener(
           (details) => {
-            callback(toObserverDetails(details), details.redirectUrl);
+            if (!skipNowCoderProduction(details)) callback(toObserverDetails(details), details.redirectUrl);
           },
           chromeFilter,
         );
@@ -249,21 +298,21 @@ registerNetworkObserverListeners(
       case "onResponseStarted":
         chrome.webRequest.onResponseStarted.addListener(
           (details) => {
-            callback(toObserverDetails(details), details.statusCode);
+            if (!skipNowCoderProduction(details)) callback(toObserverDetails(details), details.statusCode);
           },
           chromeFilter,
         );
         break;
       case "onCompleted":
         chrome.webRequest.onCompleted.addListener(
-          (details) => { callback(toObserverDetails(details)); },
+          (details) => { if (!skipNowCoderProduction(details)) callback(toObserverDetails(details)); },
           chromeFilter,
         );
         break;
       case "onErrorOccurred":
         chrome.webRequest.onErrorOccurred.addListener(
           (details) => {
-            callback(toObserverDetails(details), details.error);
+            if (!skipNowCoderProduction(details)) callback(toObserverDetails(details), details.error);
           },
           chromeFilter,
         );
@@ -274,7 +323,9 @@ registerNetworkObserverListeners(
   (outcome) => {
     if (outcome.kind !== "recorded" || outcome.lifecycle.kind !== "request_observed") return;
     const evidence = outcome.lifecycle;
+    if (evidence.platform === "nowcoder" && characterizationProductionGuard) return;
     executor.schedule(async () => {
+      if (await blocksNowCoderProductionIngress(evidence.platform, characterizationController)) return;
       await applyOrchestratorEvent({
         kind: "e1_recorded",
         evidence,
@@ -285,6 +336,66 @@ registerNetworkObserverListeners(
       });
     });
   },
+  (work: () => Promise<void>) => { executor.schedule(work); },
+);
+
+/** Characterization observer - NowCoder-only, separate from production. */
+const characterizationObserver = createCharacterizationObserver(
+  createRegistryRequestLifecycleSource(() => new Date().toISOString()),
+);
+
+/**
+ * Register characterization observer listeners.
+ * These listeners are always registered but only collect when characterization is active.
+ * The characterization controller checks session state before storing anything.
+ */
+registerCharacterizationObserverListeners(
+  (kind, callback, filter) => {
+    const chromeFilter: chrome.webRequest.RequestFilter = {
+      urls: [...filter.urls],
+      types: [...filter.types] as chrome.webRequest.ResourceType[],
+    };
+    switch (kind) {
+      case "onBeforeRequest":
+        chrome.webRequest.onBeforeRequest.addListener(
+          (details) => { if (characterizationProductionGuard) callback(toObserverDetails(details)); return undefined; },
+          chromeFilter,
+        );
+        break;
+      case "onBeforeRedirect":
+        chrome.webRequest.onBeforeRedirect.addListener(
+          (details) => {
+            if (characterizationProductionGuard) callback(toObserverDetails(details), details.redirectUrl);
+          },
+          chromeFilter,
+        );
+        break;
+      case "onResponseStarted":
+        chrome.webRequest.onResponseStarted.addListener(
+          (details) => {
+            if (characterizationProductionGuard) callback(toObserverDetails(details), details.statusCode);
+          },
+          chromeFilter,
+        );
+        break;
+      case "onCompleted":
+        chrome.webRequest.onCompleted.addListener(
+          (details) => { if (characterizationProductionGuard) callback(toObserverDetails(details)); },
+          chromeFilter,
+        );
+        break;
+      case "onErrorOccurred":
+        chrome.webRequest.onErrorOccurred.addListener(
+          (details) => {
+            if (characterizationProductionGuard) callback(toObserverDetails(details), details.error);
+          },
+          chromeFilter,
+        );
+        break;
+    }
+  },
+  characterizationObserver,
+  (evidence, hostname) => characterizationController.collect(evidence, hostname),
   (work: () => Promise<void>) => { executor.schedule(work); },
 );
 
@@ -320,6 +431,7 @@ chrome.runtime.onInstalled.addListener(() => {
   void ensurePruneAlarmSlot();
   void initialization.then(async () => {
     await scheduleUiHintCleanupAlarmFromSession();
+    await scheduleCharacterizationExpiry(await characterizationController.getSession());
   });
   void settleExtensionOperation(
     () => chrome.alarms.create(FLUSH_ALARM_NAME, { periodInMinutes: 1 }),
@@ -328,18 +440,30 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  // The cleanup alarm is independent of the outbox flush; establishing it
-  // first lets idle-day prunes fire even when the outbox drain is stalled on
-  // a slow network. The serialized executor can still interleave the two
-  // safely — both helpers only touch distinct chrome.* APIs.
   void ensurePruneAlarmSlot();
   executor.schedule(async () => {
+    await characterizationController.stop();
+    characterizationProductionGuard = false;
     await flushOutbox();
     await scheduleUiHintCleanupAlarmFromSession();
+    await scheduleCharacterizationExpiry(await characterizationController.getSession());
   });
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+  const navigationWitness = readNavigationWitness(
+    message,
+    sender,
+    chrome.runtime.id,
+    new Date().toISOString(),
+    0,
+  );
+  if (navigationWitness !== undefined) {
+    executor.schedule(async () => {
+      await characterizationController.recordNavigationWitness(navigationWitness);
+    });
+    return false;
+  }
   if (isCaptureContextRequest(message)) {
     void initialization.then(readRuntimeContext).then(sendResponse).catch(() => sendResponse(undefined));
     return true;
@@ -355,16 +479,23 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return true;
   }
   if (isMainWorldRelayMessage(message, sender)) {
-    executor.schedule(() => applyMainBridgeSummary(message.summary));
+    executor.schedule(async () => {
+      if (await blocksNowCoderProductionIngress(message.summary.platform, characterizationController)) return;
+      await applyMainBridgeSummary(message.summary);
+    });
     return false;
   }
   const e3Evidence = readE3RecordedMessage(message);
   if (e3Evidence !== undefined) {
-    executor.schedule(async () => { await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3Evidence }); });
+    executor.schedule(async () => {
+      if (await blocksNowCoderProductionIngress(e3Evidence.platform, characterizationController)) return;
+      await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3Evidence });
+    });
     return false;
   }
   if (isUiHintMessage(message)) {
     executor.schedule(async () => {
+      if (await blocksNowCoderProductionIngress(message.hint.platform, characterizationController)) return;
       await applyOrchestratorEvent({
         kind: "e0_recorded",
         hint: message.hint,
@@ -375,6 +506,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
   if (isVerdictCandidateMessage(message)) {
     executor.schedule(async () => {
+      if (await blocksNowCoderProductionIngress(message.candidate.platform, characterizationController)) return;
       await applyOrchestratorEvent({
         kind: "v3_verdict_observed",
         candidate: message.candidate,
@@ -393,10 +525,63 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     });
     return true;
   }
+  // Characterization messages - handled directly without orchestrator
+  if (isCharacterizationStartMessage(message)) {
+    executor.schedule(async () => {
+      const session = await characterizationController.start(message.hostname, message.authenticated);
+      networkObserver.clear();
+      characterizationObserver.clear();
+      // Do not block production ingress unless the session was actually persisted.
+      characterizationProductionGuard = session.active;
+      await scheduleCharacterizationExpiry(session);
+      sendResponse({ ok: session.active, session });
+    });
+    return true;
+  }
+  if (isCharacterizationStopMessage(message)) {
+    executor.schedule(async () => {
+      const session = await characterizationController.stop();
+      characterizationObserver.clear();
+      characterizationProductionGuard = false;
+      await scheduleCharacterizationExpiry(session);
+      sendResponse({ ok: true, session });
+    });
+    return true;
+  }
+  if (isCharacterizationExportMessage(message)) {
+    executor.schedule(async () => {
+      const result = await characterizationController.export();
+      if (result.ok) {
+        await characterizationController.stop();
+        characterizationObserver.clear();
+        characterizationProductionGuard = false;
+        await scheduleCharacterizationExpiry(await characterizationController.getSession());
+      }
+      sendResponse(result);
+    });
+    return true;
+  }
+  if (isCharacterizationStatusMessage(message)) {
+    executor.schedule(async () => {
+      const session = await characterizationController.getSession();
+      const status = characterizeSessionStatus(session, characterizationClock());
+      sendResponse({ session, status });
+    });
+    return true;
+  }
   return false;
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === CHARACTERIZATION_EXPIRY_ALARM_NAME) {
+    executor.schedule(async () => {
+      await characterizationController.stop();
+      characterizationObserver.clear();
+      characterizationProductionGuard = false;
+      await chrome.alarms.clear(CHARACTERIZATION_EXPIRY_ALARM_NAME);
+    });
+    return;
+  }
   if (alarm.name === UI_HINT_CLEANUP_ALARM_NAME) {
     // The orchestrator prunes transient evidence on every install and every
     // apply; the alarm keeps the E0 hint prune window honest on idle days.
@@ -651,6 +836,36 @@ function toOrchestratorAction(message: ActionMessage): OrchestratorUserAction {
     case "DELETE_QUARANTINED_CAPTURE":
       return { type: "DELETE_QUARANTINED_CAPTURE", id: message.id };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Characterization message type guards
+// ---------------------------------------------------------------------------
+
+function isCharacterizationStartMessage(value: unknown): value is {
+  readonly type: "CHARACTERIZATION_START";
+  readonly hostname: string;
+  readonly authenticated: boolean;
+} {
+  return typeof value === "object" && value !== null
+    && "type" in value && value.type === "CHARACTERIZATION_START"
+    && "hostname" in value && typeof value.hostname === "string"
+    && "authenticated" in value && typeof value.authenticated === "boolean";
+}
+
+function isCharacterizationStopMessage(value: unknown): boolean {
+  return typeof value === "object" && value !== null
+    && "type" in value && value.type === "CHARACTERIZATION_STOP";
+}
+
+function isCharacterizationExportMessage(value: unknown): boolean {
+  return typeof value === "object" && value !== null
+    && "type" in value && value.type === "CHARACTERIZATION_EXPORT";
+}
+
+function isCharacterizationStatusMessage(value: unknown): boolean {
+  return typeof value === "object" && value !== null
+    && "type" in value && value.type === "CHARACTERIZATION_STATUS";
 }
 
 function isCaptureContextRequest(value: unknown): boolean {

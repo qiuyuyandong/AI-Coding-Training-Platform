@@ -1,17 +1,23 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-26):** **V4 infrastructure engineering PASS
-> (scope-reduced)** for Phase A Tasks A0-A12. Phase 0 click-ingress
-> stopgap is complete: a qualifying UI click produces only a bounded
-> session-only E0 hint and cannot create waiting state, an attempt
-> bundle, or local API traffic. V3 click intents are removed by an
-> idempotent V4 migration, while completed outbox/quarantine items
+> **Status (2026-07-27):** **V4 infrastructure engineering PASS
+> (scope-reduced)** for Phase A Tasks A0-A12. **Phase B B2 (NowCoder
+> diagnostic mode) complete and independently reviewed.** Phase 0
+> click-ingress stopgap is complete: a qualifying UI click produces
+> only a bounded session-only E0 hint and cannot create waiting state,
+> an attempt bundle, or local API traffic. V3 click intents are removed
+> by an idempotent V4 migration, while completed outbox/quarantine items
 > and pairing state are preserved. Phase A0-A9 built the V4 evidence
 > core and Fake OJ matrix (31 passed / 1 known skip); A10 added the
 > disposable SQLite lifecycle + production extension E2E smoke test;
 > A11 integrated the new lane into the canonical nine-stage quality
 > gate; A12 reconciled the plan and produced the final closeout
-> report. Automatic network-confirmed capture is not implemented;
+> report. Phase B B0-B2 delivered authorization contract, strict safe
+> transcript schema, and an independently-reviewed opt-in NowCoder
+> diagnostic mode with session-backed production ingress isolation,
+> fail-closed worker-restart, and exact B1-compatible export download;
+> no real NowCoder observation has occurred yet.
+> Automatic network-confirmed capture is not implemented;
 > every real platform's `V4NetworkStatus` remains `uncharacterized`.
 > Final closeout: `work/reports/phase-a-final-closeout.md`.
 >
