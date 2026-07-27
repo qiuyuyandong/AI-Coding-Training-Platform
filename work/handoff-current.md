@@ -1,9 +1,17 @@
 # Current Handoff
 
-## Status (2026-07-27 V4 Phase B B3 browse-only observation BLOCKED)
+## Status (2026-07-27 V4 Phase B B3.1 browse-only observation PASS)
 
 **V4 INFRASTRUCTURE ENGINEERING PASS (SCOPE-REDUCED) / FORMAL V0
-OBSERVATION BLOCKED / PHASE B B3 BROWSE-ONLY OBSERVATION BLOCKED.**
+OBSERVATION BLOCKED / PHASE B B3.1 BROWSE-ONLY OBSERVATION PASS.**
+
+B3.1 is limited to a restart-safe browse-only navigation witness. Implementation
+commits `c208bc2` and `fdecf91` plus evidence commit `b2c6aec` produced the
+strict authenticated two-E0 fixture at
+`tests/fixtures/nowcoder/network/nowcoder-browse-only-2026-07-27.json`.
+The transcript validator and fixture test pass, as does the final quality gate.
+This does not certify NowCoder production or authorize B4; real MV3 worker
+termination A-D coverage remains a follow-up.
 
 Phase B Buthorization B0, schema B1, and diagnostic-mode B2 are complete
 and frozen at `6862f462978352fda7ab1e90639a5c1fbd960810`. B2 passed independent privacy
