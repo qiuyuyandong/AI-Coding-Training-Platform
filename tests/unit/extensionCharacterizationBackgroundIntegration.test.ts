@@ -89,16 +89,16 @@ describe("background characterization production ingress guard", () => {
     expect(JSON.stringify(production)).toBe(before);
   });
 
-  it("worker restart clears the characterization session", async () => {
+  it("worker restart preserves the characterization session (B3.1)", async () => {
     const storage = createSessionStorage();
     const firstWorker = createCharacterizationController(storage, () => NOW);
     await firstWorker.start("www.nowcoder.com", false);
     expect(await firstWorker.isActive()).toBe(true);
 
-    // Simulate a fresh worker: stop() renders the session inactive.
-    await firstWorker.stop();
-    expect(await firstWorker.isActive()).toBe(false);
-    expect(await blocksNowCoderProductionIngress("nowcoder", firstWorker)).toBe(false);
+    // B3.1: a fresh worker reads the persisted session, no unconditional stop.
+    const restartedWorker = createCharacterizationController(storage, () => NOW);
+    expect(await restartedWorker.isActive()).toBe(true);
+    expect(await blocksNowCoderProductionIngress("nowcoder", restartedWorker)).toBe(true);
   });
 
   it("synchronous guard keeps production observer from scheduling NowCoder work", async () => {

@@ -390,6 +390,8 @@ export function readCharacterizationStartSelection(
 function bindCharacterizationStart(): void {
   const button = document.querySelector<HTMLButtonElement>("#characterizationStart");
   button?.addEventListener("click", () => {
+    // Reset export completed flag on new session start
+    resetExportCompleted();
     runPopupButton(button, "开始诊断", async () => {
       const hostname = document.querySelector<HTMLSelectElement>("#characterizationHostname")?.value;
       const authenticated = document.querySelector<HTMLInputElement>("#characterizationAuthenticated")?.checked;
@@ -399,10 +401,13 @@ function bindCharacterizationStart(): void {
         return;
       }
       const result = await chrome.runtime.sendMessage({ type: "CHARACTERIZATION_START", ...start });
-      if (isCharacterizationResult(result)) {
+      if (isCharacterizationStartResult(result)) {
         setText("#characterizationState", result.session.active ? "诊断模式进行中" : "诊断模式未启用");
-        updateCharacterizationButtons(result.session.active);
+        updateCharacterizationButtons(result.session.active, result.b3Status ?? "armed");
+        updateWitnessStateDisplay(result.b3Status ?? "armed");
         setText("#characterizationResult", result.session.active ? "已开始" : "启动失败");
+        // Refresh status after start
+        await renderCharacterization();
       }
     });
   });
@@ -415,8 +420,11 @@ function bindCharacterizationStop(): void {
       const result = await chrome.runtime.sendMessage({ type: "CHARACTERIZATION_STOP" });
       if (isCharacterizationResult(result)) {
         setText("#characterizationState", "诊断模式未启用");
-        updateCharacterizationButtons(false);
+        updateCharacterizationButtons(false, "armed");
+        updateWitnessStateDisplay("armed");
         setText("#characterizationResult", "已停止");
+        // Refresh status after stop
+        await renderCharacterization();
       }
     });
   });
@@ -429,16 +437,41 @@ function bindCharacterizationExport(): void {
       const result = await chrome.runtime.sendMessage({ type: "CHARACTERIZATION_EXPORT" });
       if (isCharacterizationExportResult(result)) {
         if (result.ok && result.document !== undefined) {
+          // B3: Mark that export succeeded - never allow re-export
+          markExportCompleted();
           const delivery = await deliverCharacterizationExport(result.document);
-          setText("#characterizationResult", delivery.ok
-            ? `已下载 ${delivery.count} 条记录`
-            : `导出失败: ${delivery.reason}`);
+          if (result.isB3Export) {
+            setText("#characterizationResult", delivery.ok
+              ? `B3导出成功`
+              : `导出失败: ${delivery.reason}`);
+          } else {
+            setText("#characterizationResult", delivery.ok
+              ? `已下载 ${delivery.count} 条记录`
+              : `导出失败: ${delivery.reason}`);
+          }
         } else {
           setText("#characterizationResult", `导出失败: ${result.reason}`);
         }
       }
+      // Refresh status after export
+      await renderCharacterization();
     });
   });
+}
+
+/** Track whether export has already succeeded this session. */
+let exportCompletedThisSession = false;
+
+/** Mark export as completed - disables export button permanently for this session. */
+function markExportCompleted(): void {
+  exportCompletedThisSession = true;
+  const exportBtn = document.querySelector<HTMLButtonElement>("#characterizationExport");
+  if (exportBtn !== null) exportBtn.disabled = true;
+}
+
+/** Reset export completed flag (called when starting a new session). */
+function resetExportCompleted(): void {
+  exportCompletedThisSession = false;
 }
 
 async function renderCharacterization(): Promise<void> {
@@ -446,21 +479,48 @@ async function renderCharacterization(): Promise<void> {
     const response = await chrome.runtime.sendMessage({ type: "CHARACTERIZATION_STATUS" });
     if (isCharacterizationStatusResponse(response)) {
       setText("#characterizationState", response.status);
-      updateCharacterizationButtons(response.session.active);
+      // B3 export button: only enabled when session active AND export not completed AND B3 is ready
+      const b3Status = response.b3Status ?? "armed";
+      updateCharacterizationButtons(response.session.active, b3Status, exportCompletedThisSession);
+      updateWitnessStateDisplay(b3Status);
     }
   } catch {
     setText("#characterizationState", "诊断模式未启用");
-    updateCharacterizationButtons(false);
+    updateCharacterizationButtons(false, "armed", exportCompletedThisSession);
+    updateWitnessStateDisplay("armed");
   }
 }
 
-function updateCharacterizationButtons(active: boolean): void {
+function updateCharacterizationButtons(active: boolean, b3Status: string, alreadyExported = false): void {
   const startBtn = document.querySelector<HTMLButtonElement>("#characterizationStart");
   const stopBtn = document.querySelector<HTMLButtonElement>("#characterizationStop");
   const exportBtn = document.querySelector<HTMLButtonElement>("#characterizationExport");
   if (startBtn !== null) startBtn.disabled = active;
   if (stopBtn !== null) stopBtn.disabled = !active;
-  if (exportBtn !== null) exportBtn.disabled = !active;
+  // B3: export only enabled when active AND B3 is ready AND not already exported
+  // After successful export, never re-enable (popup refresh won't reset this)
+  const canExport = active && b3Status === "ready" && !alreadyExported && !exportCompletedThisSession;
+  if (exportBtn !== null) exportBtn.disabled = !canExport;
+}
+
+function updateWitnessStateDisplay(witnessState: string): void {
+  const witnessStateEl = document.querySelector("#characterizationWitnessState");
+  if (witnessStateEl !== null) {
+    const stateLabels: Record<string, string> = {
+      armed: "待命中",
+      list_seen: "已见列表",
+      ready: "就绪",
+      invalid: "无效",
+    };
+    witnessStateEl.textContent = `导航见证: ${stateLabels[witnessState] ?? witnessState}`;
+  }
+}
+
+function isCharacterizationStartResult(value: unknown): value is { readonly ok: boolean; readonly session: { readonly active: boolean }; readonly b3Status?: string } {
+  return typeof value === "object" && value !== null
+    && "ok" in value && typeof value.ok === "boolean"
+    && "session" in value && typeof value.session === "object" && value.session !== null
+    && "active" in value.session && typeof value.session.active === "boolean";
 }
 
 function isCharacterizationResult(value: unknown): value is { readonly ok: boolean; readonly session: { readonly active: boolean } } {
@@ -495,6 +555,7 @@ function isCharacterizationExportResult(value: unknown): value is {
   readonly ok: boolean;
   readonly document?: unknown;
   readonly reason?: string;
+  readonly isB3Export?: boolean;
 } {
   return typeof value === "object" && value !== null && "ok" in value
     && typeof Reflect.get(value, "ok") === "boolean";
@@ -504,7 +565,7 @@ export function isCharacterizationExportDocument(value: unknown): value is Chara
   return parseNetworkTranscriptDocument(value).ok;
 }
 
-function isCharacterizationStatusResponse(value: unknown): value is { readonly session: { readonly active: boolean }; readonly status: string } {
+function isCharacterizationStatusResponse(value: unknown): value is { readonly session: { readonly active: boolean; readonly navigationWitnesses?: readonly unknown[] }; readonly status: string; readonly b3Status?: string; readonly b3Revision?: number } {
   return typeof value === "object" && value !== null
     && "session" in value && typeof value.session === "object"
     && "status" in value && typeof value.status === "string";

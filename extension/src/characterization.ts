@@ -31,7 +31,9 @@ import {
   CHARACTERIZATION_TTL_MS,
   toB1NetworkRequest,
 } from "./characterizationStorage";
-import type { NavigationWitness } from "./characterizationNavigationWitness";
+import {
+  type NavigationWitness,
+} from "./characterizationNavigationWitness";
 import type { E1RequestObserved } from "./evidence";
 import { buildCharacterizationRecord } from "./characterizationStorage";
 import {
@@ -185,9 +187,11 @@ function handleExport(
     }
     b1Records.push(b1Result.value);
   }
+
   if (b1Records.length === 0 && pruned.navigationWitnesses.length === 0) {
     return { session: pruned, exportResult: { ok: false, reason: "no records to export" } };
   }
+
   const document = b1Records.length > 0
     ? createCharacterizationExportDocument(b1Records, now, session.hostname, session.authenticated)
     : createBrowseOnlyNavigationExportDocument(pruned.navigationWitnesses, now, session.hostname, session.authenticated);

@@ -394,10 +394,31 @@ export function addCharacterizationRecord(
   });
 }
 
-export function addNavigationWitness(session: CharacterizationSession, witness: NavigationWitness): CharacterizationSession {
+export function addNavigationWitness(
+  session: CharacterizationSession,
+  witness: NavigationWitness,
+): CharacterizationSession {
   if (!session.active) return session;
-  // Any reload or duplicate stays retained so export rejects the session instead of hiding it.
-  return Object.freeze({ ...session, navigationWitnesses: Object.freeze([...session.navigationWitnesses, witness].slice(-3)) });
+  // Retain all witnesses for export validation; slice to bounded size (-3 keeps room for list+problem+1 spare)
+  return Object.freeze({
+    ...session,
+    navigationWitnesses: Object.freeze([...session.navigationWitnesses, witness].slice(-3)),
+  });
+}
+
+/**
+ * Check if a session can export navigation witnesses.
+ * Returns true only when a valid list->problem pair exists.
+ */
+export function canExportNavigationWitnesses(session: CharacterizationSession): boolean {
+  if (!session.active) return false;
+  if (session.navigationWitnesses.length === 0) return false;
+  const list = session.navigationWitnesses.find((w) => w.pageClass === "contest_list");
+  const problem = session.navigationWitnesses.find((w) => w.pageClass === "contest_problem");
+  if (list === undefined || problem === undefined) return false;
+  if (list.tabId !== problem.tabId) return false;
+  if (list.relativeTimingOrder >= problem.relativeTimingOrder) return false;
+  return true;
 }
 
 /**

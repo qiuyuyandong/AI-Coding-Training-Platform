@@ -25,7 +25,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run e2e:prepare && npm run dev -- -p ${PORT}`,
+    // E2E assertions exercise mutation feedback immediately after a click.
+    // A production server avoids per-route development compilation consuming
+    // that feedback window while keeping Playwright responsible for lifecycle.
+    command: `npm run e2e:prepare && npm run build && npm run start -- -p ${PORT}`,
     env: {
       TRAINING_DB_PATH: E2E_DB_PATH,
     },

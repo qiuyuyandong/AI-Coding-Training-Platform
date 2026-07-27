@@ -360,8 +360,10 @@ async function getFakeOjLiveWorker(
     if (current !== undefined) {
       lastWorker = current;
       try {
-        await current.evaluate("1 + 1");
-        return current;
+        const storageReady = await current.evaluate(() =>
+          typeof chrome !== "undefined" && chrome.storage !== undefined,
+        );
+        if (storageReady) return current;
       } catch {
         // Worker handle is stale; keep polling.
       }
@@ -389,7 +391,8 @@ async function runCrossPlatformSmoke(
   smoke: CrossPlatformSmoke,
 ): Promise<void> {
   const scenario = scenarioAt(smoke.scenarioIndex);
-  const before = await readFakeOjStorage(worker);
+  const liveWorker = await getFakeOjLiveWorker(context, worker.url());
+  const before = await readFakeOjStorage(liveWorker);
   const page = await context.newPage();
   try {
     // The OJ-host context routes installed by `createFakeOjPage`
@@ -399,7 +402,7 @@ async function runCrossPlatformSmoke(
     // follow a 302 redirect from localhost-style pages across origins
     // because the redirect-following request is not re-intercepted.
     const bridge = await createFakeOjPage(context, page, {
-      worker,
+      worker: liveWorker,
       bridgeDocumentId: documentIdFor(scenario.name),
       bridgeForwarder: async (): Promise<void> => undefined,
       navigationUrl: smoke.navigationUrl,
@@ -412,7 +415,7 @@ async function runCrossPlatformSmoke(
     });
     expect(page.url()).toBe(smoke.navigationUrl);
     await bridge.triggerSubmit();
-    const snapshot = await pollUntilStorageMatches(worker, (storage) =>
+    const snapshot = await pollUntilStorageMatches(liveWorker, (storage) =>
       storage.transientE1.length > before.transientE1.length
       && storage.transientE1.some((entry) => {
         const evidence = lifecycleEvidence(entry);

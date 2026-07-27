@@ -37,6 +37,19 @@ import {
 } from "./characterization";
 import { blocksNowCoderProductionIngress } from "./characterizationIngress";
 import { readNavigationWitness } from "./characterizationNavigationWitness";
+import {
+  B3_BUILD_SHA,
+  type B3WitnessState,
+  transitionB3Witness,
+  startB3State,
+  invalidateB3State,
+  stopB3State,
+  canB3Export,
+  buildB3E0Records,
+  readB3WitnessState,
+  planB3WitnessStateWrite,
+  isB3StateExpired,
+} from "./b3Witness";
 import { settleExtensionOperation } from "./extensionOperation";
 import { isUiHintMessage, UI_HINT_TTL_MS } from "./uiHint";
 import { MAIN_WORLD_RELAY_FORWARD_TYPE } from "./mainWorldRelay";
@@ -107,6 +120,107 @@ const characterizationController: CharacterizationController = createCharacteriz
     await chrome.storage.session.remove(key);
   },
 }, characterizationClock);
+
+// ---------------------------------------------------------------------------
+// B3 Navigation Witness Controller
+// Serializes all B3 transitions to prevent concurrent get-modify-set races.
+// Stored independently from CharacterizationSession (separate chrome.storage.session key).
+// ---------------------------------------------------------------------------
+
+type B3SessionStorage = {
+  readonly get: (keys: readonly string[]) => Promise<Record<string, unknown>>;
+  readonly set: (items: Record<string, unknown>) => Promise<void>;
+  readonly remove: (key: string) => Promise<void>;
+};
+
+const b3Storage: B3SessionStorage = {
+  get: async (keys: readonly string[]) => chrome.storage.session.get([...keys]),
+  set: async (items: Record<string, unknown>) => chrome.storage.session.set(items),
+  remove: async (key: string) => chrome.storage.session.remove(key),
+};
+
+/**
+ * Read current B3 state from storage.
+ */
+async function readCurrentB3State(): Promise<B3WitnessState> {
+  const stored = await b3Storage.get(["b3WitnessState"]);
+  const state = readB3WitnessState(stored);
+  // If expired, transition to invalid
+  const now = characterizationClock();
+  if (isB3StateExpired(state, now)) {
+    const invalid = invalidateB3State(state, "expired", B3_BUILD_SHA);
+    await b3Storage.set(planB3WitnessStateWrite(invalid).items);
+    return invalid;
+  }
+  return state;
+}
+
+/**
+ * Apply a B3 navigation witness transition.
+ * SERIALIZED via executor to prevent concurrent get-modify-set races.
+ * Returns the new state or undefined if transition failed.
+ */
+async function applyB3NavigationWitness(
+  pageClass: "contest_list" | "contest_problem",
+  documentId: string,
+  tabId: number,
+  receivedAt: string,
+): Promise<B3WitnessState | undefined> {
+  const current = await readCurrentB3State();
+  const next = transitionB3Witness(current, pageClass, documentId, tabId, receivedAt, B3_BUILD_SHA);
+  if (next === undefined) {
+    const invalid = invalidateB3State(current, "invalid_transition", B3_BUILD_SHA);
+    await b3Storage.set(planB3WitnessStateWrite(invalid).items);
+    return invalid;
+  }
+  await b3Storage.set(planB3WitnessStateWrite(next).items);
+  return next;
+}
+
+/**
+ * Start B3 state (called when characterization START is triggered).
+ */
+async function startB3Session(): Promise<B3WitnessState> {
+  const now = characterizationClock();
+  const state = startB3State(now, B3_BUILD_SHA);
+  await b3Storage.set(planB3WitnessStateWrite(state).items);
+  return state;
+}
+
+/**
+ * Stop B3 state (called when characterization STOP is triggered).
+ */
+async function stopB3Session(): Promise<B3WitnessState> {
+  const current = await readCurrentB3State();
+  const stopped = stopB3State(current, B3_BUILD_SHA);
+  await b3Storage.set(planB3WitnessStateWrite(stopped).items);
+  return stopped;
+}
+
+/**
+ * Clear B3 state on expiry alarm.
+ */
+async function expireB3Session(): Promise<B3WitnessState> {
+  const current = await readCurrentB3State();
+  const expired = invalidateB3State(current, "expired", B3_BUILD_SHA);
+  await b3Storage.set(planB3WitnessStateWrite(expired).items);
+  return expired;
+}
+
+/**
+ * Check if B3 export is possible.
+ */
+async function canB3ExportNow(): Promise<boolean> {
+  const state = await readCurrentB3State();
+  return canB3Export(state, characterizationClock(), B3_BUILD_SHA);
+}
+
+/**
+ * Get current B3 state for popup.
+ */
+async function getB3State(): Promise<B3WitnessState> {
+  return readCurrentB3State();
+}
 
 async function scheduleCharacterizationExpiry(session: { readonly active: boolean; readonly expiresAt: string }): Promise<void> {
   if (!session.active) {
@@ -222,7 +336,19 @@ async function scheduleUiHintCleanupAlarmFromSession(): Promise<void> {
 }
 
 const initialization = (async (): Promise<void> => {
-  await characterizationController.stop();
+  // B3.1: Do NOT unconditionally stop characterization here.
+  // Session-backed state must survive MV3 worker restarts.
+  // Read the persisted session to set the production guard.
+  const session = await characterizationController.getSession();
+  characterizationProductionGuard = session.active;
+  // B3: Read persisted B3 state. chrome.storage.session survives worker restarts
+  // but NOT extension reloads (as required). Handle expiry if present.
+  const b3State = await readCurrentB3State();
+  if (b3State.status === "invalid" && b3State.invalidReason === "expired") {
+    // Transition expired state to armed (clear invalidReason) on startup
+    const cleared = stopB3State(b3State, B3_BUILD_SHA);
+    await b3Storage.set(planB3WitnessStateWrite(cleared).items);
+  }
   const effects = await orchestrator.install();
   await applyPersistence(effects);
 })();
@@ -395,7 +521,12 @@ registerCharacterizationObserverListeners(
     }
   },
   characterizationObserver,
-  (evidence, hostname) => characterizationController.collect(evidence, hostname),
+  async (evidence, hostname) => {
+    // B3 is browse-only: no diagnostic E1 is retained while its separate
+    // navigation witness session is armed, so its export remains exactly E0x2.
+    if ((await getB3State()).sessionId !== "") return;
+    await characterizationController.collect(evidence, hostname);
+  },
   (work: () => Promise<void>) => { executor.schedule(work); },
 );
 
@@ -442,25 +573,24 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onStartup.addListener(() => {
   void ensurePruneAlarmSlot();
   executor.schedule(async () => {
-    await characterizationController.stop();
-    characterizationProductionGuard = false;
+    // B3.1: Do NOT unconditionally stop characterization here.
+    // Session-backed state survives extension restarts; read session to set guard.
+    const session = await characterizationController.getSession();
+    characterizationProductionGuard = session.active;
     await flushOutbox();
     await scheduleUiHintCleanupAlarmFromSession();
-    await scheduleCharacterizationExpiry(await characterizationController.getSession());
+    await scheduleCharacterizationExpiry(session);
   });
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-  const navigationWitness = readNavigationWitness(
-    message,
-    sender,
-    chrome.runtime.id,
-    new Date().toISOString(),
-    0,
-  );
-  if (navigationWitness !== undefined) {
+  // B3: Sanitize sender synchronously, then transition B3 state serially via executor.
+  const receivedAt = new Date().toISOString();
+  const sanitized = readNavigationWitness(message, sender, chrome.runtime.id, receivedAt);
+  if (sanitized !== undefined) {
     executor.schedule(async () => {
-      await characterizationController.recordNavigationWitness(navigationWitness);
+      // B3 transition: get -> validate -> transition -> save (serialized)
+      await applyB3NavigationWitness(sanitized.pageClass, sanitized.documentId, sanitized.tabId, receivedAt);
     });
     return false;
   }
@@ -531,10 +661,12 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       const session = await characterizationController.start(message.hostname, message.authenticated);
       networkObserver.clear();
       characterizationObserver.clear();
+      // Start B3 session independently
+      const b3State = await startB3Session();
       // Do not block production ingress unless the session was actually persisted.
       characterizationProductionGuard = session.active;
       await scheduleCharacterizationExpiry(session);
-      sendResponse({ ok: session.active, session });
+      sendResponse({ ok: session.active, session, b3Status: b3State.status });
     });
     return true;
   }
@@ -543,6 +675,8 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       const session = await characterizationController.stop();
       characterizationObserver.clear();
       characterizationProductionGuard = false;
+      // Stop B3 session independently
+      await stopB3Session();
       await scheduleCharacterizationExpiry(session);
       sendResponse({ ok: true, session });
     });
@@ -550,6 +684,43 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
   if (isCharacterizationExportMessage(message)) {
     executor.schedule(async () => {
+      // B3: Check if B3 export is possible FIRST (B3 takes priority)
+      const b3CanExport = await canB3ExportNow();
+      if (b3CanExport) {
+        const b3State = await getB3State();
+        const session = await characterizationController.getSession();
+        if (session.records.length > 0) {
+          sendResponse({ ok: false, reason: "browse-only export requires zero network records", isB3Export: true });
+          return;
+        }
+        const e0Records = buildB3E0Records(b3State);
+        if (e0Records !== undefined) {
+          // Build B3 export document with exact 2 E0 records only
+          const b3Document = {
+            meta: Object.freeze({
+              fixtureName: `nowcoder-b3-export-${characterizationClock().slice(0, 10)}`,
+              sourceUrl: "https://ac.nowcoder.com/",
+              captureDate: characterizationClock().slice(0, 10),
+              captureMethod: "extension b3 witness export",
+              authenticated: session.authenticated,
+              sanitized: true,
+              evidenceTier: session.authenticated ? "authenticated-characterization" : "characterization-derived",
+              productionEligible: false,
+              signals: Object.freeze([{ kind: "navigation_witness", platform: "nowcoder", tier: "E0" }]),
+            }),
+            evidence: e0Records,
+          };
+          // Stop after successful B3 export
+          await stopB3Session();
+          await characterizationController.stop();
+          characterizationObserver.clear();
+          characterizationProductionGuard = false;
+          await scheduleCharacterizationExpiry(await characterizationController.getSession());
+          sendResponse({ ok: true, document: b3Document, records: [], isB3Export: true });
+          return;
+        }
+      }
+      // Fall back to B1 network records export
       const result = await characterizationController.export();
       if (result.ok) {
         await characterizationController.stop();
@@ -557,7 +728,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
         characterizationProductionGuard = false;
         await scheduleCharacterizationExpiry(await characterizationController.getSession());
       }
-      sendResponse(result);
+      sendResponse({ ...result, isB3Export: false });
     });
     return true;
   }
@@ -565,7 +736,8 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     executor.schedule(async () => {
       const session = await characterizationController.getSession();
       const status = characterizeSessionStatus(session, characterizationClock());
-      sendResponse({ session, status });
+      const b3State = await getB3State();
+      sendResponse({ session, status, b3Status: b3State.status, b3Revision: b3State.revision });
     });
     return true;
   }
@@ -578,6 +750,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       await characterizationController.stop();
       characterizationObserver.clear();
       characterizationProductionGuard = false;
+      // B3: Also expire B3 session
+      await expireB3Session();
       await chrome.alarms.clear(CHARACTERIZATION_EXPIRY_ALARM_NAME);
     });
     return;

@@ -9,7 +9,7 @@ const sender = {
 
 describe("B3 navigation witness", () => {
   it("reduces the exact contest list sender to safe E0 evidence", () => {
-    expect(readNavigationWitness({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }, sender, "extension-id", at, 0))
+    expect(readNavigationWitness({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }, sender, "extension-id", at))
       .toMatchObject({ tier: "E0", kind: "navigation_witness", pageClass: "contest_list", tabId: 7 });
   });
 
@@ -19,11 +19,11 @@ describe("B3 navigation witness", () => {
     "https://ac.nowcoder.com/acm/contest/18839/1002",
     "https://ac.nowcoder.com.evil.example/acm/contest/18839",
   ])("rejects unsafe or unauthorized sender URL", (url) => {
-    expect(readNavigationWitness({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }, { ...sender, url }, "extension-id", at, 0)).toBeUndefined();
+    expect(readNavigationWitness({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }, { ...sender, url }, "extension-id", at)).toBeUndefined();
   });
 
   it("rejects a non-main-frame or foreign sender", () => {
-    expect(readNavigationWitness({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }, { ...sender, frameId: 1 }, "extension-id", at, 0)).toBeUndefined();
-    expect(readNavigationWitness({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }, { ...sender, id: "foreign" }, "extension-id", at, 0)).toBeUndefined();
+    expect(readNavigationWitness({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }, { ...sender, frameId: 1 }, "extension-id", at)).toBeUndefined();
+    expect(readNavigationWitness({ type: "CHARACTERIZATION_NAVIGATION_OBSERVED" }, { ...sender, id: "foreign" }, "extension-id", at)).toBeUndefined();
   });
 });

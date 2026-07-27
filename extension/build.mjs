@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { build } from "esbuild";
@@ -5,6 +6,7 @@ import { build } from "esbuild";
 const root = process.cwd();
 const extensionDir = join(root, "extension");
 const outdir = join(extensionDir, "dist");
+const buildSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(outdir, { recursive: true });
@@ -20,6 +22,7 @@ await build({
   target: "chrome120",
   outdir,
   sourcemap: true,
+  define: { __B3_BUILD_SHA__: JSON.stringify(buildSha) },
   logLevel: "info",
 });
 
