@@ -336,6 +336,7 @@ async function launchFakeOjPersistentContext(profile: string): Promise<BrowserCo
     args: [
       `--disable-extensions-except=${EXTENSION_DIST}`,
       `--load-extension=${EXTENSION_DIST}`,
+      "--disable-features=ExtensionDisableUnsupportedDeveloper",
       "--no-proxy-server",
       "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1",
     ],
@@ -426,6 +427,167 @@ async function runCrossPlatformSmoke(
     expect(snapshot.captureOutbox).toHaveLength(0);
   } finally {
     await page.close();
+  }
+}
+
+const B3_LIST_URL = "https://ac.nowcoder.com/acm/contest/18839";
+const B3_PROBLEM_URL = "https://ac.nowcoder.com/acm/contest/18839/1001";
+
+type B3RestartPoint = "armed" | "list_seen" | "ready";
+
+async function openB3Popup(context: BrowserContext, extensionId: string): Promise<Page> {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
+  await expect(popup.locator("#characterizationStart")).toBeVisible();
+  return popup;
+}
+
+async function startB3Session(popup: Page): Promise<void> {
+  await popup.locator("#characterizationHostname").selectOption("ac.nowcoder.com");
+  await popup.locator("#characterizationAuthenticated").uncheck();
+  await popup.locator("#characterizationStart").click();
+  await expectB3Status(popup, "armed");
+  await expect(popup.locator("#characterizationStop")).toBeEnabled();
+  await expect(popup.locator("#characterizationExport")).toBeDisabled();
+}
+
+async function installB3ContentRoutes(context: BrowserContext): Promise<void> {
+  await context.route(B3_LIST_URL, async (route) => {
+    await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: PROBLEM_PAGE_HTML });
+  });
+  await context.route(B3_PROBLEM_URL, async (route) => {
+    await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: PROBLEM_PAGE_HTML });
+  });
+}
+
+async function expectB3Status(popup: Page, status: B3RestartPoint): Promise<void> {
+  await expect.poll(async () => popup.evaluate(async (): Promise<unknown> =>
+    chrome.runtime.sendMessage({ type: "CHARACTERIZATION_STATUS" }),
+  )).toMatchObject({ b3Status: status });
+}
+
+async function exportB3Witness(popup: Page): Promise<void> {
+  await expect(popup.locator("#characterizationExport")).toBeEnabled();
+  const download = popup.waitForEvent("download");
+  await popup.locator("#characterizationExport").click();
+  await download;
+  await expect(popup.locator("#characterizationExport")).toBeDisabled();
+}
+
+async function reloadUnpackedExtensionFromChromeUi(context: BrowserContext, extensionId: string): Promise<void> {
+  const extensions = await context.newPage();
+  try {
+    await extensions.goto("chrome://extensions/", { waitUntil: "domcontentloaded" });
+    const clicked = await extensions.evaluate((targetId: string): boolean => {
+      const manager = document.querySelector("extensions-manager");
+      const list = manager?.shadowRoot?.querySelector("extensions-item-list");
+      const items = list?.shadowRoot?.querySelectorAll("extensions-item") ?? [];
+      for (const item of items) {
+        const data = Reflect.get(item, "data");
+        if (typeof data !== "object" || data === null || Reflect.get(data, "id") !== targetId) continue;
+        const reload = item.shadowRoot?.querySelector<HTMLButtonElement>("#dev-reload-button");
+        if (reload === null || reload === undefined || reload.disabled) return false;
+        reload.click();
+        return true;
+      }
+      return false;
+    }, extensionId);
+    expect(clicked).toBe(true);
+    await expect.poll(() => extensions.evaluate((targetId: string): unknown => {
+      const manager = document.querySelector("extensions-manager");
+      const list = manager?.shadowRoot?.querySelector("extensions-item-list");
+      const items = list?.shadowRoot?.querySelectorAll("extensions-item") ?? [];
+      for (const item of items) {
+        const data = Reflect.get(item, "data");
+        if (typeof data === "object" && data !== null && Reflect.get(data, "id") === targetId) {
+          return Reflect.get(data, "state");
+        }
+      }
+      return undefined;
+    }, extensionId)).toBe("ENABLED");
+  } finally {
+    await extensions.close();
+  }
+}
+
+async function runB3RestartScenario(
+  context: BrowserContext,
+  worker: Worker,
+  restartPoint: B3RestartPoint,
+): Promise<void> {
+  const extensionId = new URL(worker.url()).host;
+  const popup = await openB3Popup(context, extensionId);
+  const page = await context.newPage();
+  try {
+    await installB3ContentRoutes(context);
+    await startB3Session(popup);
+
+    if (restartPoint === "armed") {
+      await stopAndReawakenFakeOjWorker(page, worker, async (): Promise<void> => {
+        await page.goto(B3_LIST_URL);
+      });
+      await expectB3Status(popup, "list_seen");
+      await page.goto(B3_PROBLEM_URL);
+      await expectB3Status(popup, "ready");
+      return;
+    }
+
+    await page.goto(B3_LIST_URL);
+    await expectB3Status(popup, "list_seen");
+    if (restartPoint === "list_seen") {
+      await stopAndReawakenFakeOjWorker(page, worker, async (): Promise<void> => {
+        await page.goto(B3_PROBLEM_URL);
+      });
+      await expectB3Status(popup, "ready");
+      await exportB3Witness(popup);
+      return;
+    }
+
+    await page.goto(B3_PROBLEM_URL);
+    await expectB3Status(popup, "ready");
+    const reopenedPopup = await context.newPage();
+    try {
+      await stopAndReawakenFakeOjWorker(
+        page,
+        worker,
+        async (): Promise<void> => {
+          await reopenedPopup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
+        },
+      );
+      await expectB3Status(reopenedPopup, "ready");
+      await exportB3Witness(reopenedPopup);
+    } finally {
+      await reopenedPopup.close();
+    }
+  } finally {
+    await page.close();
+    await popup.close();
+  }
+}
+
+async function runB3ReloadScenario(context: BrowserContext, worker: Worker): Promise<void> {
+  const extensionId = new URL(worker.url()).host;
+  const popup = await openB3Popup(context, extensionId);
+  const page = await context.newPage();
+  try {
+    await installB3ContentRoutes(context);
+    await startB3Session(popup);
+    await page.goto(B3_LIST_URL);
+    await expectB3Status(popup, "list_seen");
+
+    await reloadUnpackedExtensionFromChromeUi(context, extensionId);
+    await page.goto(B3_PROBLEM_URL);
+
+    const reloadedPopup = await openB3Popup(context, extensionId);
+    try {
+      await expect(reloadedPopup.locator("#characterizationStop")).toBeDisabled();
+      await expect(reloadedPopup.locator("#characterizationExport")).toBeDisabled();
+    } finally {
+      await reloadedPopup.close();
+    }
+  } finally {
+    await page.close();
+    if (!popup.isClosed()) await popup.close();
   }
 }
 
@@ -880,6 +1042,26 @@ test.describe.parallel("Phase A Task A9 v2 — Fake OJ matrix", () => {
       scenarioIndex: 20,
       navigationUrl: "https://www.luogu.com.cn/problems/example-fake-oj?",
     });
+  });
+
+  test("B3 lifecycle A: armed survives MV3 termination and real content ingress reaches ready", async () => {
+    const { context, worker } = activeHarness();
+    await runB3RestartScenario(context, worker, "armed");
+  });
+
+  test("B3 lifecycle B: list_seen survives MV3 termination and popup exports ready witness", async () => {
+    const { context, worker } = activeHarness();
+    await runB3RestartScenario(context, worker, "list_seen");
+  });
+
+  test("B3 lifecycle C: ready survives MV3 termination and popup exports without worker inspection", async () => {
+    const { context, worker } = activeHarness();
+    await runB3RestartScenario(context, worker, "ready");
+  });
+
+  test("B3 lifecycle D: extension reload clears session and cannot resume the old witness", async () => {
+    const { context, worker } = activeHarness();
+    await runB3ReloadScenario(context, worker);
   });
 });
 

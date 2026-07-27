@@ -38,6 +38,10 @@ export const test = base.extend<ExtensionFixtures>({
       args: [
         `--disable-extensions-except=${EXTENSION_DIST}`,
         `--load-extension=${EXTENSION_DIST}`,
+        // Bundled Chromium currently disables developer-mode extensions on
+        // reload unless this experimental policy is disabled. Production Chrome
+        // policy remains untouched; this only lets the test exercise reload.
+        "--disable-features=ExtensionDisableUnsupportedDeveloper",
         "--no-proxy-server",
         "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1",
       ],
@@ -51,8 +55,7 @@ export const test = base.extend<ExtensionFixtures>({
   },
   extensionWorker: async ({ extensionContext }, provide) => {
     const existing = extensionContext.serviceWorkers()[0];
-    const worker = existing
-      ?? await extensionContext.waitForEvent("serviceworker", { timeout: 15_000 });
+    const worker = existing ?? await wakeExtensionServiceWorker(extensionContext);
     await provide(worker);
   },
   extensionId: async ({ extensionWorker }, provide) => {
@@ -63,6 +66,31 @@ export const test = base.extend<ExtensionFixtures>({
 });
 
 export { expect } from "@playwright/test";
+
+async function wakeExtensionServiceWorker(context: BrowserContext): Promise<Worker> {
+  const page = await context.newPage();
+  try {
+    await page.goto("chrome://extensions/", { waitUntil: "domcontentloaded" });
+    const extensionId = await page.evaluate((): string | undefined => {
+      const manager = document.querySelector("extensions-manager");
+      const list = manager?.shadowRoot?.querySelector("#items-list");
+      const items = list?.shadowRoot?.querySelectorAll("extensions-item") ?? [];
+      for (const item of items) {
+        const data = Reflect.get(item, "data");
+        if (typeof data !== "object" || data === null || Reflect.get(data, "name") !== "Unified OJ Capture") continue;
+        const id = Reflect.get(data, "id");
+        return typeof id === "string" && id.length > 0 ? id : undefined;
+      }
+      return undefined;
+    });
+    if (extensionId === undefined) throw new Error("Unified OJ Capture is not loaded");
+    const started = context.waitForEvent("serviceworker", { timeout: 15_000 });
+    await page.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
+    return context.serviceWorkers()[0] ?? await started;
+  } finally {
+    await page.close();
+  }
+}
 
 function removeSafeProfile(target: string): void {
   const relativePath = relative(PROFILES_ROOT, target);

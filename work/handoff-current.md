@@ -1,17 +1,25 @@
 # Current Handoff
 
-## Status (2026-07-27 V4 Phase B B3.1 browse-only observation PASS)
+## Status (2026-07-28 V4 Phase B B3 lifecycle PASS)
 
 **V4 INFRASTRUCTURE ENGINEERING PASS (SCOPE-REDUCED) / FORMAL V0
-OBSERVATION BLOCKED / PHASE B B3.1 BROWSE-ONLY OBSERVATION PASS.**
+OBSERVATION BLOCKED / PHASE B B3 NOWCODER BROWSE-ONLY NAVIGATION WITNESS PASS.**
 
-B3.1 is limited to a restart-safe browse-only navigation witness. Implementation
-commits `c208bc2` and `fdecf91` plus evidence commit `b2c6aec` produced the
-strict authenticated two-E0 fixture at
+B3 is limited to the restart-safe NowCoder browse-only navigation witness.
+Implementation commits `c208bc2` and `fdecf91`, observation evidence commit
+`b2c6aec`, and the B3 lifecycle closeout recorded in
+`work/reports/v4-nowcoder-b3-lifecycle-closeout-2026-07-28.md` produced and
+verified the strict authenticated two-E0 fixture at
 `tests/fixtures/nowcoder/network/nowcoder-browse-only-2026-07-27.json`.
-The transcript validator and fixture test pass, as does the final quality gate.
-This does not certify NowCoder production or authorize B4; real MV3 worker
-termination A-D coverage remains a follow-up.
+The transcript validator, fixture test, real content-script/background/popup
+lifecycle A-D tests, and final quality gate pass. A-D use CDP only to control
+the Worker; the exact manifest routes run the production content script and
+the popup performs the public status/export checks. The test-only Chromium
+feature flag needed to keep a command-line-loaded unpacked extension reloadable
+does not alter production extension behavior or user Chrome.
+
+This does not certify NowCoder production, a release candidate, user
+acceptance, public release, or authorize B4.
 
 Phase B Buthorization B0, schema B1, and diagnostic-mode B2 are complete
 and frozen at `6862f462978352fda7ab1e90639a5c1fbd960810`. B2 passed independent privacy
@@ -23,9 +31,10 @@ production-path isolation. Authorization is recorded at
 The authorized B3 no-submit observation used that exact SHA and reached
 localhost resources (connection refused), contest list, then the authorized
 problem in one background tab. Waiting/outbox/quarantine remained zero and no
-code or submit control was touched. The worker-restart fail-closed rule cleared
-the diagnostic session before strict E0 export, so no fixture exists and B3 is
-`BLOCKED`; see `work/reports/v4-nowcoder-b3-browse-only-observation-2026-07-27.md`.
+code or submit control was touched. It exported the strict two-E0 fixture and
+cleared the diagnostic session. The later lifecycle closeout verifies A-D in
+synthetic, production-path extension E2E without re-operating user Chrome; see
+`work/reports/v4-nowcoder-b3-lifecycle-closeout-2026-07-28.md`.
 
 - **B0 (authorization contract):** Authorization report validated by
   `scripts/validate-v4-characterization-authorization.mjs` and 7 tests.
@@ -61,10 +70,9 @@ the diagnostic session before strict E0 export, so no fixture exists and B3 is
   - Independent code-reviewer APPROVED with no blockers.
   - `npm run extension:check`: 32 files / 1055 tests PASS.
 
-Phase A A0-A12 closeout is authoritative (see below). B0-B2 are complete and
-B3 has a truthful blocked terminal observation. Do not start B4-B8 without a
-reviewed B3 restart/export design, a new immutable build, and fresh user
-authorization.
+Phase A A0-A12 closeout is authoritative (see below). B0-B3 are complete. Do
+not start B4-B8 without fresh explicit user authorization and a reviewed next
+phase plan.
 
 ---
 
