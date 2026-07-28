@@ -598,6 +598,12 @@ describe("buildCharacterizationRecord", () => {
     expect(record.statusCode).toBe(200);
   });
 
+  it("preserves Chrome webRequest fractional timestamps", () => {
+    const evidence = makeE1({ apiTimeStamp: 1234.567 });
+    const record = buildCharacterizationRecord(evidence, NOW, NOW);
+    expect(record?.apiTimeStamp).toBe(1234.567);
+  });
+
   it("builds record with normalizedRedirectPath when redirectEndpointKey is present", () => {
     // Construct evidence with redirectEndpointKey using Object.assign to bypass type
     const baseEvidence = makeE1();
@@ -816,6 +822,14 @@ describe("characterization storage round-trip", () => {
     const withRecords = applyCharacterizationAction({ type: "characterization_collect", hostname: "www.nowcoder.com", evidence }, session, NOW).session;
     const restored = readCharacterizationSession(planCharacterizationSessionWrite(withRecords).items);
     expect(restored.records[0]).toMatchObject({ statusCode: 302, normalizedRedirectPath: "status" });
+  });
+
+  it("round-trips Chrome webRequest fractional timestamps through storage", () => {
+    const session = startCharacterizationSession(NOW, "www.nowcoder.com", false);
+    const evidence = makeE1({ apiTimeStamp: 1234.567 });
+    const withRecords = applyCharacterizationAction({ type: "characterization_collect", hostname: "www.nowcoder.com", evidence }, session, NOW).session;
+    const restored = readCharacterizationSession(planCharacterizationSessionWrite(withRecords).items);
+    expect(restored.records[0]?.apiTimeStamp).toBe(1234.567);
   });
 
   it("unknown fields in storage are ignored", () => {

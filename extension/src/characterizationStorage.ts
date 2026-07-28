@@ -127,6 +127,10 @@ function isNonnegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
+function isNonnegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
 function isValidLifecycle(value: unknown): value is CharacterizationRecord["lifecycle"] {
   return typeof value === "string"
     && ["before_request", "before_redirect", "response_started", "completed", "error_occurred"].includes(value);
@@ -157,7 +161,7 @@ export function buildCharacterizationRecord(
   if (!isNonemptyString(evidence.endpointKey)) return undefined;
   if (!isValidResourceType(evidence.resourceType)) return undefined;
   if (!isValidLifecycle(evidence.lifecycle)) return undefined;
-  if (!isNonnegativeInteger(evidence.apiTimeStamp)) return undefined;
+  if (!isNonnegativeFiniteNumber(evidence.apiTimeStamp)) return undefined;
   if (!isNonnegativeInteger(evidence.tabId)) return undefined;
   if (!isNonnegativeInteger(evidence.frameId)) return undefined;
   if (!isNonemptyString(evidence.documentId)) return undefined;
@@ -314,7 +318,7 @@ function parseCharacterizationRecord(value: unknown): CharacterizationRecord | u
   if (!isSafeEndpointKey(rec.endpointKey)) return undefined;
   if (!isValidResourceType(rec.resourceType)) return undefined;
   if (!isValidLifecycle(rec.lifecycle)) return undefined;
-  if (!isNonnegativeInteger(rec.apiTimeStamp)) return undefined;
+  if (!isNonnegativeFiniteNumber(rec.apiTimeStamp)) return undefined;
   if (!isNonnegativeInteger(rec.tabId)) return undefined;
   if (!isNonnegativeInteger(rec.frameId)) return undefined;
   if (!isSafeIdentifier(rec.documentId)) return undefined;
