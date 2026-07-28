@@ -17,5 +17,11 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: "on-first-retry",
   },
+  webServer: {
+    command: "node scripts/extension-e2e-server.mjs",
+    url: BASE_URL,
+    reuseExistingServer: false,
+    timeout: 120_000,
+  },
   outputDir: "test-results/extension-e2e",
 });

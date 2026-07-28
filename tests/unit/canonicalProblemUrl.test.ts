@@ -31,11 +31,16 @@ describe("canonical problem identity", () => {
       { platform: "nowcoder", externalId: "practice/example" },
       "https://www.nowcoder.com/practice/example",
     ],
-    [
-      { platform: "nowcoder" as const, externalId: "https://ac.nowcoder.com/acm/problem/25000" },
-      { platform: "nowcoder", externalId: "acm/problem/25000" },
-      "https://ac.nowcoder.com/acm/problem/25000",
-    ],
+      [
+        { platform: "nowcoder" as const, externalId: "https://ac.nowcoder.com/acm/problem/25000" },
+        { platform: "nowcoder", externalId: "acm/problem/25000" },
+        "https://ac.nowcoder.com/acm/problem/25000",
+      ],
+      [
+        { platform: "nowcoder" as const, externalId: "https://ac.nowcoder.com/acm/contest/18839/1001/" },
+        { platform: "nowcoder", externalId: "acm/contest/18839/1001" },
+        "https://ac.nowcoder.com/acm/contest/18839/1001",
+      ],
   ])("normalizes %j", (input, identity, url) => {
     expect(normalizeProblemIdentity(input)).toEqual(identity);
     expect(canonicalProblemUrl(input)).toBe(url);

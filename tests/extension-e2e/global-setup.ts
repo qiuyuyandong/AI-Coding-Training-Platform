@@ -11,7 +11,7 @@
  * smoke test does not require the Next.js dev server.
  */
 
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { createDisposableDatabase, runMigrations } from "./database";
@@ -19,6 +19,12 @@ import { createDisposableDatabase, runMigrations } from "./database";
 const PATH_FILE = resolve(process.cwd(), ".tmp", "server-db-path.txt");
 
 export default async function globalSetup(): Promise<void> {
+  if (existsSync(PATH_FILE)) {
+    const existing = readFileSync(PATH_FILE, "utf8").trim();
+    if (existing.length === 0) throw new Error("Extension E2E DB path file is empty");
+    process.env.TRAINING_DB_PATH = existing;
+    return;
+  }
   const { dbPath } = createDisposableDatabase();
   runMigrations(dbPath);
   writeFileSync(PATH_FILE, dbPath, "utf8");

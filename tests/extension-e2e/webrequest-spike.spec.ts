@@ -26,7 +26,9 @@ test("production dist observes a fulfilled synthetic request before and after wo
 }) => {
   expect(extensionId).toMatch(/^[a-p]{32}$/u);
   const network = await installSyntheticNetwork(extensionContext);
-  await clearMarkers(extensionWorker);
+  const popup = await extensionContext.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await clearMarkersFromPage(popup);
 
   const page = extensionContext.pages()[0] ?? await extensionContext.newPage();
   await page.goto(SYNTHETIC_PAGE_URL);
@@ -34,10 +36,10 @@ test("production dist observes a fulfilled synthetic request before and after wo
     await fetch(url, { method: "POST" });
   }, SYNTHETIC_SUBMISSION_URL);
 
-  await expect.poll(() => markerCount(extensionWorker)).toBe(1);
+  await expect.poll(() => markerCountFromPage(popup)).toBe(1);
   expect(network.fulfilled).toContain(`POST ${SYNTHETIC_SUBMISSION_URL}`);
   expect(await workerNetworkIsDenied(extensionWorker)).toBe(true);
-  expect(await readMarkers(extensionWorker)).toEqual([
+  expect(await readMarkersFromPage(popup)).toEqual([
     expect.objectContaining({
       method: "POST",
       endpointKey: "synthetic_submission_spike",
@@ -53,15 +55,13 @@ test("production dist observes a fulfilled synthetic request before and after wo
     await fetch(exact, { method: "GET" });
     await fetch(wrong, { method: "POST" });
   }, { exact: SYNTHETIC_SUBMISSION_URL, wrong: SYNTHETIC_WRONG_URL });
-  await expect.poll(() => markerCount(extensionWorker)).toBe(1);
+  await expect.poll(() => markerCountFromPage(popup)).toBe(1);
 
   await stopAndReawakenServiceWorker(page, extensionWorker, async () => {
     await page.evaluate(async (url) => {
       await fetch(url, { method: "POST" });
     }, SYNTHETIC_SUBMISSION_URL);
   });
-  const popup = await extensionContext.newPage();
-  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   await expect.poll(() => markerCountFromPage(popup)).toBe(2);
 
   expect(network.fulfilled.filter((entry) =>
@@ -84,17 +84,13 @@ test("production dist observes a fulfilled synthetic request before and after wo
   }));
 });
 
-async function readMarkers(worker: Worker): Promise<readonly SafeSpikeMarker[]> {
-  return worker.evaluate(async () => {
+async function readMarkersFromPage(page: Page): Promise<readonly SafeSpikeMarker[]> {
+  return page.evaluate(async () => {
     const stored = await chrome.storage.session.get(["webRequestSpikeMarkers"]);
     return Array.isArray(stored.webRequestSpikeMarkers)
       ? stored.webRequestSpikeMarkers
       : [];
   });
-}
-
-async function markerCount(worker: Worker): Promise<number> {
-  return (await readMarkers(worker)).length;
 }
 
 async function markerCountFromPage(page: Page): Promise<number> {
@@ -106,8 +102,8 @@ async function markerCountFromPage(page: Page): Promise<number> {
   });
 }
 
-async function clearMarkers(worker: Worker): Promise<void> {
-  await worker.evaluate(async () => {
+async function clearMarkersFromPage(page: Page): Promise<void> {
+  await page.evaluate(async () => {
     await chrome.storage.session.set({ webRequestSpikeMarkers: [] });
   });
 }

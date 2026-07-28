@@ -1165,7 +1165,17 @@ test("two concurrent same-endpoint E1 records retain an ambiguity diagnostic", a
   try {
     await bridge.triggerSubmit();
     await bridge.triggerSubmit();
-    const observed = await waitForObservedE1(extensionWorker, scenario);
+    const observed = await pollUntilStorageMatches(
+      extensionWorker,
+      (storage) => storage.transientE1.length === scenario.expectedStorage.transientE1Count
+        && storage.transientE1.every((entry) => {
+          if (typeof entry !== "object" || entry === null) return false;
+          const evidence = Reflect.get(entry, "evidence");
+          return typeof evidence === "object" && evidence !== null
+            && Reflect.get(evidence, "lifecycle") === "completed"
+            && Reflect.get(evidence, "statusCode") === 200;
+        }),
+    );
     const lifecycles = observed.transientE1.map((entry) => requireRecord(entry, "E1 lifecycle"));
     await extensionWorker.evaluate(async (entries): Promise<void> => {
       await chrome.storage.session.set({
@@ -1178,8 +1188,17 @@ test("two concurrent same-endpoint E1 records retain an ambiguity diagnostic", a
         }],
       });
     }, lifecycles);
+    await pollUntilStorageMatches(
+      extensionWorker,
+      (storage) => JSON.stringify(storage.transientAmbiguityDiagnostics)
+        .includes("multiple_e1_candidates"),
+    );
     await dispatchAndAssertRelayEnvelope(bridge, buildScenarioSummary(scenario));
-    const snapshot = await readFakeOjStorage(extensionWorker);
+    const snapshot = await pollUntilStorageMatches(
+      extensionWorker,
+      (storage) => JSON.stringify(storage.transientAmbiguityDiagnostics)
+        .includes("multiple_e1_candidates"),
+    );
     expect(JSON.stringify(snapshot.transientAmbiguityDiagnostics)).toContain("multiple_e1_candidates");
   } finally {
     await page.close();

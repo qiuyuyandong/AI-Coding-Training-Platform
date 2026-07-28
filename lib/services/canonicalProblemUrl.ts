@@ -127,6 +127,7 @@ function normalizeLuoguId(value: string): string {
 
 const NOWCODER_PRACTICE_PREFIX = "practice/";
 const NOWCODER_ACM_PREFIX = "acm/problem/";
+const NOWCODER_PHASE_B_CONTEST_PROBLEM = "acm/contest/18839/1001";
 const NOWCODER_ID_PATTERN = /^[A-Za-z0-9_-]+$/u;
 const NOWCODER_ABSOLUTE_URL_PATTERN = /^https?:\/\//iu;
 
@@ -144,6 +145,9 @@ function normalizeNowCoderExternalId(value: string): string {
   // resulting URL through the absolute path so query strings and hash
   // fragments are dropped consistently.
   const stripped = trimmed.replace(/^\/+/u, "").replace(/\/+$/u, "");
+  if (stripped === NOWCODER_PHASE_B_CONTEST_PROBLEM) {
+    return NOWCODER_PHASE_B_CONTEST_PROBLEM;
+  }
   if (stripped.startsWith(NOWCODER_PRACTICE_PREFIX)) {
     return parseNowCoderRelative(stripped, "https://www.nowcoder.com/", NOWCODER_PRACTICE_PREFIX, "/practice/", "www.nowcoder.com");
   }
@@ -192,6 +196,10 @@ function parseNowCoderAbsoluteUrl(raw: string): string {
     return readNowCoderId(parsed.pathname, NOWCODER_PRACTICE_PREFIX, "/practice/", "www.nowcoder.com");
   }
   if (parsed.hostname === "ac.nowcoder.com") {
+    if (parsed.pathname === `/${NOWCODER_PHASE_B_CONTEST_PROBLEM}`
+      || parsed.pathname === `/${NOWCODER_PHASE_B_CONTEST_PROBLEM}/`) {
+      return NOWCODER_PHASE_B_CONTEST_PROBLEM;
+    }
     return readNowCoderId(parsed.pathname, NOWCODER_ACM_PREFIX, "/acm/problem/", "ac.nowcoder.com");
   }
   throw new CanonicalProblemUrlError("Invalid NowCoder problem path");
@@ -215,6 +223,9 @@ function readNowCoderId(
 }
 
 function nowcoderCanonicalUrl(externalId: string): string {
+  if (externalId === NOWCODER_PHASE_B_CONTEST_PROBLEM) {
+    return `https://ac.nowcoder.com/${NOWCODER_PHASE_B_CONTEST_PROBLEM}`;
+  }
   if (externalId.startsWith(NOWCODER_PRACTICE_PREFIX)) {
     const id = externalId.slice(NOWCODER_PRACTICE_PREFIX.length);
     if (id.length === 0 || !NOWCODER_ID_PATTERN.test(id)) {

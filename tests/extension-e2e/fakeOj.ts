@@ -46,6 +46,23 @@ export const NOWCODER_SUBMIT_URL = `https://www.nowcoder.com${FAKE_OJ_PATH_PREFI
 /** Synthetic NowCoder result endpoint. */
 export const NOWCODER_RESULT_URL = `https://www.nowcoder.com${FAKE_OJ_PATH_PREFIX}/result`;
 
+/** Exact Phase B NowCoder routes copied from the sanitized B4 fixture. */
+export const NOWCODER_B7_LIST_URL = "https://ac.nowcoder.com/acm/contest/18839";
+export const NOWCODER_B7_PROBLEM_URL = "https://ac.nowcoder.com/acm/contest/18839/1001";
+export const NOWCODER_B7_SUBMIT_URL = "https://ac.nowcoder.com/nccommon/submit_cd";
+
+export function nowCoderB7StatusUrl(submissionId?: string): string {
+  const url = new URL("https://ac.nowcoder.com/nccommon/status");
+  if (submissionId !== undefined) url.searchParams.set("submissionId", submissionId);
+  return url.toString();
+}
+
+export function nowCoderB7ResultUrl(submissionId: string): string {
+  const url = new URL("https://ac.nowcoder.com/acm/contest/view-submission");
+  url.searchParams.set("submissionId", submissionId);
+  return url.toString();
+}
+
 /** Synthetic LeetCode submit endpoint. */
 export const LEETCODE_SUBMIT_URL = `https://leetcode.com${FAKE_OJ_PATH_PREFIX}/submit`;
 
@@ -842,6 +859,7 @@ export function createFakeOjMainScenario(scenario: Readonly<{
 // ---------------------------------------------------------------------------
 
 export type FakeOjOrchestratorStorage = Readonly<{
+  readonly uiHints: readonly unknown[];
   readonly confirmedSubmissions: readonly unknown[];
   readonly confirmedSubmissionTombstones: readonly unknown[];
   readonly captureOutbox: readonly unknown[];
@@ -863,6 +881,7 @@ export async function readFakeOjStorage(worker: Worker): Promise<FakeOjOrchestra
         "captureQuarantine",
       ]),
       chrome.storage.session.get([
+        "uiHints",
         "transientE1",
         "transientUnmatchedE3",
         "transientAmbiguityDiagnostics",
@@ -870,6 +889,7 @@ export async function readFakeOjStorage(worker: Worker): Promise<FakeOjOrchestra
       ]),
     ]);
     return Object.freeze({
+      uiHints: Array.isArray(session.uiHints) ? (session.uiHints as unknown[]) : [],
       confirmedSubmissions: Array.isArray(local.confirmedSubmissions)
         ? (local.confirmedSubmissions as unknown[])
         : [],
