@@ -1,8 +1,8 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-27):** **V4 infrastructure engineering PASS
-> (scope-reduced)** for Phase A Tasks A0-A12. **Phase B B2 (NowCoder
-> diagnostic mode) complete and independently reviewed.** Phase 0
+> **Status (2026-07-28):** **V4 infrastructure engineering PASS
+> (scope-reduced)** for Phase A Tasks A0-A12. **Phase B is terminally
+> `BLOCKED` after B0-B7 completed and B8 partially observed.** Phase 0
 > click-ingress stopgap is complete: a qualifying UI click produces
 > only a bounded session-only E0 hint and cannot create waiting state,
 > an attempt bundle, or local API traffic. V3 click intents are removed
@@ -16,13 +16,13 @@
 > transcript schema, and an independently-reviewed opt-in NowCoder
 > diagnostic mode with session-backed production ingress isolation,
 > fail-closed worker-restart, and exact B1-compatible export download;
-> the one authorized B3 browse-only observation reached the exact list and
-> problem routes with waiting at zero, but is BLOCKED because worker-restart
-> fail-closed cleanup prevented the required two-E0 export. It does not
-> characterize NowCoder's submission protocol or promote any adapter.
-> Automatic network-confirmed capture is not implemented;
-> every real platform's `V4NetworkStatus` remains `uncharacterized`.
-> Final closeout: `work/reports/phase-a-final-closeout.md`.
+> B3 completed the browse-only witness; B4 safely characterized NowCoder;
+> B5-B6 added a strict experimental adapter; B7 passed eight production-dist
+> scenarios including API/SQLite delivery. B8 observed trusted E0, real E1/E2,
+> stable ID `84258557`, and the matching public final verdict, but the real
+> result document did not emit E3, so no bundle or SQLite attempt was created.
+> NowCoder therefore remains experimental. Final Phase B closeout:
+> `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`.
 >
 > **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
 > real temporary-repository cases for the strict two-commit release contract.
@@ -38,7 +38,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. The active runtime work is `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` (Phase A closeout scope A0-A12); formal observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A is closed; Phase B reached a fail-closed `BLOCKED` terminal result after B0-B7 completed and B8 failed at real-result E3 ingress. NowCoder remains experimental for V4 network capture. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 

@@ -6,14 +6,16 @@
 > RC freeze, acceptance, and release as interchangeable outcomes.
 
 **Status:** Approved for phased execution on 2026-07-24. Phase 0 is complete and
-engineering-verified. Phase A Tasks A0-A9 are complete as the authoritative
-Phase A closeout scope; A10-A12 are deliberately deferred at user
-direction. All four phases (0, A, B, C-D) retain their own authorization
-and evidence gates. Phase A closeout report: see
+engineering-verified; Phase A A0-A12 is complete. Phase B reached its
+`BLOCKED` terminal gate after B0-B7 completed and B8 partially observed.
+Trusted E0, real E1/E2, and a matching public verdict were observed, but the
+real result document emitted no E3, bundle, delivery, or SQLite attempt. All
+four phases (0, A, B, C-D) retain their own authorization and evidence gates.
+Phase A closeout report: see
 `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md`
-`A9 execution result` block and the `A10-A12 deferred` notes on Tasks
-A10/A11/A12. Phase B (NowCoder network pilot) requires fresh explicit
-authorization.
+`A12 execution result` block. B3 evidence is recorded in
+`docs/superpowers/plans/2026-07-27-v4-phase-b-b3-restart-safe-navigation-witness.md`.
+No Phase C work is authorized by this terminal result.
 
 **Goal:** Replace click-created pending submissions with a fail-closed,
 network-confirmed, platform-adapted evidence pipeline while retaining the V3

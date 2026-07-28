@@ -1,9 +1,9 @@
 # Current Handoff
 
-## Status (2026-07-28 V4 Phase B B3 lifecycle PASS)
+## Status (2026-07-28 V4 Phase B terminal BLOCKED)
 
 **V4 INFRASTRUCTURE ENGINEERING PASS (SCOPE-REDUCED) / FORMAL V0
-OBSERVATION BLOCKED / PHASE B B3 NOWCODER BROWSE-ONLY NAVIGATION WITNESS PASS.**
+OBSERVATION BLOCKED / PHASE B B0-B7 COMPLETE, B8 BLOCKED AT REAL E3 INGRESS.**
 
 B3 is limited to the restart-safe NowCoder browse-only navigation witness.
 Implementation commits `c208bc2` and `fdecf91`, observation evidence commit
@@ -19,9 +19,9 @@ feature flag needed to keep a command-line-loaded unpacked extension reloadable
 does not alter production extension behavior or user Chrome.
 
 This does not certify NowCoder production, a release candidate, user
-acceptance, public release, or authorize B4.
+acceptance, public release, or authorize Phase C.
 
-Phase B Buthorization B0, schema B1, and diagnostic-mode B2 are complete
+Phase B authorization B0, schema B1, and diagnostic-mode B2 are complete
 and frozen at `6862f462978352fda7ab1e90639a5c1fbd960810`. B2 passed independent privacy
 review after four iterative rounds. The diagnostic mode provides
 NowCoder-only opt-in session-backed safe network characterization with
@@ -70,9 +70,12 @@ synthetic, production-path extension E2E without re-operating user Chrome; see
   - Independent code-reviewer APPROVED with no blockers.
   - `npm run extension:check`: 32 files / 1055 tests PASS.
 
-Phase A A0-A12 closeout is authoritative (see below). B0-B3 are complete. Do
-not start B4-B8 without fresh explicit user authorization and a reviewed next
-phase plan.
+Phase A A0-A12 closeout is authoritative (see below). Phase B is terminally
+`BLOCKED` after B0-B7 completed. B8 observed trusted E0, real E1/E2 with stable
+ID `84258557`, and the matching public final verdict, but the real result
+document emitted no E3; no bundle or SQLite attempt was created. Do not start
+Phase C without fresh explicit authorization and a reviewed plan. The closeout
+report is `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`.
 
 ---
 
@@ -535,10 +538,9 @@ observation, final verification, and acceptance pending.**
 
 ## Known Risks
 
-- Every real platform's `V4NetworkStatus` remains `uncharacterized`. The
-  Phase A closeout is a framework engineering pass, not a real-platform
-  certification. AtCoder is the sole production DOM adapter; LeetCode,
-  Codeforces, NowCoder, and Luogu remain `experimental`.
+- NowCoder's `V4NetworkStatus` is `experimental`; the other real platforms
+  remain `uncharacterized`. AtCoder is still the sole production DOM adapter;
+  LeetCode, Codeforces, NowCoder, and Luogu remain DOM-experimental.
 - Luogu production-adapter certification remains BLOCKED on missing public
   verdict DOM (historical record preserved in
   `work/reports/luogu-adapter-blocker.json`).

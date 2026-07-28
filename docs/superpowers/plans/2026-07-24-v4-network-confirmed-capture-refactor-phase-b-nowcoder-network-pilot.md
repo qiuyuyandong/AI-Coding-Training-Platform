@@ -6,11 +6,20 @@
 > **Required predecessor:**
 > [Phase A evidence core and real extension E2E](./2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md)
 
-**Status:** B0 authorized; B1-B2 complete and independently reviewed. B2
-diagnostic mode APPROVED by privacy review on 2026-07-27. Real characterization
-remains gated on B3 (user-authorized browse-only observation).
-The user authorized `ac.nowcoder.com/acm/contest/18839/1001` for one browse-only
-observation and at most one natural submission that the user alone performs.
+**Status:** `BLOCKED` terminal closeout on 2026-07-28. B0-B7 are complete.
+B4 acquired a safe real submit/status/final-verdict chain; B5 specified the
+strict experimental policy; B6 implemented it; B7 proved the exact production
+dist through eight NowCoder scenarios and the disposable API/SQLite chain.
+B8 then observed a trusted E0, real E1/E2 with stable submission ID `84258557`,
+and the matching public final verdict, but Chrome did not inject the
+declarative content script on the real result document, so no E3, bundle,
+delivery, or SQLite attempt was produced. Phase B is therefore closed
+fail-closed, not passed.
+The user initially authorized `ac.nowcoder.com/acm/contest/18839/1001` for one
+browse-only observation and at most one natural submission. On 2026-07-28 the
+user explicitly expanded authorization to let the agent restore the remote
+debugging channel and invoke the already-visible submit control; the agent did
+not type or modify source code.
 
 **Goal:** Characterize NowCoder's current submission protocol safely, implement
 one evidence-backed experimental V4 adapter, prove the reported browse-only
@@ -273,17 +282,17 @@ waiting at zero throughout the no-submit flow.
 **Explicit non-goals:** This negative observation does not reveal the submit
 protocol.
 
-**Execution result (2026-07-27):** `BLOCKED`. The exact committed extension
-SHA `6862f462978352fda7ab1e90639a5c1fbd960810` was rebuilt, reloaded, and used
-for the authorized no-submit route: localhost resources (which returned
-`ERR_CONNECTION_REFUSED`) -> contest list -> authorized problem. Popup waiting,
-outbox, and quarantine remained `0`; no submit control or code interaction
-occurred. However, the worker-restart fail-closed initialization cleared the
-active diagnostic session between the two documents, leaving export disabled
-before the required E0 pair could be produced. No fixture was fabricated. See
-`work/reports/v4-nowcoder-b3-browse-only-observation-2026-07-27.md`. Do not
-start B4 until a reviewed design reconciles fail-closed restart behavior with
-the two-E0 export requirement, then receives fresh authorization.
+**Execution result (2026-07-27):** `PASS` at `b589776`. The first run at
+`6862f462978352fda7ab1e90639a5c1fbd960810` correctly stopped when
+worker-restart fail-closed initialization cleared the active diagnostic
+session. The reviewed restart-safe design was then implemented and verified
+with four A-D MV3 lifecycle tests, the exact production content script routes,
+popup status/export as public recovery evidence, and the strict two-E0 safe
+fixture. Waiting, outbox, and quarantine remained `0`; no submit control or
+code interaction occurred. See
+`work/reports/v4-nowcoder-b3-restart-safe-observation-2026-07-27.md`. This
+browse-only witness characterized navigation behavior only and did not itself
+authorize or implement a submission adapter.
 
 ---
 
@@ -342,6 +351,13 @@ truthfully as `BLOCKED` with the missing signal named.
 submissions, or unsafe rejected submissions merely to fill a matrix. Fake OJ
 covers those branches.
 
+**Execution result (2026-07-28):** PASS for characterization. The sanitized
+fixture `nowcoder-submission-chain-2026-07-28.json` records the exact safe
+sequence `POST /nccommon/submit_cd` 200 -> `GET /nccommon/status` 200, stable
+submission ID `84257292`, and matching final `答案错误`. No body, headers,
+credential, account identity, source code, or full statement was retained.
+The fixture and report were committed at `e7a740d`.
+
 ---
 
 ### Task B5: Specify the NowCoder adapter policy from the transcript
@@ -381,6 +397,13 @@ fixture.
 fallback-to-nearest-request behavior.
 
 **Explicit non-goals:** No implementation or status promotion.
+
+**Execution result (2026-07-28):** PASS. The reviewed policy is
+`docs/superpowers/specs/2026-07-24-v4-nowcoder-network-adapter-design.md`.
+It fixes the exact host/path/method/resource type, a five-second same
+tab/frame/document correlator window, decimal stable-ID grammar, exact result
+route, closed verdict taxonomy, and fail-closed ambiguity behavior. NowCoder
+remains experimental.
 
 ---
 
@@ -435,6 +458,12 @@ failure/concurrency/forgery cases pass.
 
 **Explicit non-goals:** No LeetCode/AtCoder/Codeforces/Luogu network changes.
 
+**Execution result (2026-07-28):** PASS at `e7a740d`. The experimental
+NowCoder network policy produces E1/E2/E3 only from the characterized routes,
+keeps registry readiness `experimental`, and leaves other platform adapters
+unchanged. `npm run extension:check` passed 36 files / 1116 tests on that
+implementation line.
+
 ---
 
 ### Task B7: Extend Fake OJ and real extension E2E for NowCoder
@@ -475,6 +504,13 @@ npm run extension:e2e -- tests/extension-e2e/capture-v4-nowcoder.spec.ts
 scenario and leaves temporary profile/database clean.
 
 **Explicit non-goals:** Automated tests are not real observation.
+
+**Execution result (2026-07-28):** PASS at `05555ef`. The production-dist
+NowCoder lane contains eight scenarios, including browse-only, click-only,
+missing ID, exact confirmation, mismatched final, concurrency ambiguity,
+worker restart after E1/E2, and judging-to-final API/SQLite delivery. The
+focused lane passed 8/8. The authoritative full extension E2E rerun passed
+43 tests with one documented historical skip.
 
 ---
 
@@ -534,6 +570,28 @@ $env:GIT_MASTER='1'; git diff --check
 **Explicit non-goals:** No production promotion, other-platform migration,
 replacement RC, V0 acceptance, or V0.5.
 
+**Execution result (2026-07-28):** `BLOCKED` on observed implementation
+`05555ef`.
+
+- Browse-only waiting stayed zero.
+- A trusted visible `保存并提交` click produced E0; the real submit/status E1
+  chain produced exactly one E2 for stable ID `84258557`.
+- The exact public result URL showed the matching final `答案错误`.
+- After extension reload, worker restart, direct and ordinary page reloads,
+  and disable/enable recovery, the real result document still did not run the
+  declarative content script. No E3 reached the background worker.
+- Fail-closed state remained one confirmed submission, zero tombstones,
+  outbox, quarantine, ambiguity diagnostics, and unmatched E3 records.
+- The disposable database stayed at 0 capture events / 0 training sessions /
+  0 training attempts. No local Training result was created.
+- The post-observation nine-stage `npm run quality:gate` exited 0: 1844 unit
+  tests passed with 1 host-capability skip, application E2E passed 25/25,
+  extension tests passed 1116/1116, extension E2E passed 43 with 1 documented
+  historical skip, and the production build passed.
+
+The complete observation is
+`work/reports/v4-nowcoder-b8-same-build-observation-2026-07-28.md`.
+
 ## Phase B Failure and Rollback
 
 - If characterization cannot find a safe stable confirmation signal, mark
@@ -553,7 +611,20 @@ Phase B completes with either:
 - `PASS`: a safe transcript, reviewed adapter, Fake OJ E2E, same-build real
   browse/submission observation, and full quality gate all pass; or
 - `BLOCKED`: the exact missing safe E2/E3 signal is documented and NowCoder
-  remains disabled for V4 capture.
+  remains experimental and ineligible for production V4 capture.
 
 Only after that terminal result may Phase C begin with a separate LeetCode delta
 plan.
+
+## Phase B Terminal Closeout (2026-07-28)
+
+**Verdict:** `BLOCKED` after B0-B7 PASS and B8 partial real observation.
+
+- Safe characterization, strict policy, experimental implementation, and
+  production-dist automated full-chain coverage are complete.
+- The exact remaining blocker is real-result content-script ingress: E2 and
+  the matching visible final verdict were observed, but E3 was not emitted.
+- NowCoder remains `experimental` for DOM and V4 network readiness. This is not
+  production promotion, RC, V0 acceptance, V0.5 work, or release.
+- The detailed evidence and rerun limitations are recorded in
+  `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`.

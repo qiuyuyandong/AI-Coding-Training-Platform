@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-26 (V4 Phase A A0-A12 closeout)
+Last updated: 2026-07-28 (V4 Phase B terminal closeout)
 
 ## Overview
 
@@ -276,15 +276,29 @@ That statement applies to ordinary `npm run e2e`, which remains extension-free.
 Phase A Task A0 adds a separate `npm run extension:e2e` spike that loads exact
 production `extension/dist` in bundled persistent Chromium. Its temporary exact
 synthetic POST seam proves `route.fulfill()` reaches both Playwright and MV3
-`webRequest`, and CDP verifies worker `stopped -> running`. This is framework
-evidence only: no E2, response interpretation, real-platform network policy,
-API/SQLite chain, or V4 adapter readiness exists yet.
+`webRequest`, and CDP verifies worker `stopped -> running`. At the Phase A A0
+boundary this was framework evidence only: it did not yet provide E2, response
+interpretation, a real-platform network policy, or an API/SQLite chain. The
+NowCoder Phase B section below records the later experimental additions.
 
 The localhost credential protects the HTTP ingestion boundary, not a compromised host. A process able to modify SQLite or the Chrome profile is outside this Pre-V0 boundary.
 
-## NowCoder B3 Browse-Only Observation
+## NowCoder Phase B Experimental Network Pilot
 
 The authorized 2026-07-27 no-submit route reached the exact contest list then
-problem with waiting at zero. It is not protocol characterization: MV3
-worker-restart fail-closed cleanup cleared the diagnostic session before the
-required two-E0 export, so B3 is BLOCKED and contributes no adapter evidence.
+problem with waiting at zero and exported the strict two-E0 fixture. The
+restart-safe lifecycle closeout at `b589776` adds black-box A-D verification:
+CDP terminates or wakes the MV3 Worker, exact Fake OJ routes load the
+production content script, and the actual popup status/export path observes
+recovery. A real extension reload clears the session and disables export.
+
+B4 later characterized the safe exact request chain. B5-B6 added a strict
+experimental network policy: exact submit/status paths, one five-second
+same-document candidate, decimal stable ID, exact result route, and closed
+verdict taxonomy. B7 proves the production dist through eight NowCoder
+scenarios, including restart and disposable API/SQLite delivery.
+
+B8 did not complete the real chain. It observed trusted E0, real E1/E2, stable
+ID `84258557`, and the matching public final verdict, but the real result
+document did not emit E3. Confirmed state remained fail-closed and SQLite stayed
+empty. NowCoder therefore remains experimental, not production.

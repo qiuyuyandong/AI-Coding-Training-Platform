@@ -112,11 +112,10 @@
 
 # Agent Handoff Guide
 
-> **Status (2026-07-27):** **V4 infrastructure engineering PASS
-> (scope-reduced)** for Phase A Tasks A0-A12; **Phase B B2 (NowCoder
-> diagnostic mode) complete and independently reviewed**; **formal V0
-> observation blocked**. Phase B B0 authorization and B1 safe transcript
-> schema are also complete. Phase 0 click-ingress stopgap (`2f4f5d8`
+> **Status (2026-07-28):** **V4 infrastructure engineering PASS
+> (scope-reduced)** for Phase A Tasks A0-A12; **Phase B B0-B7 complete and
+> B8 terminally BLOCKED at real-result E3 ingress**; **formal V0 observation
+> blocked**. Phase 0 click-ingress stopgap (`2f4f5d8`
 > and earlier V3 repair work) remains historical evidence, not a
 > current acceptance anchor. Phase A0-A12 (`b3ec8cb` and the 12
 > follow-on commits through `0dc3fbf`) is the authoritative V4
@@ -124,9 +123,10 @@
 > diagnostic mode with session-backed production ingress isolation,
 > worker-restart fail-closed, and exact safe transcript export;
 > independent privacy review APPROVED on 2026-07-27.
-> Real platforms remain `V4 uncharacterized`. Phase B B3 (real
-> browse-only observation) requires fresh explicit user authorization.
-> The full delivery probe remains out of scope.
+> B4 safely characterized NowCoder; B5-B6 implemented the strict experimental
+> adapter; B7 proves the production-dist synthetic full chain. B8 observed
+> trusted E0, real E1/E2 and the matching public verdict, but no automatic E3,
+> bundle, delivery, or SQLite attempt. NowCoder remains experimental.
 >
 > **Superseded V0 RC:** `b5166320768355666a5c4ff3f466c29c240ea8cf`
 > predates the domestic-OJ runtime changes and must not anchor
@@ -144,8 +144,9 @@
 > (implemented; observation and acceptance pending), the V4 Phase 0
 > click-ingress stopgap, and the V4 Phase A A0-A12 closeout scope are
 > all on the branch. AtCoder is the sole certified production DOM
-> adapter. Phase B (NowCoder network pilot) requires fresh explicit
-> authorization; do not start it without re-authorization. Formal
+> adapter. Phase B is terminally `BLOCKED` after B0-B7 PASS and B8 partial
+> observation: real E3 ingress remains missing. Do not
+> start Phase C without fresh explicit authorization and a reviewed plan. Formal
 > observation and replacement-RC work remain blocked. Do not start
 > V0.5.
 >
@@ -175,7 +176,8 @@
   items still use the V3 four-event/API contract. A formal
   `PLATFORM_ADAPTERS` registry declares DOM readiness; AtCoder is
   `production`, while LeetCode, NowCoder, Codeforces, and Luogu remain
-  `experimental` and all V4 network statuses remain uncharacterized.
+  `experimental`; NowCoder's V4 network policy is also `experimental`, while
+  the other real platforms remain network-uncharacterized.
 - V4 Phase A0-A12 (commits `7d6bf9e` through `b3ec8cb`, with review
   fix-up commits `9b81784`, `6401e17`, `30f3d73`, and the closeout
   `0dc3fbf`):
@@ -191,8 +193,9 @@
     1 known skip). A10 disposable SQLite lifecycle + production
     extension E2E smoke test. A11 nine-stage quality gate
     integration. A12 plan reconciliation + closeout report.
-  - Every authoritative gate command exits 0. Real platforms
-    remain V4 uncharacterized.
+  - Every authoritative gate command exits 0. Real platforms remain
+    uncharacterized for V4 network capture; B3 later adds only a NowCoder
+    browse-only navigation witness.
 - `/training` supports automatic and manual attempts, optimistic
   corrections, correction history, and logical voiding. Capture
   identity fields remain immutable.
@@ -302,4 +305,5 @@ These are current implementation boundaries, not a permanent rejection of the ap
 - Phase A A10 adds the disposable SQLite lifecycle + production extension E2E smoke test. `tests/extension-e2e/database.ts` provides disposable directory, DB creation, migrations via `npm.cmd`, count readers, and default-DB snapshot / verify utilities with relative-path-based safe deletion under `.tmp/`. `tests/extension-e2e/capture-v4-full-chain.spec.ts` proves the disposable DB + production extension artifact + scenario identity helpers + default-DB preservation. `scripts/a10-bootstrap.mjs` is a reusable helper for future webServer-based integrations (currently unused). Independent review found and fixed 4 HIGH issues (path check prefix collision, stale path file teardown, missing `.tmp` mkdir, profile cleanup replacement) in commit `9b81784`.
 - Phase A A11 integrates the new extension E2E lane into the canonical quality gate. `scripts/quality-gate.mjs` adds `npm run extension:e2e` as stage 7; the frozen `QUALITY_GATE_STAGES` array is now 9 stages. `.github/workflows/quality-gate.yml` is created as a local-only CI workflow with `permissions: contents: read`, `timeout-minutes: 20`, and `**` branch triggers. Independent review found and fixed 6 issues (HIGH npm ci / permissions, MEDIUM triggers / timeout, LOW docs accuracy / incorrect comment) in commit `6401e17`.
 - Phase A A12 reconciles the plan and produces the final closeout report. `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` now has per-task execution result blocks with commit SHA, verification command, and review findings. `work/reports/phase-a-final-closeout.md` is the dated closeout report. Independent review found and fixed 4 issues (HIGH verdict honesty, MEDIUM missing SHAs / dev-server claim, LOW module list) in commit `30f3d73`. Phase A verdict is `V4 infrastructure engineering PASS (scope-reduced)`: the framework engineering pass is complete and every authoritative gate command exits 0, but the full E2->E3->real-popup-pair->real-API->SQLite delivery probe and the worker-restart recovery probe remain out of Phase A scope.
+- Phase B B3 closes the NowCoder browse-only navigation witness at `b589776`. The four A-D lifecycle tests use CDP only to control the MV3 Worker, exact Fake OJ routes to load the production content script, and popup status/export as public recovery evidence. The strict two-E0 fixture and real observation remain in `tests/fixtures/nowcoder/network/nowcoder-browse-only-2026-07-27.json` and `work/reports/v4-nowcoder-b3-restart-safe-observation-2026-07-27.md`; no new user Chrome operation occurred. This is not a submission-protocol characterization, production promotion, RC, acceptance, release, or B4 authorization.
 - Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. V4 Phase 0 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`. V4 Phase A A0-A12 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` with verdict `V4 infrastructure engineering PASS (scope-reduced)`. Do not re-execute completed historical plans, resume formal V0 observation, or start V0.5 before the V4 gates permit it.

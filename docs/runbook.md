@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-26 (V4 Phase A A0-A12 closeout)
+Last updated: 2026-07-28 (V4 Phase B terminal closeout)
 
 ## Setup
 
@@ -126,13 +126,29 @@ its own temporary storage under `.tmp/playwright-extension/` and never touches
 the default `training-platform.sqlite`.
 
 ```powershell
-# Full Fake OJ matrix (all 29 tests)
+# Full extension E2E matrix (43 passing tests and 1 documented historical skip)
 npm run extension:e2e
 
 # Single spec filter
 npm run extension:e2e -- tests/extension-e2e/capture-v4-network.spec.ts
 npm run extension:e2e -- tests/extension-e2e/capture-v4-full-chain.spec.ts
 ```
+
+The B3 lifecycle cases in `capture-v4-network.spec.ts` are black-box checks:
+CDP controls Worker termination/wake, exact `ac.nowcoder.com` Fake OJ routes
+load the production content script, and popup status/export proves recovery.
+They do not use Worker storage inspection or create session state directly.
+The reload case uses the actual `chrome://extensions` Reload control and must
+leave the new popup stopped with export disabled. These tests prove only the
+NowCoder browse-only navigation witness; they do not characterize submission
+traffic or enable automatic network-confirmed capture.
+
+The B7 NowCoder lane is `tests/extension-e2e/capture-v4-nowcoder.spec.ts`.
+It contains eight production-dist scenarios and owns a disposable Next server
+and SQLite database. Passing this lane proves automated experimental behavior,
+not a real-platform release. The B8 real observation remains blocked at
+result-page E3 ingress; see
+`work/reports/v4-nowcoder-b8-same-build-observation-2026-07-28.md`.
 
 The `scripts/a10-bootstrap.mjs` helper is a reusable, idempotent
 bootstrap that pre-creates the disposable SQLite, runs migrations, and

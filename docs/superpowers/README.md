@@ -1,14 +1,15 @@
 # Superpowers Documentation Index
 
-> **Status (2026-07-24):** **V4 Phase 0 click-ingress stopgap complete.** A
+> **Status (2026-07-28):** **V4 Phase 0 click-ingress stopgap, Phase A
+> A0-A12, and Phase B B0-B7 are complete; B8 is terminally BLOCKED.** A
 > NowCoder browse-only false positive exposed that V3 can create waiting state
 > from a qualifying click without server confirmation. Formal V0 observation,
 > replacement-RC work, same-SHA F1–F4, and acceptance are blocked until the V4
 > gates are satisfied. Commit `2f4f5d895ea8d965fb64d19dc784ca5514480688`
 > remains historical V3 repair evidence, not a current acceptance anchor.
-> Phase A Tasks A0-A9 are complete at user direction (2026-07-24 closeout
-> scope); A10-A12 are deferred. Phase B (NowCoder network pilot) requires
-> fresh explicit authorization.
+> Phase A A0-A12 is complete. Phase B delivered a safe NowCoder transcript,
+> strict experimental adapter, and production-dist full-chain coverage, but
+> B8's real result page did not emit E3; NowCoder remains experimental.
 
 The completed repair implementation record is
 [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md).
@@ -37,9 +38,14 @@ This directory contains both active product planning and historical implementati
 7. [`plans/2026-07-21-v0-bilingual-user-interface.md`](plans/2026-07-21-v0-bilingual-user-interface.md) — approved but deferred post-V0 implementation plan.
 8. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — earlier domestic-OJ repair implementation record.
 
-Immediate target: accepted V0. Next target: V0.5 connected OJ/basic evidence.
-Then: V1 integrated local pilot. Total product target: **Phase 7 / Public Beta
-hosted SaaS**.
+The completed B3 lifecycle record is
+[`plans/2026-07-27-v4-phase-b-b3-restart-safe-navigation-witness.md`](plans/2026-07-27-v4-phase-b-b3-restart-safe-navigation-witness.md).
+It proves the browse-only witness. The terminal Phase B result is recorded in
+`../../work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`.
+
+Phase C is not authorized by the Phase B BLOCKED result. Formal V0 observation
+remains blocked; V0.5 stays out of scope.
+The total product target is **Phase 7 / Public Beta hosted SaaS**.
 
 ## Completed Phase 0 records
 
