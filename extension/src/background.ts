@@ -35,6 +35,7 @@ import {
   createBrowseOnlyNavigationExportDocument,
   characterizeSessionStatus,
   selectCharacterizationExportMode,
+  shouldCollectCharacterizationEvidence,
   type CharacterizationController,
 } from "./characterization";
 import { blocksNowCoderProductionIngress } from "./characterizationIngress";
@@ -524,9 +525,9 @@ registerCharacterizationObserverListeners(
   },
   characterizationObserver,
   async (evidence, hostname) => {
-    // B3 is browse-only: no diagnostic E1 is retained while its separate
-    // navigation witness session is armed, so its export remains exactly E0x2.
-    if ((await getB3State()).sessionId !== "") return;
+    // B3 remains exactly browse-only until its two-page witness is complete.
+    // Once ready, subsequent requests are B4 evidence and must be retained.
+    if (!shouldCollectCharacterizationEvidence((await getB3State()).status)) return;
     await characterizationController.collect(evidence, hostname);
   },
   (work: () => Promise<void>) => { executor.schedule(work); },

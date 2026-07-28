@@ -24,6 +24,7 @@ import {
   createCharacterizationController,
   createBrowseOnlyNavigationExportDocument,
   selectCharacterizationExportMode,
+  shouldCollectCharacterizationEvidence,
 } from "@/extension/src/characterization";
 import type { NavigationWitness } from "@/extension/src/characterizationNavigationWitness";
 import {
@@ -314,6 +315,18 @@ describe("characterization stop", () => {
 // ---------------------------------------------------------------------------
 
 describe("characterization export", () => {
+  it.each([
+    ["armed", false],
+    ["list_seen", false],
+    ["ready", true],
+    ["invalid", false],
+  ] as const)(
+    "collects B4 network evidence only after B3 reaches %s",
+    (status, expected) => {
+      expect(shouldCollectCharacterizationEvidence(status)).toBe(expected);
+    },
+  );
+
   it.each([
     [true, 0, "b3_browse_only"],
     [true, 1, "b1_network"],

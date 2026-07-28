@@ -34,6 +34,7 @@ import {
 import {
   type NavigationWitness,
 } from "./characterizationNavigationWitness";
+import type { B3Status } from "./b3Witness";
 import type { E1RequestObserved } from "./evidence";
 import { buildCharacterizationRecord } from "./characterizationStorage";
 import {
@@ -82,6 +83,16 @@ export type CharacterizationEffects = Readonly<{
 }>;
 
 export type CharacterizationExportMode = "b3_browse_only" | "b1_network";
+
+/**
+ * B3 owns the browse-only window until its two-page witness is complete.
+ * Once ready, subsequent network evidence belongs to B4 and must be retained.
+ */
+export function shouldCollectCharacterizationEvidence(
+  b3Status: B3Status,
+): boolean {
+  return b3Status === "ready";
+}
 
 /**
  * B3 is a zero-network navigation witness. As soon as a safe network record
