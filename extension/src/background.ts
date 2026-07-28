@@ -34,6 +34,7 @@ import {
   createCharacterizationController,
   createBrowseOnlyNavigationExportDocument,
   characterizeSessionStatus,
+  selectCharacterizationExportMode,
   type CharacterizationController,
 } from "./characterization";
 import { blocksNowCoderProductionIngress } from "./characterizationIngress";
@@ -687,13 +688,13 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     executor.schedule(async () => {
       // B3: Check if B3 export is possible FIRST (B3 takes priority)
       const b3CanExport = await canB3ExportNow();
-      if (b3CanExport) {
+      const session = await characterizationController.getSession();
+      const exportMode = selectCharacterizationExportMode(
+        b3CanExport,
+        session.records.length,
+      );
+      if (exportMode === "b3_browse_only") {
         const b3State = await getB3State();
-        const session = await characterizationController.getSession();
-        if (session.records.length > 0) {
-          sendResponse({ ok: false, reason: "browse-only export requires zero network records", isB3Export: true });
-          return;
-        }
         const e0Records = buildB3E0Records(b3State);
         if (e0Records !== undefined) {
           const b3Document = createBrowseOnlyNavigationExportDocument(

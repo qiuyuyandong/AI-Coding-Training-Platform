@@ -81,6 +81,22 @@ export type CharacterizationEffects = Readonly<{
   exportResult?: CharacterizationExportResult;
 }>;
 
+export type CharacterizationExportMode = "b3_browse_only" | "b1_network";
+
+/**
+ * B3 is a zero-network navigation witness. As soon as a safe network record
+ * exists, the diagnostic must export the B1 transcript instead of allowing the
+ * ready B3 state to shadow the submission evidence.
+ */
+export function selectCharacterizationExportMode(
+  b3CanExport: boolean,
+  networkRecordCount: number,
+): CharacterizationExportMode {
+  return b3CanExport && networkRecordCount === 0
+    ? "b3_browse_only"
+    : "b1_network";
+}
+
 // ---------------------------------------------------------------------------
 // Pure session controller
 // ---------------------------------------------------------------------------

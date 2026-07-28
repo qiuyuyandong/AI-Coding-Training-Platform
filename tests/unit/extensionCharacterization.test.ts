@@ -23,6 +23,7 @@ import {
   validateCharacterizationEvidence,
   createCharacterizationController,
   createBrowseOnlyNavigationExportDocument,
+  selectCharacterizationExportMode,
 } from "@/extension/src/characterization";
 import type { NavigationWitness } from "@/extension/src/characterizationNavigationWitness";
 import {
@@ -313,6 +314,21 @@ describe("characterization stop", () => {
 // ---------------------------------------------------------------------------
 
 describe("characterization export", () => {
+  it.each([
+    [true, 0, "b3_browse_only"],
+    [true, 1, "b1_network"],
+    [true, 25, "b1_network"],
+    [false, 0, "b1_network"],
+  ] as const)(
+    "selects %s/%i as %s without allowing B3 to shadow network evidence",
+    (b3CanExport, networkRecordCount, expected) => {
+      expect(selectCharacterizationExportMode(
+        b3CanExport,
+        networkRecordCount,
+      )).toBe(expected);
+    },
+  );
+
   it("does not export an incomplete B1 document when no records exist", () => {
     const session = DEFAULT_CHARACTERIZATION_SESSION;
     const effects = applyCharacterizationAction({ type: "characterization_export" }, session, NOW);
