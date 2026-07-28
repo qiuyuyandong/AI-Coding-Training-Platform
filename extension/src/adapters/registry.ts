@@ -14,6 +14,11 @@ import {
 } from "@/extension/src/adapters/contract";
 import { extractLeetCodeVerdictText } from "@/extension/src/adapters/leetcode/verdict";
 import { extractLuoguRecordRowText } from "@/extension/src/adapters/luogu/verdict";
+import {
+  NOWCODER_NETWORK_ADAPTER_VERSION,
+  NOWCODER_NETWORK_POLICY,
+} from "@/extension/src/adapters/nowcoder/network";
+import { extractNowCoderVerdictText } from "@/extension/src/adapters/nowcoder/verdict";
 
 export const PLATFORM_ADAPTERS = {
   leetcode: {
@@ -53,8 +58,8 @@ export const PLATFORM_ADAPTERS = {
     platform: "nowcoder",
     label: "NowCoder",
     status: "experimental",
-    v4NetworkStatus: "uncharacterized",
-    version: "v4-contract-1",
+    v4NetworkStatus: "experimental",
+    version: NOWCODER_NETWORK_ADAPTER_VERSION,
     hostOwnership: ["www.nowcoder.com", "ac.nowcoder.com"],
     // The public view-submission page wraps the verdict under
     // `<div class="coder-cont-legend">运行状态:<span class="font-green">答案正确</span></div>`.
@@ -62,6 +67,8 @@ export const PLATFORM_ADAPTERS = {
     // `.judge-result` selectors matched zero observed nodes and have
     // been removed to keep the registry evidence-backed.
     selectors: [".coder-cont-legend"],
+    extractor: extractNowCoderVerdictText,
+    networkPolicy: NOWCODER_NETWORK_POLICY,
   },
   luogu: {
     platform: "luogu",

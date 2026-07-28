@@ -93,9 +93,11 @@ describe("platform adapter registry (Phase A Task A2)", () => {
     expect(PLATFORM_ADAPTERS.codeforces.status).toBe("experimental");
   });
 
-  it("keeps every V4 network status at exactly 'uncharacterized'", () => {
+  it("keeps only the characterized NowCoder pilot experimental", () => {
     for (const platform of PLATFORMS) {
-      expect(PLATFORM_ADAPTERS[platform].v4NetworkStatus).toBe("uncharacterized");
+      expect(PLATFORM_ADAPTERS[platform].v4NetworkStatus).toBe(
+        platform === "nowcoder" ? "experimental" : "uncharacterized",
+      );
     }
   });
 
@@ -119,10 +121,14 @@ describe("platform adapter registry (Phase A Task A2)", () => {
     }
   });
 
-  it("attaches no V4 networkPolicy to any real adapter", () => {
+  it("attaches a policy only to the characterized NowCoder pilot", () => {
     const records: readonly PlatformAdapterRecord[] = Object.values(PLATFORM_ADAPTERS);
     for (const record of records) {
-      expect(record.networkPolicy).toBeUndefined();
+      if (record.platform === "nowcoder") {
+        expect(record.networkPolicy).toBeDefined();
+      } else {
+        expect(record.networkPolicy).toBeUndefined();
+      }
     }
   });
 
@@ -130,9 +136,11 @@ describe("platform adapter registry (Phase A Task A2)", () => {
     expect(PLATFORM_ADAPTERS).toBe(COMPAT_PLATFORM_ADAPTERS);
   });
 
-  it("binds every record's version to the explicit 'v4-contract-1' identifier", () => {
+  it("binds the NowCoder pilot to its evidence-backed version", () => {
     for (const platform of PLATFORMS) {
-      expect(PLATFORM_ADAPTERS[platform].version).toBe("v4-contract-1");
+      expect(PLATFORM_ADAPTERS[platform].version).toBe(
+        platform === "nowcoder" ? "v4-nowcoder-network-1" : "v4-contract-1",
+      );
     }
   });
 });
@@ -256,11 +264,16 @@ describe("runtime V4 network policy factory (Phase A Task A2)", () => {
     expect(parseAndReturn({ token: "x" })).toBeNull();
   });
 
-  it("preserves no-policy state on every real registry record", () => {
+  it("preserves no-policy state outside the NowCoder pilot", () => {
     const records: readonly PlatformAdapterRecord[] = Object.values(PLATFORM_ADAPTERS);
     for (const record of records) {
-      expect(record.networkPolicy).toBeUndefined();
-      expect(record.v4NetworkStatus).toBe("uncharacterized");
+      if (record.platform === "nowcoder") {
+        expect(record.networkPolicy).toBeDefined();
+        expect(record.v4NetworkStatus).toBe("experimental");
+      } else {
+        expect(record.networkPolicy).toBeUndefined();
+        expect(record.v4NetworkStatus).toBe("uncharacterized");
+      }
     }
   });
 });

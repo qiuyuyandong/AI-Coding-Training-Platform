@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "fixtureName": "nowcoder-submission-chain-2026-07-28",
+    "sourceUrl": "https://ac.nowcoder.com/",
+    "captureDate": "2026-07-28",
+    "captureMethod": "user-authorized browser observation",
+    "authenticated": true,
+    "sanitized": true,
+    "evidenceTier": "authenticated-characterization",
+    "productionEligible": false,
+    "signals": [
+      {
+        "kind": "network_request_observed",
+        "platform": "nowcoder",
+        "tier": "E1"
+      },
+      {
+        "kind": "submission_confirmed",
+        "platform": "nowcoder",
+        "tier": "E2"
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "schemaVersion": 1,
+      "evidenceId": "e1_nowcoder_1625",
+      "platform": "nowcoder",
+      "tier": "E1",
+      "kind": "network_request_observed",
+      "receivedAt": "2026-07-28T07:50:05.226Z",
+      "tabId": 1454624588,
+      "frameId": 0,
+      "documentId": "8F07D38C76EEC9B9338ADCBB15E8B2F4",
+      "requestId": "1625",
+      "method": "POST",
+      "normalizedPath": "/nccommon/submit_cd",
+      "resourceType": "xmlhttprequest",
+      "statusCode": 200
+    },
+    {
+      "schemaVersion": 1,
+      "evidenceId": "e1_nowcoder_1626",
+      "platform": "nowcoder",
+      "tier": "E1",
+      "kind": "network_request_observed",
+      "receivedAt": "2026-07-28T07:50:06.797Z",
+      "tabId": 1454624588,
+      "frameId": 0,
+      "documentId": "8F07D38C76EEC9B9338ADCBB15E8B2F4",
+      "requestId": "1626",
+      "method": "GET",
+      "normalizedPath": "/nccommon/status",
+      "resourceType": "xmlhttprequest",
+      "statusCode": 200
+    },
+    {
+      "schemaVersion": 1,
+      "evidenceId": "e2_nowcoder_84257292",
+      "platform": "nowcoder",
+      "tier": "E2",
+      "kind": "submission_confirmed",
+      "receivedAt": "2026-07-28T07:50:06.802Z",
+      "tabId": 1454624588,
+      "frameId": 0,
+      "documentId": "8F07D38C76EEC9B9338ADCBB15E8B2F4",
+      "requestEvidenceId": "e1_nowcoder_1626",
+      "externalSubmissionId": "84257292",
+      "problemExternalId": "acm/contest/18839/1001",
+      "submissionIdFieldName": "submissionId",
+      "submissionIdScalarType": "string"
+    }
+  ]
+}

@@ -52,7 +52,9 @@ describe("V4 network observer", () => {
       tabId: 4,
       frameId: 0,
       documentId: "document-1",
-      adapterVersion: "v4-contract-1",
+      adapterVersion: platform === "nowcoder"
+        ? "v4-nowcoder-network-1"
+        : "v4-contract-1",
     });
     expect(JSON.stringify(outcome.lifecycle)).not.toContain(url);
   });

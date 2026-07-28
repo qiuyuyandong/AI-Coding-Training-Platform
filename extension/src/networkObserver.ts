@@ -1,4 +1,5 @@
 import { PLATFORM_ADAPTERS } from "@/extension/src/adapters/registry";
+import { normalizeNowCoderNetworkEndpoint } from "@/extension/src/adapters/nowcoder/network";
 import type { Platform } from "@/extension/src/adapters/contract";
 import { parseSafeEvidence } from "@/extension/src/evidence";
 import type { E1RequestObserved, SafeEvidence } from "@/extension/src/evidence";
@@ -174,6 +175,8 @@ function platformForUrl(rawUrl: string): SupportedPlatform | null {
  * claim that an endpoint confirms a submission.
  */
 export function normalizeOjEndpointKey(requestUrl: string): string | null {
+  const nowCoderEndpoint = normalizeNowCoderNetworkEndpoint(requestUrl);
+  if (nowCoderEndpoint !== null) return nowCoderEndpoint;
   let parsed: URL;
   try {
     parsed = new URL(requestUrl);
@@ -485,7 +488,7 @@ export type RegisterCallback = (
 ) => void;
 
 /** Called once per `recorded` outcome to enqueue persistence work. */
-export type PersistRecordedCallback = (outcome: LifecycleOutcome) => void;
+export type PersistRecordedCallback = (outcome: LifecycleOutcome) => void | Promise<void>;
 
 /** Wraps executor.schedule so callers can inject a fake in tests. */
 export type ExecutorScheduleCallback = (work: () => Promise<void>) => void;
@@ -512,26 +515,26 @@ export function registerNetworkObserverListeners(
 
   register("onBeforeRequest", (details) => {
     const outcome = observer.handleBeforeRequest(details);
-    if (outcome.kind === "recorded") executorSchedule(async () => { persistRecorded(outcome); });
+    if (outcome.kind === "recorded") executorSchedule(async () => { await persistRecorded(outcome); });
   }, filter);
 
   register("onBeforeRedirect", (details, redirectUrl) => {
     const outcome = observer.handleBeforeRedirect(details, redirectUrl as string);
-    if (outcome.kind === "recorded") executorSchedule(async () => { persistRecorded(outcome); });
+    if (outcome.kind === "recorded") executorSchedule(async () => { await persistRecorded(outcome); });
   }, filter);
 
   register("onResponseStarted", (details, statusCode) => {
     const outcome = observer.handleResponseStarted(details, statusCode as number);
-    if (outcome.kind === "recorded") executorSchedule(async () => { persistRecorded(outcome); });
+    if (outcome.kind === "recorded") executorSchedule(async () => { await persistRecorded(outcome); });
   }, filter);
 
   register("onCompleted", (details) => {
     const outcome = observer.handleCompleted(details);
-    if (outcome.kind === "recorded") executorSchedule(async () => { persistRecorded(outcome); });
+    if (outcome.kind === "recorded") executorSchedule(async () => { await persistRecorded(outcome); });
   }, filter);
 
   register("onErrorOccurred", (details, error) => {
     const outcome = observer.handleErrorOccurred(details, error as string);
-    if (outcome.kind === "recorded") executorSchedule(async () => { persistRecorded(outcome); });
+    if (outcome.kind === "recorded") executorSchedule(async () => { await persistRecorded(outcome); });
   }, filter);
 }

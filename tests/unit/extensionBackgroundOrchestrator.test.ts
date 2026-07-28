@@ -22,7 +22,11 @@ import { buildCaptureAttemptBundle } from "@/extension/src/attemptStorage";
 import type { PendingSubmissionIntent, VerdictCandidateMessage } from "@/extension/src/attemptCapture";
 import type { CaptureOutboxItem, CaptureQuarantineItem } from "@/extension/src/attemptStorage";
 import type { ConfirmedSubmissionRecord, ConfirmedSubmissionTombstone } from "@/extension/src/confirmedSubmissionStorage";
-import type { E1RequestObserved, E3FinalVerdictConfirmed } from "@/extension/src/evidence";
+import type {
+  E1RequestObserved,
+  E2SubmissionConfirmed,
+  E3FinalVerdictConfirmed,
+} from "@/extension/src/evidence";
 import type { CorrelatedCaptureResult, RejectedCaptureResult } from "@/extension/src/captureStateMachine";
 import type { MainBridgeSummary } from "@/extension/src/submissionCorrelator";
 import type { ExtensionInitializationStorageSplit } from "@/extension/src/installation";
@@ -117,6 +121,42 @@ const baseE3: E3FinalVerdictConfirmed = {
   externalSubmissionId: "submission_42",
   problemExternalId: "two-sum",
   verdict: "Accepted",
+};
+
+const nowCoderSubmitE1: E1RequestObserved = {
+  ...baseE1,
+  evidenceId: "e1_nowcoder_submit",
+  platform: "nowcoder",
+  adapterVersion: "v4-nowcoder-network-1",
+  requestId: "request_nowcoder_submit",
+  endpointKey: "nowcoder/submit",
+  documentId: "doc_nowcoder",
+};
+
+const nowCoderStatusE1: E1RequestObserved = {
+  ...nowCoderSubmitE1,
+  evidenceId: "e1_nowcoder_status",
+  receivedAt: "2026-07-24T00:00:02.000Z",
+  apiTimeStamp: 2000,
+  requestId: "request_nowcoder_status",
+  method: "GET",
+  endpointKey: "nowcoder/status",
+};
+
+const nowCoderE2: E2SubmissionConfirmed = {
+  schemaVersion: 1,
+  evidenceId: "e2_nowcoder_84257292",
+  platform: "nowcoder",
+  tier: "E2",
+  kind: "submission_confirmed",
+  receivedAt: "2026-07-24T00:00:02.000Z",
+  tabId: 1,
+  frameId: 0,
+  documentId: "doc_nowcoder",
+  adapterVersion: "v4-nowcoder-network-1",
+  requestEvidenceId: nowCoderStatusE1.evidenceId,
+  externalSubmissionId: "84257292",
+  problemExternalId: "acm/contest/18839/1001",
 };
 
 function storageSpy(
@@ -1560,6 +1600,76 @@ describe("background orchestrator", () => {
       write.key === "transientE1" && Array.isArray(write.value)
       && write.value.some((value) => Reflect.get(value, "receivedAt") === oldEvidence.receivedAt))).toBe(false);
     expect(effects.executorSchedule).toEqual([]);
+  });
+
+  it("records a NowCoder E2 only when both exact E1 lifecycles are retained", async () => {
+    const storage = storageSpy({ local: { captureProtocolVersion: 4, installationId } });
+    const orchestrator = createBackgroundOrchestrator(
+      orchestratorDeps(storage, "2026-07-24T00:00:03.000Z"),
+    );
+    const installEffects = await orchestrator.install();
+    await applyEffectsToStorage(storage, installEffects);
+
+    for (const evidence of [nowCoderSubmitE1, nowCoderStatusE1]) {
+      const e1Effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffectsToStorage(storage, e1Effects);
+    }
+
+    const effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: nowCoderE2,
+      matchedSubmitRequestId: nowCoderSubmitE1.requestId,
+    });
+    await applyEffectsToStorage(storage, effects);
+
+    expect(effects.state.waiting).toBe(true);
+    expect(effects.state.waitingCount).toBe(1);
+    expect(effects.persistence.confirmed).toEqual([
+      expect.objectContaining({
+        platform: "nowcoder",
+        externalSubmissionId: "84257292",
+        problemExternalId: "acm/contest/18839/1001",
+      }),
+    ]);
+    expect(effects.persistence.transientE1.find((entry) =>
+      entry.evidence.requestId === nowCoderSubmitE1.requestId)?.outcome).toBe("matched");
+  });
+
+  it("rejects a NowCoder E2 whose retained status lifecycle identity differs", async () => {
+    const storage = storageSpy({ local: { captureProtocolVersion: 4, installationId } });
+    const orchestrator = createBackgroundOrchestrator(
+      orchestratorDeps(storage, "2026-07-24T00:00:03.000Z"),
+    );
+    const installEffects = await orchestrator.install();
+    await applyEffectsToStorage(storage, installEffects);
+
+    for (const evidence of [nowCoderSubmitE1, nowCoderStatusE1]) {
+      const e1Effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffectsToStorage(storage, e1Effects);
+    }
+
+    const effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: { ...nowCoderE2, documentId: "different_document" },
+      matchedSubmitRequestId: nowCoderSubmitE1.requestId,
+    });
+
+    expect(effects.state.waiting).toBe(false);
+    expect(effects.persistence.confirmed).toEqual([]);
   });
 });
 

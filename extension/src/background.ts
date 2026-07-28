@@ -73,6 +73,12 @@ import {
 import { readTransientSessionEvidenceState } from "./transientEvidenceStorage";
 import { parseSafeEvidence, type E3FinalVerdictConfirmed } from "./evidence";
 import {
+  NOWCODER_NETWORK_POLICY,
+  NOWCODER_STATUS_ENDPOINT_KEY,
+  NOWCODER_SUBMIT_ENDPOINT_KEY,
+  selectNowCoderConfirmation,
+} from "./adapters/nowcoder/network";
+import {
   createBackgroundOrchestrator,
   type Orchestrator,
   type OrchestratorEffects,
@@ -403,6 +409,51 @@ function skipNowCoderProduction(details: ChromeObserverDetails): boolean {
   try { return new URL(details.url).hostname === "ac.nowcoder.com" || new URL(details.url).hostname === "www.nowcoder.com"; } catch { return false; }
 }
 
+async function applyNowCoderStatusConfirmation(
+  details: WebRequestDetails,
+  rawUrl: string,
+): Promise<void> {
+  if (details.method !== "GET" || details.type !== "xmlhttprequest"
+    || details.documentId === undefined) return;
+  if (await blocksNowCoderProductionIngress("nowcoder", characterizationController)) return;
+  const stored = await chrome.storage.session.get(["uiHints", "transientE1"]);
+  const transient = readTransientSessionEvidenceState(stored);
+  const statusLifecycle = transient.requestLifecycles.find((entry) =>
+    entry.evidence.platform === "nowcoder"
+    && entry.evidence.requestId === details.requestId
+    && entry.evidence.endpointKey === NOWCODER_STATUS_ENDPOINT_KEY);
+  if (statusLifecycle === undefined) return;
+  const submitCandidates = transient.requestLifecycles
+    .filter((entry) =>
+      entry.evidence.platform === "nowcoder"
+      && entry.evidence.endpointKey === NOWCODER_SUBMIT_ENDPOINT_KEY)
+    .map((entry) => entry.evidence);
+  const problemCandidates = transient.uiHints
+    .filter((hint) =>
+      hint.platform === "nowcoder"
+      && hint.sourceDocumentId === statusLifecycle.evidence.documentId)
+    .map((hint) => ({
+      problemExternalId: hint.problemExternalId,
+      observedAt: hint.observedAt,
+      tabId: statusLifecycle.evidence.tabId,
+      frameId: statusLifecycle.evidence.frameId,
+      documentId: hint.sourceDocumentId,
+    }));
+  const confirmation = selectNowCoderConfirmation({
+    statusEvidence: statusLifecycle.evidence,
+    statusUrl: rawUrl,
+    submitCandidates,
+    problemCandidates,
+    now: new Date().toISOString(),
+  });
+  if (confirmation.kind !== "confirmed") return;
+  await applyOrchestratorEvent({
+    kind: "e2_recorded",
+    evidence: confirmation.evidence,
+    matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
+  });
+}
+
 registerNetworkObserverListeners(
   (kind, callback, filter) => {
     const chromeFilter: chrome.webRequest.RequestFilter = {
@@ -434,7 +485,16 @@ registerNetworkObserverListeners(
         break;
       case "onCompleted":
         chrome.webRequest.onCompleted.addListener(
-          (details) => { if (!skipNowCoderProduction(details)) callback(toObserverDetails(details)); },
+          (details) => {
+            if (skipNowCoderProduction(details)) return;
+            const observerDetails = toObserverDetails(details);
+            callback(observerDetails);
+            if (details.url.startsWith("https://ac.nowcoder.com/nccommon/status")) {
+              executor.schedule(async () => {
+                await applyNowCoderStatusConfirmation(observerDetails, details.url);
+              });
+            }
+          },
           chromeFilter,
         );
         break;
@@ -449,20 +509,18 @@ registerNetworkObserverListeners(
     }
   },
   networkObserver,
-  (outcome) => {
+  async (outcome) => {
     if (outcome.kind !== "recorded" || outcome.lifecycle.kind !== "request_observed") return;
     const evidence = outcome.lifecycle;
     if (evidence.platform === "nowcoder" && characterizationProductionGuard) return;
-    executor.schedule(async () => {
-      if (await blocksNowCoderProductionIngress(evidence.platform, characterizationController)) return;
-      await applyOrchestratorEvent({
-        kind: "e1_recorded",
-        evidence,
-        tabId: evidence.tabId,
-        frameId: evidence.frameId,
-        documentId: evidence.documentId,
-        adapterVersion: evidence.adapterVersion,
-      });
+    if (await blocksNowCoderProductionIngress(evidence.platform, characterizationController)) return;
+    await applyOrchestratorEvent({
+      kind: "e1_recorded",
+      evidence,
+      tabId: evidence.tabId,
+      frameId: evidence.frameId,
+      documentId: evidence.documentId,
+      adapterVersion: evidence.adapterVersion,
     });
   },
   (work: () => Promise<void>) => { executor.schedule(work); },
@@ -640,6 +698,26 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   if (isVerdictCandidateMessage(message)) {
     executor.schedule(async () => {
       if (await blocksNowCoderProductionIngress(message.candidate.platform, characterizationController)) return;
+      if (message.candidate.platform === "nowcoder"
+        && typeof sender.tab?.url === "string"
+        && typeof sender.tab.id === "number"
+        && typeof sender.frameId === "number"
+        && typeof sender.documentId === "string") {
+        const e3 = NOWCODER_NETWORK_POLICY.verdictEvidence({
+          kind: "verdict",
+          pageUrl: sender.tab.url,
+          problemExternalId: message.candidate.problemExternalId,
+          verdictText: message.candidate.verdict,
+          tabId: sender.tab.id,
+          frameId: sender.frameId,
+          documentId: sender.documentId,
+          receivedAt: message.candidate.observedAt,
+        });
+        if (e3?.kind === "final_verdict_confirmed") {
+          await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3 });
+          return;
+        }
+      }
       await applyOrchestratorEvent({
         kind: "v3_verdict_observed",
         candidate: message.candidate,

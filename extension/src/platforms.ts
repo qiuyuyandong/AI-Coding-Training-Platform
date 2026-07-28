@@ -186,6 +186,10 @@ function tryDetectNowCoderProblem(
         return { externalId: `practice/${id}` };
       }
       if (parsed.hostname === "ac.nowcoder.com") {
+        if (parsed.pathname === "/acm/contest/18839/1001"
+          || parsed.pathname === "/acm/contest/18839/1001/") {
+          return { externalId: "acm/contest/18839/1001" };
+        }
         const id = readNowCoderSegment(parsed.pathname, "/acm/problem/", parsed.hostname);
         return { externalId: `acm/problem/${id}` };
       }
@@ -616,6 +620,10 @@ function resolveLeetCodeProblemAnchor(pathname: string): string | null {
 }
 
 function resolveNowCoderProblemAnchor(pathname: string): string | null {
+  if (pathname === "/acm/contest/18839/1001"
+    || pathname === "/acm/contest/18839/1001/") {
+    return "acm/contest/18839/1001";
+  }
   // NowCoder acm contest submissions link to the public problem view at
   // `/acm/problem/<id>`. The normalized externalId carries the
   // `acm/problem/<id>` prefix so it round-trips through

@@ -119,6 +119,15 @@ The validator enforces:
 - Authenticated fixtures cannot claim production eligibility
 - Normalized paths contain no secret query parameters
 
+## Retained real fixtures
+
+- `nowcoder-browse-only-2026-07-27.json`: authenticated two-page E0 navigation
+  witness; no submission and no network-confirmed waiting.
+- `nowcoder-submission-chain-2026-07-28.json`: authenticated safe
+  `POST /nccommon/submit_cd` -> `GET /nccommon/status` chain with one
+  allowlisted decimal `submissionId` scalar. It is characterization evidence,
+  not production certification.
+
 ## Synthetic Fixtures
 
 Synthetic fixtures in this directory are generated for testing purposes and
@@ -134,6 +143,6 @@ safety validation.
 ## Non-Goals
 
 - Production certification using authenticated fixtures
-- Real browser/network activity
+- Retaining raw real browser/network content
 - Source code or credential retention
 - Headers or body inspection

@@ -155,6 +155,11 @@ export type OrchestratorEvent =
       readonly frameId: number;
       readonly documentId: string;
     }
+  | {
+      readonly kind: "e2_recorded";
+      readonly evidence: E2SubmissionConfirmed;
+      readonly matchedSubmitRequestId: string;
+    }
   | { readonly kind: "e3_recorded"; readonly evidence: E3FinalVerdictConfirmed }
   | { readonly kind: "main_bridge_ambiguous"; readonly ambiguous: AmbiguousCaptureResult }
   | { readonly kind: "main_bridge_no_match"; readonly noMatch: NoMatchCaptureResult; readonly summary: MainBridgeSummary }
@@ -418,6 +423,8 @@ function handleEvent(
       return handleE0Recorded(event, session, now);
     case "main_bridge_correlated":
       return handleMainBridgeCorrelated(event, local, session, now);
+    case "e2_recorded":
+      return handleE2Recorded(event, local, session, now);
     case "e3_recorded":
       return handleE3Recorded(event, local, session, now);
     case "main_bridge_ambiguous":
@@ -726,6 +733,85 @@ function handleE0Recorded(
     ...readTransientSessionEvidenceState(session),
     uiHints: retained,
   }, session, now);
+}
+
+function handleE2Recorded(
+  event: Extract<OrchestratorEvent, { readonly kind: "e2_recorded" }>,
+  local: Record<string, unknown>,
+  session: Record<string, unknown>,
+  now: string,
+): EventOutcome {
+  const evidence = event.evidence;
+  const transient = readTransientSessionEvidenceState(session);
+  const confirmationLifecycle = transient.requestLifecycles.find((entry) =>
+    entry.evidence.evidenceId === evidence.requestEvidenceId);
+  const submitLifecycle = transient.requestLifecycles.find((entry) =>
+    entry.evidence.requestId === event.matchedSubmitRequestId);
+  if (confirmationLifecycle === undefined || submitLifecycle === undefined
+    || confirmationLifecycle.evidence.platform !== evidence.platform
+    || confirmationLifecycle.evidence.tabId !== evidence.tabId
+    || confirmationLifecycle.evidence.frameId !== evidence.frameId
+    || confirmationLifecycle.evidence.documentId !== evidence.documentId
+    || submitLifecycle.evidence.platform !== evidence.platform
+    || submitLifecycle.evidence.tabId !== evidence.tabId
+    || submitLifecycle.evidence.frameId !== evidence.frameId
+    || submitLifecycle.evidence.documentId !== evidence.documentId) {
+    return emptyOutcome(now);
+  }
+
+  const currentConfirmed = readConfirmedSubmissionState(local);
+  const record: ConfirmedSubmissionRecord = Object.freeze({
+    schemaVersion: 1,
+    status: "confirmed",
+    platform: evidence.platform,
+    problemExternalId: evidence.problemExternalId,
+    externalSubmissionId: evidence.externalSubmissionId,
+    confirmedAt: evidence.receivedAt,
+    storageKey: `${evidence.platform}:${evidence.externalSubmissionId}`,
+    lastE3At: evidence.receivedAt,
+  });
+  const recorded = recordConfirmedSubmission(currentConfirmed, record, now);
+  if (recorded.outcome === "already_finalized") return emptyOutcome(now);
+
+  const stableSubmissionId = `${evidence.platform}:${evidence.externalSubmissionId}`;
+  const requestLifecycles = transient.requestLifecycles.map((entry) =>
+    entry.evidence.requestId === event.matchedSubmitRequestId
+      ? Object.freeze({
+        ...entry,
+        outcome: "matched" as const,
+        stableSubmissionId,
+        rejectionReason: null,
+      })
+      : entry);
+  const nextSession = { ...transient, requestLifecycles };
+  const sessionOutcome = makeSessionOnlyOutcome(nextSession, session, now);
+  const outbox = readOutbox(local.captureOutbox);
+  const quarantine = readQuarantine(local.captureQuarantine);
+  const nextLocal: Record<string, unknown> = {
+    ...local,
+    confirmedSubmissions: recorded.state.confirmed,
+    confirmedSubmissionTombstones: recorded.state.tombstones,
+  };
+  const localOutcome = makeLocalOutcome(nextLocal, local, now, false, outbox, quarantine);
+  const replay = transient.unmatchedE3.find((entry) =>
+    `${entry.evidence.platform}:${entry.evidence.externalSubmissionId}` === stableSubmissionId);
+  if (replay !== undefined) {
+    const replayOutcome = handleE3Recorded(
+      { kind: "e3_recorded", evidence: replay.evidence },
+      nextLocal,
+      nextSession,
+      now,
+    );
+    return {
+      ...replayOutcome,
+      sessionWrites: mergeWrites(sessionOutcome.sessionWrites, replayOutcome.sessionWrites),
+    };
+  }
+  return {
+    ...localOutcome,
+    sessionWrites: sessionOutcome.sessionWrites,
+    sessionRemovals: sessionOutcome.sessionRemovals,
+  };
 }
 
 function handleMainBridgeCorrelated(
