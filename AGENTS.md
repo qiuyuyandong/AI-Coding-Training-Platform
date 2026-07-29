@@ -112,10 +112,32 @@
 
 # Agent Handoff Guide
 
-> **Status (2026-07-28):** **V4 infrastructure engineering PASS
-> (scope-reduced)** for Phase A Tasks A0-A12; **Phase B B0-B7 complete and
-> B8 terminally BLOCKED at real-result E3 ingress**; **formal V0 observation
-> blocked**. Phase 0 click-ingress stopgap (`2f4f5d8`
+> **Status (2026-07-29):** **V4 NowCoder E3 ingress engineering PASS**
+> on the uncommitted Tasks 0-6 worktree of
+> `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`.
+> Phase B B8's missing-E3 layer is fixed through a pure
+> `extension/src/contentIngress.ts` coordinator (closed 7-input / 5-effect
+> union, bounded 100 transient entries, no `chrome.*` / DOM / wall clock),
+> an idempotent `extension/src/contentBootstrap.ts` sentinel
+> (`installed | installing | inactive`), and
+> `extension/src/background.ts` self-healing
+> `chrome.scripting.executeScript` + `chrome.webNavigation`. Production-built
+> `extension/dist` proves the chain end-to-end on a fresh profile with
+> no characterization: real-Chrome Task 5 records one closed
+> `contentIngressReady` and one unmatched E3 with the exact URL
+> submission id; Task 6 records one bundle, one
+> `POST /api/capture/attempts`, and one SQLite training attempt.
+> `npm run quality:gate` exited 0 on 2026-07-29. **NowCoder remains
+> `experimental`**; the Phase B B8 `BLOCKED` verdict from
+> `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`
+> is superseded only for the missing-E3 ingress layer, every other
+> Phase B outcome remains authoritative, and adapter promotion
+> requires a separate reviewed decision.
+>
+> **Earlier V4 evidence (still authoritative for their own scope):**
+> V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12;
+> Phase B B0-B7 complete and B8 terminally BLOCKED at real-result E3 ingress;
+> formal V0 observation blocked. Phase 0 click-ingress stopgap (`2f4f5d8`
 > and earlier V3 repair work) remains historical evidence, not a
 > current acceptance anchor. Phase A0-A12 (`b3ec8cb` and the 12
 > follow-on commits through `0dc3fbf`) is the authoritative V4
@@ -124,9 +146,7 @@
 > worker-restart fail-closed, and exact safe transcript export;
 > independent privacy review APPROVED on 2026-07-27.
 > B4 safely characterized NowCoder; B5-B6 implemented the strict experimental
-> adapter; B7 proves the production-dist synthetic full chain. B8 observed
-> trusted E0, real E1/E2 and the matching public verdict, but no automatic E3,
-> bundle, delivery, or SQLite attempt. NowCoder remains experimental.
+> adapter; B7 proves the production-dist synthetic full chain.
 >
 > **Superseded V0 RC:** `b5166320768355666a5c4ff3f466c29c240ea8cf`
 > predates the domestic-OJ runtime changes and must not anchor
@@ -178,6 +198,34 @@
   `production`, while LeetCode, NowCoder, Codeforces, and Luogu remain
   `experimental`; NowCoder's V4 network policy is also `experimental`, while
   the other real platforms remain network-uncharacterized.
+- The V4 NowCoder E3 ingress repair (Tasks 0-6 of the
+  2026-07-29 plan, uncommitted working tree) adds:
+  - `extension/src/contentIngress.ts` — pure coordinator with a
+    closed 7-input / 5-effect union, exactresult route gate
+    (no trailing slash, synchronized with the existing E3 policy),
+    bounded 100-entry transient registry, and a closed
+    `CONTENT_RUNTIME_READY` value guard.
+  - `extension/src/contentBootstrap.ts` — three-state
+    `installed | installing | inactive` sentinel so a second
+    static or programmatic injection reannounces readiness but
+    cannot install another capture runtime, and a capture-disabled
+    install clears the sentinel.
+  - `extension/src/background.ts` self-healing
+    `chrome.scripting.executeScript` (with `world: "ISOLATED"`,
+    `target: { tabId, documentIds: [docId] }` when Chrome supplies
+    a document id, otherwise `frameIds: [0]`) driven by four
+    `chrome.webNavigation` listeners; `onStartup` and worker
+    initialization reconcile an already-open eligible result
+    tab via `reconcileOpenNowCoderResultTabs`.
+  - `extension/manifest.json` — `scripting` and `webNavigation`
+    permissions added; existing `content_scripts` matches and
+    per-host `host_permissions` unchanged. No `<all_urls>`, no
+    `tabs`, no `activeTab`, no `allFrames`.
+  - Closed control-plane persistence: `session.contentIngressReady`
+    (max 20) records ready handshakes observed by Task 5 only;
+    `session.contentIngressDiagnostics` (max 20) records
+    `injection_failed` reason codes only. Neither key enters
+    capture state.
 - V4 Phase A0-A12 (commits `7d6bf9e` through `b3ec8cb`, with review
   fix-up commits `9b81784`, `6401e17`, `30f3d73`, and the closeout
   `0dc3fbf`):
@@ -306,4 +354,15 @@ These are current implementation boundaries, not a permanent rejection of the ap
 - Phase A A11 integrates the new extension E2E lane into the canonical quality gate. `scripts/quality-gate.mjs` adds `npm run extension:e2e` as stage 7; the frozen `QUALITY_GATE_STAGES` array is now 9 stages. `.github/workflows/quality-gate.yml` is created as a local-only CI workflow with `permissions: contents: read`, `timeout-minutes: 20`, and `**` branch triggers. Independent review found and fixed 6 issues (HIGH npm ci / permissions, MEDIUM triggers / timeout, LOW docs accuracy / incorrect comment) in commit `6401e17`.
 - Phase A A12 reconciles the plan and produces the final closeout report. `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` now has per-task execution result blocks with commit SHA, verification command, and review findings. `work/reports/phase-a-final-closeout.md` is the dated closeout report. Independent review found and fixed 4 issues (HIGH verdict honesty, MEDIUM missing SHAs / dev-server claim, LOW module list) in commit `30f3d73`. Phase A verdict is `V4 infrastructure engineering PASS (scope-reduced)`: the framework engineering pass is complete and every authoritative gate command exits 0, but the full E2->E3->real-popup-pair->real-API->SQLite delivery probe and the worker-restart recovery probe remain out of Phase A scope.
 - Phase B B3 closes the NowCoder browse-only navigation witness at `b589776`. The four A-D lifecycle tests use CDP only to control the MV3 Worker, exact Fake OJ routes to load the production content script, and popup status/export as public recovery evidence. The strict two-E0 fixture and real observation remain in `tests/fixtures/nowcoder/network/nowcoder-browse-only-2026-07-27.json` and `work/reports/v4-nowcoder-b3-restart-safe-observation-2026-07-27.md`; no new user Chrome operation occurred. This is not a submission-protocol characterization, production promotion, RC, acceptance, release, or B4 authorization.
-- Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. V4 Phase 0 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`. V4 Phase A A0-A12 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` with verdict `V4 infrastructure engineering PASS (scope-reduced)`. Do not re-execute completed historical plans, resume formal V0 observation, or start V0.5 before the V4 gates permit it.
+- Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. V4 Phase 0 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`.   V4 Phase A A0-A12 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` with verdict `V4 infrastructure engineering PASS (scope-reduced)`. Do not re-execute completed historical plans, resume formal V0 observation, or start V0.5 before the V4 gates permit it.
+- V4 Phase B Tasks 0-6 of the NowCoder E3 ingress repair plan are complete
+  on a single uncommitted SHA. The plan
+  (`docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`)
+  records per-task PASS blocks with verification commands and
+  review-finding corrections; the closeout report
+  (`work/reports/v4-nowcoder-e3-ingress-repair-2026-07-29.md`)
+  documents the real-Chrome Tasks 5/6 evidence against the
+  production-built `extension/dist`. NowCoder remains `experimental`;
+  promotion requires a separate reviewed decision. Do not start
+  Phase C, V0 acceptance, V0.5 work, or push/PR operations until the
+  user authorizes the next gate.

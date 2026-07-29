@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   consumeVerdictCandidate,
@@ -10,6 +12,11 @@ import type {
   VerdictCandidateMessage,
 } from "@/extension/src/attemptCapture";
 import type { DetectedProblem } from "@/extension/src/platforms";
+import {
+  INITIAL_STATE,
+  isContentRuntimeReadyMessage,
+  reduceIngress,
+} from "@/extension/src/contentIngress";
 
 const problem: DetectedProblem = {
   platform: "atcoder",
@@ -40,6 +47,34 @@ const candidate: VerdictCandidateMessage["candidate"] = {
 };
 
 describe("V4 Phase 0 background message boundary", () => {
+  it("keeps the exact NowCoder result route in the production manifest", () => {
+    const manifest = JSON.parse(readFileSync(
+      resolve(process.cwd(), "extension", "manifest.json"),
+      "utf8",
+    )) as { readonly content_scripts?: readonly { readonly matches?: readonly string[] }[] };
+    expect(manifest.content_scripts?.[0]?.matches).toContain(
+      "https://ac.nowcoder.com/acm/contest/view-submission*",
+    );
+  });
+
+  it("treats the closed ready handshake as control plane, not capture state", () => {
+    const ready = { type: "CONTENT_RUNTIME_READY", schemaVersion: 1, purpose: "capture" };
+    expect(isContentRuntimeReadyMessage(ready)).toBe(true);
+    const result = reduceIngress(INITIAL_STATE, {
+      kind: "ready",
+      tabId: 1,
+      frameId: 0,
+      documentId: "document_1",
+    });
+    expect(result.effects).toEqual([{
+      type: "ready_record",
+      tabId: 1,
+      frameId: 0,
+      documentId: "document_1",
+    }]);
+    expect(result.state.committed.size).toBe(0);
+  });
+
   it("emits E0 instead of a click-created submission intent", () => {
     const runtime = createCaptureContentRuntime({
       detectProblem: () => problem,

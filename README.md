@@ -1,28 +1,40 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-28):** **V4 infrastructure engineering PASS
-> (scope-reduced)** for Phase A Tasks A0-A12. **Phase B is terminally
-> `BLOCKED` after B0-B7 completed and B8 partially observed.** Phase 0
-> click-ingress stopgap is complete: a qualifying UI click produces
-> only a bounded session-only E0 hint and cannot create waiting state,
-> an attempt bundle, or local API traffic. V3 click intents are removed
-> by an idempotent V4 migration, while completed outbox/quarantine items
-> and pairing state are preserved. Phase A0-A9 built the V4 evidence
-> core and Fake OJ matrix (31 passed / 1 known skip); A10 added the
-> disposable SQLite lifecycle + production extension E2E smoke test;
-> A11 integrated the new lane into the canonical nine-stage quality
-> gate; A12 reconciled the plan and produced the final closeout
-> report. Phase B B0-B2 delivered authorization contract, strict safe
-> transcript schema, and an independently-reviewed opt-in NowCoder
-> diagnostic mode with session-backed production ingress isolation,
-> fail-closed worker-restart, and exact B1-compatible export download;
-> B3 completed the browse-only witness; B4 safely characterized NowCoder;
-> B5-B6 added a strict experimental adapter; B7 passed eight production-dist
-> scenarios including API/SQLite delivery. B8 observed trusted E0, real E1/E2,
-> stable ID `84258557`, and the matching public final verdict, but the real
-> result document did not emit E3, so no bundle or SQLite attempt was created.
-> NowCoder therefore remains experimental. Final Phase B closeout:
-> `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`.
+> **Status (2026-07-29):** **V4 NowCoder E3 ingress engineering PASS** on
+> the uncommitted Tasks 0-6 worktree of
+> `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`.
+> The Phase B B8 missing-E3 layer is fixed through a pure
+> `extension/src/contentIngress.ts` coordinator, an idempotent
+> `extension/src/contentBootstrap.ts` sentinel, and
+> `extension/src/background.ts` self-healing
+> `chrome.scripting.executeScript` + `chrome.webNavigation`. Production-built
+> `extension/dist` proves the chain end-to-end on a fresh profile with no
+> characterization: real-Chrome Task 5 records one closed
+> `contentIngressReady` and one unmatched E3 with the exact URL submission id;
+> Task 6 records one bundle, one `POST /api/capture/attempts`, and one
+> SQLite training attempt. `npm run quality:gate` exited 0 on 2026-07-29
+> (lint clean, 92 files / 1919 unit tests / 1 pre-existing Windows skip,
+> typecheck, 25/25 E2E, `extension:check` 38 files / 1191 tests,
+> `extension:e2e` 47/47 on the second consecutive run, `build` PASS).
+> **NowCoder remains `experimental`**; promotion requires a separate
+> reviewed decision. The Phase B B8 `BLOCKED` verdict at
+> `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`
+> is superseded only for the missing-E3 layer; every other Phase B outcome
+> remains authoritative. Closeout report:
+> `work/reports/v4-nowcoder-e3-ingress-repair-2026-07-29.md`.
+>
+> **Earlier V4 evidence (still authoritative for their own scope):**
+> V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12;
+> Phase B B0-B7 complete and B8 terminally BLOCKED at real-result E3 ingress;
+> formal V0 observation blocked. Phase 0 click-ingress stopgap and V3
+> repair work remain historical evidence, not a current acceptance anchor.
+> Phase A0-A12 (`b3ec8cb` and the 12 follow-on commits through
+> `0dc3fbf`) is the authoritative V4 framework engineering pass. Phase B
+> B2 added an opt-in NowCoder diagnostic mode with session-backed
+> production ingress isolation, worker-restart fail-closed, and exact safe
+> transcript export; independent privacy review APPROVED on 2026-07-27.
+> B4 safely characterized NowCoder; B5-B6 implemented the strict
+> experimental adapter; B7 proves the production-dist synthetic full chain.
 >
 > **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
 > real temporary-repository cases for the strict two-commit release contract.
@@ -38,7 +50,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A is closed; Phase B reached a fail-closed `BLOCKED` terminal result after B0-B7 completed and B8 failed at real-result E3 ingress. NowCoder remains experimental for V4 network capture. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A is closed; V4 Phase B Tasks 0-6 close the missing-E3 ingress layer through engineering + real-Chrome observation, but NowCoder remains experimental for V4 network capture and adapter promotion. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 

@@ -18,19 +18,25 @@ import {
   isExtensionContextInvalidatedError,
   settleExtensionOperation,
 } from "@/extension/src/extensionOperation";
+import { bootstrapContentRuntime } from "@/extension/src/contentBootstrap";
+import { isExactNowCoderResultUrl } from "@/extension/src/contentIngress";
 
 const NAVIGATION_POLL_MS = 500;
 
-void run().catch((error: unknown) => {
+void bootstrapContentRuntime({
+  isolatedGlobal: globalThis,
+  install: run,
+  reannounceReady: sendContentRuntimeReady,
+}).catch((error: unknown) => {
   reportContentRuntimeError("[capture-v4] content runtime failed", error);
 });
 
-async function run(): Promise<void> {
+async function run(announceReady: () => void): Promise<boolean> {
   const contextResult: unknown = await chrome.runtime.sendMessage({
     type: "GET_CAPTURE_CONTEXT",
   });
   const parsedContext = CaptureRuntimeContextSchema.safeParse(contextResult);
-  if (!parsedContext.success || !parsedContext.data.captureEnabled) return;
+  if (!parsedContext.success || !parsedContext.data.captureEnabled) return false;
 
   const runtime: CaptureContentRuntime = createCaptureContentRuntime({
     detectProblem: () => detectProblemFromPage(window.location, document),
@@ -156,9 +162,29 @@ async function run(): Promise<void> {
   });
 
   contextGuard.run(() => {
+    announceReady();
     forwardMessages(runtime.start());
     startWatchers();
   });
+  return true;
+}
+
+function sendContentRuntimeReady(): void {
+  let current: URL;
+  try {
+    current = new URL(window.location.href);
+  } catch {
+    return;
+  }
+  if (!isExactNowCoderResultUrl(current)) return;
+  void settleExtensionOperation(
+    () => chrome.runtime.sendMessage({
+      type: "CONTENT_RUNTIME_READY",
+      schemaVersion: 1,
+      purpose: "capture",
+    }),
+    (error) => reportContentRuntimeError("[capture-v4] readiness was not delivered", error),
+  );
 }
 
 function sendCharacterizationNavigationWitness(): void {

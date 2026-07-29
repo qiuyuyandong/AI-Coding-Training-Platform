@@ -1,5 +1,73 @@
 # Current Handoff
 
+## Status (2026-07-29 V4 NowCoder E3 ingress engineering PASS)
+
+The Phase B B8 missing-E3 layer is repaired. The engineering block is
+closed on a single uncommitted SHA through Tasks 0-6 of
+`docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`
+with the closeout report at
+`work/reports/v4-nowcoder-e3-ingress-repair-2026-07-29.md`.
+
+- **Pure ingress coordinator** (`extension/src/contentIngress.ts`):
+  pure URL gate synchronized with the existing E3 policy
+  (no trailing slash), closed 7-input/5-effect reducer, bounded
+  transient registry (max 100), closed `CONTENT_RUNTIME_READY`
+  schema guard.
+- **Idempotent content bootstrap** (`extension/src/contentBootstrap.ts`):
+  three-state sentinel `installed | installing | inactive` so a
+  second injection can reannounce but not double-install, and a
+  capture-disabled install clears the sentinel.
+- **Self-healing background injection**
+  (`extension/src/background.ts`): registers
+  `chrome.webNavigation.{onCommitted,onCompleted,onHistoryStateUpdated,onErrorOccurred}`,
+  calls `chrome.scripting.executeScript` with `world: "ISOLATED"` and
+  `target: { tabId, documentIds: [docId] }` whenever Chrome
+  supplies a document id; `onStartup` and worker initialization
+  invoke `reconcileOpenNowCoderResultTabs` to recover an already-open
+  eligible result tab.
+- **Closed control-plane persistence** (never enters capture state):
+  `session.contentIngressReady` (max 20) records ready handshakes
+  observed by Task 5 only; `session.contentIngressDiagnostics`
+  (max 20) records `injection_failed` reason codes only.
+- **Manifest deltas**: `scripting` and `webNavigation` permissions
+  added; existing `content_scripts` matches and per-host
+  `host_permissions` unchanged. No `<all_urls>`, no `tabs`, no
+  `activeTab`, no `allFrames`.
+- **Real-Chrome observation (Task 5)**: fresh extension profile,
+  no characterization, no submit, direct navigation to
+  `https://ac.nowcoder.com/acm/contest/view-submission?submissionId=84258557`
+  observes exactly one `ready_record` and one unmatched E3 with the
+  expected `externalSubmissionId`/`problemExternalId`/`verdict`.
+  `confirmedSubmissions/outbox/quarantine` stay empty; default
+  `training-platform.sqlite` metadata unchanged.
+- **Real-Chrome full chain (Task 6)**: same SHA, paired with the
+  disposable local app: E0 → submit → status → E2 confirmation
+  (stable id `84258557`) → result page → ready handshake → E3 →
+  bundle → one `POST /api/capture/attempts` delivery → one SQLite
+  training attempt (+4 `capture_events`, +1 `training_session`,
+  +1 `training_attempt`). A subsequent reload of the delivered
+  result page does not duplicate the bundle or attempt.
+- **Authoritative `npm run quality:gate`**: exited 0 on 2026-07-29
+  (lint clean, disposable `db:migrate`, `curriculum:validate`
+  12 nodes / 13 edges / 12 resources / 12 practice mappings /
+  9 careers, `test` 92 files / 1919 passed / 1 pre-existing Windows
+  `EPERM` skip, `typecheck`, `e2e` 25/25, `extension:check` clean
+  with 38 files / 1191 tests, `extension:e2e` 47/47 on the second
+  consecutive run, `build` PASS).
+- **NowCoder remains `experimental`** for DOM and V4 network
+  readiness. Adapter promotion is **not** authorized by this
+  report and requires a separate reviewed decision.
+
+The Phase B B8 `BLOCKED` verdict in
+`work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`
+is superseded only for the missing-E3 layer; every other Phase B
+outcome recorded there remains authoritative.
+
+The current implementation commit on `feature/v1-followup` is
+`7bac19413992e7a987a3891190223628fb5b0803` (Phase B terminal
+state); the Tasks 0-6 worktree has not yet been committed. See
+"Branch / Worktree / SHA" further down for the staging state.
+
 ## Status (2026-07-28 V4 Phase B terminal BLOCKED)
 
 **V4 INFRASTRUCTURE ENGINEERING PASS (SCOPE-REDUCED) / FORMAL V0

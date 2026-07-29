@@ -142,6 +142,31 @@ test("mismatched final verdict cannot consume the confirmed submission", async (
   }
 });
 
+test("direct exact result creates one unmatched E3 without delivery", async ({
+  extensionContext,
+  extensionWorker,
+}) => {
+  const harness = await installNowCoderRoutes(extensionContext);
+  const page = await extensionContext.newPage();
+  try {
+    harness.setResultVerdict("答案错误");
+    await page.goto(nowCoderB7ResultUrl(SUBMISSION_ID), { waitUntil: "domcontentloaded" });
+    const storage = await pollUntilStorageMatches(
+      extensionWorker,
+      (snapshot) => snapshot.transientUnmatchedE3.length === 1,
+    );
+    expect(storage.confirmedSubmissions).toHaveLength(0);
+    expect(storage.captureOutbox).toHaveLength(0);
+    expect(storage.captureQuarantine).toHaveLength(0);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(250);
+    expect((await readFakeOjStorage(extensionWorker)).transientUnmatchedE3).toHaveLength(1);
+  } finally {
+    await page.close();
+  }
+});
+
 test("two concurrent submit candidates fail closed as ambiguous", async ({
   extensionContext,
   extensionWorker,

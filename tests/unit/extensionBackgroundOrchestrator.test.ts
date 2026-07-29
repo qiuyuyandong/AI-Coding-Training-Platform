@@ -1785,6 +1785,18 @@ interface FakeChrome {
     readonly onCompleted: { readonly addListener: (...args: readonly unknown[]) => void };
     readonly onErrorOccurred: { readonly addListener: (...args: readonly unknown[]) => void };
   };
+  readonly webNavigation: {
+    readonly onCommitted: { readonly addListener: (...args: readonly unknown[]) => void };
+    readonly onCompleted: { readonly addListener: (...args: readonly unknown[]) => void };
+    readonly onHistoryStateUpdated: { readonly addListener: (...args: readonly unknown[]) => void };
+    readonly onErrorOccurred: { readonly addListener: (...args: readonly unknown[]) => void };
+  };
+  readonly scripting: {
+    readonly executeScript: (...args: readonly unknown[]) => Promise<readonly unknown[]>;
+  };
+  readonly tabs: {
+    readonly query: (...args: readonly unknown[]) => Promise<readonly chrome.tabs.Tab[]>;
+  };
   // Diagnostic helpers.
   readonly getAlarm: (name: string) => chrome.alarms.Alarm | undefined;
   readonly alarmCreateCalls: ReadonlyArray<{
@@ -1876,6 +1888,18 @@ function createFakeChrome(
       onResponseStarted: { addListener: () => undefined },
       onCompleted: { addListener: () => undefined },
       onErrorOccurred: { addListener: () => undefined },
+    },
+    webNavigation: {
+      onCommitted: { addListener: () => undefined },
+      onCompleted: { addListener: () => undefined },
+      onHistoryStateUpdated: { addListener: () => undefined },
+      onErrorOccurred: { addListener: () => undefined },
+    },
+    scripting: {
+      executeScript: async () => [],
+    },
+    tabs: {
+      query: async () => [],
     },
     getAlarm: (name) => alarms.get(name),
     alarmCreateCalls,

@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-28 (V4 Phase B terminal closeout)
+Last updated: 2026-07-29 (V4 NowCoder E3 ingress engineering PASS)
 
 ## Overview
 
@@ -298,7 +298,68 @@ same-document candidate, decimal stable ID, exact result route, and closed
 verdict taxonomy. B7 proves the production dist through eight NowCoder
 scenarios, including restart and disposable API/SQLite delivery.
 
-B8 did not complete the real chain. It observed trusted E0, real E1/E2, stable
-ID `84258557`, and the matching public final verdict, but the real result
-document did not emit E3. Confirmed state remained fail-closed and SQLite stayed
-empty. NowCoder therefore remains experimental, not production.
+B8 observed trusted E0, real E1/E2, stable ID `84258557`, and the matching
+public final verdict, but the real result document did not emit E3 because
+the declarative content script did not run. The blocker was therefore
+upstream of verdict parsing and E3 correlation, not in the E3 policy
+itself. Confirmed state remained fail-closed and SQLite stayed empty.
+
+### Phase B E3 ingress repair (2026-07-29, Tasks 0-6)
+
+The Plan
+`docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`
+adds the missing content-ingress layer:
+
+- `extension/src/contentIngress.ts` (pure coordinator): closed
+  7-input / 5-effect reducer with `committed`, `completed`,
+  `history_state`, `startup`, `ready`, `injection_result`,
+  `cleanup` inputs and `inject`, `ready_record`, `ignored`,
+  `diagnostic`, `cleanup` effects. The URL gate accepts only
+  `https://ac.nowcoder.com/acm/contest/view-submission?submissionId=[0-9]{1,20}`
+  (no trailing slash — synchronized with
+  `extension/src/adapters/nowcoder/network.ts:readResultPageSubmissionId`).
+  Top-frame only (`frameId === 0`), `tabId >= 0`, document identity
+  preferred over synthesized `(tab, frame)` keys, transient registry
+  bounded at 100 entries. The `CONTENT_RUNTIME_READY` parser enforces
+  exactly three closed fields (`type`, `schemaVersion: 1`,
+  `purpose: "capture"`).
+- `extension/src/contentBootstrap.ts` (isolated-world guard):
+  three-state sentinel `installed | installing | inactive`. The second
+  static or programmatic injection reannounces ready but cannot install
+  another capture runtime. If `install()` returns `false` (capture
+  disabled), the sentinel is cleared and the state remains quiescent
+  until a later opt-in.
+- `extension/src/background.ts` (self-healing injection): registers
+  `chrome.webNavigation.{onCommitted,onCompleted,onHistoryStateUpdated,onErrorOccurred}`
+  listeners, calls `chrome.scripting.executeScript` with
+  `world: "ISOLATED"`, `files: ["content.js"]`, `injectImmediately: true`,
+  and prefers `target: { tabId, documentIds: [docId] }` whenever Chrome
+  supplies a document id (otherwise `frameIds: [0]`). The
+  `reconcileOpenNowCoderResultTabs` helper runs at worker initialization
+  and on `chrome.runtime.onStartup` to recover an already-open eligible
+  result tab.
+- Closed control-plane persistence (never enters capture state):
+  `session.contentIngressReady` (max 20 entries) records ready
+  handshakes observed by Task 5 only;
+  `session.contentIngressDiagnostics` (max 20 entries) records
+  `injection_failed` reason codes only. Both keys use a closed schema
+  validated through a dedicated reader.
+- `extension/manifest.json` adds `scripting` and `webNavigation`. The
+  static `content_scripts` matches and per-host `host_permissions`
+  are unchanged. No `<all_urls>`, no `tabs`, no `activeTab`, no
+  `allFrames`, no MAIN-world execution.
+
+Task 5 (`tests/extension-e2e/capture-v4-nowcoder-task5-real-observation.spec.ts`)
+and Task 6 (`tests/extension-e2e/capture-v4-nowcoder-task6-real-retest.spec.ts`)
+are fresh-profile Playwright bundled-Chromium tests against the
+production-built `extension/dist`. Task 5 observes one
+`contentIngressReady`, one unmatched E3 with the expected
+`externalSubmissionId`/`problemExternalId`/`verdict`, empty
+`confirmedSubmissions/outbox/quarantine`, and unchanged default
+`training-platform.sqlite` metadata. Task 6 observes the full E0 → E1 →
+E2 → E3 → bundle → `POST /api/capture/attempts` → SQLite training
+attempt chain and proves reload does not duplicate the bundle.
+
+NowCoder remains `experimental` for DOM and V4 network readiness; the
+adapter is engineering-ready but promotion requires a separate
+reviewed decision with broader real-platform evidence.

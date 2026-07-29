@@ -86,6 +86,14 @@ import {
   type OrchestratorState,
   type OrchestratorUserAction,
 } from "./backgroundOrchestrator";
+import {
+  INITIAL_STATE as INITIAL_INGRESS_STATE,
+  isContentRuntimeReadyMessage,
+  isExactNowCoderResultUrl,
+  reduceIngress,
+  type IngressCoordinatorState,
+  type IngressInput,
+} from "./contentIngress";
 
 const FLUSH_ALARM_NAME = "flushCaptureOutbox";
 const UI_HINT_CLEANUP_ALARM_NAME = "expireCaptureUiHints";
@@ -93,8 +101,13 @@ const CHARACTERIZATION_EXPIRY_ALARM_NAME = "expireNowCoderCharacterization";
 const WEBREQUEST_SPIKE_URL =
   "https://atcoder.jp/__capture_v4_webrequest_spike__/submit";
 const WEBREQUEST_SPIKE_MARKER_LIMIT = 8;
+const INGRESS_DIAGNOSTIC_KEY = "contentIngressDiagnostics";
+const INGRESS_DIAGNOSTIC_LIMIT = 20;
+const INGRESS_READY_KEY = "contentIngressReady";
+const INGRESS_READY_LIMIT = 20;
 let activeOutboxFlush: Promise<void> | undefined;
 let cachedSnapshot: OrchestratorState | undefined;
+let ingressState: IngressCoordinatorState = INITIAL_INGRESS_STATE;
 const characterizationClock = (): string => new Date().toISOString();
 
 /**
@@ -360,10 +373,208 @@ const initialization = (async (): Promise<void> => {
   }
   const effects = await orchestrator.install();
   await applyPersistence(effects);
+  await reconcileOpenNowCoderResultTabs();
 })();
 
 const executor = createSerializedWorkExecutor(initialization, (error) => {
   console.error("[capture-v4] operation failed", error);
+});
+
+function toIngressUrl(rawUrl: string): URL | undefined {
+  try {
+    const parsed = new URL(rawUrl);
+    return isExactNowCoderResultUrl(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function applyContentIngress(input: IngressInput): Promise<void> {
+  const reduced = reduceIngress(ingressState, input);
+  ingressState = reduced.state;
+  await persistIngressDiagnostics(reduced.effects);
+  await persistIngressReadyRecords(reduced.effects);
+  for (const effect of reduced.effects) {
+    if (effect.type !== "inject") continue;
+    try {
+      await chrome.scripting.executeScript({
+        target: effect.documentId === undefined
+          ? { tabId: effect.tabId, frameIds: [0] }
+          : { tabId: effect.tabId, documentIds: [effect.documentId] },
+        files: ["content.js"],
+        world: "ISOLATED",
+        injectImmediately: true,
+      });
+      const result = reduceIngress(ingressState, {
+        kind: "injection_result",
+        tabId: effect.tabId,
+        frameId: effect.frameId,
+        documentId: effect.documentId,
+        success: true,
+      });
+      ingressState = result.state;
+      await persistIngressDiagnostics(result.effects);
+    } catch {
+      const result = reduceIngress(ingressState, {
+        kind: "injection_result",
+        tabId: effect.tabId,
+        frameId: effect.frameId,
+        documentId: effect.documentId,
+        success: false,
+      });
+      ingressState = result.state;
+      await persistIngressDiagnostics(result.effects);
+    }
+  }
+}
+
+type IngressDiagnosticRecord = Readonly<{
+  readonly reason: "injection_failed";
+  readonly documentId: string | undefined;
+}>;
+
+function readIngressDiagnostics(value: unknown): readonly IngressDiagnosticRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((candidate): candidate is IngressDiagnosticRecord =>
+    typeof candidate === "object" && candidate !== null
+    && Reflect.get(candidate, "reason") === "injection_failed"
+    && (typeof Reflect.get(candidate, "documentId") === "string"
+      || Reflect.get(candidate, "documentId") === undefined));
+}
+
+async function persistIngressDiagnostics(
+  effects: readonly { readonly type: string; readonly reason?: string; readonly documentId?: string | undefined }[],
+): Promise<void> {
+  const diagnostics = effects.filter((effect) =>
+    effect.type === "diagnostic" && effect.reason === "injection_failed");
+  if (diagnostics.length === 0) return;
+  const stored = await chrome.storage.session.get([INGRESS_DIAGNOSTIC_KEY]);
+  const existing = readIngressDiagnostics(stored[INGRESS_DIAGNOSTIC_KEY]);
+  const appended: IngressDiagnosticRecord[] = diagnostics.map((effect) => ({
+    reason: "injection_failed",
+    documentId: effect.documentId,
+  }));
+  await chrome.storage.session.set({
+    [INGRESS_DIAGNOSTIC_KEY]: [...existing, ...appended].slice(-INGRESS_DIAGNOSTIC_LIMIT),
+  });
+}
+
+type IngressReadyRecord = Readonly<{
+  readonly reason: "ready_record";
+  readonly tabId: number;
+  readonly frameId: number;
+  readonly documentId: string | undefined;
+}>;
+
+function readIngressReadyRecords(value: unknown): readonly IngressReadyRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((candidate): candidate is IngressReadyRecord =>
+    typeof candidate === "object" && candidate !== null
+    && Reflect.get(candidate, "reason") === "ready_record"
+    && typeof Reflect.get(candidate, "tabId") === "number"
+    && typeof Reflect.get(candidate, "frameId") === "number"
+    && (typeof Reflect.get(candidate, "documentId") === "string"
+      || Reflect.get(candidate, "documentId") === undefined));
+}
+
+async function persistIngressReadyRecords(
+  effects: readonly { readonly type: string; readonly tabId?: number; readonly frameId?: number; readonly documentId?: string | undefined }[],
+): Promise<void> {
+  const records = effects.filter((effect) => effect.type === "ready_record"
+    && typeof effect.tabId === "number"
+    && typeof effect.frameId === "number") as readonly {
+      readonly type: "ready_record";
+      readonly tabId: number;
+      readonly frameId: number;
+      readonly documentId: string | undefined;
+    }[];
+  if (records.length === 0) return;
+  const stored = await chrome.storage.session.get([INGRESS_READY_KEY]);
+  const existing = readIngressReadyRecords(stored[INGRESS_READY_KEY]);
+  const appended: IngressReadyRecord[] = records.map((record) => ({
+    reason: "ready_record",
+    tabId: record.tabId,
+    frameId: record.frameId,
+    documentId: record.documentId,
+  }));
+  await chrome.storage.session.set({
+    [INGRESS_READY_KEY]: [...existing, ...appended].slice(-INGRESS_READY_LIMIT),
+  });
+}
+
+async function reconcileOpenNowCoderResultTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({
+    url: ["https://ac.nowcoder.com/acm/contest/view-submission*"],
+  });
+  for (const tab of tabs) {
+    if (typeof tab.id !== "number" || typeof tab.url !== "string") continue;
+    const url = toIngressUrl(tab.url);
+    if (url === undefined) continue;
+    await applyContentIngress({
+      kind: "startup",
+      url,
+      tabId: tab.id,
+      frameId: 0,
+      documentId: undefined,
+    });
+  }
+}
+
+chrome.webNavigation.onCommitted.addListener((details) => {
+  const url = toIngressUrl(details.url);
+  executor.schedule(async () => {
+    if (url === undefined) {
+      if (details.frameId === 0 && details.tabId >= 0) {
+        await applyContentIngress({ kind: "cleanup", tabId: details.tabId });
+      }
+      return;
+    }
+    await applyContentIngress({
+      kind: "committed",
+      url,
+      tabId: details.tabId,
+      frameId: details.frameId,
+      documentId: details.documentId,
+    });
+  });
+});
+
+chrome.webNavigation.onCompleted.addListener((details) => {
+  const url = toIngressUrl(details.url);
+  if (url === undefined) return;
+  executor.schedule(async () => {
+    await applyContentIngress({
+      kind: "completed",
+      url,
+      tabId: details.tabId,
+      frameId: details.frameId,
+      documentId: details.documentId,
+    });
+  });
+});
+
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+  const url = toIngressUrl(details.url);
+  if (url === undefined) return;
+  executor.schedule(async () => {
+    await applyContentIngress({
+      kind: "history_state",
+      url,
+      tabId: details.tabId,
+      frameId: details.frameId,
+      documentId: details.documentId,
+    });
+  });
+});
+
+chrome.webNavigation.onErrorOccurred.addListener((details) => {
+  executor.schedule(async () => {
+    await applyContentIngress({
+      kind: "cleanup",
+      documentId: details.documentId,
+      tabId: details.tabId,
+    });
+  });
 });
 
 chrome.webRequest.onBeforeRequest.addListener(
@@ -641,6 +852,7 @@ chrome.runtime.onStartup.addListener(() => {
     await flushOutbox();
     await scheduleUiHintCleanupAlarmFromSession();
     await scheduleCharacterizationExpiry(session);
+    await reconcileOpenNowCoderResultTabs();
   });
 });
 
@@ -652,6 +864,27 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     executor.schedule(async () => {
       // B3 transition: get -> validate -> transition -> save (serialized)
       await applyB3NavigationWitness(sanitized.pageClass, sanitized.documentId, sanitized.tabId, receivedAt);
+    });
+    return false;
+  }
+  if (isContentRuntimeReadyMessage(message)) {
+    const url = typeof sender.url === "string" ? toIngressUrl(sender.url) : undefined;
+    const senderTabId = sender.tab?.id;
+    if (url === undefined || typeof senderTabId !== "number"
+      || typeof sender.frameId !== "number" || typeof sender.documentId !== "string") {
+      return false;
+    }
+    const senderFrameId = sender.frameId;
+    const senderDocumentId = sender.documentId;
+    executor.schedule(async () => {
+      // The closed ready payload carries no page-derived fields. Chrome owns
+      // the sender identity and URL used to admit this control-plane record.
+      await applyContentIngress({
+        kind: "ready",
+        tabId: senderTabId,
+        frameId: senderFrameId,
+        documentId: senderDocumentId,
+      });
     });
     return false;
   }

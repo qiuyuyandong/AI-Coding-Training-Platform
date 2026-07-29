@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-28 (V4 Phase B terminal closeout)
+Last updated: 2026-07-29 (V4 NowCoder E3 ingress engineering PASS)
 
 ## Setup
 
@@ -56,7 +56,7 @@ Capture protocol V4 Phase 0 creates no result for page lifecycle activity or a c
 
 Outbox delivery is serialized by bundle. Network errors and 401/403 preserve every bundle and stop the current drain. A 400/409/413/415 isolates only that bundle and continues; repeated 500 responses move that bundle to quarantine at the retry cap. The popup can retry or delete an isolated item and clears outbox and quarantine only through separate confirmed actions. Capacity failures are visible and never evict older results.
 
-The supported domestic problem routes are `leetcode.cn/problems/<slug>`, `www.nowcoder.com/practice/<id>`, `ac.nowcoder.com/acm/problem/<id>`, and `www.luogu.com.cn/problem/<id>`. Exact result routes are also injected for passive detection: LeetCode `/problems/<slug>/submissions/<digits>/` and `/submissions/detail/<digits>/`, NowCoder `/acm/contest/view-submission?submissionId=<digits>`, and Luogu `/record/<digits>`. LeetCode may restore `/problems/<slug>/` while retaining the selected submission-detail tab; that surface is accepted only when it is the unique visible selected tab in the first-party tabbar and contains a recognized final verdict. Duplicate identical verdict panes are collapsed, conflicts are rejected, and transient labels such as `提交详情` remain pending. Runtime checks reject malformed IDs, extra query/hash data, spoofed hosts, ambiguous anchors, and hidden or overlong title text. Sanitized `authenticated-characterization` fixtures cover LeetCode AC, NowCoder AC, and Luogu AC/Compile Error; they never certify production.
+The supported domestic problem routes are `leetcode.cn/problems/<slug>`, `www.nowcoder.com/practice/<id>`, `ac.nowcoder.com/acm/problem/<id>`, and `www.luogu.com.cn/problem/<id>`. Exact result routes are also injected for passive detection: LeetCode `/problems/<slug>/submissions/<digits>/` and `/submissions/detail/<digits>/`, NowCoder `/acm/contest/view-submission?submissionId=<digits>`, and Luogu `/record/<digits>`. The NowCoder E3 ingress gate additionally requires the exact pathname without a trailing slash, an `https://` origin, no credentials, no non-default port, no hash, exactly one `submissionId` query key with `[0-9]{1,20}` decimal digits, and the top frame; the gate lives in `extension/src/contentIngress.ts:isExactNowCoderResultUrl` and the producer in `extension/src/background.ts:applyContentIngress`. LeetCode may restore `/problems/<slug>/` while retaining the selected submission-detail tab; that surface is accepted only when it is the unique visible selected tab in the first-party tabbar and contains a recognized final verdict. Duplicate identical verdict panes are collapsed, conflicts are rejected, and transient labels such as `提交详情` remain pending. Runtime checks reject malformed IDs, extra query/hash data, spoofed hosts, ambiguous anchors, and hidden or overlong title text. Sanitized `authenticated-characterization` fixtures cover LeetCode AC, NowCoder AC, and Luogu AC/Compile Error; they never certify production.
 
 On V4 initialization, authoritative V4 state and the click-intent migration audit are written before `pendingSubmissionIntents` is removed. No V3 intent becomes a confirmed submission. Existing completed outbox, quarantine, pairing, endpoint, installation, and earlier migration state is preserved. The earlier V3 migration of the pre-bundle `eventQueue` remains historical and is not rerun or reinterpreted. Neither migration modifies server records.
 
@@ -146,9 +146,24 @@ traffic or enable automatic network-confirmed capture.
 The B7 NowCoder lane is `tests/extension-e2e/capture-v4-nowcoder.spec.ts`.
 It contains eight production-dist scenarios and owns a disposable Next server
 and SQLite database. Passing this lane proves automated experimental behavior,
-not a real-platform release. The B8 real observation remains blocked at
-result-page E3 ingress; see
-`work/reports/v4-nowcoder-b8-same-build-observation-2026-07-28.md`.
+not a real-platform release.
+
+The Phase B E3 ingress repair lives in
+`tests/extension-e2e/capture-v4-nowcoder-task5-real-observation.spec.ts`
+(Task 5: fresh-profile real history-open ingress) and
+`tests/extension-e2e/capture-v4-nowcoder-task6-real-retest.spec.ts`
+(Task 6: same-build fresh full-chain real retest). Both run with the
+production-built `extension/dist`, a brand-new Chromium user-data
+directory per test, the disposable Next server paired through
+`/api/capture/pairing-codes`, and the global-setup-managed
+disposable SQLite at `.tmp/capture-v4-full-chain-*/`. They prove
+engineering evidence for the missing-E3 layer; NowCoder remains
+`experimental`. Run them with:
+
+```powershell
+npm run extension:e2e -- tests/extension-e2e/capture-v4-nowcoder-task5-real-observation.spec.ts
+npm run extension:e2e -- tests/extension-e2e/capture-v4-nowcoder-task6-real-retest.spec.ts
+```
 
 The `scripts/a10-bootstrap.mjs` helper is a reusable, idempotent
 bootstrap that pre-creates the disposable SQLite, runs migrations, and
