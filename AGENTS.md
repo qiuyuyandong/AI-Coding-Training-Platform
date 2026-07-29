@@ -113,8 +113,8 @@
 # Agent Handoff Guide
 
 > **Status (2026-07-29):** **V4 NowCoder E3 ingress engineering PASS**
-> on the uncommitted Tasks 0-6 worktree of
-> `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`.
+> on commit `c26c578` (Tasks 0-6 of
+> `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`).
 > Phase B B8's missing-E3 layer is fixed through a pure
 > `extension/src/contentIngress.ts` coordinator (closed 7-input / 5-effect
 > union, bounded 100 transient entries, no `chrome.*` / DOM / wall clock),
@@ -199,7 +199,7 @@
   `experimental`; NowCoder's V4 network policy is also `experimental`, while
   the other real platforms remain network-uncharacterized.
 - The V4 NowCoder E3 ingress repair (Tasks 0-6 of the
-  2026-07-29 plan, uncommitted working tree) adds:
+  2026-07-29 plan, committed at `c26c578`) adds:
   - `extension/src/contentIngress.ts` — pure coordinator with a
     closed 7-input / 5-effect union, exactresult route gate
     (no trailing slash, synchronized with the existing E3 policy),
@@ -356,7 +356,7 @@ These are current implementation boundaries, not a permanent rejection of the ap
 - Phase B B3 closes the NowCoder browse-only navigation witness at `b589776`. The four A-D lifecycle tests use CDP only to control the MV3 Worker, exact Fake OJ routes to load the production content script, and popup status/export as public recovery evidence. The strict two-E0 fixture and real observation remain in `tests/fixtures/nowcoder/network/nowcoder-browse-only-2026-07-27.json` and `work/reports/v4-nowcoder-b3-restart-safe-observation-2026-07-27.md`; no new user Chrome operation occurred. This is not a submission-protocol characterization, production promotion, RC, acceptance, release, or B4 authorization.
 - Phase 0 AtCoder production certification (T1–T8) executed on 2026-07-16 to 2026-07-17 and completed. AtCoder is the sole production adapter. Phase 0 is green. F1–F4 final verification (plan compliance, code quality/security, hands-on QA, scope/docs fidelity) all APPROVE on 2026-07-17 against commit `45cdd92a161f27622dbe5706a805eab523220910`; no blockers; no required fixes. The user explicitly accepted the Phase 0 verification result on 2026-07-17. Phase 0 is technically verified, documented, and accepted. V4 Phase 0 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`.   V4 Phase A A0-A12 is complete through `docs/superpowers/plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-a-evidence-core-extension-e2e.md` with verdict `V4 infrastructure engineering PASS (scope-reduced)`. Do not re-execute completed historical plans, resume formal V0 observation, or start V0.5 before the V4 gates permit it.
 - V4 Phase B Tasks 0-6 of the NowCoder E3 ingress repair plan are complete
-  on a single uncommitted SHA. The plan
+  on the single committed SHA `c26c578`. The plan
   (`docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`)
   records per-task PASS blocks with verification commands and
   review-finding corrections; the closeout report

@@ -1,8 +1,8 @@
 # AI Coding Training Platform
 
 > **Status (2026-07-29):** **V4 NowCoder E3 ingress engineering PASS** on
-> the uncommitted Tasks 0-6 worktree of
-> `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`.
+> commit `c26c578` (Tasks 0-6 of
+> `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`).
 > The Phase B B8 missing-E3 layer is fixed through a pure
 > `extension/src/contentIngress.ts` coordinator, an idempotent
 > `extension/src/contentBootstrap.ts` sentinel, and

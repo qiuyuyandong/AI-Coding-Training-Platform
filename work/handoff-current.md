@@ -63,10 +63,13 @@ The Phase B B8 `BLOCKED` verdict in
 is superseded only for the missing-E3 layer; every other Phase B
 outcome recorded there remains authoritative.
 
-The current implementation commit on `feature/v1-followup` is
-`7bac19413992e7a987a3891190223628fb5b0803` (Phase B terminal
-state); the Tasks 0-6 worktree has not yet been committed. See
-"Branch / Worktree / SHA" further down for the staging state.
+The current implementation commit on `feature/v1-followup` for the
+missing-E3 ingress layer fix is
+`c26c57859b9e330c42d2586c4fb1f0366d2186ea`. The Phase B terminal
+state commit `7bac19413992e7a987a3891190223628fb5b0803` is preserved
+as the historical BLOCKED closeout point. The missing-E3 layer
+supersede is documented in
+`work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-29-supersede.md`.
 
 ## Status (2026-07-28 V4 Phase B terminal BLOCKED)
 
