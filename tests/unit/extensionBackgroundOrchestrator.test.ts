@@ -5,8 +5,7 @@
  * suite pins its public contract:
  *
  *  - E1 leaves waiting / outbox / confirmed unchanged.
- *  - `v3_verdict_observed` with a matching V3 intent creates one outbox item
- *    and bumps `sessionCount`; the same payload twice is idempotent.
+ *  - no orchestrator event can create or consume V3 click-derived intent.
  *  - `CLEAR_CAPTURE_OUTBOX` empties the outbox and clears `lastCaptureError`.
  *  - A fresh orchestrator instance reading the same storage sees the durable
  *    outbox / confirmed / tombstones while losing the transient E1 slice.
@@ -54,16 +53,6 @@ const baseIntentDraft: PendingSubmissionIntent = {
   submissionId: "submission_test",
   occurredAt: "2026-07-24T00:00:00.000Z",
   status: "active",
-  sourceDocumentId: "doc_test",
-};
-
-const baseCandidate: VerdictCandidateMessage["candidate"] = {
-  installationId,
-  platform: "atcoder",
-  problemExternalId: "abc100_a",
-  verdict: "Accepted",
-  observedAt: "2026-07-24T00:01:00.000Z",
-  transitionEvidence: "same_document_transition",
   sourceDocumentId: "doc_test",
 };
 
@@ -356,87 +345,6 @@ describe("background orchestrator", () => {
     expect(effects.persistence.quarantine).toEqual([]);
     expect(effects.executorSchedule).toEqual([]);
     expect(effects.state.e1LifecycleCount).toBe(1);
-  });
-
-  it("creates one outbox item for v3 verdict with matching intent and bumps sessionCount", async () => {
-    // Pre-set installationId so install preserves it; the V3 candidate and
-    // intent then match the orchestrator's installation identity.
-    const storage = storageSpy({ local: { installationId } });
-    const orchestrator = createBackgroundOrchestrator(orchestratorDeps(storage));
-    const installEffects = await orchestrator.install();
-    // Background is the sole writer; simulate its single round of writes so
-    // durable reads reflect the orchestrator's install plan.
-    await applyEffectsToStorage(storage, installEffects);
-    // The V4 migration removes pendingSubmissionIntents on first install. Add
-    // a fresh V3 intent AFTER install so the verdict observer has a target.
-    await storage.local.set({
-      pendingSubmissionIntents: [baseIntentDraft],
-      captureCredential: "capture_paired_credential",
-    });
-
-    const intentEffects = await orchestrator.apply({
-      kind: "v3_submission_intent_recorded",
-      draft: baseIntentDraft,
-      sourceDocumentId: "doc_test",
-    });
-    await applyEffectsToStorage(storage, intentEffects);
-    expect(intentEffects.state.outboxCount).toBe(0);
-    expect(intentEffects.state.waitingCount).toBe(0);
-    expect(intentEffects.state.waiting).toBe(false);
-
-    const effects = await orchestrator.apply({
-      kind: "v3_verdict_observed",
-      candidate: baseCandidate,
-    });
-    await applyEffectsToStorage(storage, effects);
-    expect(effects.state.outboxCount).toBe(1);
-    expect(effects.state.finalizedCount).toBe(0);
-    expect(effects.state.sessionCount).toBe(1);
-    expect(effects.state.waitingCount).toBe(1);
-    expect(effects.state.waiting).toBe(true);
-    expect(effects.persistence.outbox).toHaveLength(1);
-    expect(effects.executorSchedule.map((work) => work.id)).toContain("flush_outbox");
-    expect(effects.persistence.outbox[0]?.bundle.bundleId).toBe("bundle_submission_test");
-    expect(effects.persistence.outbox[0]?.bundle.events.map((event) => event.type)).toEqual([
-      "SESSION_STARTED",
-      "SUBMISSION_OBSERVED",
-      "VERDICT_OBSERVED",
-      "SESSION_ENDED",
-    ]);
-
-    const durable = await storage.local.get(["captureOutbox", "pendingSubmissionIntents"]);
-    expect(durable.captureOutbox).toHaveLength(1);
-    const activeIntents = (Array.isArray(durable.pendingSubmissionIntents)
-      ? durable.pendingSubmissionIntents
-      : []).filter((intent: { readonly status?: string }) => intent.status === "active");
-    expect(activeIntents).toEqual([]);
-  });
-
-  it("does not duplicate outbox when v3 verdict is applied twice with the same payload", async () => {
-    const storage = storageSpy({ local: { installationId } });
-    const orchestrator = createBackgroundOrchestrator(orchestratorDeps(storage));
-    await orchestrator.install();
-    await storage.local.set({
-      pendingSubmissionIntents: [baseIntentDraft],
-      captureCredential: "capture_paired_credential",
-    });
-    await orchestrator.apply({
-      kind: "v3_submission_intent_recorded",
-      draft: baseIntentDraft,
-      sourceDocumentId: "doc_test",
-    });
-
-    const first = await orchestrator.apply({
-      kind: "v3_verdict_observed",
-      candidate: baseCandidate,
-    });
-    const second = await orchestrator.apply({
-      kind: "v3_verdict_observed",
-      candidate: { ...baseCandidate, observedAt: "2026-07-24T00:01:30.000Z" },
-    });
-    expect(first.state.outboxCount).toBe(1);
-    expect(second.state.outboxCount).toBe(1);
-    expect(first.persistence.outbox[0]?.id).toBe(second.persistence.outbox[0]?.id);
   });
 
   it("returns a fresh popup-cache snapshot after CLEAR_CAPTURE_OUTBOX", async () => {
@@ -927,6 +835,48 @@ describe("background orchestrator", () => {
     expect(effects.persistence.tombstones).toHaveLength(1);
     expect(effects.persistence.confirmed).toEqual([]);
     expect(effects.persistence.transientE1).toEqual([]);
+  });
+
+  it("ignores a duplicate E3 once the durable tombstone proves finalization", async () => {
+    const priorConfirmed: ConfirmedSubmissionRecord = {
+      schemaVersion: 1,
+      status: "confirmed",
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      externalSubmissionId: "submission_42",
+      confirmedAt: "2026-07-24T00:00:00.000Z",
+      storageKey: "leetcode:submission_42",
+      lastE3At: "2026-07-24T00:00:00.000Z",
+    };
+    const storage = storageSpy({
+      local: {
+        captureProtocolVersion: 4,
+        installationId,
+        captureCredential: "capture_paired_credential",
+        confirmedSubmissions: [priorConfirmed],
+        confirmedSubmissionTombstones: [],
+      },
+      session: {
+        uiHints: [],
+        transientE1: [],
+        transientPageContexts: [],
+        transientUnmatchedE3: [],
+        transientAmbiguityDiagnostics: [],
+      },
+    });
+    const orchestrator = createBackgroundOrchestrator(
+      orchestratorDeps(storage, "2026-07-24T00:00:04.000Z"),
+    );
+
+    const finalized = await orchestrator.apply({ kind: "e3_recorded", evidence: baseE3 });
+    await applyEffectsToStorage(storage, finalized);
+    const duplicate = await orchestrator.apply({ kind: "e3_recorded", evidence: baseE3 });
+    await applyEffectsToStorage(storage, duplicate);
+
+    expect(duplicate.persistence.session).toEqual([]);
+    expect(duplicate.persistence.unmatchedFinals).toEqual([]);
+    const stored = await storage.session.get(["transientUnmatchedE3"]);
+    expect(stored.transientUnmatchedE3).toEqual([]);
   });
 
   it("preserves an E2 match through a later completed lifecycle and still correlates with E3", async () => {

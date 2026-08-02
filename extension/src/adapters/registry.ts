@@ -3,15 +3,20 @@
  *
  * Owns the single source of truth for `PLATFORM_ADAPTERS`. Adapters
  * preserve existing DOM-evidence selectors and extractors; the V4
- * network status stays "uncharacterized" for every platform until
- * real OJ characterization runs in a later phase. No adapter carries
- * a `networkPolicy` yet.
+ * network status stays "uncharacterized" until characterization justifies a
+ * candidate policy. `candidate` means implemented and automatically testable
+ * but not yet successful in a same-build real observation; it is not a
+ * terminal readiness result.
  */
 
 import {
   type Platform,
   type PlatformAdapterRecord,
 } from "@/extension/src/adapters/contract";
+import {
+  LEETCODE_NETWORK_ADAPTER_VERSION,
+  LEETCODE_NETWORK_POLICY,
+} from "@/extension/src/adapters/leetcode/network";
 import { extractLeetCodeVerdictText } from "@/extension/src/adapters/leetcode/verdict";
 import { extractLuoguRecordRowText } from "@/extension/src/adapters/luogu/verdict";
 import {
@@ -25,8 +30,8 @@ export const PLATFORM_ADAPTERS = {
     platform: "leetcode",
     label: "LeetCode",
     status: "experimental",
-    v4NetworkStatus: "uncharacterized",
-    version: "v4-contract-1",
+    v4NetworkStatus: "experimental",
+    version: LEETCODE_NETWORK_ADAPTER_VERSION,
     hostOwnership: ["leetcode.com", "leetcode.cn"],
     // The legacy authenticated fixture uses submission-result. The
     // current problem-scoped result page uses duplicate console-result
@@ -35,12 +40,13 @@ export const PLATFORM_ADAPTERS = {
     // conflicting panes.
     selectors: ['[data-e2e-locator="submission-result"]'],
     extractor: extractLeetCodeVerdictText,
+    networkPolicy: LEETCODE_NETWORK_POLICY,
   },
   codeforces: {
     platform: "codeforces",
     label: "Codeforces",
     status: "experimental",
-    v4NetworkStatus: "uncharacterized",
+    v4NetworkStatus: "blocked",
     version: "v4-contract-1",
     hostOwnership: ["codeforces.com"],
     selectors: [".status-cell", "td.status-small", ".verdict-accepted"],
@@ -49,7 +55,7 @@ export const PLATFORM_ADAPTERS = {
     platform: "atcoder",
     label: "AtCoder",
     status: "production",
-    v4NetworkStatus: "uncharacterized",
+    v4NetworkStatus: "blocked",
     version: "v4-contract-1",
     hostOwnership: ["atcoder.jp"],
     selectors: ["#judge-status"],
@@ -74,7 +80,7 @@ export const PLATFORM_ADAPTERS = {
     platform: "luogu",
     label: "Luogu",
     status: "experimental",
-    v4NetworkStatus: "uncharacterized",
+    v4NetworkStatus: "blocked",
     version: "v4-contract-1",
     hostOwnership: ["www.luogu.com.cn"],
     // Luogu records expose verdict text inside an unlabeled semantic

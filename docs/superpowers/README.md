@@ -1,7 +1,35 @@
 # Superpowers Documentation Index
 
-> **Status (2026-07-28):** **V4 Phase 0 click-ingress stopgap, Phase A
-> A0-A12, and Phase B B0-B7 are complete; B8 is terminally BLOCKED.** A
+> **Status (2026-08-02):** **V4 Phase C C0-C5 engineering work is complete**
+> on the uncommitted `feature/v1-followup` working tree. C1 LeetCode is
+> network-`V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are
+> network-`V4_BLOCKED`; NowCoder remains network-`experimental`. C5 proves
+> adapter ownership, namespaced identity, durable-state isolation, terminal
+> readiness coverage, and removes the reachable V3 click-derived pending
+> fallback. Historical AtCoder DOM production certification is unchanged.
+> **Phase C Task C1 LeetCode remains `V4_EXPERIMENTAL`** on the uncommitted
+> `feature/v1-followup` working
+> tree. Adapter `v4-leetcode-network-6` completed the user's same-build
+> LeetCode.cn submission `cn/739108591`, final verdict, paired API delivery,
+> and disposable SQLite projection. C1's readiness CLI, 2009 runnable unit
+> tests, 25 app E2E, 1261 extension tests, 48 runnable extension E2E, and
+> production build pass; one Windows capability test and one known extension
+> harness case remain explicitly skipped. Authenticated evidence caps
+> LeetCode at experimental. Luogu Revision 3 was approved and executed; its
+> different-document submit/record observation is terminally blocked. Any
+> blocked-platform retry requires a separately reviewed browser-owned bridge
+> or platform-protocol change.
+>
+> **Earlier V4 evidence (still authoritative for their own scope):**
+> V4 Phase 0 click-ingress stopgap, Phase A A0-A12, Phase B B0-B7, and
+> the B8 missing-E3 layer closed on `c26c578` (Tasks 0-6 of
+> `plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`).
+> The Phase B B8 terminal BLOCKED verdict from
+> `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`
+> is superseded only for the missing-E3 ingress layer; every other
+> Phase B outcome remains authoritative. NowCoder remains `experimental`;
+> promotion requires a separate reviewed decision. Phase A0-A12 is
+> the authoritative V4 framework engineering pass. A
 > NowCoder browse-only false positive exposed that V3 can create waiting state
 > from a qualifying click without server confirmation. Formal V0 observation,
 > replacement-RC work, same-SHA F1–F4, and acceptance are blocked until the V4
@@ -40,11 +68,33 @@ This directory contains both active product planning and historical implementati
 
 The completed B3 lifecycle record is
 [`plans/2026-07-27-v4-phase-b-b3-restart-safe-navigation-witness.md`](plans/2026-07-27-v4-phase-b-b3-restart-safe-navigation-witness.md).
-It proves the browse-only witness. The terminal Phase B result is recorded in
-`../../work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`.
+It proves the browse-only witness. The B8 missing-E3 layer is closed at
+`c26c578`; the terminal Phase B report remains at
+`../../work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`
+(superseded only for the missing-E3 layer). NowCoder remains
+`experimental`; promotion requires a separate reviewed decision.
 
-Phase C is not authorized by the Phase B BLOCKED result. Formal V0 observation
-remains blocked; V0.5 stays out of scope.
+Phase C-D is governed by the C0 readiness contract
+(`../architecture.md` Phase C-D section; validator suite +
+`scripts/validate-v4-adapter-readiness.mjs --all`). The C1 LeetCode
+delta plan reaches terminal `V4_EXPERIMENTAL` at
+[`plans/2026-07-30-v4-leetcode-network-capture-migration.md`](plans/2026-07-30-v4-leetcode-network-capture-migration.md)
+with closeout evidence at
+[`../../work/reports/v4-leetcode-c1-closeout-2026-07-30.md`](../../work/reports/v4-leetcode-c1-closeout-2026-07-30.md).
+C2's independent AtCoder delta plan closes terminally `V4_BLOCKED`, with
+authoritative evidence at
+[`../../work/reports/v4-atcoder-c2-blocker-2026-08-02.md`](../../work/reports/v4-atcoder-c2-blocker-2026-08-02.md).
+C3's independent Codeforces delta plan also closes terminally `V4_BLOCKED`,
+with authoritative evidence at
+[`../../work/reports/v4-codeforces-c3-blocker-2026-08-02.md`](../../work/reports/v4-codeforces-c3-blocker-2026-08-02.md).
+C4's approved delta plan Revision 3 is
+[`plans/2026-08-02-v4-luogu-network-capture-migration.md`](plans/2026-08-02-v4-luogu-network-capture-migration.md)
+and closes terminally `V4_BLOCKED`, with evidence at
+[`../../work/reports/v4-luogu-c4-blocker-2026-08-02.md`](../../work/reports/v4-luogu-c4-blocker-2026-08-02.md).
+C5 closes Phase C isolation/scaffolding work, with evidence at
+[`../../work/reports/v4-phase-c-c5-closeout-2026-08-02.md`](../../work/reports/v4-phase-c-c5-closeout-2026-08-02.md).
+D1-D5 remain gated. Formal V0
+observation remains blocked; V0.5 stays out of scope.
 The total product target is **Phase 7 / Public Beta hosted SaaS**.
 
 ## Completed Phase 0 records

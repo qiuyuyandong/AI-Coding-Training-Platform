@@ -7,7 +7,6 @@ import type {
   CaptureOutboxItem,
   CaptureQuarantineItem,
 } from "./attemptStorage";
-import type { PendingSubmissionIntent } from "./attemptCapture";
 import { CaptureProvenanceLevelSchema } from "@/lib/domain/captureCredential";
 import {
   readConfirmedSubmissionState,
@@ -43,7 +42,6 @@ export type ExtensionInitializationPlan = {
   readonly captureEnabled: boolean;
   readonly captureEndpoint: string;
   readonly captureProtocolVersion: 4;
-  readonly pendingSubmissionIntents: readonly PendingSubmissionIntent[];
   readonly transientSessionEvidence: TransientSessionEvidenceState | undefined;
   readonly confirmedSubmissions: readonly ConfirmedSubmissionRecord[];
   readonly confirmedSubmissionTombstones: readonly ConfirmedSubmissionTombstone[];
@@ -121,15 +119,13 @@ export function planExtensionInitialization(
     ? readNonemptyString(stored.preBundleQueueDiscardedAt)
     : options.now;
   const pendingSubmissionIntents = Array.isArray(stored.pendingSubmissionIntents)
-    ? (stored.pendingSubmissionIntents as readonly PendingSubmissionIntent[])
+    ? stored.pendingSubmissionIntents
     : [];
   const v4ClickIntentMigration = isV4
     ? readV4ClickIntentMigration(stored.v4ClickIntentMigration)
     : isV3
       ? {
-          removedActiveIntentCount: pendingSubmissionIntents.filter(
-            (intent) => intent.status === "active",
-          ).length,
+          removedActiveIntentCount: pendingSubmissionIntents.filter(isActiveLegacyIntent).length,
           migratedAt: options.now,
           sourceProtocolVersion: 3 as const,
           targetProtocolVersion: CAPTURE_PROTOCOL_VERSION,
@@ -145,7 +141,6 @@ export function planExtensionInitialization(
       stored.captureEndpoint ?? DEFAULT_CAPTURE_ENDPOINT,
     ),
     captureProtocolVersion: CAPTURE_PROTOCOL_VERSION,
-    pendingSubmissionIntents: [],
     transientSessionEvidence: isV4 ? readTransientSessionEvidenceState(stored) : undefined,
     confirmedSubmissions: confirmed.confirmed,
     confirmedSubmissionTombstones: confirmed.tombstones,
@@ -165,6 +160,13 @@ export function planExtensionInitialization(
   return preBundleQueueDiscardedAt === undefined
     ? base
     : { ...base, preBundleQueueDiscardedAt };
+}
+
+function isActiveLegacyIntent(value: unknown): boolean {
+  return typeof value === "object"
+    && value !== null
+    && "status" in value
+    && value.status === "active";
 }
 
 /**

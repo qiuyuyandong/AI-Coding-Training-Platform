@@ -38,7 +38,9 @@ import {
   shouldCollectCharacterizationEvidence,
   type CharacterizationController,
 } from "./characterization";
-import { blocksNowCoderProductionIngress } from "./characterizationIngress";
+import { blocksCharacterizationProductionIngress } from "./characterizationIngress";
+import { characterizationPlatformForHostname } from "./characterizationStorage";
+import type { Platform } from "./adapters/contract";
 import { readNavigationWitness } from "./characterizationNavigationWitness";
 import {
   B3_BUILD_SHA,
@@ -73,11 +75,25 @@ import {
 import { readTransientSessionEvidenceState } from "./transientEvidenceStorage";
 import { parseSafeEvidence, type E3FinalVerdictConfirmed } from "./evidence";
 import {
+  appendLeetCodeEndpointDiagnostic,
+  createLeetCodeEndpointDiagnostic,
+  LEETCODE_CHECK_ENDPOINT_PREFIX,
+  LEETCODE_ENDPOINT_DIAGNOSTIC_KEY,
+  LEETCODE_NETWORK_POLICY,
+  LEETCODE_RESULT_ENDPOINT_PREFIX,
+  LEETCODE_SUBMIT_ENDPOINT_PREFIX,
+  normalizeLeetCodeNetworkEndpoint,
+  normalizeLeetCodeProblemIdentity,
+  selectLeetCodeConfirmation,
+  selectLeetCodeResultConfirmation,
+} from "./adapters/leetcode/network";
+import {
   NOWCODER_NETWORK_POLICY,
   NOWCODER_STATUS_ENDPOINT_KEY,
   NOWCODER_SUBMIT_ENDPOINT_KEY,
   selectNowCoderConfirmation,
 } from "./adapters/nowcoder/network";
+import { readConfirmedSubmissionState } from "./confirmedSubmissionStorage";
 import {
   createBackgroundOrchestrator,
   type Orchestrator,
@@ -116,7 +132,7 @@ const characterizationClock = (): string => new Date().toISOString();
  * webRequest observer can skip scheduling any NowCoder work synchronously
  * (the session-backed check still acts as a worker-restart safety net).
  */
-let characterizationProductionGuard = false;
+let characterizationProductionGuard: Platform | null = null;
 
 const orchestrator: Orchestrator = createBackgroundOrchestrator({
   storage: {
@@ -362,7 +378,9 @@ const initialization = (async (): Promise<void> => {
   // Session-backed state must survive MV3 worker restarts.
   // Read the persisted session to set the production guard.
   const session = await characterizationController.getSession();
-  characterizationProductionGuard = session.active;
+  characterizationProductionGuard = session.active && session.platform !== ""
+    ? session.platform
+    : null;
   // B3: Read persisted B3 state. chrome.storage.session survives worker restarts
   // but NOT extension reloads (as required). Handle expiry if present.
   const b3State = await readCurrentB3State();
@@ -615,9 +633,14 @@ const networkObserver = createWebRequestObserver(
   createRegistryRequestLifecycleSource(() => new Date().toISOString()),
 );
 
-function skipNowCoderProduction(details: ChromeObserverDetails): boolean {
-  if (!characterizationProductionGuard) return false;
-  try { return new URL(details.url).hostname === "ac.nowcoder.com" || new URL(details.url).hostname === "www.nowcoder.com"; } catch { return false; }
+function skipActiveCharacterizationProduction(details: ChromeObserverDetails): boolean {
+  if (characterizationProductionGuard === null) return false;
+  try {
+    return characterizationPlatformForHostname(new URL(details.url).hostname)
+      === characterizationProductionGuard;
+  } catch {
+    return false;
+  }
 }
 
 async function applyNowCoderStatusConfirmation(
@@ -626,7 +649,7 @@ async function applyNowCoderStatusConfirmation(
 ): Promise<void> {
   if (details.method !== "GET" || details.type !== "xmlhttprequest"
     || details.documentId === undefined) return;
-  if (await blocksNowCoderProductionIngress("nowcoder", characterizationController)) return;
+  if (await blocksCharacterizationProductionIngress("nowcoder", characterizationController)) return;
   const stored = await chrome.storage.session.get(["uiHints", "transientE1"]);
   const transient = readTransientSessionEvidenceState(stored);
   const statusLifecycle = transient.requestLifecycles.find((entry) =>
@@ -665,6 +688,103 @@ async function applyNowCoderStatusConfirmation(
   });
 }
 
+async function applyLeetCodeCheckConfirmation(details: WebRequestDetails): Promise<void> {
+  if (details.method !== "GET" || details.type !== "xmlhttprequest"
+    || details.documentId === undefined) return;
+  if (await blocksCharacterizationProductionIngress("leetcode", characterizationController)) return;
+  const stored = await chrome.storage.session.get(["transientE1"]);
+  const transient = readTransientSessionEvidenceState(stored);
+  const checkLifecycle = transient.requestLifecycles.find((entry) =>
+    entry.evidence.platform === "leetcode"
+    && entry.evidence.requestId === details.requestId
+    && entry.evidence.endpointKey.startsWith(`${LEETCODE_CHECK_ENDPOINT_PREFIX}/`));
+  if (checkLifecycle === undefined) return;
+  const submitCandidates = transient.requestLifecycles
+    .filter((entry) =>
+      entry.evidence.platform === "leetcode"
+      && entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
+    .map((entry) => entry.evidence);
+  const confirmation = selectLeetCodeConfirmation({
+    checkEvidence: checkLifecycle.evidence,
+    submitCandidates,
+    now: new Date().toISOString(),
+  });
+  if (confirmation.kind !== "confirmed") return;
+  await applyOrchestratorEvent({
+    kind: "e2_recorded",
+    evidence: confirmation.evidence,
+    matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
+  });
+}
+
+async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Promise<void> {
+  if (details.method !== "GET" || details.type !== "xmlhttprequest"
+    || details.documentId === undefined) return;
+  if (await blocksCharacterizationProductionIngress("leetcode", characterizationController)) return;
+  const stored = await chrome.storage.session.get(["uiHints", "transientE1"]);
+  const transient = readTransientSessionEvidenceState(stored);
+  const resultLifecycle = transient.requestLifecycles.find((entry) =>
+    entry.evidence.platform === "leetcode"
+    && entry.evidence.requestId === details.requestId
+    && entry.evidence.endpointKey.startsWith(`${LEETCODE_RESULT_ENDPOINT_PREFIX}/`));
+  if (resultLifecycle === undefined) return;
+  const graphqlCandidates = transient.requestLifecycles
+    .filter((entry) =>
+      entry.evidence.platform === "leetcode"
+      && entry.evidence.endpointKey === "graphql")
+    .map((entry) => entry.evidence);
+  const problemCandidates = transient.uiHints
+    .filter((hint) =>
+      hint.platform === "leetcode"
+      && hint.sourceDocumentId === resultLifecycle.evidence.documentId)
+    .map((hint) => ({
+      platform: "leetcode" as const,
+      problemExternalId: hint.problemExternalId,
+      observedAt: hint.observedAt,
+      tabId: resultLifecycle.evidence.tabId,
+      frameId: resultLifecycle.evidence.frameId,
+      documentId: hint.sourceDocumentId,
+    }));
+  const confirmation = selectLeetCodeResultConfirmation({
+    resultEvidence: resultLifecycle.evidence,
+    graphqlCandidates,
+    problemCandidates,
+    now: new Date().toISOString(),
+  });
+  if (confirmation.kind !== "confirmed") return;
+  await applyOrchestratorEvent({
+    kind: "e2_recorded",
+    evidence: confirmation.evidence,
+    matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
+  });
+}
+
+async function persistLeetCodeEndpointDiagnostic(
+  details: ChromeObserverDetails,
+  statusCode: number,
+): Promise<void> {
+  if (await blocksCharacterizationProductionIngress("leetcode", characterizationController)) return;
+  const diagnostic = createLeetCodeEndpointDiagnostic({
+    rawUrl: details.url,
+    method: details.method,
+    resourceType: details.type,
+    statusCode,
+    requestId: details.requestId,
+    tabId: details.tabId,
+    frameId: details.frameId,
+    documentId: details.documentId,
+    receivedAt: new Date().toISOString(),
+  });
+  if (diagnostic === null) return;
+  const stored = await chrome.storage.session.get([LEETCODE_ENDPOINT_DIAGNOSTIC_KEY]);
+  await chrome.storage.session.set({
+    [LEETCODE_ENDPOINT_DIAGNOSTIC_KEY]: appendLeetCodeEndpointDiagnostic(
+      stored[LEETCODE_ENDPOINT_DIAGNOSTIC_KEY],
+      diagnostic,
+    ),
+  });
+}
+
 registerNetworkObserverListeners(
   (kind, callback, filter) => {
     const chromeFilter: chrome.webRequest.RequestFilter = {
@@ -674,14 +794,14 @@ registerNetworkObserverListeners(
     switch (kind) {
       case "onBeforeRequest":
         chrome.webRequest.onBeforeRequest.addListener(
-          (details) => { if (!skipNowCoderProduction(details)) callback(toObserverDetails(details)); return undefined; },
+          (details) => { if (!skipActiveCharacterizationProduction(details)) callback(toObserverDetails(details)); return undefined; },
           chromeFilter,
         );
         break;
       case "onBeforeRedirect":
         chrome.webRequest.onBeforeRedirect.addListener(
           (details) => {
-            if (!skipNowCoderProduction(details)) callback(toObserverDetails(details), details.redirectUrl);
+            if (!skipActiveCharacterizationProduction(details)) callback(toObserverDetails(details), details.redirectUrl);
           },
           chromeFilter,
         );
@@ -689,7 +809,7 @@ registerNetworkObserverListeners(
       case "onResponseStarted":
         chrome.webRequest.onResponseStarted.addListener(
           (details) => {
-            if (!skipNowCoderProduction(details)) callback(toObserverDetails(details), details.statusCode);
+            if (!skipActiveCharacterizationProduction(details)) callback(toObserverDetails(details), details.statusCode);
           },
           chromeFilter,
         );
@@ -697,12 +817,26 @@ registerNetworkObserverListeners(
       case "onCompleted":
         chrome.webRequest.onCompleted.addListener(
           (details) => {
-            if (skipNowCoderProduction(details)) return;
+            if (skipActiveCharacterizationProduction(details)) return;
             const observerDetails = toObserverDetails(details);
             callback(observerDetails);
+            executor.schedule(async () => {
+              await persistLeetCodeEndpointDiagnostic(details, details.statusCode);
+            });
             if (details.url.startsWith("https://ac.nowcoder.com/nccommon/status")) {
               executor.schedule(async () => {
                 await applyNowCoderStatusConfirmation(observerDetails, details.url);
+              });
+            }
+            const leetCodeEndpoint = normalizeLeetCodeNetworkEndpoint(details.url);
+            if (leetCodeEndpoint?.startsWith(`${LEETCODE_CHECK_ENDPOINT_PREFIX}/`) === true) {
+              executor.schedule(async () => {
+                await applyLeetCodeCheckConfirmation(observerDetails);
+              });
+            }
+            if (leetCodeEndpoint?.startsWith(`${LEETCODE_RESULT_ENDPOINT_PREFIX}/`) === true) {
+              executor.schedule(async () => {
+                await applyLeetCodeResultConfirmation(observerDetails);
               });
             }
           },
@@ -712,7 +846,7 @@ registerNetworkObserverListeners(
       case "onErrorOccurred":
         chrome.webRequest.onErrorOccurred.addListener(
           (details) => {
-            if (!skipNowCoderProduction(details)) callback(toObserverDetails(details), details.error);
+            if (!skipActiveCharacterizationProduction(details)) callback(toObserverDetails(details), details.error);
           },
           chromeFilter,
         );
@@ -723,8 +857,8 @@ registerNetworkObserverListeners(
   async (outcome) => {
     if (outcome.kind !== "recorded" || outcome.lifecycle.kind !== "request_observed") return;
     const evidence = outcome.lifecycle;
-    if (evidence.platform === "nowcoder" && characterizationProductionGuard) return;
-    if (await blocksNowCoderProductionIngress(evidence.platform, characterizationController)) return;
+    if (evidence.platform === characterizationProductionGuard) return;
+    if (await blocksCharacterizationProductionIngress(evidence.platform, characterizationController)) return;
     await applyOrchestratorEvent({
       kind: "e1_recorded",
       evidence,
@@ -756,14 +890,14 @@ registerCharacterizationObserverListeners(
     switch (kind) {
       case "onBeforeRequest":
         chrome.webRequest.onBeforeRequest.addListener(
-          (details) => { if (characterizationProductionGuard) callback(toObserverDetails(details)); return undefined; },
+          (details) => { if (characterizationProductionGuard !== null) callback(toObserverDetails(details)); return undefined; },
           chromeFilter,
         );
         break;
       case "onBeforeRedirect":
         chrome.webRequest.onBeforeRedirect.addListener(
           (details) => {
-            if (characterizationProductionGuard) callback(toObserverDetails(details), details.redirectUrl);
+            if (characterizationProductionGuard !== null) callback(toObserverDetails(details), details.redirectUrl);
           },
           chromeFilter,
         );
@@ -771,21 +905,21 @@ registerCharacterizationObserverListeners(
       case "onResponseStarted":
         chrome.webRequest.onResponseStarted.addListener(
           (details) => {
-            if (characterizationProductionGuard) callback(toObserverDetails(details), details.statusCode);
+            if (characterizationProductionGuard !== null) callback(toObserverDetails(details), details.statusCode);
           },
           chromeFilter,
         );
         break;
       case "onCompleted":
         chrome.webRequest.onCompleted.addListener(
-          (details) => { if (characterizationProductionGuard) callback(toObserverDetails(details)); },
+          (details) => { if (characterizationProductionGuard !== null) callback(toObserverDetails(details)); },
           chromeFilter,
         );
         break;
       case "onErrorOccurred":
         chrome.webRequest.onErrorOccurred.addListener(
           (details) => {
-            if (characterizationProductionGuard) callback(toObserverDetails(details), details.error);
+            if (characterizationProductionGuard !== null) callback(toObserverDetails(details), details.error);
           },
           chromeFilter,
         );
@@ -796,7 +930,9 @@ registerCharacterizationObserverListeners(
   async (evidence, hostname) => {
     // B3 remains exactly browse-only until its two-page witness is complete.
     // Once ready, subsequent requests are B4 evidence and must be retained.
-    if (!shouldCollectCharacterizationEvidence((await getB3State()).status)) return;
+    const session = await characterizationController.getSession();
+    if (session.platform === "nowcoder"
+      && !shouldCollectCharacterizationEvidence((await getB3State()).status)) return;
     await characterizationController.collect(evidence, hostname);
   },
   (work: () => Promise<void>) => { executor.schedule(work); },
@@ -848,7 +984,9 @@ chrome.runtime.onStartup.addListener(() => {
     // B3.1: Do NOT unconditionally stop characterization here.
     // Session-backed state survives extension restarts; read session to set guard.
     const session = await characterizationController.getSession();
-    characterizationProductionGuard = session.active;
+    characterizationProductionGuard = session.active && session.platform !== ""
+      ? session.platform
+      : null;
     await flushOutbox();
     await scheduleUiHintCleanupAlarmFromSession();
     await scheduleCharacterizationExpiry(session);
@@ -904,7 +1042,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
   if (isMainWorldRelayMessage(message, sender)) {
     executor.schedule(async () => {
-      if (await blocksNowCoderProductionIngress(message.summary.platform, characterizationController)) return;
+      if (await blocksCharacterizationProductionIngress(message.summary.platform, characterizationController)) return;
       await applyMainBridgeSummary(message.summary);
     });
     return false;
@@ -912,14 +1050,14 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   const e3Evidence = readE3RecordedMessage(message);
   if (e3Evidence !== undefined) {
     executor.schedule(async () => {
-      if (await blocksNowCoderProductionIngress(e3Evidence.platform, characterizationController)) return;
+      if (await blocksCharacterizationProductionIngress(e3Evidence.platform, characterizationController)) return;
       await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3Evidence });
     });
     return false;
   }
   if (isUiHintMessage(message)) {
     executor.schedule(async () => {
-      if (await blocksNowCoderProductionIngress(message.hint.platform, characterizationController)) return;
+      if (await blocksCharacterizationProductionIngress(message.hint.platform, characterizationController)) return;
       await applyOrchestratorEvent({
         kind: "e0_recorded",
         hint: message.hint,
@@ -930,7 +1068,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
   if (isVerdictCandidateMessage(message)) {
     executor.schedule(async () => {
-      if (await blocksNowCoderProductionIngress(message.candidate.platform, characterizationController)) return;
+      if (await blocksCharacterizationProductionIngress(message.candidate.platform, characterizationController)) return;
       if (message.candidate.platform === "nowcoder"
         && typeof sender.tab?.url === "string"
         && typeof sender.tab.id === "number"
@@ -951,11 +1089,43 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
           return;
         }
       }
-      await applyOrchestratorEvent({
-        kind: "v3_verdict_observed",
-        candidate: message.candidate,
-        senderDocumentId: sender.documentId,
-      });
+      if (message.candidate.platform === "leetcode"
+        && typeof sender.tab?.url === "string"
+        && typeof sender.tab.id === "number"
+        && typeof sender.frameId === "number"
+        && typeof sender.documentId === "string") {
+        const problemIdentity = normalizeLeetCodeProblemIdentity(
+          sender.tab.url,
+          message.candidate.problemExternalId,
+        );
+        if (problemIdentity !== null) {
+          const stored = await chrome.storage.local.get(["confirmedSubmissions"]);
+          const confirmedSubmissionIds = readConfirmedSubmissionState(stored).confirmed
+            .filter((record) =>
+              record.platform === "leetcode"
+              && record.problemExternalId === problemIdentity
+              && record.finalizedAt === undefined)
+            .map((record) => record.externalSubmissionId);
+          const e3 = LEETCODE_NETWORK_POLICY.verdictEvidence({
+            kind: "verdict",
+            pageUrl: sender.tab.url,
+            problemExternalId: message.candidate.problemExternalId,
+            verdictText: message.candidate.verdict,
+            confirmedSubmissionIds,
+            tabId: sender.tab.id,
+            frameId: sender.frameId,
+            documentId: sender.documentId,
+            receivedAt: message.candidate.observedAt,
+          });
+          if (e3?.kind === "final_verdict_confirmed") {
+            await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3 });
+            return;
+          }
+        }
+      }
+      // Unsupported DOM candidates are intentionally dropped. Only an
+      // adapter-owned V4 verdict policy may turn a candidate into E3; the
+      // removed fallback used click-derived V3 pending intent.
     });
     return false;
   }
@@ -975,10 +1145,13 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       const session = await characterizationController.start(message.hostname, message.authenticated);
       networkObserver.clear();
       characterizationObserver.clear();
-      // Start B3 session independently
-      const b3State = await startB3Session();
+      const b3State = session.platform === "nowcoder"
+        ? await startB3Session()
+        : await stopB3Session();
       // Do not block production ingress unless the session was actually persisted.
-      characterizationProductionGuard = session.active;
+      characterizationProductionGuard = session.active && session.platform !== ""
+        ? session.platform
+        : null;
       await scheduleCharacterizationExpiry(session);
       sendResponse({ ok: session.active, session, b3Status: b3State.status });
     });
@@ -988,7 +1161,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     executor.schedule(async () => {
       const session = await characterizationController.stop();
       characterizationObserver.clear();
-      characterizationProductionGuard = false;
+      characterizationProductionGuard = null;
       // Stop B3 session independently
       await stopB3Session();
       await scheduleCharacterizationExpiry(session);
@@ -999,8 +1172,8 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   if (isCharacterizationExportMessage(message)) {
     executor.schedule(async () => {
       // B3: Check if B3 export is possible FIRST (B3 takes priority)
-      const b3CanExport = await canB3ExportNow();
       const session = await characterizationController.getSession();
+      const b3CanExport = session.platform === "nowcoder" && await canB3ExportNow();
       const exportMode = selectCharacterizationExportMode(
         b3CanExport,
         session.records.length,
@@ -1023,7 +1196,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
           await stopB3Session();
           await characterizationController.stop();
           characterizationObserver.clear();
-          characterizationProductionGuard = false;
+          characterizationProductionGuard = null;
           await scheduleCharacterizationExpiry(await characterizationController.getSession());
           sendResponse({ ok: true, document: b3Document, records: [], isB3Export: true });
           return;
@@ -1034,7 +1207,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       if (result.ok) {
         await characterizationController.stop();
         characterizationObserver.clear();
-        characterizationProductionGuard = false;
+        characterizationProductionGuard = null;
         await scheduleCharacterizationExpiry(await characterizationController.getSession());
       }
       sendResponse({ ...result, isB3Export: false });
@@ -1058,7 +1231,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     executor.schedule(async () => {
       await characterizationController.stop();
       characterizationObserver.clear();
-      characterizationProductionGuard = false;
+      characterizationProductionGuard = null;
       // B3: Also expire B3 session
       await expireB3Session();
       await chrome.alarms.clear(CHARACTERIZATION_EXPIRY_ALARM_NAME);

@@ -63,8 +63,20 @@ export function nowCoderB7ResultUrl(submissionId: string): string {
   return url.toString();
 }
 
-/** Synthetic LeetCode submit endpoint. */
-export const LEETCODE_SUBMIT_URL = `https://leetcode.com${FAKE_OJ_PATH_PREFIX}/submit`;
+/** Synthetic LeetCode routes matching the characterized C1 protocol. */
+export const LEETCODE_FAKE_PROBLEM_SLUG = "example-fake-oj";
+export const LEETCODE_FAKE_SUBMISSION_ID = "739040551";
+export const LEETCODE_SUBMIT_URL =
+  `https://leetcode.com/problems/${LEETCODE_FAKE_PROBLEM_SLUG}/submit?envType=problem-list-v2&envId=fake-oj`;
+export const LEETCODE_CHECK_URL =
+  `https://leetcode.com/submissions/detail/${LEETCODE_FAKE_SUBMISSION_ID}/v2/check?envType=problem-list-v2`;
+export const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql/";
+export const LEETCODE_RUNTIME_DISTRIBUTION_URL =
+  `https://leetcode.com/submissions/api/runtime_distribution/${LEETCODE_FAKE_SUBMISSION_ID}/`;
+export const LEETCODE_MEMORY_DISTRIBUTION_URL =
+  `https://leetcode.com/submissions/api/memory_distribution/${LEETCODE_FAKE_SUBMISSION_ID}/`;
+export const LEETCODE_UNMATCHED_SUBMIT_URL =
+  "https://leetcode.com/api.v2/problems/example-fake-oj/submit-result%20safe?token=never-retained";
 
 /** Synthetic Codeforces submit endpoint. */
 export const CODEFORCES_SUBMIT_URL = `https://codeforces.com${FAKE_OJ_PATH_PREFIX}/submit`;
@@ -80,6 +92,11 @@ export const FAKE_OJ_URLS: readonly string[] = Object.freeze([
   NOWCODER_SUBMIT_URL,
   NOWCODER_RESULT_URL,
   LEETCODE_SUBMIT_URL,
+  LEETCODE_CHECK_URL,
+  LEETCODE_GRAPHQL_URL,
+  LEETCODE_RUNTIME_DISTRIBUTION_URL,
+  LEETCODE_MEMORY_DISTRIBUTION_URL,
+  LEETCODE_UNMATCHED_SUBMIT_URL,
   CODEFORCES_SUBMIT_URL,
   LUOGU_SUBMIT_URL,
   ATCODER_SUBMIT_URL,
@@ -867,6 +884,7 @@ export type FakeOjOrchestratorStorage = Readonly<{
   readonly transientE1: readonly unknown[];
   readonly transientUnmatchedE3: readonly unknown[];
   readonly transientAmbiguityDiagnostics: readonly unknown[];
+  readonly leetcodeEndpointDiagnostics: readonly unknown[];
   readonly webRequestSpikeMarkers: readonly unknown[];
 }>;
 
@@ -885,6 +903,7 @@ export async function readFakeOjStorage(worker: Worker): Promise<FakeOjOrchestra
         "transientE1",
         "transientUnmatchedE3",
         "transientAmbiguityDiagnostics",
+        "leetcodeEndpointDiagnostics",
         "webRequestSpikeMarkers",
       ]),
     ]);
@@ -906,6 +925,9 @@ export async function readFakeOjStorage(worker: Worker): Promise<FakeOjOrchestra
         : [],
       transientAmbiguityDiagnostics: Array.isArray(session.transientAmbiguityDiagnostics)
         ? (session.transientAmbiguityDiagnostics as unknown[])
+        : [],
+      leetcodeEndpointDiagnostics: Array.isArray(session.leetcodeEndpointDiagnostics)
+        ? (session.leetcodeEndpointDiagnostics as unknown[])
         : [],
       webRequestSpikeMarkers: Array.isArray(session.webRequestSpikeMarkers)
         ? (session.webRequestSpikeMarkers as unknown[])

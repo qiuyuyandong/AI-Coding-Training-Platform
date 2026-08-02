@@ -16,11 +16,9 @@
  *    `persistence` diff and `executorSchedule` list. The background owns the
  *    actual write/remove/executor wiring, so the orchestrator never reaches
  *    into chrome.storage directly.
- * 3. The V3 capture path remains reachable: `v3_submission_intent_recorded`
- *    and `v3_verdict_observed` events route through the existing
- *    `recordSubmissionIntent` / `consumeVerdictCandidate` helpers so that
- *    already-durable V3 bundles continue to be produced without regressing
- *    any existing public function.
+ * 3. Historical V3 bundles remain readable and deliverable, but no event can
+ *    create or consume click-derived pending intent. Upgrade initialization
+ *    removes the legacy key before the orchestrator accepts events.
  * 4. E0 UI hints, E1 lifecycles, ambiguity diagnostics, and unmatched finals
  *    use the existing `transientEvidenceStorage` / `uiHint` parsers; the
  *    orchestrator never invents a new evidence boundary.
@@ -33,16 +31,9 @@ import type {
   CaptureQuarantineItem,
 } from "./attemptStorage";
 import {
-  consumeVerdictCandidate,
   deleteQuarantined,
-  recordSubmissionIntent,
   retryQuarantined,
 } from "./attemptStorage";
-import type {
-  PendingSubmissionIntent,
-  SubmissionIntentDraft,
-  VerdictCandidateMessage,
-} from "./attemptCapture";
 import type {
   ConfirmedSubmissionRecord,
   ConfirmedSubmissionTombstone,
@@ -103,7 +94,6 @@ const LOCAL_KEYS = [
   "captureEnabled",
   "captureEndpoint",
   "captureProtocolVersion",
-  "pendingSubmissionIntents",
   "confirmedSubmissions",
   "confirmedSubmissionTombstones",
   "captureOutbox",
@@ -164,16 +154,6 @@ export type OrchestratorEvent =
   | { readonly kind: "main_bridge_ambiguous"; readonly ambiguous: AmbiguousCaptureResult }
   | { readonly kind: "main_bridge_no_match"; readonly noMatch: NoMatchCaptureResult; readonly summary: MainBridgeSummary }
   | { readonly kind: "main_bridge_rejected"; readonly rejected: RejectedCaptureResult; readonly summary: MainBridgeSummary }
-  | {
-      readonly kind: "v3_verdict_observed";
-      readonly candidate: VerdictCandidateMessage["candidate"];
-      readonly senderDocumentId?: string;
-    }
-  | {
-      readonly kind: "v3_submission_intent_recorded";
-      readonly draft: SubmissionIntentDraft;
-      readonly sourceDocumentId?: string;
-    }
   | {
       readonly kind: "e0_recorded";
       readonly hint: UiHintDraft;
@@ -248,26 +228,6 @@ export type OrchestratorDependencies = Readonly<{
 // ---------------------------------------------------------------------------
 // Storage parsers (defensive; unknown storage must never produce state)
 // ---------------------------------------------------------------------------
-
-function readPendingIntents(value: unknown): readonly PendingSubmissionIntent[] {
-  return Array.isArray(value) ? value.filter(isPendingSubmissionIntent) : [];
-}
-
-function isPendingSubmissionIntent(value: unknown): value is PendingSubmissionIntent {
-  return typeof value === "object" && value !== null
-    && "installationId" in value && typeof Reflect.get(value, "installationId") === "string"
-    && "platform" in value && typeof Reflect.get(value, "platform") === "string"
-    && "problemExternalId" in value && typeof Reflect.get(value, "problemExternalId") === "string"
-    && "problemTitle" in value && typeof Reflect.get(value, "problemTitle") === "string"
-    && "canonicalUrl" in value && typeof Reflect.get(value, "canonicalUrl") === "string"
-    && "captureSessionId" in value && typeof Reflect.get(value, "captureSessionId") === "string"
-    && "submissionId" in value && typeof Reflect.get(value, "submissionId") === "string"
-    && "occurredAt" in value && typeof Reflect.get(value, "occurredAt") === "string"
-    && "status" in value
-    && (Reflect.get(value, "status") === "active"
-      || Reflect.get(value, "status") === "superseded"
-      || Reflect.get(value, "status") === "expired");
-}
 
 function readOutbox(value: unknown): readonly CaptureOutboxItem[] {
   return Array.isArray(value) ? value.filter(isOutboxItem) : [];
@@ -411,10 +371,6 @@ function handleEvent(
   now: string,
 ): EventOutcome {
   switch (event.kind) {
-    case "v3_submission_intent_recorded":
-      return handleV3IntentRecorded(event, local, now);
-    case "v3_verdict_observed":
-      return handleV3VerdictObserved(event, local, now);
     case "user_action":
       return handleUserAction(event.action, local, now);
     case "e1_recorded":
@@ -457,63 +413,6 @@ function handleEvent(
         now,
       );
   }
-}
-
-function handleV3IntentRecorded(
-  event: Extract<OrchestratorEvent, { readonly kind: "v3_submission_intent_recorded" }>,
-  local: Record<string, unknown>,
-  now: string,
-): EventOutcome {
-  const current = readPendingIntents(local.pendingSubmissionIntents);
-  const intents = recordSubmissionIntent(
-    current,
-    event.draft,
-    event.sourceDocumentId,
-  );
-  const outbox = readOutbox(local.captureOutbox);
-  const quarantine = readQuarantine(local.captureQuarantine);
-  const next: Record<string, unknown> = {
-    ...local,
-    pendingSubmissionIntents: intents,
-  };
-  return makeLocalOutcome(next, local, now, false, outbox, quarantine);
-}
-
-function handleV3VerdictObserved(
-  event: Extract<OrchestratorEvent, { readonly kind: "v3_verdict_observed" }>,
-  local: Record<string, unknown>,
-  now: string,
-): EventOutcome {
-  const installationId = readNonemptyString(local.installationId);
-  if (installationId === undefined) {
-    return emptyOutcome(now);
-  }
-  const captureCredential = readNonemptyString(local.captureCredential);
-  const provenanceLevel: OrchestratorProvenanceLevel = captureCredential === undefined
-    ? "extension_unpaired"
-    : "extension_paired";
-  const intents = readPendingIntents(local.pendingSubmissionIntents);
-  const candidate = event.senderDocumentId === undefined
-    ? event.candidate
-    : { ...event.candidate, sourceDocumentId: event.senderDocumentId };
-  const consumed = consumeVerdictCandidate({
-    intents,
-    candidate,
-    installationId,
-    provenanceLevel,
-  });
-  const outbox = readOutbox(local.captureOutbox);
-  const quarantine = readQuarantine(local.captureQuarantine);
-  const scheduleFlush = consumed.outboxItem !== undefined;
-  const nextOutbox = consumed.outboxItem === undefined
-    ? outbox
-    : [...outbox, consumed.outboxItem];
-  const next: Record<string, unknown> = {
-    ...local,
-    pendingSubmissionIntents: consumed.intents,
-    captureOutbox: nextOutbox,
-  };
-  return makeLocalOutcome(next, local, now, scheduleFlush, nextOutbox, quarantine);
 }
 
 function handleUserAction(
@@ -771,7 +670,8 @@ function handleE2Recorded(
     lastE3At: evidence.receivedAt,
   });
   const recorded = recordConfirmedSubmission(currentConfirmed, record, now);
-  if (recorded.outcome === "already_finalized") return emptyOutcome(now);
+  if (recorded.outcome === "already_finalized"
+    || recorded.outcome === "identity_conflict") return emptyOutcome(now);
 
   const stableSubmissionId = `${evidence.platform}:${evidence.externalSubmissionId}`;
   const requestLifecycles = transient.requestLifecycles.map((entry) =>
@@ -849,7 +749,8 @@ function handleMainBridgeCorrelated(
     lastE3At: summary.receivedAt,
   });
   const recorded = recordConfirmedSubmission(currentConfirmed, record, now);
-  if (recorded.outcome === "already_finalized") return emptyOutcome(now);
+  if (recorded.outcome === "already_finalized"
+    || recorded.outcome === "identity_conflict") return emptyOutcome(now);
 
   const transient = readTransientSessionEvidenceState(session);
   const stableSubmissionId = `${summary.platform}:${externalSubmissionId}`;
@@ -892,6 +793,12 @@ function handleE3Recorded(
   const evidence = event.evidence;
   const key = `${evidence.platform}:${evidence.externalSubmissionId}`;
   const confirmedState = readConfirmedSubmissionState(local);
+  const nowMs = Date.parse(now);
+  const alreadyFinalized = confirmedState.tombstones.some((tombstone) =>
+    tombstone.submissionKey === key
+    && Number.isFinite(nowMs)
+    && Date.parse(tombstone.expiresAt) > nowMs);
+  if (alreadyFinalized) return emptyOutcome(now);
   const confirmed = confirmedState.confirmed.find((record) =>
     record.storageKey === key
     && record.finalizedAt === undefined

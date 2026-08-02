@@ -164,7 +164,6 @@ describe("planExtensionInitialization V4", () => {
     expect(plan).toMatchObject({
       installationId: "installation_existing",
       captureProtocolVersion: CAPTURE_PROTOCOL_VERSION,
-      pendingSubmissionIntents: [],
       captureOutbox: [],
       captureQuarantine: [],
       discardedPreBundleEventCount: 32,

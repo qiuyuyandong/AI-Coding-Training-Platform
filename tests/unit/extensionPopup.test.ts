@@ -141,6 +141,12 @@ describe("extension popup presenter", () => {
     expect(readCharacterizationStartSelection("www.nowcoder.com", false)).toEqual({
       hostname: "www.nowcoder.com", authenticated: false,
     });
+    expect(readCharacterizationStartSelection("leetcode.cn", true)).toEqual({
+      hostname: "leetcode.cn", authenticated: true,
+    });
+    expect(readCharacterizationStartSelection("leetcode.com", false)).toEqual({
+      hostname: "leetcode.com", authenticated: false,
+    });
     expect(readCharacterizationStartSelection("example.com", false)).toBeUndefined();
   });
 
@@ -162,6 +168,38 @@ describe("extension popup presenter", () => {
       URL.revokeObjectURL = originalRevoke;
     }
     expect(downloads).toEqual([["blob:characterization-export", "nowcoder-characterization-2026-07-26.json"]]);
+  });
+
+  it("uses the characterized platform in the downloaded filename", async () => {
+    const leetcodeDocument = {
+      ...exportDocument,
+      meta: {
+        ...exportDocument.meta,
+        fixtureName: "leetcode-characterization-2026-07-26",
+        sourceUrl: "https://leetcode.cn/",
+        signals: [{ kind: "network_request_observed", platform: "leetcode", tier: "E1" }],
+      },
+      evidence: [{
+        ...exportDocument.evidence[0],
+        evidenceId: "e1_leetcode_export",
+        platform: "leetcode",
+        normalizedPath: "/problems/two-sum/submit/",
+      }],
+    } as const;
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = () => "blob:leetcode-characterization-export";
+    URL.revokeObjectURL = () => undefined;
+    const filenames: string[] = [];
+    try {
+      await expect(deliverCharacterizationExport(leetcodeDocument, async (_url, filename) => {
+        filenames.push(filename);
+      })).resolves.toEqual({ ok: true, count: 1 });
+    } finally {
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+    }
+    expect(filenames).toEqual(["leetcode-characterization-2026-07-26.json"]);
   });
 
   it("accepts authenticated ac.nowcoder.com output and rejects dishonest unauthenticated metadata", () => {

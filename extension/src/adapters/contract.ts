@@ -37,14 +37,18 @@ export type PlatformAdapterStatus = "production" | "experimental" | "disabled";
  * characterization in a later phase; no adapter is V4-production today.
  *
  * The status ladder is deliberately restrictive: an adapter only
- * advances through `uncharacterized` -> `experimental` -> `production`,
- * or is marked `blocked` when characterization proves it infeasible.
+ * advances through `uncharacterized` -> `candidate` -> `experimental` ->
+ * `production`,
+ * is marked `blocked` when characterization proves it infeasible, or
+ * `disabled` when a product decision intentionally excludes it.
  */
 export type V4NetworkStatus =
   | "uncharacterized"
+  | "candidate"
   | "experimental"
   | "blocked"
-  | "production";
+  | "production"
+  | "disabled";
 
 /**
  * Optional per-platform semantic DOM extractor used when CSS selectors

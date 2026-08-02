@@ -30,6 +30,8 @@ import {
   MAX_CHARACTERIZATION_RECORDS,
   CHARACTERIZATION_TTL_MS,
   toB1NetworkRequest,
+  characterizationPlatformForHostname,
+  isCharacterizationPlatform,
 } from "./characterizationStorage";
 import {
   type NavigationWitness,
@@ -42,13 +44,6 @@ import {
   type E0NavigationWitness,
   type NetworkTranscriptDocument,
 } from "./networkTranscriptContract";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/** The only platform allowed for characterization. */
-const CHARACTERIZATION_PLATFORM = "nowcoder" as const;
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -179,8 +174,7 @@ function handleCollect(
     return { session };
   }
 
-  // Reject evidence from other platforms
-  if (evidence.platform !== CHARACTERIZATION_PLATFORM) {
+  if (session.platform === "" || evidence.platform !== session.platform) {
     return { session };
   }
 
@@ -239,8 +233,12 @@ export function createCharacterizationExportDocument(
   authenticated: boolean,
 ): CharacterizationExportDocument | undefined {
   if (!/^\d{4}-\d{2}-\d{2}T/.test(now) || records.length === 0) return undefined;
+  const platform = characterizationPlatformForHostname(hostname);
+  if (platform === undefined || records.some((record) => record.platform !== platform)) {
+    return undefined;
+  }
   const signals = Object.freeze([
-    Object.freeze({ kind: "network_request_observed", platform: "nowcoder", tier: "E1" }),
+    Object.freeze({ kind: "network_request_observed", platform, tier: "E1" }),
   ]);
   // sourceUrl uses the actual hostname from the session
   const sourceUrl = `https://${hostname}/`;
@@ -249,7 +247,7 @@ export function createCharacterizationExportDocument(
     authenticated ? "authenticated-characterization" : "characterization-derived";
   const document = {
     meta: Object.freeze({
-      fixtureName: `nowcoder-characterization-${now.slice(0, 10)}`,
+      fixtureName: `${platform}-characterization-${now.slice(0, 10)}`,
       sourceUrl,
       captureDate: now.slice(0, 10),
       captureMethod: "extension characterization export",
@@ -502,8 +500,8 @@ export function validateCharacterizationEvidence(
   if (!isCharacterizationSafeEvidence(evidence)) {
     return { safe: false, reason: "forbidden keys present in evidence" };
   }
-  if (evidence.platform !== CHARACTERIZATION_PLATFORM) {
-    return { safe: false, reason: "characterization is only available for nowcoder" };
+  if (!isCharacterizationPlatform(evidence.platform)) {
+    return { safe: false, reason: "characterization platform is not registry-owned" };
   }
   if (typeof evidence.requestId !== "string" || evidence.requestId.length === 0) {
     return { safe: false, reason: "invalid requestId" };

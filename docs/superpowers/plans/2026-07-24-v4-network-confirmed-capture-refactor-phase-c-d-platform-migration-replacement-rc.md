@@ -199,9 +199,65 @@ truth of historical Phase 0 certification.
 
 **Explicit non-goals:** No other platform changes.
 
+### Task C2 entry result
+
+- **Status:** terminal `V4_BLOCKED` on 2026-08-02; no network adapter was
+  implemented.
+- **Delta plan:**
+  `docs/superpowers/plans/2026-07-31-v4-atcoder-network-capture-migration.md`.
+- **Preservation baseline:** all nine files under
+  `tests/fixtures/atcoder/` have recorded SHA-256 values in the delta plan.
+  The four historical certification suites pass 171/171, and the readiness
+  CLI passes before C2 characterization.
+- **Plan review:** revision 2 independently `APPROVED` on 2026-07-31 after two
+  reject-and-correct rounds; no remaining findings.
+- **Preflight:** the pre-storage AtCoder contest-path privacy gate passes 331
+  focused tests; `extension:check` passes 39 files / 1,285 tests; the exact
+  production-dist hashes are frozen in
+  `work/reports/v4-atcoder-c2-preflight-2026-07-31.md`.
+- **Real observation:** two natural `abc001_1` submissions were safely
+  corroborated (`78058928` and `78059304`). The ready-gated third window kept a
+  live watcher active through the second submission, but the extension retained
+  exactly zero records while the browser navigated from `/submit` to
+  `/submissions/me`.
+- **Root cause:** AtCoder uses a traditional `main_frame` form navigation.
+  Chrome's official `webRequest` contract omits `documentId` for frame
+  navigation, and the reviewed observer correctly rejects such requests as
+  `missing_document_id`. The landing path has no stable numeric submission ID;
+  body/query/DOM-row/tab/time inference remains forbidden.
+- **Evidence:**
+  `work/reports/v4-atcoder-c2-blocker-2026-08-02.md`.
+- **Boundary:** AtCoder's existing production DOM certification remains
+  authoritative for its historical scope; it does not establish V4 network
+  readiness.
+- **Next gate:** C3 may begin after terminal blocker documentation, registry,
+  readiness manifest, historical hashes, and current handoff all verify. An
+  AtCoder retry requires a separately reviewed scalar bridge or an observable
+  platform protocol change.
+
 ---
 
 ### Task C3: Codeforces V4 migration wave
+
+**Execution result (2026-08-02):** terminal `V4_BLOCKED`.
+
+- Revision 2 of
+  `2026-08-02-v4-codeforces-network-capture-migration.md` was independently
+  `APPROVED`; its privacy prerequisite and exact-build preflight passed.
+- One ready-gated natural submission moved from `/problemset/submit/` to
+  `/problemset/status`. The user confirmed the submission entered the status
+  page, while the extension retained zero records and zero navigation
+  witnesses before explicit stop.
+- Chrome omits `webRequest.documentId` for frame navigation. The approved
+  observer therefore rejects the main-frame POST, and the landing path exposes
+  no stable numeric submission ID or exact contest/problem identity.
+- No Codeforces network adapter or fixture was created. Status-row/account/
+  latest/highest/nearest-time inference remains forbidden.
+- Evidence:
+  `work/reports/v4-codeforces-c3-blocker-2026-08-02.md`.
+- Next gate: C4 Luogu may begin only after readiness, registry, plans, reports,
+  current handoff, and terminal gates agree. A Codeforces retry requires a
+  separately reviewed scalar bridge or platform protocol change.
 
 **Objective:** Characterize and implement Codeforces independently rather than
 retaining its current generic visible-verdict selectors as a submission proof.
@@ -243,6 +299,15 @@ latest-result guess.
 
 ### Task C4: Luogu V4 migration wave
 
+**Terminal status (2026-08-02):** Revision 3 of
+`2026-08-02-v4-luogu-network-capture-migration.md` was explicitly approved and
+executed to `V4_BLOCKED`. One natural P1001 submission produced three safe E1
+lifecycle records for the exact problem-submit XHR and a later numeric record
+landing, but browser-owned document IDs prove a cross-document transition and
+no approved witness binds the two identities. A sanitized fixture and terminal
+reports were created; no Luogu network adapter was implemented. C5 is the next
+sequential task after terminal gates agree.
+
 **Objective:** Reassess Luogu only with new network/server-confirmation evidence,
 while preserving its historical public-DOM BLOCKED artifact.
 
@@ -282,6 +347,14 @@ characterization as production evidence.
 ---
 
 ### Task C5: Remove migration scaffolding and audit cross-platform isolation
+
+**Execution status (2026-08-02):** Complete on the uncommitted working tree.
+The isolation suite was written RED first, then the orchestrator's V3
+submission-intent and verdict-fallback events were removed. Initialization
+retains only the read/count/delete migration boundary for the legacy key;
+completed historical outbox bundles remain compatible. Compatibility exports
+in `platforms.ts` remain because active call sites still use them, matching the
+implementation boundary against premature wrapper removal.
 
 **Objective:** Ensure migrated adapters share infrastructure but not protocol
 assumptions, and no V3 click/pending code remains reachable.
@@ -328,6 +401,18 @@ npm run quality:gate
 and every adapter retains an explicit readiness result.
 
 **Explicit non-goals:** No RC freeze yet.
+
+**Completion evidence:**
+
+- `tests/unit/extensionV4Isolation.test.ts` covers owner-only request parsing,
+  cross-platform raw-ID namespacing, durable-state preservation, explicit
+  terminal readiness, stale runtime symbols, and Fake OJ registry exclusion.
+- Production source and built-dist searches contain zero
+  `v3_submission_intent_recorded` and zero `SUBMISSION_INTENT_OBSERVED`.
+  Remaining `pendingSubmissionIntents` references are migration-only
+  read/count/delete operations; no property write remains.
+- Readiness CLI, extension gates, E2E, quality gate, and final exact counts are
+  recorded in `work/reports/v4-phase-c-c5-closeout-2026-08-02.md`.
 
 ---
 
@@ -577,6 +662,111 @@ Future commits should remain platform- and gate-scoped:
 12. authorized final evidence/status commit after acceptance.
 
 No commit is authorized by this list.
+
+## Task C0 execution result (closeout seam)
+
+- **Status:** PASS for the validator and template scaffold only. No platform
+  implementation, no real-observation evidence, no replacement candidate.
+- **Files created (uncommitted working tree on `feature/v1-followup`):**
+  - `tests/helpers/v4AdapterReadinessContract.ts` (type + runtime shape)
+  - `tests/helpers/v4AdapterReadinessContract.cjs` (plain-Node runtime so the
+    CLI does not need a TypeScript loader)
+  - `tests/types/v4AdapterReadiness.d.ts` (ambient declarations for the `.mjs`
+    and `.cjs` entry points)
+  - `scripts/validate-v4-adapter-readiness.mjs` (CLI; `--all` is the only
+    accepted argument; exit codes `0` PASS / `1` failures / `2` usage)
+  - `docs/superpowers/specs/v4-adapter-readiness.json` (the canonical
+    readiness manifest)
+  - `tests/unit/v4AdapterReadinessValidator.test.ts` (20 cases covering
+    registry/document disagreement, characterization source and real
+    observation existence, repo-relative path safety, status ladder
+    including `disabled`, comment-masking, and authenticated-as-production
+    rejection)
+  - `docs/superpowers/plans/templates/v4-platform-network-migration-template.md`
+    (every future C1-C4 delta plan must be derived from this template)
+- **Files modified:**
+  - `extension/src/adapters/registry.ts` (docblock refresh only; no behavior
+    change)
+- **Evidence:**
+  - `npx vitest run tests/unit/v4AdapterReadinessValidator.test.ts`
+    → 17/17 PASS on 2026-07-30.
+  - `node scripts/validate-v4-adapter-readiness.mjs --all`
+    → `V4 adapter readiness PASS` on 2026-07-30.
+  - `npm run typecheck` → PASS.
+  - `npm run quality:gate` → EXIT 0 on 2026-07-30 (lint, disposable
+    `db:migrate`, `curriculum:validate`, `test` 93 files / 1936 passed /
+    1 Windows capability skip, typecheck, `e2e` 25/25, `extension:check`
+    38 files / 1191 tests, `extension:e2e` 46/46 on this run, `build`
+    PASS). The Phase A 1 service-worker-restart skip remains authoritative
+    test-harness seam, not a C0 regression.
+- **Linter and security review of C0:** independent reviewer previously
+  flagged 5 issues (HIGH fabricated evidence paths, HIGH missing `disabled`
+  terminal state, MEDIUM regex-based registry parsing, MEDIUM bare `node`
+  invocation against a TS helper, MEDIUM template missing implementation
+  boundary). All five were corrected in this implementation:
+  - Evidence paths are now checked against the repo root; tests cover
+    missing, absolute, and `..` escape paths.
+  - `disabled` is added to `V4NetworkStatus`, accepted by the manifest
+    with `disableReason`, and tested for both required and missing
+    variants.
+  - The CLI uses a brace-aware line parser that strips single-line
+    comments before matching `v4NetworkStatus`; a regression test feeds
+    a comment that quotes the wrong status and verifies PASS.
+  - The CLI requires `tests/helpers/v4AdapterReadinessContract.cjs` via
+    `createRequire(repoRoot)`, so `node scripts/validate-v4-adapter-
+    readiness.mjs --all` works without any TypeScript loader, matching
+    the canonical command in this plan.
+  - The template adds an `Implementation Boundary` section listing which
+    shared modules may be modified and which cross-platform inferences
+    are forbidden.
+- **Honest verdict:** `C0 engineering PASS`. C1 (LeetCode), C2 (AtCoder),
+  C3 (Codeforces), C4 (Luogu), C5 (scaffolding cleanup), D1-D5 are not
+  authorized by this seam and remain pending fresh user authorization
+  and real-platform evidence. NowCoder's existing `experimental` V4
+  status continues to be governed by Phase B's terminal closeout and the
+  2026-07-29 E3 ingress repair (`c26c578`); it is not promoted by C0.
+- **No commit was performed.** Working tree dirty; no push; no PR.
+
+### Post-C0 contract correction discovered during C1
+
+C1 candidate observations exposed an intermediate state that the original C0
+ladder could not represent: an adapter can have a characterized, attached,
+automatically verified policy while its required same-build real observation
+is still failing. Labelling that state `experimental` overstated readiness;
+labelling it `uncharacterized` hid the implemented policy. The contract now
+adds non-terminal `candidate`, requires every non-disabled record to declare an
+`endpointDriftDisposition`, and recorded LeetCode as `candidate` at that
+observation seam. The later v6 real-chain closure supersedes only that
+intermediate LeetCode status with terminal C1 `V4_EXPERIMENTAL`; this remains a
+readiness-model correction and is not authorization to skip the C2 entry gate.
+
+### Task C1 execution result
+
+- **Status:** `V4_EXPERIMENTAL` for LeetCode.cn on the uncommitted
+  `feature/v1-followup` working tree.
+- **Real observation:** production adapter `v4-leetcode-network-6` captured
+  fresh submission `cn/739108591`, finalized it once with `Wrong Answer`,
+  delivered one bundle, and projected exactly 4 capture events, 1 session, and
+  1 non-voided training attempt in the disposable SQLite database.
+- **Root cause:** localhost was healthy. The current LeetCode UI used a
+  trusted submit click plus GraphQL POST and exact
+  `/submissions/api/{runtime|memory}_distribution/<id>/` result paths, while
+  the original candidate recognized only a legacy submit/check pair.
+  Subsequent real evidence also exposed a scoped problem-slug API mismatch and
+  tombstone/confirmation replay defects; all are covered by v6 regressions.
+- **Privacy:** no request/response body, code, headers, cookies, credentials,
+  account identifier, or full problem statement was read or retained.
+- **Evidence:**
+  `work/reports/v4-leetcode-c1-closeout-2026-07-30.md`.
+- **Final gates:** readiness CLI PASS; readiness tests 20/20; full unit tests
+  2009 passed with 1 Windows capability skip; application E2E 25/25;
+  extension unit tests 1261/1261; extension E2E 48 passed with 1 known
+  harness skip; production build PASS.
+- **Boundary:** authenticated evidence caps LeetCode at `experimental`.
+  `.com` remains without its own real observation, and C1 is not production
+  certification, RC, acceptance, release, or permission to skip C2's
+  independent characterization.
+- **No commit was performed.** Working tree dirty; no push; no PR.
 
 ## Phase C-D Completion Gate
 

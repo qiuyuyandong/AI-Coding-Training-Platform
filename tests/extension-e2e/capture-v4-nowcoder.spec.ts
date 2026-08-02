@@ -203,6 +203,12 @@ test("service-worker restart after E1 and after E2 preserves the legal transitio
     await stopAndReawakenFakeOjWorker(page, extensionWorker, async () => {
       await fetchStatus(page, SUBMISSION_ID);
     });
+    // In bundled Chromium the request used to wake a stopped MV3 worker can
+    // finish before the restarted worker has reattached all webRequest
+    // listeners. Drive the same idempotent status witness once more after CDP
+    // has reported `running`; this is the event whose post-restart transition
+    // the assertion covers.
+    await fetchStatus(page, SUBMISSION_ID);
     await popup.goto(
       `chrome-extension://${new URL(extensionWorker.url()).host}/popup.html`,
       { waitUntil: "domcontentloaded" },
@@ -214,6 +220,9 @@ test("service-worker restart after E1 and after E2 preserves the legal transitio
     await stopAndReawakenFakeOjWorker(page, extensionWorker, async () => {
       await page.goto(nowCoderB7ResultUrl(SUBMISSION_ID), { waitUntil: "domcontentloaded" });
     });
+    // Likewise, make the final verdict observation after the worker is known
+    // running. A prior successful observation is idempotent via its tombstone.
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect.poll(() => readRestartStorage(popup))
       .toEqual({ confirmed: 0, tombstones: 1, outbox: 1 });
   } finally {

@@ -60,6 +60,71 @@ describe("confirmed submission storage", () => {
 });
 
 describe("recordConfirmedSubmission idempotency", () => {
+  it("rejects a repeated E2 when only an unexpired finalized tombstone remains", () => {
+    const finalizedAt = "2026-07-24T00:01:00.000Z";
+    const tombstoneOnly = Object.freeze({
+      confirmed: Object.freeze([]),
+      tombstones: Object.freeze([
+        Object.freeze({
+          submissionKey: record.storageKey,
+          finalizedAt,
+          expiresAt: "2026-08-23T00:01:00.000Z",
+        }),
+      ]),
+    });
+    const result = recordConfirmedSubmission(
+      tombstoneOnly,
+      record,
+      "2026-07-24T02:00:00.000Z",
+    );
+    expect(result.outcome).toBe("already_finalized");
+    expect(result.state).toBe(tombstoneOnly);
+    expect(result.state.confirmed).toEqual([]);
+    expect(result.tombstone?.submissionKey).toBe(record.storageKey);
+  });
+  it("prunes an expired tombstone before accepting a genuinely new record", () => {
+    const expired = Object.freeze({
+      confirmed: Object.freeze([]),
+      tombstones: Object.freeze([
+        Object.freeze({
+          submissionKey: record.storageKey,
+          finalizedAt: "2026-06-01T00:00:00.000Z",
+          expiresAt: "2026-07-01T00:00:00.000Z",
+        }),
+      ]),
+    });
+    const result = recordConfirmedSubmission(expired, record, record.lastE3At);
+    expect(result.outcome).toBe("recorded");
+    expect(result.state.confirmed).toHaveLength(1);
+    expect(result.state.tombstones).toEqual([]);
+  });
+  it("preserves the first confirmation timestamp for a repeated E2", () => {
+    const first = recordConfirmedSubmission(empty, record, record.lastE3At);
+    const repeated = recordConfirmedSubmission(
+      first.state,
+      {
+        ...record,
+        confirmedAt: "2026-07-24T00:00:01.000Z",
+        lastE3At: "2026-07-24T00:00:01.000Z",
+      },
+      "2026-07-24T00:00:01.000Z",
+    );
+    expect(repeated.outcome).toBe("already_confirmed");
+    expect(repeated.state).toBe(first.state);
+    expect(repeated.state.confirmed[0]?.confirmedAt).toBe(record.confirmedAt);
+    expect(repeated.state.confirmed[0]?.lastE3At).toBe(record.lastE3At);
+  });
+  it("fails closed when one submission ID is repeated for another problem", () => {
+    const first = recordConfirmedSubmission(empty, record, record.lastE3At);
+    const crossed = recordConfirmedSubmission(
+      first.state,
+      { ...record, problemExternalId: "different_problem" },
+      "2026-07-24T00:00:01.000Z",
+    );
+    expect(crossed.outcome).toBe("identity_conflict");
+    expect(crossed.state).toBe(first.state);
+    expect(crossed.state.confirmed[0]?.problemExternalId).toBe(record.problemExternalId);
+  });
   it("returns unchanged state when storageKey is already finalized", () => {
     const finalizedAt = "2026-07-24T00:01:00.000Z";
     const seeded = Object.freeze({

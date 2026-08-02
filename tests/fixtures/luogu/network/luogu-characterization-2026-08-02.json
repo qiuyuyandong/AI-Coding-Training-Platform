@@ -1,0 +1,67 @@
+{
+  "meta": {
+    "fixtureName": "luogu-characterization-2026-08-02",
+    "sourceUrl": "https://www.luogu.com.cn/",
+    "captureDate": "2026-08-02",
+    "captureMethod": "extension characterization export",
+    "authenticated": true,
+    "sanitized": true,
+    "evidenceTier": "authenticated-characterization",
+    "productionEligible": false,
+    "signals": [
+      {
+        "kind": "network_request_observed",
+        "platform": "luogu",
+        "tier": "E1"
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "schemaVersion": 1,
+      "evidenceId": "e1_luogu_8116",
+      "platform": "luogu",
+      "tier": "E1",
+      "kind": "network_request_observed",
+      "receivedAt": "2026-08-02T13:11:52.383Z",
+      "tabId": 1454625834,
+      "frameId": 0,
+      "documentId": "0B0F2A7605D410D910DF94BF4E01ADAE",
+      "requestId": "8116",
+      "method": "POST",
+      "normalizedPath": "/fe/api/problem/submit/P1001",
+      "resourceType": "xmlhttprequest"
+    },
+    {
+      "schemaVersion": 1,
+      "evidenceId": "e1_luogu_8116",
+      "platform": "luogu",
+      "tier": "E1",
+      "kind": "network_request_observed",
+      "receivedAt": "2026-08-02T13:11:52.379Z",
+      "tabId": 1454625834,
+      "frameId": 0,
+      "documentId": "0B0F2A7605D410D910DF94BF4E01ADAE",
+      "requestId": "8116",
+      "method": "POST",
+      "normalizedPath": "/fe/api/problem/submit/P1001",
+      "resourceType": "xmlhttprequest",
+      "statusCode": 200
+    },
+    {
+      "schemaVersion": 1,
+      "evidenceId": "e1_luogu_8116",
+      "platform": "luogu",
+      "tier": "E1",
+      "kind": "network_request_observed",
+      "receivedAt": "2026-08-02T13:11:51.799Z",
+      "tabId": 1454625834,
+      "frameId": 0,
+      "documentId": "0B0F2A7605D410D910DF94BF4E01ADAE",
+      "requestId": "8116",
+      "method": "POST",
+      "normalizedPath": "/fe/api/problem/submit/P1001",
+      "resourceType": "xmlhttprequest"
+    }
+  ]
+}

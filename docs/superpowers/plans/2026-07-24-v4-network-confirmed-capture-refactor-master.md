@@ -578,6 +578,29 @@ LeetCode -> AtCoder -> Codeforces -> Luogu
 Each platform receives a new delta plan after characterization. No platform
 inherits another platform's endpoint, field, timeout, or acceptance policy.
 
+Current execution state on 2026-08-02: C0 readiness contract PASS; C1
+LeetCode.cn reaches terminal `V4_EXPERIMENTAL` on adapter
+`v4-leetcode-network-6`; C2 AtCoder reaches terminal `V4_BLOCKED` after a
+ready-gated real form submission retained zero records. Chrome omits
+`documentId` for frame navigation, and `/submissions/me` lacks a stable numeric
+submission identity, so no safe policy can satisfy the reviewed boundary. No
+AtCoder network adapter was implemented. C3 Codeforces also reaches terminal
+`V4_BLOCKED`: one ready-gated natural form submission moved from
+`/problemset/submit/` to `/problemset/status`, while the extension retained
+zero records and zero navigation witnesses. The same Chrome frame-navigation
+contract omits `documentId`, and the landing path carries no stable numeric
+submission or exact contest/problem identity. No Codeforces network adapter
+was implemented. C4 Luogu also reaches terminal `V4_BLOCKED`: one natural
+P1001 submission produced a task-scoped HTTP-200 E1 and a numeric record
+landing, but browser-owned IDs prove they belong to different documents and
+no approved continuity signal binds them. No Luogu network adapter was
+implemented. C5 then closes the cross-platform isolation and migration
+scaffolding audit: platform policies remain owner-specific, submission keys
+remain platform-namespaced, durable records survive unrelated readiness
+changes, and the reachable V3 click-derived pending-intent/fallback events are
+removed. Phase C C0-C5 is engineering-complete; Phase D is next and no RC is
+frozen by this closeout.
+
 ### Phase D: replacement RC
 
 Freeze only after target platforms pass real extension E2E, privacy review,
@@ -667,19 +690,20 @@ Track two distinct facts:
 - current visible-DOM verdict certification;
 - V4 network-confirmed capture readiness.
 
-At audit time:
+Current readiness after the Phase B repair and Phase C C1-C4:
 
 | Platform | Existing DOM status | V4 network status |
 |---|---|---|
-| AtCoder | production | uncharacterized |
-| LeetCode | experimental | uncharacterized |
-| NowCoder | experimental | uncharacterized |
-| Codeforces | experimental | uncharacterized |
-| Luogu | experimental / historical BLOCKED certification | uncharacterized |
+| AtCoder | production | blocked |
+| LeetCode | experimental | experimental |
+| NowCoder | experimental | experimental |
+| Codeforces | experimental | blocked |
+| Luogu | experimental / historical BLOCKED certification | blocked |
 
 Phase 0 disabling click-created pending does not rewrite historical AtCoder
-certification, but AtCoder cannot be called V4-ready until its own network wave
-passes.
+certification. C2, C3, and C4 truthfully record their network waves as blocked; a
+retry requires a separately reviewed scalar bridge or platform-protocol
+change.
 
 ## 19. RC Re-freeze Conditions
 

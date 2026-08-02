@@ -1,6 +1,185 @@
 # Current Handoff
 
-## Status (2026-07-29 V4 NowCoder E3 ingress engineering PASS)
+## Status (2026-08-02 V4 Phase C C0-C5 engineering complete)
+
+Phase C C5 is complete on `feature/v1-followup`. The new isolation
+suite proves owner-only LeetCode/NowCoder request interpretation,
+platform-namespaced same raw submission IDs, durable confirmed/outbox
+preservation, explicit terminal readiness for every platform, and no
+production Fake OJ registry claim. The orchestrator no longer accepts V3
+submission-intent or V3 verdict-fallback events; unsupported DOM candidates
+are dropped unless an adapter-owned V4 policy emits E3. Initialization retains
+only legacy-key read/count/delete cleanup, and completed historical bundles
+remain deliverable. `platforms.ts` compatibility exports remain because active
+call sites still depend on them.
+
+Phase C terminal matrix: LeetCode and NowCoder network-`experimental`;
+AtCoder, Codeforces, and Luogu network-`blocked`; historical AtCoder DOM
+production remains unchanged. This is an engineering closeout, not RC,
+acceptance, or release. Final gates pass with 2,126 unit tests, 25 app E2E,
+1,376 extension tests, 48 runnable extension E2E, readiness PASS, and
+production build PASS; one Windows capability case and one known extension
+harness case remain skipped. Evidence:
+`work/reports/v4-phase-c-c5-closeout-2026-08-02.md`. Phase D is next and
+requires its own gate.
+
+## Previous Status (2026-08-02 Phase C C4 Luogu `V4_BLOCKED`)
+
+Phase C C4 is terminally `V4_BLOCKED` on the uncommitted working tree of
+`feature/v1-followup` at base HEAD
+`a24e158448c3ccf3e1cde6e380e0c441eff87342`. Revision 3 was explicitly
+approved. Its closed pre-storage Luogu pathname grammar passed before the
+exact production extension observed one natural P1001 submission.
+
+The sanitized transcript contains three lifecycle records for XHR
+`POST /fe/api/problem/submit/P1001`, including HTTP 200, all in document
+`0B0F2A7605D410D910DF94BF4E01ADAE`. The browser landed on numeric record path
+`/record/290292547` in document `4BA4F019442B690633DAF065F40513C7`.
+Navigation witnesses remained zero, and no redirect, lastRecordId request,
+record request, or approved bridge bound the two documents. Tab/time/latest/
+highest/account inference is forbidden, so no legal E2 exists and no Luogu
+network adapter was implemented. Evidence:
+`work/reports/v4-luogu-c4-blocker-2026-08-02.md`.
+
+C5 cross-platform isolation and migration-scaffolding audit is the next
+sequential task after terminal C4 gates agree. No commit or push has occurred.
+
+## Previous Status (2026-08-02 Phase C C3 Codeforces `V4_BLOCKED`)
+
+Phase C C3 is terminally `V4_BLOCKED` on the uncommitted working tree of
+`feature/v1-followup` at base HEAD
+`a24e158448c3ccf3e1cde6e380e0c441eff87342`. The user prepared their own
+Codeforces submission on `/problemset/submit/`; after an immediate ready
+handshake, the exact preflight production extension armed an authenticated
+five-minute session with zero records. The user clicked the final Submit once,
+the browser moved to `/problemset/status`, and the user confirmed the
+submission entered the status page. The extension retained zero records and
+zero navigation witnesses before explicit stop.
+
+The blocker is structural: Codeforces uses a traditional main-frame form
+navigation, Chrome's official `webRequest` contract omits `documentId` for
+frame navigation, and the approved observer rejects missing document identity.
+The landing path exposes neither stable numeric submission identity nor exact
+contest/problem identity. Status-row/account/latest/highest/nearest-time/query
+inference is forbidden. No Codeforces network adapter or fixture was created.
+Authoritative evidence:
+`work/reports/v4-codeforces-c3-blocker-2026-08-02.md`.
+
+Terminal gates pass: focused 433/433, readiness 21/21 plus CLI PASS, frozen
+AtCoder hashes 9/9, `extension:check` 39 files / 1,326 tests, and the full
+nine-stage quality gate with 2,075 unit tests, 25 app E2E, 48 runnable
+extension E2E, and production build. One Windows capability case and one known
+extension harness case remain skipped.
+
+C4 Luogu is now the next sequential wave. Its delta plan Revision 3 is at
+`docs/superpowers/plans/2026-08-02-v4-luogu-network-capture-migration.md` and
+is pending an independent `APPROVE` or `REJECT` verdict. The plan preserves
+the historical public-DOM blocker, treats authenticated evidence as
+non-certifying, and requires stable numeric record ID, exact problem identity,
+and reviewed document continuity. No authenticated C4 characterization,
+natural submission, privacy implementation, adapter implementation, fixture,
+commit, or push has occurred. Revision 2's reviewer closed the original seven
+findings but reported three remaining LOW observations while issuing
+`APPROVED`; revision 3 closes those observations so the plan's explicit
+zero-unresolved-finding approval contract remains enforceable.
+
+## Previous Status (2026-08-02 Phase C C2 AtCoder `V4_BLOCKED`)
+
+Phase C C2 is terminally `V4_BLOCKED` on the uncommitted working tree of
+`feature/v1-followup` at base HEAD
+`a24e158448c3ccf3e1cde6e380e0c441eff87342`. The already-open user Chrome ran
+the exact preflight extension build. Two natural `abc001_1` submissions were
+safely corroborated (`78058928` and `78059304`). During the ready-gated final
+window, a live watcher remained active through the second submission, the page
+navigated from `/contests/abc001/submit` to
+`/contests/abc001/submissions/me`, and the extension retained exactly zero
+records before the operator stopped the session.
+
+The blocker is structural: Chrome's official `webRequest` contract omits
+`documentId` for frame navigation, AtCoder uses a traditional `main_frame`
+form submission, and the approved observer must reject missing document
+identity. The landing path supplies no stable numeric submission identity.
+Weakening correlation through body/query/DOM-row/tab/time inference is
+forbidden. No AtCoder network adapter was implemented. Historical Phase 0 DOM
+certification remains production-authoritative for its own scope and all nine
+fixtures remain frozen. Terminal gates pass: focused 401/401, readiness CLI,
+fixture hashes 9/9, full quality gate with 2,034 unit tests, 25 app E2E, 1,286
+extension tests, 48 runnable extension E2E, and production build. One Windows
+capability case and one known extension harness case remain skipped.
+Authoritative blocker:
+`work/reports/v4-atcoder-c2-blocker-2026-08-02.md`.
+
+C2 remains terminally closed; C3 subsequently completed as documented above.
+
+## Previous Status (2026-07-30 Phase C C1 LeetCode `V4_EXPERIMENTAL`)
+
+Phase C C1 is terminally closed as `V4_EXPERIMENTAL` on the
+uncommitted working tree of `feature/v1-followup` at base HEAD
+`a24e158448c3ccf3e1cde6e380e0c441eff87342`. The user completed the
+v6 retest in the already-open Qiu yu Chrome profile with the installed
+production extension id `aljppcgkcdbeemppmokcbjgcjdhapakh`; no
+replacement Chrome profile was opened.
+
+The real v6 observation proves the full local chain for LeetCode:
+
+- production digest
+  `8e0df3af3be1a60da88e6362cadbe2f6883a9ecec6f0063c522ff85a3e8521bb`;
+- adapter `v4-leetcode-network-6`;
+- submission `cn/739108591`, problem `roman-to-integer`, verdict
+  `Wrong Answer`;
+- terminal extension state: zero confirmed submissions, one durable
+  tombstone (`leetcode:cn/739108591`), and zero outbox, quarantine,
+  unmatched-E3, ambiguity, endpoint-diagnostic, or capture-error
+  residue;
+- the disposable SQLite database contains exactly four capture events,
+  one training session, and one non-voided automatic training attempt
+  with `record_source=capture`, `provenance=extension_paired`, and
+  `result=failed`.
+
+The localhost hypothesis is disproved for this failure: the existing
+profile retained `http://localhost:3000/*` permission, pairing and
+capture were enabled, and v6 delivered through the local API into
+SQLite. The actual defects were:
+
+1. the original adapter was overfit to the legacy LeetCode
+   `/problems/<slug>/submit/` plus
+   `/submissions/detail/<id>/v2/check/` sequence, while the current UI
+   uses trusted E0 plus completed `POST /graphql/` and exact
+   `/submissions/api/{runtime|memory}_distribution/<id>/` requests;
+2. v5 scoped `problemExternalId` as `cn/<slug>`, but the local API
+   contract requires the plain problem slug;
+3. repeated result evidence could refresh `confirmedAt` and recreate a
+   finalized record, so v6 preserves first confirmation identity and
+   time and suppresses tombstoned replay.
+
+The final authoritative `npm run quality:gate` completed all nine
+stages successfully: 94 unit-test files with 2,009 passing tests and
+one Windows symlink-capability skip; 25 application E2E tests; 39
+extension unit-test files with 1,261 passing tests; 48 extension E2E
+tests with one documented Phase A service-worker harness skip; strict
+lint, migrations, curriculum validation, typecheck, production
+extension build/parity, and Next.js production build all passed.
+
+Authoritative C1 closeout:
+`work/reports/v4-leetcode-c1-closeout-2026-07-30.md`.
+
+This is not a production-adapter promotion, RC, user acceptance of the
+whole product, public release, or authorization to skip C2-C5.
+LeetCode remains `experimental`. Phase C subsequently entered C2 AtCoder.
+The user authorized characterization on 2026-07-31 and the derived
+delta plan now lives at
+`docs/superpowers/plans/2026-07-31-v4-atcoder-network-capture-migration.md`.
+All nine historical AtCoder fixture hashes are frozen in that plan; the four
+historical certification suites pass 171/171 and the readiness CLI passes.
+C2 plan revision 2 is independently `APPROVED`; the pre-storage pathname
+privacy prerequisite passes 331 focused tests and `extension:check` passes 39
+files / 1,285 tests. Production-dist version/hashes are frozen in
+`work/reports/v4-atcoder-c2-preflight-2026-07-31.md`. The same extension id was
+reloaded in the already-open Chrome. These entry conditions are historical;
+the C2 blocker above supersedes the former login-pending state. No C1/C2
+commit or push has been made.
+
+## Previous Status (2026-07-29 V4 NowCoder E3 ingress engineering PASS)
 
 The Phase B B8 missing-E3 layer is repaired. The engineering block is
 closed on a single uncommitted SHA through Tasks 0-6 of
@@ -540,21 +719,22 @@ observation, final verification, and acceptance pending.**
 
 ## Workspace
 
-- Branch: `feature/v1-followup`
-- Worktree: repository root; V3 capture repair is frozen by the local commit
-  containing this handoff. Pre-existing user-owned document changes remain
-  outside that commit, so a dirty worktree does not change the frozen RC tree.
-- Default database: preserved during the authoritative Phase 0D Task 4, Task 6, and T8 gate verification runs (metadata-only `Get-Item`; the default `training-platform.sqlite` was never opened or hashed by those runs)
-- Last frozen RC quality gate: PASS on 2026-07-20 with 65 unit files / 1008 passed / 1 capability skip, 24 E2E, 18 extension files / 457 passed. This is historical evidence for the now-defective frozen RC, not the current uncommitted repair gate.
-- Independent code review: APPROVED after manifest reachability and hidden-title privacy fixes; no blocker or important finding remains.
-- Passive authenticated characterization: existing LeetCode.cn AC, NowCoder AC, and Luogu AC/Compile Error pages were inspected in user-authorized background tabs. The agent made no submissions and retained no credentials, source code, account identity, or full statements. Evidence: `work/reports/v0-domestic-oj-authenticated-characterization-matrix.md`.
-- Real mainland-local curriculum link check: 17/24 PASS, 7 LeetCode.cn URLs conservatively BLOCKED on the `请登录` marker despite HTTP 200; do not report the package as fully link-verified.
-- Default database preserved at 462848 bytes and `LastWriteTimeUtc` `2026-07-17T22:06:33.9396954Z` by metadata-only comparison.
+- Branch: `feature/v1-followup`.
+- Phase C closeout: the commit containing this handoff is the engineering
+  freeze point; it is not a replacement RC and has not been pushed.
+- Default database: preserved by the Phase C quality gate and real-observation
+  workflows; browser and E2E work used disposable state only.
+- Operator-only browser profiles and temporary test state remain excluded from
+  the commit.
 
 ## Current Phase
 
-- Phase 0: **complete and reconciled green on 2026-07-17.** All exit criteria satisfied; AtCoder is the sole certified production adapter.
-- V0 manual learning loop vertical slice: **implemented but not accepted; V4 Phase 0 is complete, while formal observation remains blocked until the later replacement-candidate gates pass.**
+- Phase 0: **complete and reconciled green on 2026-07-17.** AtCoder remains
+  the sole certified production DOM adapter.
+- V4 Phase C: **C0-C5 engineering-complete.** LeetCode and NowCoder are
+  network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
+- V0 manual learning loop vertical slice: **implemented but not accepted.**
+  Formal observation and replacement-RC work remain gated.
 
 ## Commit Chronology
 
@@ -593,37 +773,29 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- No Worker in flight
+- No implementation task is in flight after the Phase C closeout.
 
 ## Next Commander Action
 
-1. Phase A closeout is declared at A9 (2026-07-24). A10-A12 are deferred
-   and must not be claimed as complete. Phase B (NowCoder network pilot)
-   requires fresh explicit authorization. Do not resume formal V0
-   observation, replacement-RC work, or V0.5 without the applicable gate.
-2. The Fake OJ matrix `capture-v4-network.spec.ts` reports 28 of 29 tests
-   passing; the single remaining failure (`service-worker restart
-   between every major state`) is a known test-harness limitation, not
-   a production defect. Address it only if a fresh user authorization
-   re-opens A10/A11.
+1. Define and review the Phase D scope before implementation. Do not treat the
+   Phase C engineering closeout as RC, acceptance, or release.
+2. Do not resume formal V0 observation, replacement-RC work, or V0.5 until the
+   applicable gate explicitly permits it.
 
 ## Known Risks
 
-- NowCoder's `V4NetworkStatus` is `experimental`; the other real platforms
-  remain `uncharacterized`. AtCoder is still the sole production DOM adapter;
-  LeetCode, Codeforces, NowCoder, and Luogu remain DOM-experimental.
+- LeetCode and NowCoder are network-`experimental`; authenticated evidence
+  does not certify either for production. AtCoder, Codeforces, and Luogu are
+  network-`blocked` under their platform-specific identity constraints.
+  AtCoder is still the sole production DOM adapter; LeetCode, Codeforces,
+  NowCoder, and Luogu remain DOM-experimental.
 - Luogu production-adapter certification remains BLOCKED on missing public
   verdict DOM (historical record preserved in
   `work/reports/luogu-adapter-blocker.json`).
 - The Windows file-symlink capability test may remain skipped under EPERM;
   mandatory junction safety tests must pass.
-- The Fake OJ matrix reports 28 of 29 tests passing; the single
-  remaining failure is a test-harness worker-restart seam (a known
-  infrastructure limitation, not a production defect; the module
-  docblock in `capture-v4-network.spec.ts` honestly documents this).
-- The Phase A closeout deliberately defers A10 (real extension → SQLite
-  chain), A11 (quality gate integration), A12 (independent review). A
-  fresh user authorization is required before re-opening any of them.
+- The extension E2E lane has 48 runnable passing tests and one known skipped
+  service-worker-restart harness case; the skip is not production evidence.
 - Phase 1– and 5 capability portfolios contain implemented V0 thin
   slices but are not complete; Phase 4 and 6 are future. None is an
   active line-by-line implementation plan.

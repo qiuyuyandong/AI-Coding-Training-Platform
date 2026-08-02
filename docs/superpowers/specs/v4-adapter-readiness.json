@@ -1,0 +1,158 @@
+{
+  "records": [
+    {
+      "platform": "leetcode",
+      "status": "experimental",
+      "characterization": {
+        "date": "2026-07-30",
+        "source": "work/reports/v4-leetcode-c1-characterization-2026-07-30.md",
+        "tier": "authenticated"
+      },
+      "requestMatcher": "Legacy: POST /problems/<slug>/submit[/] then GET /submissions/detail/<numeric-id>/(v2/)?check[/]. Current GraphQL UI: trusted recent exact submit-control E0, completed POST /graphql/, then GET /submissions/api/{runtime|memory}_distribution/<numeric-id>[/] on an exact owned HTTPS host.",
+      "e2Policy": "The legacy chain requires one unique completed HTTP 200 submit/check pair. The current chain requires one recent same-document trusted problem hint plus completed HTTP 200 GraphQL and result-distribution witnesses within five seconds; historical result pages fail closed.",
+      "e3Policy": "One trusted final verdict must match exactly one durable namespaced LeetCode confirmation for the same problem.",
+      "privacyFields": [
+        "method",
+        "normalized path-derived endpoint key",
+        "HTTP status",
+        "stable submission ID",
+        "problem slug",
+        "final verdict",
+        "request/tab/frame/document identity"
+      ],
+      "fakeOjCases": [
+        "LeetCode legacy trailing-slash chain",
+        "LeetCode current GraphQL/result-distribution chain",
+        "LeetCode historical-result negative flow",
+        "LeetCode repeated E2 and post-final tombstone replay",
+        "LeetCode duplicate E3",
+        "LeetCode identity mismatch",
+        "LeetCode unmatched endpoint path diagnostic"
+      ],
+      "realObservation": "work/reports/v4-leetcode-c1-closeout-2026-07-30.md",
+      "failureDisposition": "Fail closed when E1, E2, or E3 is missing, ambiguous, crossed, expired, or already finalized; authenticated evidence caps readiness at experimental.",
+      "endpointDriftDisposition": "Write only a bounded path-only record to session.leetcodeEndpointDiagnostics; query, body, headers, cookies, credentials, code, and DOM are excluded, and the record cannot enter capture state.",
+      "productionCertification": false
+    },
+    {
+      "platform": "nowcoder",
+      "status": "experimental",
+      "characterization": {
+        "date": "2026-07-29",
+        "source": "work/reports/v4-nowcoder-e3-ingress-repair-2026-07-29.md",
+        "tier": "authenticated"
+      },
+      "requestMatcher": "POST /nccommon/submit_cd and GET /nccommon/status",
+      "e2Policy": "A unique recent E1 plus a successful status response with a numeric submission ID.",
+      "e3Policy": "An exact /acm/contest/view-submission identity match after E2.",
+      "privacyFields": [
+        "method",
+        "normalized path",
+        "stable submission ID",
+        "problem ID",
+        "final verdict"
+      ],
+      "fakeOjCases": [
+        "nowcoder successful chain",
+        "nowcoder duplicate E3",
+        "nowcoder identity mismatch"
+      ],
+      "realObservation": "work/reports/v4-nowcoder-e3-ingress-repair-2026-07-29.md",
+      "failureDisposition": "Fail closed and retain experimental status when E1, E2, or E3 is missing or ambiguous.",
+      "endpointDriftDisposition": "Only exact NowCoder submit/status keys participate in E2; a generic E1 cannot satisfy readiness. A failed real observation must stop and return to the bounded characterization export before retry.",
+      "productionCertification": false
+    },
+    {
+      "platform": "atcoder",
+      "status": "blocked",
+      "characterization": {
+        "date": "2026-08-02",
+        "source": "work/reports/v4-atcoder-c2-blocker-2026-08-02.md",
+        "tier": "authenticated"
+      },
+      "requestMatcher": "No safe matcher is implementable from the observed traditional form-navigation flow: Chrome omits webRequest documentId for frame navigation, so the strict observer rejects POST /contests/<contest>/submit before storage; the landing path /contests/<contest>/submissions/me carries no numeric submission identity.",
+      "e2Policy": "Blocked. HTTP success, form submission, and navigation to /submissions/me cannot create E2 without the required browser-document identity, stable numeric submission identity, and safely sourced exact task identity.",
+      "e3Policy": "The independently certified #judge-status DOM taxonomy remains valid only for its historical Phase 0 scope. It cannot finalize a V4 attempt because no legal durable E2 confirmation can be created.",
+      "privacyFields": [
+        "method",
+        "pre-storage-approved pathname",
+        "resource type",
+        "lifecycle",
+        "HTTP status",
+        "request/tab/frame/document identity when Chrome supplies it",
+        "canonical timestamps"
+      ],
+      "fakeOjCases": [
+        "AtCoder main-frame POST without documentId fails closed",
+        "historical public submission pages never create E2",
+        "frozen AtCoder DOM certification corpus remains unchanged"
+      ],
+      "realObservation": "work/reports/v4-atcoder-c2-blocker-2026-08-02.md",
+      "failureDisposition": "Terminal V4_BLOCKED. Do not retry natural submissions without a separately reviewed scalar bridge or platform protocol change that supplies document, task, and stable submission identity without body, query, account, row-order, tab-nearest, or time-only inference.",
+      "endpointDriftDisposition": "Keep the existing closed pre-storage contest-path grammar and fail closed. No path outside that grammar, request body, query, fragment, header, cookie, credential, code, account identifier, language, execution time, or memory value may be retained.",
+      "productionCertification": false
+    },
+    {
+      "platform": "codeforces",
+      "status": "blocked",
+      "characterization": {
+        "date": "2026-08-02",
+        "source": "work/reports/v4-codeforces-c3-blocker-2026-08-02.md",
+        "tier": "authenticated"
+      },
+      "requestMatcher": "No safe matcher is implementable from the observed traditional form-navigation flow: Chrome omits webRequest documentId for frame navigation, so the strict observer rejects the POST from /problemset/submit/ before storage; the landing path /problemset/status carries no stable numeric submission identity or exact contest/problem identity.",
+      "e2Policy": "Blocked. A successful form transition to /problemset/status cannot create E2 without browser-document continuity, one stable numeric submission ID, and safely sourced exact contest/problem identity.",
+      "e3Policy": "A direct numeric submission page or visible status row cannot finalize a V4 attempt because no legal durable E2 confirmation exists. Latest-row, highest-ID, nearest-time, account, and query correlation remain forbidden.",
+      "privacyFields": [
+        "method",
+        "pre-storage-approved pathname",
+        "resource type",
+        "lifecycle",
+        "HTTP status",
+        "request/tab/frame/document identity when Chrome supplies it",
+        "canonical timestamps"
+      ],
+      "fakeOjCases": [
+        "Codeforces main-frame POST without documentId fails closed",
+        "status and direct submission pages without E2 never confirm a submission",
+        "account-bearing, private, malformed, and unknown paths fail before storage"
+      ],
+      "realObservation": "work/reports/v4-codeforces-c3-blocker-2026-08-02.md",
+      "failureDisposition": "Terminal V4_BLOCKED. Do not retry natural submissions without a separately reviewed scalar bridge or platform protocol change that supplies document, contest/problem, and stable submission identity without body, query, account, status-row order, highest-ID, tab-nearest, or time-only inference.",
+      "endpointDriftDisposition": "Keep the closed pre-storage Codeforces pathname grammar and fail closed. Do not retain request bodies, form fields, query values, fragments, headers, cookies, credentials, source, account identity, language, execution time, memory, test number, or unrelated status rows.",
+      "productionCertification": false
+    },
+    {
+      "platform": "luogu",
+      "status": "blocked",
+      "characterization": {
+        "date": "2026-08-02",
+        "source": "work/reports/v4-luogu-c4-blocker-2026-08-02.md",
+        "tier": "authenticated"
+      },
+      "requestMatcher": "No safe matcher is implementable from the observed flow. Three lifecycle records prove an XHR POST /fe/api/problem/submit/P1001 with HTTP 200 and one stable E1 documentId; the browser then landed on /record/290292547 in a different browser document. No redirect, lastRecordId request, record request, navigation witness, or approved bridge bound the numeric record ID to that E1.",
+      "e2Policy": "Blocked. HTTP 200 for the problem submit E1 plus a numeric record landing and exact P1001 task identity cannot create E2 when browser-owned document identity proves a cross-document transition with no legal continuity signal.",
+      "e3Policy": "The existing strict semantic verdict extractor remains valid only for its historical DOM-experimental scope. It cannot finalize a V4 attempt without a legal durable E2, and no verdict or record-row content was read during C4.",
+      "privacyFields": [
+        "method",
+        "pre-storage-approved pathname",
+        "resource type",
+        "lifecycle",
+        "HTTP status",
+        "request/tab/frame/document identity",
+        "canonical timestamps",
+        "browser-owned landing pathname and document identity"
+      ],
+      "fakeOjCases": [
+        "Luogu submit lifecycle followed by a different landing document never creates E2",
+        "lastRecordId without an independently bound numeric record identity never creates E2",
+        "direct or historical record pages never create E2",
+        "account, team, contest, training, discussion, chat, administrative, malformed, and unknown paths fail before storage"
+      ],
+      "realObservation": "work/reports/v4-luogu-c4-blocker-2026-08-02.md",
+      "failureDisposition": "Terminal V4_BLOCKED. Do not retry natural submissions without a separately reviewed browser-owned continuity bridge or platform protocol change. Tab identity, nearest time, latest/highest record, account context, and response-body inference remain forbidden.",
+      "endpointDriftDisposition": "Keep the closed pre-storage Luogu pathname grammar and fail closed. Do not retain request or response bodies, form fields, query values, fragments, headers, cookies, credentials, source, account identity, language, execution time, memory, test number, full problem text, or record-row contents.",
+      "productionCertification": false
+    }
+  ]
+}

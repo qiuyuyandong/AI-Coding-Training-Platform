@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-07-29 (V4 NowCoder E3 ingress engineering PASS)
+Last updated: 2026-08-02 (V4 Phase C C0-C5 engineering complete; C1 LeetCode experimental; C2-C4 blocked)
 
 ## Setup
 
@@ -187,7 +187,46 @@ skipped; the service-worker-restart scenario is `test.skip` because
 of the test-harness worker-restart seam (a known infrastructure
 limitation, not a production defect).
 
-### Recovery
+#### Phase C-D readiness contract
+
+The platform-delta validator and template are the entry gate for every
+Phase C / D implementation. Run both commands before opening a C1-C5
+or D1-D5 implementation PR:
+
+```powershell
+npx vitest run tests/unit/v4AdapterReadinessValidator.test.ts
+node scripts/validate-v4-adapter-readiness.mjs --all
+```
+
+The manifest (`docs/superpowers/specs/v4-adapter-readiness.json`) must
+list every platform whose `v4NetworkStatus` is not `uncharacterized`,
+with non-blank `requestMatcher`, `e2Policy`, `e3Policy`,
+`failureDisposition`, `endpointDriftDisposition`, a non-empty
+`privacyFields` array, a non-empty
+`fakeOjCases` array, a `characterization.source` and `realObservation`
+that resolve on disk, and `productionCertification: true` when the
+status is `production`. Authenticated characterization cannot satisfy
+a production gate. `disabled` is a terminal state that only requires a
+`disableReason`. `candidate` is explicitly non-terminal: it means the
+adapter is implemented and automatically testable but still lacks a
+successful same-build real observation. The CLI rejects docs/registry status disagreement,
+fabricated evidence paths, and comment-mismatched registries.
+
+A future platform delta plan must be derived from
+`docs/superpowers/plans/templates/v4-platform-network-migration-template.md`,
+include the `Implementation Boundary` section, and remain blocked on
+fresh user-authorized real-submission characterization before any
+adapter code change.
+
+C3 Codeforces ended `V4_BLOCKED` after a ready-gated natural submission moved
+from `/problemset/submit/` to `/problemset/status` with zero retained records
+and zero navigation witnesses. Do not diagnose this by reading status rows or
+queries: Chrome omits `documentId` for frame navigation, and the landing path
+does not carry the stable submission plus contest/problem identity required by
+the reviewed E2 contract. A retry requires a separately reviewed scalar bridge
+or first-party protocol change.
+
+## Recovery
 
 - **Lint step failed inside `npm run quality:gate`.** Inspect the `eslint . --max-warnings=0` output, fix the named files without adding disable comments or downgrading rules, then rerun `npm run lint` directly before re-running the full gate. Do not skip a finding by reducing the severity.
 - **E2E cleanup was interrupted.** Confirm no Playwright-owned Next.js process is running (`Get-NetTCPConnection -LocalPort 3000 -State Listen`), then remove only the resolved `<workspace>/.tmp/playwright` directory. The Playwright teardown walker (`tests/e2e/database.ts`) handles symlinks and junctions as leaves; never delete or replace the default `training-platform.sqlite`.
@@ -231,10 +270,15 @@ Stop the stale process before rerunning e2e. Avoid starting manual long-running 
 2. Confirm the popup says paired and capture is enabled. If it says pairing needs attention, create a new or targeted rotation code in `/settings` and pair again.
 3. Check the popup's `待同步结果` and `已隔离结果`; Phase 0 does not create new automatic bundles.
 4. Check `CaptureStatusPanel` only for delivery of bundles that already existed before the V4 migration.
-5. Use the manual attempt form for new training records until a later V4 network-confirmed adapter passes its gates (none exist today; every real platform's `V4NetworkStatus` remains `uncharacterized`).
+5. Use the manual attempt form when a platform has no proven V4 network chain. LeetCode and NowCoder are network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
 
 Network errors are retryable. Invalid 400/413/415 responses and permanent 409 event-ID conflicts are dropped to avoid retry loops. A 401 is retained for pairing recovery. If a 409 occurs, inspect whether one producer reused an `eventId` for different event content.
 
 The pairing boundary assumes the local OS account and files remain trustworthy. A process that can edit the SQLite database or Chrome profile can bypass this local HTTP control; that host-compromise case is not solved by localhost bearer credentials.
 
-If passive verdict detection appears stale, inspect both the current URL and the selected result tab before changing verdict aliases. For LeetCode, `/problems/<slug>/submissions/<id>/` and `/submissions/detail/<id>/` are exact result forms, while a restored `/problems/<slug>/` is valid only with the selected semantic submission-detail surface. A generic `提交详情` label is non-final, not `Other Failure`. Inspect the content-script and service-worker consoles for `[capture-v4]` messages. The popup's action status distinguishes a received control action from a completed sync; `待同步结果` reaches zero only after a matching ACK for an existing completed bundle. If `chrome://extensions` reports a startup error, reload the current `extension/dist`; the service worker capability-checks optional `StorageArea.setAccessLevel`, and every popup/content fire-and-forget operation handles rejected Promises. Adapter DOM status does not enable V4 network capture: AtCoder is the sole production DOM adapter, while every V4 network status remains uncharacterized.
+If passive verdict detection appears stale, inspect both the current URL and the selected result tab before changing verdict aliases. For LeetCode, `/problems/<slug>/submissions/<id>/` and `/submissions/detail/<id>/` are exact result forms, while a restored `/problems/<slug>/` is valid only with the selected semantic submission-detail surface. A generic `提交详情` label is non-final, not `Other Failure`. Inspect the content-script and service-worker consoles for `[capture-v4]` messages. The popup's action status distinguishes a received control action from a completed sync; `待同步结果` reaches zero only after a matching ACK for an existing completed bundle. If `chrome://extensions` reports a startup error, reload the current `extension/dist`; the service worker capability-checks optional `StorageArea.setAccessLevel`, and every popup/content fire-and-forget operation handles rejected Promises. Adapter DOM status does not enable V4 network capture: AtCoder remains the sole production DOM adapter, while its independent V4 network status is `blocked`; LeetCode and NowCoder are network-`experimental`, and Codeforces/Luogu are network-`blocked`.
+
+Phase C C5 removed the runtime V3 click-derived pending-intent event and
+unsupported-verdict fallback. Initialization may only count and delete the
+legacy `pendingSubmissionIntents` key; it must never write or consume that key.
+Existing completed outbox bundles remain compatible and deliverable.

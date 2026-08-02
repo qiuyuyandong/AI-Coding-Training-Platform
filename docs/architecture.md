@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-29 (V4 NowCoder E3 ingress engineering PASS)
+Last updated: 2026-08-02 (V4 Phase C C0-C5 engineering complete; C1 LeetCode experimental; C2 AtCoder, C3 Codeforces, C4 Luogu blocked; historical AtCoder DOM production unchanged)
 
 ## Overview
 
@@ -91,7 +91,7 @@ without Node-only APIs.
 `extension/src/adapters/{contract,registry}.ts` is the single source of
 truth for host ownership, DOM status, V4 network status, version, and
 `networkPolicy`. `extension/src/platforms.ts` re-exports the contract
-for backward compatibility. `extension/src/extensionAdapterContract.test.ts`
+for backward compatibility. `tests/unit/extensionAdapterContract.test.ts`
 runs the AST-based dependency graph that blocks direct/transitive
 storage / outbox / transport / state-machine imports inside
 `extension/src/adapters/**`.
@@ -363,3 +363,73 @@ attempt chain and proves reload does not duplicate the bundle.
 NowCoder remains `experimental` for DOM and V4 network readiness; the
 adapter is engineering-ready but promotion requires a separate
 reviewed decision with broader real-platform evidence.
+
+## Phase C-D readiness contract and template (2026-07-30, C0 closeout)
+
+Phase C-D re-platforms the remaining OJ adapters through a reviewed
+delta plan per platform. Before any platform code changes, every
+wave must satisfy the C0 readiness contract:
+
+- `docs/superpowers/plans/templates/v4-platform-network-migration-template.md`
+  is the only template that a future C1-C4 delta plan may derive from.
+- `docs/superpowers/specs/v4-adapter-readiness.json` is the canonical
+  readiness manifest. It is validated through
+  `scripts/validate-v4-adapter-readiness.mjs --all` and the unit suite
+  `tests/unit/v4AdapterReadinessValidator.test.ts`.
+- The manifest must include a non-blank characterization `date`,
+  `source` (an existing repo-relative path), `tier` (`public` or
+  `authenticated`), the exact `requestMatcher`, `e2Policy`, `e3Policy`,
+  a non-empty `privacyFields` array, a non-empty `fakeOjCases` array,
+  a non-empty `realObservation` repo-relative path that resolves on
+  disk, a `failureDisposition`, and the `productionCertification: true`
+  flag if the status is `production`. Authenticated characterization
+  cannot produce `production`.
+- Registry parsing in the CLI is brace-aware: it strips single-line
+  comments before matching `v4NetworkStatus: "<status>"`, so a comment
+  quoting the wrong status cannot smuggle a wrong pass.
+- `disabled` is a valid terminal readiness state and only requires a
+  `disableReason`; evidence paths are not required for `disabled`.
+- Tests cover registry/document disagreement, missing and absolute
+  evidence paths, comment-masking, authenticated-as-production
+  rejection, and the `disabled` ladder.
+
+C0 implementation (executed on 2026-07-30 and included in the Phase C closeout) adds:
+
+- `tests/helpers/v4AdapterReadinessContract.ts` (type/runtime shape) +
+  `tests/helpers/v4AdapterReadinessContract.cjs` (plain-Node runtime so
+  the CLI does not need a TypeScript loader) +
+  `tests/types/v4AdapterReadiness.d.ts` (ambient declarations).
+- `scripts/validate-v4-adapter-readiness.mjs` (CLI: `--all` only;
+  exit codes `0` PASS, `1` failures, `2` usage).
+- `tests/unit/v4AdapterReadinessValidator.test.ts` (20 cases).
+- `extension/src/adapters/registry.ts` docblock refresh + `disabled`
+  terminal status.
+- `docs/superpowers/plans/2026-07-30-v4-leetcode-network-capture-migration.md`
+  (C1 plan, terminal `V4_EXPERIMENTAL` after the v6 same-build
+  LeetCode.cn observation).
+
+NowCoder's existing `experimental` V4 readiness is preserved through
+the manifest and remains governed by Phase B's terminal closeout. The
+E3 ingress repair at `c26c578` is the engineering baseline.
+
+C1 adds a closed LeetCode legacy submit/check policy and the current
+trusted-E0 + completed GraphQL + exact result-distribution policy. Adapter
+`v4-leetcode-network-6` emits a plain problem slug and a `.cn`/`.com`
+namespaced submission ID. Confirmation storage preserves the first E2
+timestamp, rejects crossed problem identity, and treats final tombstones as
+authoritative after the confirmed record is removed. The real v6 observation
+delivered `cn/739108591` into 4 capture events, 1 session, and 1 non-voided
+SQLite attempt. LeetCode remains network-`experimental`; authenticated
+evidence cannot certify production. C2 AtCoder and C3 Codeforces both close
+as network-`blocked`: each observed platform uses a main-frame form navigation
+for which Chrome omits `webRequest.documentId`, and each approved landing path
+omits the stable submission/problem identity required for E2. Neither network
+adapter was implemented. C4 Luogu also closes network-`blocked`: its natural
+P1001 submit E1 and numeric record landing occurred in different browser
+documents without an approved continuity signal, so no adapter was
+implemented. C5 removes the reachable V3 click-derived pending-intent event
+and verdict fallback. Upgrade initialization still reads and deletes the old
+`pendingSubmissionIntents` key, and existing durable outbox bundles remain
+deliverable. `tests/unit/extensionV4Isolation.test.ts` pins owner-only request
+interpretation, platform-namespaced submission IDs, durable-state isolation,
+terminal readiness coverage, and absence of synthetic Fake OJ registry claims.

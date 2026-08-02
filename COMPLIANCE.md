@@ -12,8 +12,9 @@ an attempt bundle, or local API traffic. The V4 Phase A closeout (A0-A12,
 machine, session/local storage split, production webRequest observer, optional
 MAIN bridge, background orchestrator, Fake OJ matrix, disposable SQLite
 lifecycle, and the canonical nine-stage quality gate. The framework engineering
-pass is complete; no real OJ protocol is implemented yet, so `等待判题` stays
-zero until Phase B ships. The V4 evidence boundary rejects forbidden raw fields
+pass is complete. Later Phase B/C work adds strict experimental LeetCode and
+NowCoder network policies; `等待判题` still requires adapter-owned E2 evidence and
+can never arise from a click. The V4 evidence boundary rejects forbidden raw fields
 recursively at every parse: `body`, `rawBody`, `responseBody`, `code`, `headers`,
 `requestHeaders`, `responseHeaders`, `extraHeaders`, `cookie`, `authorization`,
 `csrf`, `token`, `username`, `account` (any depth, cycle-safe via WeakSet).
@@ -131,3 +132,18 @@ Disposable test and migration databases are owned by the verification stack, not
 - These databases contain only synthetic test fixtures and migration rows; they never hold production capture data, training records, attempts, manual reflections, credentials, or any user-derived content.
 - The default `training-platform.sqlite` at the repository root is the developer's local source of truth. The aggregate gate never opens, hashes, or migrates it; `npm run e2e`, `npm run extension:e2e`, and `npm run quality:gate` are the only commands that own disposable databases; neither E2E lane ever opens the default SQLite file.
 - GitHub Actions (`windows-latest`, Node 22) installs dependencies and Chromium, then runs only `npm run quality:gate`. CI does not deploy, expose secrets, upload database artifacts, or call external LLM, analytics, sync, OJ, or third-party APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner. The Phase A A11 workflow (`workflows/quality-gate.yml`) carries `permissions: contents: read`, `timeout-minutes: 20`, and the `**` branch triggers; it is local-only and never uploads artifacts.
+
+## V4 Phase C isolation boundary
+
+- Network request interpretation is owned by one platform adapter; endpoint,
+  response-field, and confirmation assumptions are never shared generically.
+- Stable submission identity is namespaced as
+  `<platform>:<externalSubmissionId>`, so identical raw IDs cannot collide.
+- A click can create only bounded E0; no runtime event writes or consumes the
+  legacy `pendingSubmissionIntents` key. Upgrade initialization may count and
+  delete that old key solely to finish the V3-to-V4 migration.
+- Unsupported DOM verdict candidates are dropped unless an adapter-owned V4
+  policy turns them into safe E3 evidence. Historical completed bundles remain
+  readable and deliverable.
+- Production modules contain no Fake OJ adapter or readiness claim; Fake OJ
+  protocol simulation remains test-only.

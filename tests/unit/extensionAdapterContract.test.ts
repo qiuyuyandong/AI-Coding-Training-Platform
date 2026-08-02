@@ -5,9 +5,8 @@
  *
  *   - Every registry record declares platform, label, bounded version,
  *     exact host ownership, current DOM status, and V4 network status.
- *   - Only AtCoder DOM status remains "production". Every V4 network
- *     status is exactly "uncharacterized" in Phase A.
- *   - No real adapter attaches a `networkPolicy`.
+ *   - Only AtCoder DOM status remains "production". V4 network status is
+ *     evidence-driven and distinguishes a real-observation-pending candidate.
  *   - The registry export and the legacy compatibility re-export are
  *     identity-equal.
  *   - A type-safe synthetic `AdapterEvidenceFunction` can be built on
@@ -40,6 +39,7 @@ import type {
   Platform,
   PlatformAdapterRecord,
   V4NetworkAdapterPolicy,
+  V4NetworkStatus,
 } from "@/extension/src/adapters/contract";
 import { PLATFORM_ADAPTERS } from "@/extension/src/adapters/registry";
 // Compatibility re-export — must be identity-equal to the registry export.
@@ -67,6 +67,11 @@ function asLocation(url: string): DetectableLocation {
 }
 
 describe("platform adapter registry (Phase A Task A2)", () => {
+  it("keeps disabled as an explicit fail-closed V4 readiness state", () => {
+    const disabled: V4NetworkStatus = "disabled";
+    expect(disabled).toBe("disabled");
+  });
+
   it("registers exactly the five required platform keys", () => {
     expect(Object.keys(PLATFORM_ADAPTERS).slice().sort()).toEqual(
       PLATFORMS.slice().sort(),
@@ -93,10 +98,14 @@ describe("platform adapter registry (Phase A Task A2)", () => {
     expect(PLATFORM_ADAPTERS.codeforces.status).toBe("experimental");
   });
 
-  it("keeps only the characterized NowCoder pilot experimental", () => {
+  it("records characterized network outcomes without conflating DOM certification", () => {
     for (const platform of PLATFORMS) {
       expect(PLATFORM_ADAPTERS[platform].v4NetworkStatus).toBe(
-        platform === "nowcoder" ? "experimental" : "uncharacterized",
+        platform === "nowcoder" || platform === "leetcode"
+          ? "experimental"
+          : platform === "atcoder" || platform === "codeforces" || platform === "luogu"
+            ? "blocked"
+          : "uncharacterized",
       );
     }
   });
@@ -121,10 +130,10 @@ describe("platform adapter registry (Phase A Task A2)", () => {
     }
   });
 
-  it("attaches a policy only to the characterized NowCoder pilot", () => {
+  it("attaches policies only to characterized pilots", () => {
     const records: readonly PlatformAdapterRecord[] = Object.values(PLATFORM_ADAPTERS);
     for (const record of records) {
-      if (record.platform === "nowcoder") {
+      if (record.platform === "nowcoder" || record.platform === "leetcode") {
         expect(record.networkPolicy).toBeDefined();
       } else {
         expect(record.networkPolicy).toBeUndefined();
@@ -136,10 +145,14 @@ describe("platform adapter registry (Phase A Task A2)", () => {
     expect(PLATFORM_ADAPTERS).toBe(COMPAT_PLATFORM_ADAPTERS);
   });
 
-  it("binds the NowCoder pilot to its evidence-backed version", () => {
+  it("binds characterized pilots to their evidence-backed versions", () => {
     for (const platform of PLATFORMS) {
       expect(PLATFORM_ADAPTERS[platform].version).toBe(
-        platform === "nowcoder" ? "v4-nowcoder-network-1" : "v4-contract-1",
+        platform === "nowcoder"
+          ? "v4-nowcoder-network-1"
+          : platform === "leetcode"
+            ? "v4-leetcode-network-6"
+            : "v4-contract-1",
       );
     }
   });
@@ -264,12 +277,15 @@ describe("runtime V4 network policy factory (Phase A Task A2)", () => {
     expect(parseAndReturn({ token: "x" })).toBeNull();
   });
 
-  it("preserves no-policy state outside the NowCoder pilot", () => {
+  it("preserves no-policy state for blocked and uncharacterized platforms", () => {
     const records: readonly PlatformAdapterRecord[] = Object.values(PLATFORM_ADAPTERS);
     for (const record of records) {
-      if (record.platform === "nowcoder") {
+      if (record.platform === "nowcoder" || record.platform === "leetcode") {
         expect(record.networkPolicy).toBeDefined();
         expect(record.v4NetworkStatus).toBe("experimental");
+      } else if (record.platform === "atcoder" || record.platform === "codeforces" || record.platform === "luogu") {
+        expect(record.networkPolicy).toBeUndefined();
+        expect(record.v4NetworkStatus).toBe("blocked");
       } else {
         expect(record.networkPolicy).toBeUndefined();
         expect(record.v4NetworkStatus).toBe("uncharacterized");

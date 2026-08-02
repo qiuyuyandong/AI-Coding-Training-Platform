@@ -1,40 +1,32 @@
 # AI Coding Training Platform
 
-> **Status (2026-07-29):** **V4 NowCoder E3 ingress engineering PASS** on
-> commit `c26c578` (Tasks 0-6 of
-> `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`).
-> The Phase B B8 missing-E3 layer is fixed through a pure
-> `extension/src/contentIngress.ts` coordinator, an idempotent
-> `extension/src/contentBootstrap.ts` sentinel, and
-> `extension/src/background.ts` self-healing
-> `chrome.scripting.executeScript` + `chrome.webNavigation`. Production-built
-> `extension/dist` proves the chain end-to-end on a fresh profile with no
-> characterization: real-Chrome Task 5 records one closed
-> `contentIngressReady` and one unmatched E3 with the exact URL submission id;
-> Task 6 records one bundle, one `POST /api/capture/attempts`, and one
-> SQLite training attempt. `npm run quality:gate` exited 0 on 2026-07-29
-> (lint clean, 92 files / 1919 unit tests / 1 pre-existing Windows skip,
-> typecheck, 25/25 E2E, `extension:check` 38 files / 1191 tests,
-> `extension:e2e` 47/47 on the second consecutive run, `build` PASS).
-> **NowCoder remains `experimental`**; promotion requires a separate
-> reviewed decision. The Phase B B8 `BLOCKED` verdict at
-> `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`
-> is superseded only for the missing-E3 layer; every other Phase B outcome
-> remains authoritative. Closeout report:
-> `work/reports/v4-nowcoder-e3-ingress-repair-2026-07-29.md`.
+> **Status (2026-08-02):** **V4 Phase C C0-C5 engineering work is complete**
+> on `feature/v1-followup`. C1 LeetCode is
+> network-`V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are
+> network-`V4_BLOCKED`; NowCoder remains network-`experimental`. C5 proves
+> cross-platform policy/identity/storage isolation and removes the reachable
+> V3 click-derived pending-intent fallback while retaining one-time legacy-key
+> cleanup and historical bundle compatibility. Historical AtCoder DOM
+> production certification is unchanged. This is not RC, acceptance, or
+> release; Phase D is the next engineering phase and requires separate scope.
 >
 > **Earlier V4 evidence (still authoritative for their own scope):**
-> V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12;
-> Phase B B0-B7 complete and B8 terminally BLOCKED at real-result E3 ingress;
-> formal V0 observation blocked. Phase 0 click-ingress stopgap and V3
-> repair work remain historical evidence, not a current acceptance anchor.
-> Phase A0-A12 (`b3ec8cb` and the 12 follow-on commits through
-> `0dc3fbf`) is the authoritative V4 framework engineering pass. Phase B
-> B2 added an opt-in NowCoder diagnostic mode with session-backed
-> production ingress isolation, worker-restart fail-closed, and exact safe
-> transcript export; independent privacy review APPROVED on 2026-07-27.
-> B4 safely characterized NowCoder; B5-B6 implemented the strict
-> experimental adapter; B7 proves the production-dist synthetic full chain.
+> V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12.
+> Phase B B0-B7 completed and the B8 missing-E3 layer is closed at
+> `c26c578` (Tasks 0-6 of the 2026-07-29 E3 ingress repair plan). The
+> Phase B B8 terminal BLOCKED verdict from
+> `work/reports/v4-nowcoder-phase-b-terminal-closeout-2026-07-28.md`
+> is superseded only for the missing-E3 ingress layer; every other
+> Phase B outcome remains authoritative. NowCoder remains `experimental`;
+> promotion requires a separate reviewed decision. Phase A0-A12
+> (`b3ec8cb` and the 12 follow-on commits through `0dc3fbf`) is the
+> authoritative V4 framework engineering pass. Phase B B2 added an
+> opt-in NowCoder diagnostic mode with session-backed production
+> ingress isolation, worker-restart fail-closed, and exact safe
+> transcript export; independent privacy review APPROVED on
+> 2026-07-27. B4 safely characterized NowCoder; B5-B6 implemented the
+> strict experimental adapter; B7 proves the production-dist synthetic
+> full chain.
 >
 > **Closeout validator:** `tests/unit/v0ReportValidators.test.ts` exercises 21
 > real temporary-repository cases for the strict two-commit release contract.
@@ -50,7 +42,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A is closed; V4 Phase B Tasks 0-6 close the missing-E3 ingress layer through engineering + real-Chrome observation, but NowCoder remains experimental for V4 network capture and adapter promotion. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 
@@ -74,7 +66,7 @@ The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem s
 - `DESIGN.md` defines the quiet slate/white UI system used by app pages and panels.
 - `COMPLIANCE.md` documents local-first privacy and platform-boundary rules.
 
-`README.md`, `docs/architecture.md`, `docs/runbook.md`, and `COMPLIANCE.md` describe the current local implementation. `IDEA.md` and the roadmap describe the approved target direction, including the later hosted Public Beta; do not treat target features as already implemented.
+`README.md`, `docs/architecture.md`, `docs/runbook.md`, and `COMPLIANCE.md` describe the current local implementation. `IDEA.md` and the roadmap describe the approved target direction, including the later hosted Public Beta; do not treat target features as already implemented. Phase C-D's readiness contract lives in `docs/architecture.md`; the terminal C1 LeetCode plan and evidence are at `docs/superpowers/plans/2026-07-30-v4-leetcode-network-capture-migration.md` and `work/reports/v4-leetcode-c1-closeout-2026-07-30.md`. The terminal C2 AtCoder blocker is documented in `work/reports/v4-atcoder-c2-blocker-2026-08-02.md`; the terminal C3 Codeforces blocker is documented in `work/reports/v4-codeforces-c3-blocker-2026-08-02.md`; the terminal C4 Luogu blocker is documented in `work/reports/v4-luogu-c4-blocker-2026-08-02.md`; and the Phase C closeout is `work/reports/v4-phase-c-c5-closeout-2026-08-02.md`.
 
 ## Commands
 
@@ -105,7 +97,7 @@ Build the Chrome MV3 extension:
 npm run extension:build
 ```
 
-Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000`. The V4 Phase 0 click-ingress stopgap ensures that an exact submit click creates only a short-lived E0 hint, not waiting state or a local intent; only the existing completed `captureOutbox` items still use the V3 four-event bundle path. V4 Phase A introduces the Safe Evidence boundary, the pure Capture State Machine, the production webRequest observer, the optional MAIN bridge, and the Fake OJ matrix (31 passed / 1 known skip), but does not yet produce an automatic E2 confirmation; only manually entered attempts and the legacy V3 outbox deliver to `/api/capture/attempts` in this scope. Opening, closing, navigating, running, or debugging alone does not create a pending training result.
+Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000`. The V4 Phase 0 click-ingress stopgap ensures that an exact submit click creates only a short-lived E0 hint, not waiting state or a local intent. V4 Phase A supplies the Safe Evidence boundary, pure Capture State Machine, production webRequest observer, optional MAIN bridge, and Fake OJ matrix. Later Phase B/C work adds strict experimental LeetCode and NowCoder network policies that can produce E2/E3-backed bundles; existing completed historical bundles remain deliverable through the same V3 four-event API contract. Opening, closing, navigating, running, or debugging alone does not create a pending training result.
 
 Before the first capture, open `/settings`, create a ten-minute pairing code, and paste it into the extension popup. The app stores only a hash of the long-lived credential. `/settings` can issue a targeted rotation code or revoke an installation; `installationId` remains correlation metadata and is not itself authorization.
 
@@ -132,8 +124,9 @@ results therefore creates no new automatic training record in this stopgap.
 V4 Phase A (A0-A12, framework engineering pass) builds the Safe Evidence
 boundary, strict correlator, pure capture state machine, session/local storage
 split, production webRequest observer, optional MAIN bridge, background
-orchestrator, Fake OJ matrix, and disposable SQLite lifecycle; no real OJ
-protocol is implemented yet, so `等待判题` stays zero until Phase B ships.
+orchestrator, Fake OJ matrix, and disposable SQLite lifecycle. Later Phase B/C
+work adds strict experimental LeetCode and NowCoder network policies; waiting
+still arises only from an adapter-owned E2 confirmation, never from a click.
 
 The background worker drains completed bundles from `captureOutbox` with one
 serialized, single-flight executor. Item-specific 400/409/413/415 failures move

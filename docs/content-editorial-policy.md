@@ -50,6 +50,6 @@ Content files are the source of truth. The database is a derived artifact. If a 
 
 ## V0 Specifics
 
-The V0 release includes exactly 12 published knowledge nodes, 24 reviewed resource and problem links, and 9 career direction summaries. No more, no less. Deep career routes, including direction-specific modules, project sequences and role-specific practice tasks, are not available in V0. Every career summary carries `unavailable_in_v0: true` to signal that the full route is planned but not yet built. The career summaries provide navigation and orientation only; they do not represent complete curricula and must not be presented as actionable training paths.
+The V0 release includes exactly 12 published knowledge nodes, 12 reviewed resources, 12 mapped practice tasks, and 9 career direction summaries. No more, no less. Deep career routes, including direction-specific modules, project sequences and role-specific practice tasks, are not available in V0. Every career summary carries `unavailable_in_v0: true` to signal that the full route is planned but not yet built. The career summaries provide navigation and orientation only; they do not represent complete curricula and must not be presented as actionable training paths.
 
 This document is the single source of editorial truth for V0 content. Any exception to these rules must be recorded as an amendment to this policy, versioned alongside the affected curriculum package and reviewed before the next release gate.

@@ -34,7 +34,11 @@ export type TombstoneOptions = Readonly<{
   maxAgeMs?: number;
 }>;
 
-export type RecordOutcome = "recorded" | "already_finalized";
+export type RecordOutcome =
+  | "recorded"
+  | "already_confirmed"
+  | "already_finalized"
+  | "identity_conflict";
 
 export type FinalizeOutcome = "finalized" | "already_finalized";
 
@@ -245,17 +249,54 @@ export function recordConfirmedSubmission(
   readonly outcome: RecordOutcome;
   readonly tombstone?: ConfirmedSubmissionTombstone;
 } {
+  const { maxCount, maxAgeMs } = optionsOf(options);
   const key = `${record.platform}:${record.externalSubmissionId}`;
-  const previous = state.confirmed.find((r) => r.storageKey === key);
+  const tombstones = pruneTombstones(state.tombstones, now, maxCount, maxAgeMs);
+  const tombstonesUnchanged = tombstones.length === state.tombstones.length
+    && tombstones.every((tombstone, index) => tombstone === state.tombstones[index]);
+  const prunedState = tombstonesUnchanged
+    ? state
+    : Object.freeze({
+        confirmed: freeze(state.confirmed),
+        tombstones: freeze(tombstones),
+      });
+  const existingTombstone = tombstones.find((t) => t.submissionKey === key);
+  if (existingTombstone !== undefined) {
+    return Object.freeze({
+      state: prunedState,
+      outcome: "already_finalized",
+      tombstone: existingTombstone,
+    });
+  }
+  const previous = prunedState.confirmed.find((r) => r.storageKey === key);
   if (previous?.finalizedAt !== undefined) {
-    const existingTombstone = state.tombstones.find((t) => t.submissionKey === key);
-    const tombstone = existingTombstone ?? createTombstone(key, previous.finalizedAt, options);
-    return Object.freeze({ state, outcome: "already_finalized", tombstone });
+    const tombstone = createTombstone(key, previous.finalizedAt, options);
+    return Object.freeze({
+      state: Object.freeze({
+        confirmed: prunedState.confirmed,
+        tombstones: freeze(pruneTombstones(
+          [...prunedState.tombstones, tombstone],
+          now,
+          maxCount,
+          maxAgeMs,
+        )),
+      }),
+      outcome: "already_finalized",
+      tombstone,
+    });
+  }
+  if (previous !== undefined) {
+    return Object.freeze({
+      state: prunedState,
+      outcome: previous.problemExternalId === record.problemExternalId
+        ? "already_confirmed"
+        : "identity_conflict",
+    });
   }
   const normalized = Object.freeze({ ...record, storageKey: key, lastE3At: now });
-  const confirmed = [...state.confirmed.filter((r) => r.storageKey !== key), normalized];
+  const confirmed = [...prunedState.confirmed.filter((r) => r.storageKey !== key), normalized];
   return Object.freeze({
-    state: Object.freeze({ confirmed: freeze(confirmed), tombstones: freeze(state.tombstones) }),
+    state: Object.freeze({ confirmed: freeze(confirmed), tombstones: prunedState.tombstones }),
     outcome: "recorded",
   });
 }

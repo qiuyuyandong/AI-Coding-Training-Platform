@@ -1,0 +1,51 @@
+{
+  "fixtureName": "luogu-characterization-2026-08-02",
+  "captureDate": "2026-08-02",
+  "planRevision": 3,
+  "preflightReceipt": "work/reports/v4-luogu-c4-preflight-2026-08-02.md",
+  "extensionId": "aljppcgkcdbeemppmokcbjgcjdhapakh",
+  "extensionVersion": "0.1.0",
+  "session": {
+    "startedAt": "2026-08-02T13:11:06.706Z",
+    "expiresAt": "2026-08-02T13:16:06.706Z",
+    "stoppedBeforeExpiry": true,
+    "initialRecordCount": 0,
+    "finalRecordCount": 3,
+    "initialNavigationWitnessCount": 0,
+    "finalNavigationWitnessCount": 0
+  },
+  "submitEvidence": {
+    "problemExternalId": "P1001",
+    "normalizedPath": "/fe/api/problem/submit/P1001",
+    "method": "POST",
+    "resourceType": "xmlhttprequest",
+    "statusCode": 200,
+    "documentId": "0B0F2A7605D410D910DF94BF4E01ADAE"
+  },
+  "landingObservation": {
+    "normalizedPath": "/record/290292547",
+    "externalSubmissionId": "290292547",
+    "frameId": 0,
+    "frameType": "outermost_frame",
+    "documentLifecycle": "active",
+    "documentId": "4BA4F019442B690633DAF065F40513C7"
+  },
+  "continuity": {
+    "documentIdsEqual": false,
+    "browserOwnedBridgeObserved": false,
+    "disposition": "blocked_cross_document_continuity_unproven"
+  },
+  "privacy": {
+    "authenticated": true,
+    "sanitized": true,
+    "productionEligible": false,
+    "sourceRead": false,
+    "bodyRead": false,
+    "formValuesRead": false,
+    "headersRead": false,
+    "cookiesRead": false,
+    "accountIdentityRead": false,
+    "queryValuesRetained": false,
+    "verdictRead": false
+  }
+}

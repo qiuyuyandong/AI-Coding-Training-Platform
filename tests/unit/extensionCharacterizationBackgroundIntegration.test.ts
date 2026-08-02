@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createCharacterizationController } from "@/extension/src/characterization";
 import { CHARACTERIZATION_TTL_MS } from "@/extension/src/characterizationStorage";
-import { blocksNowCoderProductionIngress } from "@/extension/src/characterizationIngress";
+import {
+  blocksCharacterizationProductionIngress,
+  blocksNowCoderProductionIngress,
+} from "@/extension/src/characterizationIngress";
 import {
   createCharacterizationObserver,
   createRegistryRequestLifecycleSource,
@@ -24,6 +27,15 @@ function createSessionStorage() {
 }
 
 describe("background characterization production ingress guard", () => {
+  it("blocks only the platform selected by an active LeetCode session", async () => {
+    const storage = createSessionStorage();
+    const controller = createCharacterizationController(storage, () => NOW);
+    await controller.start("leetcode.cn", true);
+
+    expect(await blocksCharacterizationProductionIngress("leetcode", controller)).toBe(true);
+    expect(await blocksCharacterizationProductionIngress("nowcoder", controller)).toBe(false);
+  });
+
   it.each(["webRequest E1", "MAIN bridge", "E3", "verdict candidate", "E0 UI hint"])
   ("blocks NowCoder %s using session state after a worker restart", async () => {
     const storage = createSessionStorage();

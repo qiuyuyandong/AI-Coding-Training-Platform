@@ -14,6 +14,8 @@
 
 import type { E1RequestObserved } from "./evidence";
 import type { NavigationWitness } from "./characterizationNavigationWitness";
+import type { Platform } from "./adapters/contract";
+import { PLATFORM_ADAPTERS } from "./adapters/registry";
 import {
   parseNetworkTranscriptEvidence,
   type E1NetworkRequest,
@@ -33,6 +35,20 @@ export const CHARACTERIZATION_TTL_MS = 5 * 60_000;
 /** Canonical NowCoder hosts allowed for characterization. */
 export const NOWCODER_CANONICAL_HOSTS = ["www.nowcoder.com", "ac.nowcoder.com"] as const;
 
+export const CHARACTERIZATION_CANONICAL_HOSTS: readonly string[] = Object.freeze(
+  Object.values(PLATFORM_ADAPTERS).flatMap((record) => record.hostOwnership),
+);
+
+export function characterizationPlatformForHostname(hostname: string): Platform | undefined {
+  const matches = (Object.keys(PLATFORM_ADAPTERS) as Platform[]).filter((platform) =>
+    PLATFORM_ADAPTERS[platform].hostOwnership.some((owned) => owned === hostname));
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+export function isCharacterizationPlatform(value: string): value is Platform {
+  return Object.hasOwn(PLATFORM_ADAPTERS, value);
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -51,8 +67,8 @@ export type CharacterizationRecord = Readonly<{
   sessionStartedAt: string;
   /** ISO datetime when this record was received. */
   receivedAt: string;
-  /** Platform is always "nowcoder" for characterization. */
-  platform: "nowcoder";
+  /** Registry-owned platform selected for this characterization. */
+  platform: Platform;
   /** Chrome webRequest requestId. */
   requestId: string;
   /** HTTP method. */
@@ -81,6 +97,8 @@ export type CharacterizationRecord = Readonly<{
 export type CharacterizationSession = Readonly<{
   /** Whether characterization is currently active. */
   active: boolean;
+  /** Registry-owned platform derived from the selected hostname. */
+  platform: Platform | "";
   /** ISO datetime when the session started. */
   startedAt: string;
   /** ISO datetime when the session expires. */
@@ -120,7 +138,17 @@ function isSafeIdentifier(value: unknown): value is string {
 }
 
 function isSafeEndpointKey(value: unknown): value is string {
-  return typeof value === "string" && /^[a-z0-9_-]{1,128}$/.test(value);
+  if (typeof value !== "string") return false;
+  if (/^[a-z0-9_/-]{1,128}$/.test(value) && !value.includes("..") && !value.includes("//")) {
+    return true;
+  }
+  return /^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,255}$/.test(value)
+    && !value.includes("..")
+    && !value.includes("//");
+}
+
+function isPlatform(value: unknown): value is Platform {
+  return typeof value === "string" && isCharacterizationPlatform(value);
 }
 
 function isNonnegativeInteger(value: unknown): value is number {
@@ -155,7 +183,7 @@ export function buildCharacterizationRecord(
   now: string,
 ): CharacterizationRecord | undefined {
   if (!isIsoDateTime(sessionStartedAt) || !isIsoDateTime(now)) return undefined;
-  if (evidence.platform !== "nowcoder") return undefined;
+  if (!isPlatform(evidence.platform)) return undefined;
   if (!isNonemptyString(evidence.requestId)) return undefined;
   if (!isNonemptyString(evidence.method)) return undefined;
   if (!isNonemptyString(evidence.endpointKey)) return undefined;
@@ -172,7 +200,7 @@ export function buildCharacterizationRecord(
     kind: "characterization_diagnostic",
     sessionStartedAt,
     receivedAt: now,
-    platform: "nowcoder",
+    platform: evidence.platform,
     requestId: evidence.requestId,
     method: evidence.method,
     endpointKey: evidence.endpointKey,
@@ -201,8 +229,8 @@ export function toB1NetworkRequest(
 ): B1ParseResult<B1NetworkRequestRecord> {
   const parsed = parseNetworkTranscriptEvidence({
     schemaVersion: record.schemaVersion,
-    evidenceId: `e1_nowcoder_${record.requestId}`,
-    platform: "nowcoder",
+    evidenceId: `e1_${record.platform}_${record.requestId}`,
+    platform: record.platform,
     tier: "E1",
     kind: "network_request_observed",
     receivedAt: record.receivedAt,
@@ -211,12 +239,16 @@ export function toB1NetworkRequest(
     documentId: record.documentId,
     requestId: record.requestId,
     method: record.method,
-    normalizedPath: `/${record.endpointKey}`,
+    normalizedPath: record.endpointKey.startsWith("/") ? record.endpointKey : `/${record.endpointKey}`,
     resourceType: record.resourceType,
     ...(record.statusCode === undefined ? {} : { statusCode: record.statusCode }),
     ...(record.normalizedRedirectPath === undefined
       ? {}
-      : { normalizedRedirectPath: `/${record.normalizedRedirectPath}` }),
+      : {
+          normalizedRedirectPath: record.normalizedRedirectPath.startsWith("/")
+            ? record.normalizedRedirectPath
+            : `/${record.normalizedRedirectPath}`,
+        }),
   });
   if (!parsed.ok) return parsed;
   if (parsed.value.kind !== "network_request_observed") {
@@ -234,6 +266,7 @@ const SESSION_KEY = "characterizationSession";
 /** Default empty session (disabled). */
 export const DEFAULT_CHARACTERIZATION_SESSION: CharacterizationSession = Object.freeze({
   active: false,
+  platform: "",
   startedAt: "",
   expiresAt: "",
   records: Object.freeze([]),
@@ -252,15 +285,20 @@ function parseCharacterizationSession(value: unknown): CharacterizationSession {
   const active = rec.active === true;
   const startedAt = isIsoDateTime(rec.startedAt) ? rec.startedAt : "";
   const expiresAt = isIsoDateTime(rec.expiresAt) ? rec.expiresAt : "";
-  const hostname = typeof rec.hostname === "string" && NOWCODER_CANONICAL_HOSTS.includes(rec.hostname as typeof NOWCODER_CANONICAL_HOSTS[number])
+  const hostname = typeof rec.hostname === "string"
+    && CHARACTERIZATION_CANONICAL_HOSTS.includes(rec.hostname)
     ? rec.hostname
     : "";
+  const derivedPlatform = hostname === "" ? undefined : characterizationPlatformForHostname(hostname);
+  const storedPlatform = rec.platform === undefined ? derivedPlatform : rec.platform;
   const authenticated = rec.authenticated === true;
-  const validActive = active && startedAt !== "" && expiresAt !== "" && hostname !== "";
+  const validActive = active && startedAt !== "" && expiresAt !== "" && hostname !== ""
+    && derivedPlatform !== undefined && storedPlatform === derivedPlatform;
 
   if (!Array.isArray(rec.records)) {
     return validActive ? {
       active: false,
+      platform: "",
       startedAt: "",
       expiresAt: "",
       records: Object.freeze([]),
@@ -273,13 +311,14 @@ function parseCharacterizationSession(value: unknown): CharacterizationSession {
   const validRecords: CharacterizationRecord[] = [];
   for (const item of rec.records.slice(0, MAX_CHARACTERIZATION_RECORDS)) {
     const parsed = parseCharacterizationRecord(item);
-    if (parsed !== undefined) validRecords.push(parsed);
+    if (parsed !== undefined && parsed.platform === derivedPlatform) validRecords.push(parsed);
   }
   const navigationWitnesses = Array.isArray(rec.navigationWitnesses)
     ? rec.navigationWitnesses.filter(isNavigationWitness).slice(-4) : [];
 
   return Object.freeze({
     active: validActive,
+    platform: validActive && derivedPlatform !== undefined ? derivedPlatform : "",
     startedAt: validActive ? startedAt : "",
     expiresAt: validActive ? expiresAt : "",
     records: Object.freeze(validActive ? validRecords : []),
@@ -312,7 +351,7 @@ function parseCharacterizationRecord(value: unknown): CharacterizationRecord | u
   if (rec.kind !== "characterization_diagnostic") return undefined;
   if (!isIsoDateTime(rec.sessionStartedAt)) return undefined;
   if (!isIsoDateTime(rec.receivedAt)) return undefined;
-  if (rec.platform !== "nowcoder") return undefined;
+  if (!isPlatform(rec.platform)) return undefined;
   if (!isSafeIdentifier(rec.requestId)) return undefined;
   if (rec.method !== "GET" && rec.method !== "POST" && rec.method !== "PUT" && rec.method !== "DELETE" && rec.method !== "PATCH" && rec.method !== "HEAD" && rec.method !== "OPTIONS") return undefined;
   if (!isSafeEndpointKey(rec.endpointKey)) return undefined;
@@ -329,7 +368,7 @@ function parseCharacterizationRecord(value: unknown): CharacterizationRecord | u
     kind: "characterization_diagnostic",
     sessionStartedAt: rec.sessionStartedAt,
     receivedAt: rec.receivedAt,
-    platform: "nowcoder",
+    platform: rec.platform,
     requestId: rec.requestId,
     method: rec.method,
     endpointKey: rec.endpointKey,
@@ -438,13 +477,12 @@ export function startCharacterizationSession(
 ): CharacterizationSession {
   const nowMs = Date.parse(now);
   if (!Number.isFinite(nowMs)) return DEFAULT_CHARACTERIZATION_SESSION;
-  // Validate hostname is a canonical NowCoder host
-  if (!NOWCODER_CANONICAL_HOSTS.includes(hostname as typeof NOWCODER_CANONICAL_HOSTS[number])) {
-    return DEFAULT_CHARACTERIZATION_SESSION;
-  }
+  const platform = characterizationPlatformForHostname(hostname);
+  if (platform === undefined) return DEFAULT_CHARACTERIZATION_SESSION;
   const expiresAt = new Date(nowMs + CHARACTERIZATION_TTL_MS).toISOString();
   return Object.freeze({
     active: true,
+    platform,
     startedAt: now,
     expiresAt,
     records: Object.freeze([]),

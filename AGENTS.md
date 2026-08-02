@@ -112,8 +112,47 @@
 
 # Agent Handoff Guide
 
-> **Status (2026-07-29):** **V4 NowCoder E3 ingress engineering PASS**
-> on commit `c26c578` (Tasks 0-6 of
+> **Status (2026-08-02):** **V4 Phase C C0-C5 engineering work is complete**
+> on `feature/v1-followup`. C1 LeetCode and
+> NowCoder are network-`experimental`; C2 AtCoder, C3 Codeforces, and C4 Luogu
+> are network-`V4_BLOCKED`. C5 proves platform ownership and namespaced identity,
+> preserves unrelated durable state, and removes the reachable V3 click-derived
+> pending-intent/verdict fallback. Legacy pending state is only counted and
+> deleted during upgrade; completed outbox bundles remain compatible. This is
+> not RC, acceptance, or release. **Phase C Task C2
+> AtCoder remains `V4_BLOCKED`** for the same browser-document limitation on
+> its independently observed form flow; historical AtCoder DOM production
+> certification remains unchanged. Its terminal gates passed with focused
+> 401/401, readiness CLI, frozen fixture hashes 9/9, full quality gate with
+> 2034 unit tests, 25 app E2E, 1286 extension tests, 48 runnable extension E2E,
+> and production build. C3 terminal gates pass with focused 433/433,
+> readiness 21/21 plus CLI PASS, frozen AtCoder hashes 9/9, 2075 unit tests,
+> 25 app E2E, 1326 extension tests, 48 runnable extension E2E, and production
+> build. C4 Luogu later closed `V4_BLOCKED` after its P1001 submit E1 and
+> numeric record landing were observed in different browser documents without
+> an approved continuity signal.
+> **Phase C Task C1
+> LeetCode remains `V4_EXPERIMENTAL`** on the same Phase C closeout.
+> Adapter `v4-leetcode-network-6` captured fresh
+> submission `cn/739108591`, finalized one `Wrong Answer`, delivered one
+> paired bundle, and projected 4 capture events, 1 session, and 1 non-voided
+> attempt into disposable SQLite. Localhost was healthy; the repaired causes
+> were current GraphQL/result-distribution protocol drift, scoped problem-slug
+> rejection, and tombstone/confirmation replay chronology. Final gates:
+> readiness CLI PASS, 2009 runnable unit tests, 25 app E2E, 1261 extension
+> tests, 48 runnable extension E2E, and production build PASS; one Windows
+> capability test and one known extension harness case remain skipped. C2
+> AtCoder characterization was authorized on 2026-07-31 and its derived delta
+> plan revision 2 is independently `APPROVED`. Historical AtCoder certification
+> remains green at 171/171 focused tests with all nine fixture hashes frozen.
+> The pre-storage AtCoder pathname privacy prerequisite passes 331 focused
+> tests; `extension:check` passes 39 files / 1285 tests; exact production-dist
+> hashes are frozen in the 2026-07-31 preflight receipt. The same extension id
+> was reloaded in the already-open Chrome. The former login-pending state is
+> superseded by the terminal C2 blocker. NowCoder remains
+> `experimental`; the
+> Phase B B8 missing-E3
+> layer is closed on `c26c578` (Tasks 0-6 of
 > `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`).
 > Phase B B8's missing-E3 layer is fixed through a pure
 > `extension/src/contentIngress.ts` coordinator (closed 7-input / 5-effect
@@ -164,11 +203,11 @@
 > (implemented; observation and acceptance pending), the V4 Phase 0
 > click-ingress stopgap, and the V4 Phase A A0-A12 closeout scope are
 > all on the branch. AtCoder is the sole certified production DOM
-> adapter. Phase B is terminally `BLOCKED` after B0-B7 PASS and B8 partial
-> observation: real E3 ingress remains missing. Do not
-> start Phase C without fresh explicit authorization and a reviewed plan. Formal
-> observation and replacement-RC work remain blocked. Do not start
-> V0.5.
+> adapter. Phase B's missing-E3 ingress layer is closed while NowCoder remains
+> network-`experimental`. Phase C C0-C5 is engineering-complete;
+> C2-C4 are terminally `V4_BLOCKED`. Phase D, formal
+> observation, and replacement-RC work remain gated. Do not
+> start V0.5.
 >
 > `IDEA.md` and
 > `docs/superpowers/plans/2026-07-11-product-development-roadmap.md`
@@ -196,8 +235,25 @@
   items still use the V3 four-event/API contract. A formal
   `PLATFORM_ADAPTERS` registry declares DOM readiness; AtCoder is
   `production`, while LeetCode, NowCoder, Codeforces, and Luogu remain
-  `experimental`; NowCoder's V4 network policy is also `experimental`, while
-  the other real platforms remain network-uncharacterized.
+  `experimental`; LeetCode and NowCoder V4 network policies are
+  `experimental`, while AtCoder, Codeforces, and Luogu are network-`blocked`.
+- Phase C-D C0 readiness contract (implemented 2026-07-30) gates every
+  future C1-C5 / D1-D5 implementation behind
+  `docs/superpowers/specs/v4-adapter-readiness.json` and
+  `scripts/validate-v4-adapter-readiness.mjs --all`. Platform delta
+  plans must derive from
+  `docs/superpowers/plans/templates/v4-platform-network-migration-template.md`,
+  and the terminal C1 LeetCode wave plan
+  (`docs/superpowers/plans/2026-07-30-v4-leetcode-network-capture-migration.md`)
+  is the first reviewed delta. Its v6 same-build `.cn` observation reaches
+  `V4_EXPERIMENTAL`; C2 AtCoder is terminally `V4_BLOCKED` because its
+  main-frame form navigation lacks `webRequest.documentId` and its landing
+  path lacks stable numeric submission identity. C3 Codeforces is also
+  terminally `V4_BLOCKED` for the same frame-navigation omission; its status
+  landing path lacks stable submission and exact contest/problem identity. C4
+  Luogu is terminally `V4_BLOCKED` because the P1001 submit E1 and numeric
+  record landing have different document IDs with no approved continuity
+  signal. C5 removes the reachable V3 click/pending fallback and closes Phase C.
 - The V4 NowCoder E3 ingress repair (Tasks 0-6 of the
   2026-07-29 plan, committed at `c26c578`) adds:
   - `extension/src/contentIngress.ts` — pure coordinator with a
@@ -332,6 +388,32 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
+- Phase C Task C2 is terminally `V4_BLOCKED` on 2026-08-02. Two natural
+  `abc001_1` submissions were safely corroborated, and the final ready-gated
+  live window proved zero retained records through a real `/submit` to
+  `/submissions/me` navigation. Chrome omits `documentId` for frame navigation;
+  the strict observer fails closed, and no legal stable numeric submission or
+  task identity can be derived under the approved privacy boundary. No AtCoder
+  network adapter was implemented. Historical DOM certification is unchanged.
+  Evidence: `work/reports/v4-atcoder-c2-blocker-2026-08-02.md`. C3 Codeforces
+  subsequently closed `V4_BLOCKED`; Luogu also closed `V4_BLOCKED`, and C5
+  completed the Phase C isolation audit. An AtCoder retry requires a separately
+  reviewed scalar bridge or platform-protocol change. That C2 checkpoint
+  preceded the Phase C closeout commit.
+- Phase C Task C1 reaches `V4_EXPERIMENTAL` on 2026-07-30 (uncommitted
+  working tree of `feature/v1-followup`). Adapter v6 completed fresh
+  LeetCode.cn submission `cn/739108591` through E2, E3, ACK, and disposable
+  SQLite projection. Readiness CLI PASS; final quality gate completed all nine
+  stages with 2009 unit tests, 25 app E2E, 1261 extension tests, 48 runnable
+  extension E2E, and production build PASS; one Windows capability case and
+  one known harness case remain skipped. That C1 checkpoint preceded the
+  Phase C closeout commit. C2 AtCoder
+  characterization was authorized on 2026-07-31; delta plan revision 2 is
+  independently APPROVED, the historical certification baseline passes
+  171/171, the privacy prerequisite passes 331 focused tests, and
+  `extension:check` passes 39 files / 1285 tests. The exact dist preflight
+  receipt exists. These are historical entry-gate facts superseded by the C2
+  blocker above.
 - Phase 0D engineering gates executed on 2026-07-15 and completed/verified. Authoritative commit chronology:
   - Task 1 (strict lint gate and polling corrections): `b3c1993`, `d3a201f`, `e7c14b5`.
   - Task 2 (migration upgrade matrix): `dca2236`.
@@ -363,6 +445,25 @@ These are current implementation boundaries, not a permanent rejection of the ap
   (`work/reports/v4-nowcoder-e3-ingress-repair-2026-07-29.md`)
   documents the real-Chrome Tasks 5/6 evidence against the
   production-built `extension/dist`. NowCoder remains `experimental`;
-  promotion requires a separate reviewed decision. Do not start
-  Phase C, V0 acceptance, V0.5 work, or push/PR operations until the
-  user authorizes the next gate.
+  promotion requires a separate reviewed decision.
+- V4 Phase C-D C0 readiness contract and C1 LeetCode implementation are
+  included in the Phase C closeout on `feature/v1-followup`. C0 adds the readiness manifest
+  `docs/superpowers/specs/v4-adapter-readiness.json`, the validator
+  `scripts/validate-v4-adapter-readiness.mjs`, the contract helper at
+  `tests/helpers/v4AdapterReadinessContract.{ts,cjs}`, the 20-case
+  validator suite at
+  `tests/unit/v4AdapterReadinessValidator.test.ts`, the platform
+  delta-plan template at
+  `docs/superpowers/plans/templates/v4-platform-network-migration-template.md`,
+  the C1 LeetCode plan at
+  `docs/superpowers/plans/2026-07-30-v4-leetcode-network-capture-migration.md`,
+  the `disabled` readiness state in
+  `extension/src/adapters/registry.ts`, and the ambient declaration at
+  `tests/types/v4AdapterReadiness.d.ts`. C1 adds the production adapter v6,
+  real `.cn` closeout evidence, and `experimental` readiness. C2's derived
+  2026-07-31 AtCoder plan closes terminally `V4_BLOCKED` with two natural
+  submissions, a zero-record live observation, no network implementation, and
+  the historical DOM baseline unchanged. C3 independently closes
+  `V4_BLOCKED`; C4 also closes `V4_BLOCKED` and C5 is complete. D1-D5 remain
+  sequentially gated; do not push or create a PR without explicit
+  authorization.

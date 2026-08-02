@@ -16,6 +16,7 @@ import type { FinalCaptureVerdict } from "@/lib/capture/verdictTaxonomy";
 import {
   CODEFORCES_SUBMIT_URL,
   FAKE_OJ_DEFAULT_VERDICT,
+  LEETCODE_CHECK_URL,
   LEETCODE_SUBMIT_URL,
   LUOGU_SUBMIT_URL,
   NOWCODER_RESULT_URL,
@@ -823,7 +824,7 @@ const duplicateVerdictScenario: FakeOjScenario = Object.freeze({
     webRequestMarkerCount: 0,
     transientE1Count: 1,
     finalTransientE1Count: 0,
-    unmatchedE3Count: 1,
+    unmatchedE3Count: 0,
     ambiguityDiagnosticCount: 0,
     outboxCount: 1,
     confirmedSubmissionCount: 0,
@@ -844,6 +845,7 @@ const leetcodeScenario: FakeOjScenario = Object.freeze({
   resultUrl: null,
   routePlans: new Map<string, FakeOjRequestResponse>([
     [LEETCODE_SUBMIT_URL, jsonPlan(200, { status: "accepted", submissionId: submissionIdFor("leetcode-success") })],
+    [LEETCODE_CHECK_URL, jsonPlan(200, { state: "SUCCESS" })],
   ]),
   expectedWebRequestCalls: Object.freeze([
     Object.freeze({ url: LEETCODE_SUBMIT_URL, method: "POST", statusCode: 200, producesWebRequestMarker: false }),

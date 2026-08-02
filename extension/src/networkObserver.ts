@@ -1,4 +1,5 @@
 import { PLATFORM_ADAPTERS } from "@/extension/src/adapters/registry";
+import { normalizeLeetCodeNetworkEndpoint } from "@/extension/src/adapters/leetcode/network";
 import { normalizeNowCoderNetworkEndpoint } from "@/extension/src/adapters/nowcoder/network";
 import type { Platform } from "@/extension/src/adapters/contract";
 import { parseSafeEvidence } from "@/extension/src/evidence";
@@ -169,12 +170,27 @@ function platformForUrl(rawUrl: string): SupportedPlatform | null {
   return matches.length === 1 ? matches[0] : null;
 }
 
+function ownedPlatformForUrl(rawUrl: string): Platform | null {
+  let hostname: string;
+  try {
+    hostname = new URL(rawUrl).hostname;
+  } catch {
+    return null;
+  }
+  const platforms = Object.keys(PLATFORM_ADAPTERS) as Platform[];
+  const matches = platforms.filter((platform) =>
+    PLATFORM_ADAPTERS[platform].hostOwnership.some((host) => host === hostname));
+  return matches.length === 1 ? matches[0] : null;
+}
+
 /**
  * Phase A intentionally uses only coarse, non-URL endpoint keys. Known path
  * words win; otherwise the first safe path segment is retained. This is not a
  * claim that an endpoint confirms a submission.
  */
 export function normalizeOjEndpointKey(requestUrl: string): string | null {
+  const leetCodeEndpoint = normalizeLeetCodeNetworkEndpoint(requestUrl);
+  if (leetCodeEndpoint !== null) return leetCodeEndpoint;
   const nowCoderEndpoint = normalizeNowCoderNetworkEndpoint(requestUrl);
   if (nowCoderEndpoint !== null) return nowCoderEndpoint;
   let parsed: URL;
@@ -192,6 +208,75 @@ export function normalizeOjEndpointKey(requestUrl: string): string | null {
   const first = parsed.pathname.split("/").filter(Boolean)[0];
   if (first === undefined || !/^[a-zA-Z0-9_-]+$/.test(first)) return null;
   return first.toLowerCase();
+}
+
+export function normalizeCharacterizationEndpointPath(requestUrl: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(requestUrl);
+  } catch {
+    return null;
+  }
+  const platform = ownedPlatformForUrl(requestUrl);
+  if (parsed.protocol !== "https:" || parsed.username !== "" || parsed.password !== ""
+    || parsed.port !== "" || platform === null) {
+    return null;
+  }
+  if (parsed.pathname === "" || parsed.pathname.includes("//")
+    || parsed.pathname.split("/").includes("..") || parsed.pathname.length > 256) {
+    return null;
+  }
+  if (platform === "atcoder") {
+    if (parsed.pathname.includes("%")) return null;
+    const contest = "[A-Za-z0-9_-]{1,64}";
+    const task = "[A-Za-z0-9_-]{1,128}";
+    const accepted = [
+      /^\/contests\/?$/,
+      new RegExp(`^/contests/${contest}/?$`, "u"),
+      new RegExp(`^/contests/${contest}/tasks/${task}/?$`, "u"),
+      new RegExp(`^/contests/${contest}/submit/?$`, "u"),
+      new RegExp(`^/contests/${contest}/submissions/?$`, "u"),
+      new RegExp(`^/contests/${contest}/submissions/me/?$`, "u"),
+      new RegExp(`^/contests/${contest}/submissions/[0-9]+/?$`, "u"),
+    ].some((pattern) => pattern.test(parsed.pathname));
+    if (!accepted) return null;
+  }
+  if (platform === "luogu") {
+    if (parsed.pathname.includes("%")) return null;
+    const problemPath = parsed.pathname.match(
+      /^\/problem\/([A-Za-z0-9][A-Za-z0-9_-]{0,63})\/?$/u,
+    );
+    const submitPath = parsed.pathname.match(
+      /^\/fe\/api\/problem\/submit\/([A-Za-z0-9][A-Za-z0-9_-]{0,63})$/u,
+    );
+    const problemId = problemPath?.[1] ?? submitPath?.[1];
+    const isProblemPath = problemId !== undefined && /[0-9]/u.test(problemId);
+    const isPhaseEvidencePath = parsed.pathname === "/fe/api/record/lastRecordId";
+    const isRecordPath = /^\/record\/[1-9][0-9]{0,19}\/?$/u.test(parsed.pathname);
+    const isRecordListPath = /^\/record\/list\/?$/u.test(parsed.pathname);
+    if (!isProblemPath && !isPhaseEvidencePath && !isRecordPath && !isRecordListPath) {
+      return null;
+    }
+  }
+  if (platform === "codeforces") {
+    if (parsed.pathname.includes("%")) return null;
+    const contest = "[1-9][0-9]{0,8}";
+    const problemIndex = "[A-Za-z][A-Za-z0-9]{0,15}";
+    const submission = "[1-9][0-9]{0,18}";
+    const accepted = [
+      new RegExp(`^/problemset/problem/${contest}/${problemIndex}/?$`, "u"),
+      new RegExp(`^/contest/${contest}/problem/${problemIndex}/?$`, "u"),
+      /^\/problemset\/submit\/?$/u,
+      new RegExp(`^/contest/${contest}/submit/?$`, "u"),
+      /^\/problemset\/status\/?$/u,
+      new RegExp(`^/contest/${contest}/status/?$`, "u"),
+      new RegExp(`^/contest/${contest}/my/?$`, "u"),
+      new RegExp(`^/contest/${contest}/submission/${submission}/?$`, "u"),
+      new RegExp(`^/problemset/submission/${contest}/${submission}/?$`, "u"),
+    ].some((pattern) => pattern.test(parsed.pathname));
+    if (!accepted) return null;
+  }
+  return parsed.pathname;
 }
 
 export function createWebRequestObserver(deps: RequestLifecyleSource): WebRequestObserver {
@@ -225,6 +310,10 @@ export function createWebRequestObserver(deps: RequestLifecyleSource): WebReques
     const prior = records.get(details.requestId);
     const now = deps.now();
     const receivedAt = prior !== undefined && Date.parse(prior.receivedAt) > Date.parse(now) ? prior.receivedAt : now;
+    const retainedStatusCode = lifecycle === "error_occurred"
+      ? undefined
+      : additions.statusCode ?? prior?.statusCode;
+    const retainedRedirectEndpointKey = redirectEndpointKey ?? prior?.redirectEndpointKey;
     const candidate: unknown = {
       schemaVersion: 1,
       evidenceId: `e1_${platform}_${details.requestId}`,
@@ -242,8 +331,10 @@ export function createWebRequestObserver(deps: RequestLifecyleSource): WebReques
       endpointKey,
       resourceType: details.type ?? "xmlhttprequest",
       lifecycle,
-      ...(additions.statusCode === undefined || lifecycle === "error_occurred" ? {} : { statusCode: additions.statusCode }),
-      ...(redirectEndpointKey === undefined ? {} : { redirectEndpointKey }),
+      ...(retainedStatusCode === undefined ? {} : { statusCode: retainedStatusCode }),
+      ...(retainedRedirectEndpointKey === undefined
+        ? {}
+        : { redirectEndpointKey: retainedRedirectEndpointKey }),
     };
     const parsed = parseSafeEvidence(candidate);
     if (!parsed.ok || parsed.value.kind !== "request_observed") return { kind: "ignored", reason: "corrupt_record" };
@@ -301,7 +392,7 @@ export async function persistRecordedLifecycle(
 export function createRegistryRequestLifecycleSource(now: () => string): RequestLifecyleSource {
   return Object.freeze({
     hostOwns: (hostname: string, requestUrl: string) => {
-      const platform = platformForUrl(requestUrl);
+      const platform = ownedPlatformForUrl(requestUrl);
       return platform !== null && PLATFORM_ADAPTERS[platform].hostOwnership.some((host) => host === hostname);
     },
     normalizeEndpointKey: normalizeOjEndpointKey,
@@ -311,10 +402,10 @@ export function createRegistryRequestLifecycleSource(now: () => string): Request
 }
 
 // ---------------------------------------------------------------------------
-// Characterization observer (NowCoder-only, separate from production)
+// Characterization observer (registry-owned hosts, separate from production)
 // ---------------------------------------------------------------------------
 
-/** Characterization-specific observer that only processes NowCoder requests. */
+/** Characterization-specific observer that processes registry-owned requests. */
 export interface CharacterizationObserver {
   clear(): void;
   handleBeforeRequest(details: WebRequestDetails): LifecycleOutcome;
@@ -326,12 +417,12 @@ export interface CharacterizationObserver {
 
 /**
  * Create an observer specifically for characterization mode.
- * This observer is identical to the production observer but scoped to NowCoder only.
+ * This observer is identical to the production observer but uses a path-only
+ * sanitizer for uncharacterized platforms.
  * It produces the same Safe Evidence but routes to a separate characterization
  * storage path instead of production transient evidence.
  */
 export function createCharacterizationObserver(deps: RequestLifecyleSource): CharacterizationObserver {
-  // Re-use the same handle logic as the production observer but filter to NowCoder only
   const records = new Map<string, E1RequestObserved>();
 
   const handle = (
@@ -348,15 +439,20 @@ export function createCharacterizationObserver(deps: RequestLifecyleSource): Cha
     if (deps.observedDocumentIds !== null && !deps.observedDocumentIds.has(details.documentId)) {
       return { kind: "ignored", reason: "missing_document_id" };
     }
-    const platform = platformForUrl(details.url);
-    // Characterization is NowCoder-only
-    if (platform !== "nowcoder") return { kind: "ignored", reason: "non_adapted_host" };
+    const platform = ownedPlatformForUrl(details.url);
+    if (platform === null) return { kind: "ignored", reason: "non_adapted_host" };
     let hostname: string;
     try { hostname = new URL(details.url).hostname; } catch { return { kind: "ignored", reason: "non_adapted_host" }; }
     if (!deps.hostOwns(hostname, details.url)) return { kind: "ignored", reason: "non_adapted_host" };
-    const endpointKey = deps.normalizeEndpointKey(details.url);
+    const endpointKey = platform === "nowcoder"
+      ? deps.normalizeEndpointKey(details.url)
+      : normalizeCharacterizationEndpointPath(details.url);
     if (endpointKey === null) return { kind: "ignored", reason: "normalize_endpoint_failed" };
-    const redirectEndpointKey = additions.redirectUrl === undefined ? undefined : deps.normalizeEndpointKey(additions.redirectUrl);
+    const redirectEndpointKey = additions.redirectUrl === undefined
+      ? undefined
+      : platform === "nowcoder"
+        ? deps.normalizeEndpointKey(additions.redirectUrl)
+        : normalizeCharacterizationEndpointPath(additions.redirectUrl);
     if (additions.redirectUrl !== undefined && redirectEndpointKey === null) {
       return { kind: "ignored", reason: "normalize_endpoint_failed" };
     }
@@ -365,15 +461,15 @@ export function createCharacterizationObserver(deps: RequestLifecyleSource): Cha
     const receivedAt = prior !== undefined && Date.parse(prior.receivedAt) > Date.parse(now) ? prior.receivedAt : now;
     const candidate: unknown = {
       schemaVersion: 1,
-      evidenceId: `e1_nowcoder_${details.requestId}`,
-      platform: "nowcoder",
+      evidenceId: `e1_${platform}_${details.requestId}`,
+      platform,
       tier: "E1",
       kind: "request_observed",
       receivedAt,
       tabId: details.tabId,
       frameId: details.frameId,
       documentId: details.documentId,
-      adapterVersion: PLATFORM_ADAPTERS.nowcoder.version,
+      adapterVersion: PLATFORM_ADAPTERS[platform].version,
       apiTimeStamp: Math.max(prior?.apiTimeStamp ?? 0, details.timeStamp),
       requestId: details.requestId,
       method: details.method.toUpperCase(),
@@ -399,10 +495,15 @@ export function createCharacterizationObserver(deps: RequestLifecyleSource): Cha
   });
 }
 
-/** NowCoder host patterns for characterization. */
+/** NowCoder host patterns retained for Phase B compatibility tests. */
 export const NOWCODER_HOST_PATTERNS: readonly string[] = PLATFORM_ADAPTERS.nowcoder.hostOwnership.map(
   (host) => `https://${host}/*`,
 );
+
+export const CHARACTERIZATION_HOST_PATTERNS: readonly string[] = (
+  Object.keys(PLATFORM_ADAPTERS) as Platform[]
+).flatMap((platform) =>
+  PLATFORM_ADAPTERS[platform].hostOwnership.map((host) => `https://${host}/*`));
 
 /**
  * Callback type for characterization observer listeners.
@@ -411,7 +512,7 @@ export const NOWCODER_HOST_PATTERNS: readonly string[] = PLATFORM_ADAPTERS.nowco
 export type CharacterizationCollectCallback = (evidence: E1RequestObserved, hostname: string) => Promise<void>;
 
 /**
- * Attaches five Chrome webRequest listeners specifically for NowCoder characterization.
+ * Attaches five Chrome webRequest listeners for registry-owned characterization hosts.
  * This is separate from the production observer and routes to characterization storage.
  *
  * This function is pure — no chrome.* references — so it is fully testable
@@ -424,7 +525,7 @@ export function registerCharacterizationObserverListeners(
   executorSchedule: ExecutorScheduleCallback,
 ): void {
   const filter: WebRequestFilter = Object.freeze({
-    urls: NOWCODER_HOST_PATTERNS,
+    urls: CHARACTERIZATION_HOST_PATTERNS,
     types: [...OJ_RESOURCE_TYPES],
   });
 

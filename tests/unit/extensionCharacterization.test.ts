@@ -112,6 +112,20 @@ describe("characterization default state", () => {
 // ---------------------------------------------------------------------------
 
 describe("characterization start", () => {
+  it("starts a LeetCode session with the platform derived from registry ownership", () => {
+    const effects = applyCharacterizationAction({
+      type: "characterization_start",
+      hostname: "leetcode.cn",
+      authenticated: true,
+    }, DEFAULT_CHARACTERIZATION_SESSION, NOW);
+    expect(effects.session).toMatchObject({
+      active: true,
+      platform: "leetcode",
+      hostname: "leetcode.cn",
+      authenticated: true,
+    });
+  });
+
   it("starts an active unauthenticated www session", () => {
     const session = DEFAULT_CHARACTERIZATION_SESSION;
     const effects = applyCharacterizationAction({ type: "characterization_start", hostname: "www.nowcoder.com", authenticated: false }, session, NOW);
@@ -130,7 +144,7 @@ describe("characterization start", () => {
     expect(effects.session).toBe(activeSession);
   });
 
-  it("rejects a non-NowCoder hostname", () => {
+  it("rejects a hostname not owned by the adapter registry", () => {
     const effects = applyCharacterizationAction({
       type: "characterization_start", hostname: "example.com", authenticated: false,
     }, DEFAULT_CHARACTERIZATION_SESSION, NOW);
@@ -143,6 +157,44 @@ describe("characterization start", () => {
 // ---------------------------------------------------------------------------
 
 describe("characterization collect", () => {
+  it("collects and exports exact path-only LeetCode evidence", () => {
+    const session = startCharacterizationSession(NOW, "leetcode.cn", true);
+    const evidence = makeE1({
+      evidenceId: "e1_leetcode_submit",
+      platform: "leetcode",
+      adapterVersion: "v4-contract-1",
+      endpointKey: "/problems/two-sum/submit/",
+    });
+    const collected = applyCharacterizationAction({
+      type: "characterization_collect",
+      hostname: "leetcode.cn",
+      evidence,
+    }, session, NOW).session;
+    const exported = applyCharacterizationAction({
+      type: "characterization_export",
+    }, collected, NOW).exportResult;
+
+    expect(collected.records).toMatchObject([{
+      platform: "leetcode",
+      endpointKey: "/problems/two-sum/submit/",
+    }]);
+    expect(exported).toMatchObject({
+      ok: true,
+      document: {
+        meta: {
+          fixtureName: "leetcode-characterization-2026-07-26",
+          sourceUrl: "https://leetcode.cn/",
+          signals: [{ platform: "leetcode" }],
+        },
+        evidence: [{
+          evidenceId: "e1_leetcode_req-test-1",
+          platform: "leetcode",
+          normalizedPath: "/problems/two-sum/submit/",
+        }],
+      },
+    });
+  });
+
   it("collects NowCoder evidence when session is active", () => {
     const session = startCharacterizationSession(NOW, "www.nowcoder.com", false);
     const evidence = makeE1();
@@ -532,13 +584,10 @@ describe("characterization forbidden input", () => {
     expect(isCharacterizationSafeEvidence(evidence)).toBe(true);
   });
 
-  it("validateCharacterizationEvidence rejects non-nowcoder platform", () => {
+  it("validateCharacterizationEvidence accepts another registry platform", () => {
     const leetcodeEvidence = makeE1({ platform: "leetcode" });
     const result = validateCharacterizationEvidence(leetcodeEvidence);
-    expect(result.safe).toBe(false);
-    if (!result.safe) {
-      expect(result.reason).toContain("nowcoder");
-    }
+    expect(result).toEqual({ safe: true });
   });
 
   it("validateCharacterizationEvidence accepts valid nowcoder evidence", () => {
@@ -614,10 +663,16 @@ describe("buildCharacterizationRecord", () => {
     expect(record.normalizedRedirectPath).toBe("status");
   });
 
-  it("returns undefined for non-nowcoder platform", () => {
-    const evidence = makeE1({ platform: "leetcode" });
+  it("builds a record for another registry platform", () => {
+    const evidence = makeE1({
+      platform: "leetcode",
+      endpointKey: "/problems/two-sum/submit/",
+    });
     const record = buildCharacterizationRecord(evidence, NOW, NOW);
-    expect(record).toBeUndefined();
+    expect(record).toMatchObject({
+      platform: "leetcode",
+      endpointKey: "/problems/two-sum/submit/",
+    });
   });
 
   it("returns undefined for invalid sessionStartedAt", () => {

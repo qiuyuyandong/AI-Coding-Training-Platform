@@ -74,6 +74,12 @@ import {
   FAKE_OJ_PATH_PREFIX,
   FAKE_OJ_PROBLEM_PAGE_URL,
   FAKE_OJ_RESULT_PAGE_URL,
+  LEETCODE_CHECK_URL,
+  LEETCODE_FAKE_SUBMISSION_ID,
+  LEETCODE_GRAPHQL_URL,
+  LEETCODE_MEMORY_DISTRIBUTION_URL,
+  LEETCODE_RUNTIME_DISTRIBUTION_URL,
+  LEETCODE_UNMATCHED_SUBMIT_URL,
   NOWCODER_RESULT_URL,
   NOWCODER_SUBMIT_URL,
   pollUntilStorageMatches,
@@ -420,11 +426,48 @@ async function runCrossPlatformSmoke(
       storage.transientE1.length > before.transientE1.length
       && storage.transientE1.some((entry) => {
         const evidence = lifecycleEvidence(entry);
-        return evidence.platform === scenario.platform && evidence.endpointKey === "submit";
+        return evidence.platform === scenario.platform
+          && evidence.endpointKey === (
+            scenario.platform === "leetcode"
+              ? "leetcode/submit/com/example-fake-oj"
+              : "submit"
+          );
       }),
     );
     expect(snapshot.transientE1.length).toBeGreaterThan(before.transientE1.length);
-    expect(snapshot.captureOutbox).toHaveLength(0);
+    if (scenario.platform !== "leetcode") {
+      expect(snapshot.captureOutbox).toHaveLength(0);
+      return;
+    }
+
+    await page.evaluate(async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Fake LeetCode check failed: ${response.status}`);
+    }, LEETCODE_CHECK_URL);
+    const confirmed = await pollUntilStorageMatches(liveWorker, (storage) =>
+      storage.confirmedSubmissions.some((record) =>
+        typeof record === "object"
+        && record !== null
+        && Reflect.get(record, "externalSubmissionId") === `com/${LEETCODE_FAKE_SUBMISSION_ID}`
+        && Reflect.get(record, "problemExternalId") === "example-fake-oj"),
+    );
+    expect(confirmed.confirmedSubmissions).toHaveLength(1);
+
+    await page.evaluate(() => {
+      const result = document.createElement("div");
+      result.dataset.e2eLocator = "console-result";
+      result.textContent = "Accepted";
+      document.body.append(result);
+    });
+    const finalized = await pollUntilStorageMatches(liveWorker, (storage) =>
+      storage.confirmedSubmissionTombstones.some((record) =>
+        typeof record === "object"
+        && record !== null
+        && Reflect.get(record, "submissionKey")
+          === `leetcode:com/${LEETCODE_FAKE_SUBMISSION_ID}`),
+    );
+    expect(finalized.confirmedSubmissions).toHaveLength(0);
+    expect(finalized.confirmedSubmissionTombstones).toHaveLength(1);
   } finally {
     await page.close();
   }
@@ -633,7 +676,11 @@ test.describe.parallel("Phase A Task A9 v2 — Fake OJ matrix", () => {
   test("302 result redirect", async () => {
     const scenario = scenarioAt(1);
     const { context, worker } = activeHarness();
-      const { page, bridge } = await openScenario(context, worker, scenario);
+    // Repeated focused runs can receive the registered worker handle before
+    // its extension globals are ready. Reacquire the live execution context
+    // before clearing session evidence.
+    const liveWorker = await getFakeOjLiveWorker(context, worker.url());
+      const { page, bridge } = await openScenario(context, liveWorker, scenario);
     try {
       await bridge.triggerSubmit();
       // Playwright does not re-evaluate routes for the redirect-following
@@ -650,7 +697,16 @@ test.describe.parallel("Phase A Task A9 v2 — Fake OJ matrix", () => {
       expect(page.url()).toBe(NOWCODER_RESULT_URL);
       const fulfilled = await bridge.readFulfilledRequests();
       expect(fulfilled).toContain(`GET ${NOWCODER_RESULT_URL}`);
-      const observed = await waitForObservedE1(worker, scenario);
+      // `transientE1.length === 1` can become true at onBeforeRequest, before
+      // onBeforeRedirect enriches that same request record. Wait for the
+      // lifecycle field under assertion instead of racing the redirect event.
+      const observed = await pollUntilStorageMatches(liveWorker, (storage) =>
+        storage.transientE1.some((entry) => {
+          const evidence = lifecycleEvidence(entry);
+          return evidence.method === "POST"
+            && evidence.endpointKey === "submit"
+            && evidence.redirectEndpointKey === "result";
+        }));
       const originalPost = observed.transientE1.find((entry) => {
         const evidence = lifecycleEvidence(entry);
         return evidence.method === "POST" && evidence.endpointKey === "submit";
@@ -660,7 +716,7 @@ test.describe.parallel("Phase A Task A9 v2 — Fake OJ matrix", () => {
       const summary = buildScenarioSummary(scenario);
       const envelope = await dispatchAndAssertRelayEnvelope(bridge, summary);
       expect(envelope.summary.redirectEndpointKey).toBe("result");
-      await assertNoDurableE2(worker);
+      await assertNoDurableE2(liveWorker);
     } finally {
       await page.close();
     }
@@ -1020,12 +1076,155 @@ test.describe.parallel("Phase A Task A9 v2 — Fake OJ matrix", () => {
     }
   });
 
-  test("LeetCode routed-host smoke captures E1", async () => {
+  test("LeetCode characterized submit/check/verdict chain finalizes once", async () => {
     const { context, worker } = activeHarness();
     await runCrossPlatformSmoke(context, worker, {
       scenarioIndex: 18,
-      navigationUrl: "https://leetcode.com/problems/example-fake-oj?",
+      navigationUrl: "https://leetcode.com/problems/example-fake-oj/",
     });
+  });
+
+  test("LeetCode GraphQL/result-distribution chain requires a trusted click and finalizes once", async () => {
+    const { context, worker } = activeHarness();
+    const scenario = scenarioAt(18);
+    const liveWorker = await getFakeOjLiveWorker(context, worker.url());
+    const before = await readFakeOjStorage(liveWorker);
+    const page = await context.newPage();
+    const bridge = await createFakeOjPage(context, page, {
+      worker: liveWorker,
+      bridgeDocumentId: documentIdFor("leetcode-graphql-result"),
+      bridgeForwarder: async (): Promise<void> => undefined,
+      navigationUrl: "https://leetcode.com/problems/example-fake-oj/",
+      submitUrl: LEETCODE_GRAPHQL_URL,
+      submitMethod: "POST",
+      resultUrl: null,
+      routePlans: scenario.routePlans,
+      problemPageHtml: PROBLEM_PAGE_HTML,
+      resultPageHtml: RESULT_PAGE_HTML,
+    });
+    try {
+      await page.locator("#fake-oj-submit").evaluate((button) => {
+        button.textContent = "Submit";
+      });
+      await bridge.triggerSubmit();
+      const submitted = await pollUntilStorageMatches(liveWorker, (storage) =>
+        storage.uiHints.length > before.uiHints.length
+        && storage.transientE1.some((entry) => {
+          const evidence = lifecycleEvidence(entry);
+          return evidence.platform === "leetcode"
+            && evidence.endpointKey === "graphql"
+            && evidence.method === "POST"
+            && evidence.lifecycle === "completed"
+            && evidence.statusCode === 200;
+        }),
+      );
+      expect(submitted.uiHints).toHaveLength(before.uiHints.length + 1);
+
+      await page.evaluate(async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Fake LeetCode runtime distribution failed: ${response.status}`);
+        }
+      }, LEETCODE_RUNTIME_DISTRIBUTION_URL);
+      const confirmed = await pollUntilStorageMatches(liveWorker, (storage) =>
+        storage.confirmedSubmissions.some((record) =>
+          typeof record === "object"
+          && record !== null
+          && Reflect.get(record, "externalSubmissionId") === `com/${LEETCODE_FAKE_SUBMISSION_ID}`
+          && Reflect.get(record, "problemExternalId") === "example-fake-oj"),
+      );
+      expect(confirmed.confirmedSubmissions).toHaveLength(1);
+
+      await page.evaluate(async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Fake LeetCode memory distribution failed: ${response.status}`);
+        }
+      }, LEETCODE_MEMORY_DISTRIBUTION_URL);
+      const deduplicated = await readFakeOjStorage(liveWorker);
+      expect(deduplicated.confirmedSubmissions).toHaveLength(1);
+
+      await page.evaluate(() => {
+        const result = document.createElement("div");
+        result.dataset.e2eLocator = "console-result";
+        result.textContent = "Accepted";
+        document.body.append(result);
+      });
+      const finalized = await pollUntilStorageMatches(liveWorker, (storage) =>
+        storage.confirmedSubmissionTombstones.some((record) =>
+          typeof record === "object"
+          && record !== null
+          && Reflect.get(record, "submissionKey")
+            === `leetcode:com/${LEETCODE_FAKE_SUBMISSION_ID}`),
+      );
+      expect(finalized.confirmedSubmissions).toHaveLength(0);
+      expect(finalized.confirmedSubmissionTombstones).toHaveLength(1);
+
+      const finalizedResultCount = finalized.transientE1.filter((entry) =>
+        lifecycleEvidence(entry).endpointKey
+          === `leetcode/result/com/${LEETCODE_FAKE_SUBMISSION_ID}`).length;
+      await page.evaluate(async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Fake LeetCode post-final result failed: ${response.status}`);
+        }
+      }, LEETCODE_RUNTIME_DISTRIBUTION_URL);
+      await pollUntilStorageMatches(liveWorker, (storage) =>
+        storage.transientE1.filter((entry) =>
+          lifecycleEvidence(entry).endpointKey
+            === `leetcode/result/com/${LEETCODE_FAKE_SUBMISSION_ID}`).length > finalizedResultCount,
+      );
+      await new Promise<void>((resolve) => setTimeout(resolve, 500));
+      const postFinal = await readFakeOjStorage(liveWorker);
+      expect(postFinal.confirmedSubmissions).toHaveLength(0);
+      expect(postFinal.confirmedSubmissionTombstones).toHaveLength(1);
+    } finally {
+      await page.close();
+    }
+  });
+
+  test("LeetCode unmatched submit-like path is diagnosed without entering capture state", async () => {
+    const { context, worker } = activeHarness();
+    const scenario = scenarioAt(18);
+    const page = await context.newPage();
+    await createFakeOjPage(context, page, {
+      worker,
+      bridgeDocumentId: documentIdFor("leetcode-endpoint-drift"),
+      bridgeForwarder: async (): Promise<void> => undefined,
+      navigationUrl: "https://leetcode.com/problems/example-fake-oj/",
+      submitUrl: scenario.submitUrl,
+      submitMethod: "POST",
+      resultUrl: scenario.resultUrl,
+      routePlans: scenario.routePlans,
+      problemPageHtml: PROBLEM_PAGE_HTML,
+      resultPageHtml: RESULT_PAGE_HTML,
+    });
+    try {
+      await worker.evaluate(async () => {
+        await chrome.storage.session.remove("leetcodeEndpointDiagnostics");
+      });
+      await page.evaluate(async (url) => {
+        const response = await fetch(url, { method: "POST" });
+        if (!response.ok) throw new Error(`Fake LeetCode diagnostic request failed: ${response.status}`);
+      }, LEETCODE_UNMATCHED_SUBMIT_URL);
+      const observed = await pollUntilStorageMatches(
+        worker,
+        (storage) => storage.leetcodeEndpointDiagnostics.length === 1,
+      );
+      expect(observed.leetcodeEndpointDiagnostics).toHaveLength(1);
+      expect(observed.leetcodeEndpointDiagnostics[0]).toMatchObject({
+        reason: "unmatched_submit_path",
+        pathname: "/api.v2/problems/example-fake-oj/submit-result%20safe",
+        method: "POST",
+        statusCode: 200,
+      });
+      expect(JSON.stringify(observed.leetcodeEndpointDiagnostics)).not.toContain("never-retained");
+      expect(observed.confirmedSubmissions).toHaveLength(0);
+      expect(observed.captureOutbox).toHaveLength(0);
+      expect(observed.confirmedSubmissionTombstones).toHaveLength(0);
+    } finally {
+      await page.close();
+    }
   });
 
   test("Codeforces routed-host smoke captures E1", async () => {

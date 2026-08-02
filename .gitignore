@@ -37,8 +37,12 @@ next-env.d.ts
 *.db
 
 # test runtime data
-/.tmp/playwright/
+/.tmp/
 /test-results/
+/output/playwright/
+
+# local browser profiles and operator-only runtime state
+/.local/
 
 # codegraph
 .codegraph/

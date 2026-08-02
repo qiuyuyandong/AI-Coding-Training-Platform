@@ -2,6 +2,7 @@ import { settleExtensionOperation } from "./extensionOperation";
 import { readConfirmedSubmissions } from "./confirmedSubmission";
 import type { OrchestratorState } from "./backgroundOrchestrator";
 import type { CharacterizationExportDocument } from "./characterization";
+import { characterizationPlatformForHostname } from "./characterizationStorage";
 import { parseNetworkTranscriptDocument } from "./networkTranscriptContract";
 
 const DEFAULT_ENDPOINT = "http://localhost:3000/api/capture/events";
@@ -380,8 +381,10 @@ function isSuccessfulPairResult(value: unknown): value is { readonly ok: true; r
 export function readCharacterizationStartSelection(
   hostname: unknown,
   authenticated: unknown,
-): { readonly hostname: "www.nowcoder.com" | "ac.nowcoder.com"; readonly authenticated: boolean } | undefined {
-  if ((hostname !== "www.nowcoder.com" && hostname !== "ac.nowcoder.com") || typeof authenticated !== "boolean") {
+): { readonly hostname: string; readonly authenticated: boolean } | undefined {
+  if (typeof hostname !== "string"
+    || characterizationPlatformForHostname(hostname) === undefined
+    || typeof authenticated !== "boolean") {
     return undefined;
   }
   return { hostname, authenticated };
@@ -481,7 +484,13 @@ async function renderCharacterization(): Promise<void> {
       setText("#characterizationState", response.status);
       // B3 export button: only enabled when session active AND export not completed AND B3 is ready
       const b3Status = response.b3Status ?? "armed";
-      updateCharacterizationButtons(response.session.active, b3Status, exportCompletedThisSession);
+      updateCharacterizationButtons(
+        response.session.active,
+        b3Status,
+        exportCompletedThisSession,
+        response.session.hostname,
+        response.session.records?.length ?? 0,
+      );
       updateWitnessStateDisplay(b3Status);
     }
   } catch {
@@ -491,7 +500,13 @@ async function renderCharacterization(): Promise<void> {
   }
 }
 
-function updateCharacterizationButtons(active: boolean, b3Status: string, alreadyExported = false): void {
+function updateCharacterizationButtons(
+  active: boolean,
+  b3Status: string,
+  alreadyExported = false,
+  hostname = "",
+  recordCount = 0,
+): void {
   const startBtn = document.querySelector<HTMLButtonElement>("#characterizationStart");
   const stopBtn = document.querySelector<HTMLButtonElement>("#characterizationStop");
   const exportBtn = document.querySelector<HTMLButtonElement>("#characterizationExport");
@@ -499,7 +514,9 @@ function updateCharacterizationButtons(active: boolean, b3Status: string, alread
   if (stopBtn !== null) stopBtn.disabled = !active;
   // B3: export only enabled when active AND B3 is ready AND not already exported
   // After successful export, never re-enable (popup refresh won't reset this)
-  const canExport = active && b3Status === "ready" && !alreadyExported && !exportCompletedThisSession;
+  const isNowCoder = characterizationPlatformForHostname(hostname) === "nowcoder";
+  const evidenceReady = isNowCoder ? b3Status === "ready" : recordCount > 0;
+  const canExport = active && evidenceReady && !alreadyExported && !exportCompletedThisSession;
   if (exportBtn !== null) exportBtn.disabled = !canExport;
 }
 
@@ -542,7 +559,7 @@ export async function deliverCharacterizationExport(
     type: "application/json",
   }));
   try {
-    await download(blobUrl, `nowcoder-characterization-${value.meta.captureDate}.json`);
+    await download(blobUrl, `${value.meta.fixtureName}.json`);
     return { ok: true, count: value.evidence.length };
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : "下载失败" };
@@ -565,7 +582,17 @@ export function isCharacterizationExportDocument(value: unknown): value is Chara
   return parseNetworkTranscriptDocument(value).ok;
 }
 
-function isCharacterizationStatusResponse(value: unknown): value is { readonly session: { readonly active: boolean; readonly navigationWitnesses?: readonly unknown[] }; readonly status: string; readonly b3Status?: string; readonly b3Revision?: number } {
+function isCharacterizationStatusResponse(value: unknown): value is {
+  readonly session: {
+    readonly active: boolean;
+    readonly hostname: string;
+    readonly records?: readonly unknown[];
+    readonly navigationWitnesses?: readonly unknown[];
+  };
+  readonly status: string;
+  readonly b3Status?: string;
+  readonly b3Revision?: number;
+} {
   return typeof value === "object" && value !== null
     && "session" in value && typeof value.session === "object"
     && "status" in value && typeof value.status === "string";
