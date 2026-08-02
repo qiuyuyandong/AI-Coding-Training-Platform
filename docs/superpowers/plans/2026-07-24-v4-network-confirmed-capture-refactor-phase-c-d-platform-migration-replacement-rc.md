@@ -416,233 +416,28 @@ and every adapter retains an explicit readiness result.
 
 ---
 
-### Task D1: Validate migration, restart, update, and rollback behavior
-
-**Objective:** Prove V4 can be deployed and disabled without data loss, duplicate
-attempts, or reactivation of unsafe click state.
-
-**Files:**
-
-- Create: `tests/unit/extensionV4UpgradeMatrix.test.ts`
-- Create: `tests/extension-e2e/capture-v4-upgrade.spec.ts`
-- Modify: installation/storage/orchestrator modules only for proven defects
-- Create: dated migration/rollback report under `work/reports/`
-
-**Dependencies:** Task C5.
-
-**Write failing tests first:**
-
-- Fresh install.
-- V2 queue -> V4.
-- V3 click intents -> V4.
-- V3 outbox/quarantine/credential -> V4.
-- V4 E1 session evidence lost on browser restart.
-- V4 E2 preserved on browser restart/update.
-- Extension reload during E1/E2/E3/outbox stages.
-- Adapter kill switch with confirmed submissions.
-- Downgrade attempt cannot resurrect V3 click waiting.
-- Repeated E3/API replay remains one SQLite attempt.
-
-**Implementation boundary:**
-
-- Rollback means disable adapter/capture and retain durable state.
-- No direct Chrome profile, LevelDB, or default SQLite editing.
-- Cleanup is link/reparse-point safe.
-
-**Verification:**
-
-```powershell
-npx vitest run --config vitest.extension.config.ts tests/unit/extensionV4UpgradeMatrix.test.ts
-npm run extension:e2e -- tests/extension-e2e/capture-v4-upgrade.spec.ts
-npm run quality:gate
-```
-
-**Completion standard:** All upgrade/interruption/disable/replay cases pass and
-the report records actual counts and storage keys.
-
-**Explicit non-goals:** No destructive downgrade or user-data deletion.
-
----
-
-### Task D2: Perform the V4 privacy and permission audit
-
-**Objective:** Establish that the final target artifact collects no more than the
-approved safe evidence contract.
-
-**Files:**
-
-- Create: `scripts/audit-v4-extension-privacy.mjs`
-- Create: `tests/unit/v4ExtensionPrivacyAudit.test.ts`
-- Create: dated privacy report under `work/reports/`
-- Modify code/fixtures only for proven audit findings
-
-**Dependencies:** Task D1.
-
-**Write failing tests first:**
-
-- Reject forbidden storage/log/fixture/error keys.
-- Reject requestBody use outside explicitly approved adapter filters.
-- Reject broad host permissions, `webRequestBlocking`, `debugger`, DevTools,
-  remote code, or test-only manifest paths.
-- Verify local/session access restrictions when supported.
-- Verify Fake OJ fixtures are synthetic and real fixtures carry provenance.
-
-**Implementation boundary:** Static audit supplements, not replaces, code review
-and real extension tests.
-
-**Verification:**
-
-```powershell
-npx vitest run tests/unit/v4ExtensionPrivacyAudit.test.ts
-node scripts/audit-v4-extension-privacy.mjs
-npm run extension:check
-```
-
-**Completion standard:** Audit passes with zero forbidden finding and every
-permission has a documented product reason.
-
-**Explicit non-goals:** No hosted privacy policy or Phase 7 behavior.
-
----
-
-### Task D3: Freeze one replacement implementation candidate
-
-**Objective:** Create an immutable implementation SHA only after all engineering
-and real-platform prerequisites are complete.
-
-**Files:** All classified task-owned V4 source, tests, fixtures, scripts, and
-current-state documents; exclude reports that would create SHA self-reference
-unless the release contract explicitly allows them in the later evidence commit.
-
-**Dependencies:** Tasks C0-C5 and D1-D2; all target adapter results recorded;
-explicit user authorization to commit.
-
-**Write failing checks first:**
-
-- Dirty-path classifier rejects database files, generated dist, temporary
-  profiles, Playwright artifacts, raw transcripts, environment files, and
-  unrelated user changes.
-- RC validator rejects click-only symbols, missing adapter states, failed
-  extension E2E, failed privacy report, or docs disagreement.
-
-**Implementation boundary:**
-
-- Inspect status, full diff, staged diff, and recent log.
-- Stage explicit task-owned paths only.
-- Run all gates before commit.
-- Never amend, push, or create a PR without separate authorization.
-
-**Verification:**
-
-```powershell
-npm run lint
-npm run db:migrate
-npm run test
-npm run typecheck
-npm run e2e
-npm run extension:check
-npm run extension:e2e
-npm run build
-npm run quality:gate
-node scripts/audit-v4-extension-privacy.mjs
-node scripts/validate-v4-adapter-readiness.mjs --all
-$env:GIT_MASTER='1'; git diff --check
-```
-
-**Completion standard:** All commands pass with exact counts recorded, default
-database metadata is preserved, independent code review approves, and an
-authorized commit creates one immutable candidate SHA.
-
-**Explicit non-goals:** A committed candidate is not yet RC-accepted, V0
-accepted, or released.
-
----
-
-### Task D4: Execute same-SHA real observations
-
-**Objective:** Observe every target adapter on the exact candidate build without
-runtime changes.
-
-**Files:**
-
-- Create/update dated per-platform reports under `work/reports/`
-- Update observation validator inputs
-- Do not modify runtime source
-
-**Dependencies:** Task D3 immutable candidate and explicit user authorization
-for each real platform action.
-
-**Required evidence:**
-
-- Browse-only negative flow.
-- Fresh natural submission by the user.
-- E1 observed with waiting unchanged.
-- E2 confirmed with waiting incremented once.
-- E3 matching and finalizing once.
-- ACK/outbox/quarantine outcome.
-- Local Training result.
-- Any unmatched, ambiguous, false-positive, false-negative, or platform failure.
-
-**Implementation boundary:** A blocking runtime fix invalidates every observation
-on the candidate and returns to Task D3 with a new SHA. Never edit reports to
-bridge different builds.
-
-**Verification:** Run observation validators and compare the exact candidate SHA
-in every report.
-
-**Completion standard:** All required target-platform observations pass or the
-candidate is rejected. User/calendar-dependent evidence remains pending until it
-actually occurs.
-
-**Explicit non-goals:** No synthetic observation dates or participants.
-
----
-
-### Task D5: Run same-SHA F1-F4 and request explicit acceptance
-
-**Objective:** Separate engineering quality from product acceptance and close the
-replacement candidate honestly.
-
-**Files:**
-
-- Create/update final verification and exit reports under `work/reports/`
-- Reconcile `AGENTS.md`, README, architecture, compliance, docs index, runbook,
-  and handoff only after evidence exists
-- Modify no runtime source
-
-**Dependencies:** Task D4 complete.
-
-**Verification lanes:**
-
-- F1: plan compliance and task/evidence completeness.
-- F2: code quality, privacy, security, concurrency, migration, rollback.
-- F3: hands-on real extension QA on the candidate SHA.
-- F4: scope, documentation, fixtures, statuses, and release-contract fidelity.
-
-All four must APPROVE the same candidate. Then present evidence to the user and
-obtain explicit acceptance.
-
-**Implementation boundary:** Do not call an engineering PASS an RC, do not call
-an RC accepted, and do not call acceptance public release.
-
-**Verification:**
-
-```powershell
-node scripts/validate-v4-adapter-readiness.mjs --all
-node scripts/audit-v4-extension-privacy.mjs
-npm run quality:gate
-```
-
-Run the repository's final V0/release validator only after its contract has been
-updated and tested for the new implementation SHA without weakening historical
-two-commit guarantees.
-
-**Completion standard:** F1-F4 all approve, the user explicitly accepts, final
-status documents agree, and any authorized final evidence commit passes the
-release validator.
-
-**Explicit non-goals:** No automatic push, PR, deployment, Chrome Web Store
-publication, Public Beta, or V0.5 implementation.
+### Phase D execution authority: standalone plan
+
+**Status:** `APPROVED` (standalone Phase D plan independently approved on
+2026-08-03; no HIGH or MEDIUM blocker).
+
+The former detailed D1-D5 text in this orchestration plan has been moved to the
+sole Phase D authority:
+
+- [V4 Phase D upgrade, restart, update, and rollback reliability](./2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md)
+
+Historical note: the original D1-D5 section established the dependency order
+`C5 -> D1 -> D2 -> D3 -> D4 -> D5` and the replacement-RC boundary. The
+standalone plan preserves and expands that contract with the six initialization
+interruption boundaries, the expected storage.session lifecycle matrix, the
+empty production requestBody allowlist, the candidate/evidence commit split,
+and the required engineering versus real-Chrome gates. This replacement does
+not alter any Phase C C0-C5 execution fact or platform terminal result.
+
+No D1 implementation, observation, commit, push, PR, RC freeze, acceptance, or
+release is authorized by this historical orchestration entry. Phase D execution
+is governed by the approved standalone plan, including its D1-C, D3 candidate,
+and D4 user-action gates.
 
 ## Suggested Commit Sequence
 
