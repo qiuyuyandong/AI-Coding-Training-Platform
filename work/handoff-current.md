@@ -756,8 +756,8 @@ observation, final verification, and acceptance pending.**
   the sole certified production DOM adapter.
 - V4 Phase C: **C0-C5 engineering-complete.** LeetCode and NowCoder are
   network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
-- V4 Phase D: **D1, D2, and D3 candidate engineering complete.** D2's 35-case
-  audit and 68 focused product privacy tests pass with `0 findings`; independent
+- V4 Phase D: **D1 and D2 complete; D3 candidate engineering complete.** D2's
+  35-case audit and 68 focused product privacy tests pass with `0 findings`; independent
   privacy review returned `APPROVE`. The candidate gate passed `2217/1` unit,
   `25` app E2E, `1414` extension tests, `53/1` extension E2E, and production
   build `20/20`. The implementation candidate is
