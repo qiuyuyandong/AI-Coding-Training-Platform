@@ -1066,11 +1066,11 @@ and production build `20/20`. The post-gate privacy audit reports `0 findings`,
 readiness validation passes, default database metadata is unchanged, and no
 port 3000 listener remains.
 
-D2 is complete. D3 candidate preflight is now in progress under explicit user
+D2 is complete. D3 candidate engineering is complete under explicit user
 authorization to create the immutable candidate commit. This is not RC,
 acceptance, or release.
 
-### 14.8 D3 authorization and candidate preflight (2026-08-03)
+### 14.8 D3 authorization and candidate preflight (2026-08-03 to 2026-08-04)
 
 The user explicitly authorized D3 candidate creation, excluding push, PR, RC,
 acceptance, and release. The current dirty paths were classified as task-owned
@@ -1078,7 +1078,7 @@ D1/D2 implementation, tests, scripts, reports, plan, and handoff paths; no
 database, generated dist, temporary profile, Playwright artifact, environment
 file, raw transcript, or unrelated path was found.
 
-The V4 candidate validator and its 11-case unit suite were added. It rejects
+The V4 candidate validator and its 14-case unit suite were added. It rejects
 unowned/generated/secret paths, stale click-runtime symbols, failed extension
 E2E or privacy/readiness evidence, documentation disagreement, database
 metadata mutation, and candidate worktree/path violations. The initial RED
@@ -1086,4 +1086,12 @@ commands failed because the candidate test and validator did not exist. The
 validator no longer accepts operator-reported extension-E2E or quality-gate
 exit/count flags; `--preflight` runs the real `npm run quality:gate` and parses
 the final Extension E2E summary from its output. The immutable candidate SHA
-does not yet exist; D3 remains in progress.
+was created as `509faf0e60532cf565a6a57aa796b96bc1053f38`
+(`feat(v4): harden Phase D capture reliability`). The candidate gate then
+passed `2217/1` unit, `25` app E2E, `1414` extension tests, `53/1` extension
+E2E, production build `20/20`, zero privacy findings, readiness validation,
+and default-database preservation. The final independent D3 review returned
+`APPROVE` with no HIGH or MEDIUM findings. The handoff and plan reconciliation
+is included in the current candidate HEAD; its exact self-referential SHA is
+reported by the final Git closeout rather than embedded here. D3 candidate
+engineering is complete. This is not RC, acceptance, or release.

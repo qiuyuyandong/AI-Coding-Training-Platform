@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-03 V4 Phase D D3 candidate preflight in progress)
+## Status (2026-08-04 V4 Phase D D3 candidate engineering complete)
 
 V4 Phase D D1 engineering gates pass on the uncommitted working tree after the
 user approved a one-time, non-precedential D1-U RED-provenance exception. The
@@ -24,10 +24,13 @@ remote-endpoint, current/legacy raw-error, AST/wrapper, manifest/dist link, and
 fixture findings are now repaired after two review rounds with 35/35 audit
 tests, 68/68 focused product privacy tests, 43 files / 1412 extension tests, and
 `0 findings`. The final independent privacy review returned `APPROVE`, and the
-canonical quality gate passed. D2 is complete. D3 candidate preflight is in
-progress under explicit user authorization; no candidate commit exists yet.
-
-No D3 candidate commit or push has occurred.
+canonical quality gate passed. D2 is complete. D3 candidate preflight then
+completed under explicit user authorization. The implementation candidate is
+commit `509faf0e60532cf565a6a57aa796b96bc1053f38`
+(`feat(v4): harden Phase D capture reliability`); its final documentation
+reconciliation is the current candidate HEAD. The final candidate gate is
+bound to the full current HEAD SHA and is engineering evidence only, not RC,
+acceptance, or release. No push or PR has occurred.
 
 ## Previous Status (2026-08-02 V4 Phase C C0-C5 engineering complete)
 
@@ -753,11 +756,13 @@ observation, final verification, and acceptance pending.**
   the sole certified production DOM adapter.
 - V4 Phase C: **C0-C5 engineering-complete.** LeetCode and NowCoder are
   network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
-- V4 Phase D: **D1 and D2 complete; D3 candidate preflight in progress.** D2's 35-case audit and 68 focused product
-  privacy tests pass with `0 findings`; independent privacy review returned
-  `APPROVE`; final quality gate passed `2197/1` unit, `25` app E2E, `1412`
-  extension tests, `53/1` extension E2E, and build `20/20`. No candidate SHA
-  exists yet.
+- V4 Phase D: **D1, D2, and D3 candidate engineering complete.** D2's 35-case
+  audit and 68 focused product privacy tests pass with `0 findings`; independent
+  privacy review returned `APPROVE`. The candidate gate passed `2217/1` unit,
+  `25` app E2E, `1414` extension tests, `53/1` extension E2E, and production
+  build `20/20`. The implementation candidate is
+  `509faf0e60532cf565a6a57aa796b96bc1053f38`; the current HEAD is the
+  documentation-reconciled candidate and remains engineering evidence only.
 - V0 manual learning loop vertical slice: **implemented but not accepted.**
   Formal observation and replacement-RC work remain gated.
 
@@ -798,13 +803,13 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- D3 candidate classification and preflight are in flight under explicit user
-  authorization. No candidate commit exists yet.
+- No D3 engineering task remains in flight. The current candidate is not RC,
+  accepted, released, pushed, or proposed through a PR.
 
 ## Next Commander Action
 
-1. Complete D3 preflight/review, then explicitly stage and create the immutable
-   implementation candidate without calling it RC or accepted.
+1. Preserve the current candidate and do not push, create a PR, or label it RC,
+   accepted, or released without explicit authorization.
 2. Do not resume formal V0 observation, replacement-RC work, or V0.5 until the
    applicable gate explicitly permits it.
 
