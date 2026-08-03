@@ -101,9 +101,9 @@ describe("planExtensionInitialization V4", () => {
   it("preserves durable V3 delivery, pairing, and endpoint values", () => {
     const captureOutbox = [outboxItem("preserved")];
     const captureQuarantine = [{
-      id: "quarantine_1",
+      id: captureOutbox[0].id,
       item: captureOutbox[0],
-      error: "preserved",
+      error: "HTTP 500",
       quarantinedAt: options.now,
     }];
     const plan = planExtensionInitialization({
@@ -288,7 +288,7 @@ describe("planExtensionInitialization V4", () => {
       discardedPreBundleEventCount: 32,
       preBundleQueueDiscardedAt: "2026-07-20T00:00:00.000Z",
     }, options);
-    expect(plan.captureOutbox).toEqual(captureOutbox);
+    expect(plan.captureOutbox).toEqual([{ id: "bundle_1" }]);
     expect(plan.discardedPreBundleEventCount).toBe(32);
     expect(plan.preBundleQueueDiscardedAt).toBe("2026-07-20T00:00:00.000Z");
     expect(plan.shouldRemoveLegacyEventQueue).toBe(false);
@@ -330,7 +330,7 @@ describe("planExtensionInitialization V4", () => {
     expect(first.confirmedSubmissions).toEqual(second.confirmedSubmissions);
     expect(first.confirmedSubmissionTombstones).toEqual(second.confirmedSubmissionTombstones);
     expect(second.captureOutbox).toEqual(values.captureOutbox);
-    expect(second.captureQuarantine).toEqual(values.captureQuarantine);
+    expect(second.captureQuarantine).toEqual([{ id: "q", error: "malformed retained bundle" }]);
   });
 });
 
@@ -410,7 +410,7 @@ describe("applyExtensionInitializationSplit", () => {
       captureCredential: "paired",
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox: [{ id: "durable_outbox" }],
-      captureQuarantine: [{ id: "durable_quarantine" }],
+       captureQuarantine: [],
       confirmedSubmissions: [{ schemaVersion: 1, status: "confirmed", platform: "atcoder", problemExternalId: "abc_a", externalSubmissionId: "42", confirmedAt: options.now, storageKey: "atcoder:42", lastE3At: options.now }],
       confirmedSubmissionTombstones: [{ submissionKey: "atcoder:42", finalizedAt: options.now, expiresAt: "2026-08-20T00:00:00.000Z" }],
       discardedPreBundleEventCount: 32,
@@ -460,7 +460,7 @@ describe("applyExtensionInitializationSplit", () => {
       captureCredential: "paired",
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox: [{ id: "durable" }],
-      captureQuarantine: [{ id: "q" }],
+       captureQuarantine: [{ id: "q" }],
       confirmedSubmissions: [{ schemaVersion: 1, status: "confirmed", platform: "atcoder", problemExternalId: "abc_a", externalSubmissionId: "42", confirmedAt: options.now, storageKey: "atcoder:42", lastE3At: options.now }],
       confirmedSubmissionTombstones: [{ submissionKey: "atcoder:42", finalizedAt: options.now, expiresAt: "2026-08-20T00:00:00.000Z" }],
       discardedPreBundleEventCount: 32,
@@ -474,7 +474,7 @@ describe("applyExtensionInitializationSplit", () => {
     };
     const plan = planExtensionInitialization(mergedAfterRestart, options);
     expect(plan.captureOutbox).toEqual([{ id: "durable" }]);
-    expect(plan.captureQuarantine).toEqual([{ id: "q" }]);
+    expect(plan.captureQuarantine).toEqual([{ id: "q", error: "malformed retained bundle" }]);
     expect(plan.captureCredential).toBe("paired");
     expect(plan.confirmedSubmissions).toHaveLength(1);
     expect(plan.confirmedSubmissionTombstones).toHaveLength(1);
@@ -528,7 +528,7 @@ describe("applyExtensionInitializationSplit", () => {
       captureEnabled: true,
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox: [{ id: "durable" }],
-      captureQuarantine: [{ id: "q" }],
+       captureQuarantine: [],
       confirmedSubmissions: [{ schemaVersion: 1, status: "confirmed", platform: "atcoder", problemExternalId: "abc_a", externalSubmissionId: "42", confirmedAt: options.now, storageKey: "atcoder:42", lastE3At: options.now }],
       confirmedSubmissionTombstones: [],
       discardedPreBundleEventCount: 32,

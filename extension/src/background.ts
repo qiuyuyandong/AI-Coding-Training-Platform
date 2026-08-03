@@ -95,13 +95,24 @@ import {
 } from "./adapters/nowcoder/network";
 import { readConfirmedSubmissionState } from "./confirmedSubmissionStorage";
 import {
+  applyOrchestratorPersistence,
   createBackgroundOrchestrator,
+  readMalformedOutboxRecords,
+  readMalformedQuarantineRecords,
   type Orchestrator,
   type OrchestratorEffects,
   type OrchestratorEvent,
   type OrchestratorState,
   type OrchestratorUserAction,
 } from "./backgroundOrchestrator";
+import {
+  isCaptureOutboxItem,
+  isCaptureQuarantineItem,
+  type CaptureOutboxItem,
+  type CaptureQuarantineItem,
+} from "./attemptStorage";
+import { persistEffectsBeforeCaching } from "./backgroundPersistence";
+import { assertCaptureStorageKeys, type CaptureStorageAreaName } from "./storagePrivacy";
 import {
   INITIAL_STATE as INITIAL_INGRESS_STATE,
   isContentRuntimeReadyMessage,
@@ -126,6 +137,12 @@ let cachedSnapshot: OrchestratorState | undefined;
 let ingressState: IngressCoordinatorState = INITIAL_INGRESS_STATE;
 const characterizationClock = (): string => new Date().toISOString();
 
+chrome.storage.onChanged?.addListener((changes, areaName) => {
+  if (areaName === "local" && Object.hasOwn(changes, "captureEnabled")) {
+    cachedSnapshot = undefined;
+  }
+});
+
 /**
  * Synchronous snapshot of whether NowCoder characterization is active.
  * Set true BEFORE the serialized start-task is scheduled so the production
@@ -133,11 +150,13 @@ const characterizationClock = (): string => new Date().toISOString();
  * (the session-backed check still acts as a worker-restart safety net).
  */
 let characterizationProductionGuard: Platform | null = null;
+const trustedLocalStorage = chromeArea(chrome.storage.local, "local");
+const trustedSessionStorage = chromeArea(chrome.storage.session, "session");
 
 const orchestrator: Orchestrator = createBackgroundOrchestrator({
   storage: {
-    local: chromeArea(chrome.storage.local),
-    session: chromeArea(chrome.storage.session),
+    local: trustedLocalStorage,
+    session: trustedSessionStorage,
   },
   now: () => new Date().toISOString(),
   flushOutbox: async () => {
@@ -146,18 +165,10 @@ const orchestrator: Orchestrator = createBackgroundOrchestrator({
 });
 
 /** Characterization controller - session-only, never affects production state. */
-const characterizationController: CharacterizationController = createCharacterizationController({
-
-  get: async (keys: readonly string[]) => {
-    return chrome.storage.session.get([...keys]);
-  },
-  set: async (items: Record<string, unknown>) => {
-    await chrome.storage.session.set(items);
-  },
-  remove: async (key: string) => {
-    await chrome.storage.session.remove(key);
-  },
-}, characterizationClock);
+const characterizationController: CharacterizationController = createCharacterizationController(
+  trustedSessionStorage,
+  characterizationClock,
+);
 
 // ---------------------------------------------------------------------------
 // B3 Navigation Witness Controller
@@ -171,11 +182,7 @@ type B3SessionStorage = {
   readonly remove: (key: string) => Promise<void>;
 };
 
-const b3Storage: B3SessionStorage = {
-  get: async (keys: readonly string[]) => chrome.storage.session.get([...keys]),
-  set: async (items: Record<string, unknown>) => chrome.storage.session.set(items),
-  remove: async (key: string) => chrome.storage.session.remove(key),
-};
+const b3Storage: B3SessionStorage = trustedSessionStorage;
 
 /**
  * Read current B3 state from storage.
@@ -336,7 +343,7 @@ async function ensurePruneAlarmSlot(): Promise<void> {
   if (existing !== undefined) return;
   await settleExtensionOperation(
     () => chrome.alarms.create(UI_HINT_CLEANUP_ALARM_NAME, { periodInMinutes: 1 }),
-    (error) => console.warn("[capture-v4] ui hint cleanup alarm slot was not created", error),
+    () => console.warn("[capture-v4] ui hint cleanup alarm slot was not created"),
   );
 }
 
@@ -352,7 +359,7 @@ async function reschedulePruneAlarm(nextDeadline?: string): Promise<void> {
     if (Number.isFinite(whenMs)) {
       await settleExtensionOperation(
         () => chrome.alarms.create(UI_HINT_CLEANUP_ALARM_NAME, { when: whenMs }),
-        (error) => console.warn("[capture-v4] ui hint cleanup alarm was not scheduled", error),
+        () => console.warn("[capture-v4] ui hint cleanup alarm was not scheduled"),
       );
       return;
     }
@@ -368,12 +375,19 @@ async function scheduleUiHintCleanupAlarm(
 }
 
 async function scheduleUiHintCleanupAlarmFromSession(): Promise<void> {
-  const stored = await chrome.storage.session.get([...PRUNE_DEADLINE_KEYS]);
+  const stored = await trustedSessionStorage.get(PRUNE_DEADLINE_KEYS);
   const transient = readTransientSessionEvidenceState(stored);
   await scheduleUiHintCleanupAlarm(transient);
 }
 
 const initialization = (async (): Promise<void> => {
+  // Chromium 138 exposes this API for session but not local storage. Newer
+  // browsers that expose the local method are restricted too; the runtime key
+  // allowlist below remains mandatory on every supported browser.
+  if (typeof chrome.storage.local.setAccessLevel === "function") {
+    await chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+  }
+  await chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
   // B3.1: Do NOT unconditionally stop characterization here.
   // Session-backed state must survive MV3 worker restarts.
   // Read the persisted session to set the production guard.
@@ -395,7 +409,8 @@ const initialization = (async (): Promise<void> => {
 })();
 
 const executor = createSerializedWorkExecutor(initialization, (error) => {
-  console.error("[capture-v4] operation failed", error);
+  void error;
+  console.error("[capture-v4] operation failed");
 });
 
 function toIngressUrl(rawUrl: string): URL | undefined {
@@ -466,13 +481,13 @@ async function persistIngressDiagnostics(
   const diagnostics = effects.filter((effect) =>
     effect.type === "diagnostic" && effect.reason === "injection_failed");
   if (diagnostics.length === 0) return;
-  const stored = await chrome.storage.session.get([INGRESS_DIAGNOSTIC_KEY]);
+  const stored = await trustedSessionStorage.get([INGRESS_DIAGNOSTIC_KEY]);
   const existing = readIngressDiagnostics(stored[INGRESS_DIAGNOSTIC_KEY]);
   const appended: IngressDiagnosticRecord[] = diagnostics.map((effect) => ({
     reason: "injection_failed",
     documentId: effect.documentId,
   }));
-  await chrome.storage.session.set({
+  await trustedSessionStorage.set({
     [INGRESS_DIAGNOSTIC_KEY]: [...existing, ...appended].slice(-INGRESS_DIAGNOSTIC_LIMIT),
   });
 }
@@ -507,7 +522,7 @@ async function persistIngressReadyRecords(
       readonly documentId: string | undefined;
     }[];
   if (records.length === 0) return;
-  const stored = await chrome.storage.session.get([INGRESS_READY_KEY]);
+  const stored = await trustedSessionStorage.get([INGRESS_READY_KEY]);
   const existing = readIngressReadyRecords(stored[INGRESS_READY_KEY]);
   const appended: IngressReadyRecord[] = records.map((record) => ({
     reason: "ready_record",
@@ -515,7 +530,7 @@ async function persistIngressReadyRecords(
     frameId: record.frameId,
     documentId: record.documentId,
   }));
-  await chrome.storage.session.set({
+  await trustedSessionStorage.set({
     [INGRESS_READY_KEY]: [...existing, ...appended].slice(-INGRESS_READY_LIMIT),
   });
 }
@@ -612,9 +627,9 @@ chrome.webRequest.onBeforeRequest.addListener(
       receivedAt: new Date().toISOString(),
     };
     executor.schedule(async () => {
-      const stored = await chrome.storage.session.get(["webRequestSpikeMarkers"]);
+      const stored = await trustedSessionStorage.get(["webRequestSpikeMarkers"]);
       const markers = readWebRequestSpikeMarkers(stored.webRequestSpikeMarkers);
-      await chrome.storage.session.set({
+      await trustedSessionStorage.set({
         webRequestSpikeMarkers: [
           ...markers.filter((candidate) => candidate.requestId !== marker.requestId),
           marker,
@@ -650,7 +665,7 @@ async function applyNowCoderStatusConfirmation(
   if (details.method !== "GET" || details.type !== "xmlhttprequest"
     || details.documentId === undefined) return;
   if (await blocksCharacterizationProductionIngress("nowcoder", characterizationController)) return;
-  const stored = await chrome.storage.session.get(["uiHints", "transientE1"]);
+  const stored = await trustedSessionStorage.get(["uiHints", "transientE1"]);
   const transient = readTransientSessionEvidenceState(stored);
   const statusLifecycle = transient.requestLifecycles.find((entry) =>
     entry.evidence.platform === "nowcoder"
@@ -692,7 +707,7 @@ async function applyLeetCodeCheckConfirmation(details: WebRequestDetails): Promi
   if (details.method !== "GET" || details.type !== "xmlhttprequest"
     || details.documentId === undefined) return;
   if (await blocksCharacterizationProductionIngress("leetcode", characterizationController)) return;
-  const stored = await chrome.storage.session.get(["transientE1"]);
+  const stored = await trustedSessionStorage.get(["transientE1"]);
   const transient = readTransientSessionEvidenceState(stored);
   const checkLifecycle = transient.requestLifecycles.find((entry) =>
     entry.evidence.platform === "leetcode"
@@ -721,7 +736,7 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
   if (details.method !== "GET" || details.type !== "xmlhttprequest"
     || details.documentId === undefined) return;
   if (await blocksCharacterizationProductionIngress("leetcode", characterizationController)) return;
-  const stored = await chrome.storage.session.get(["uiHints", "transientE1"]);
+  const stored = await trustedSessionStorage.get(["uiHints", "transientE1"]);
   const transient = readTransientSessionEvidenceState(stored);
   const resultLifecycle = transient.requestLifecycles.find((entry) =>
     entry.evidence.platform === "leetcode"
@@ -776,8 +791,8 @@ async function persistLeetCodeEndpointDiagnostic(
     receivedAt: new Date().toISOString(),
   });
   if (diagnostic === null) return;
-  const stored = await chrome.storage.session.get([LEETCODE_ENDPOINT_DIAGNOSTIC_KEY]);
-  await chrome.storage.session.set({
+  const stored = await trustedSessionStorage.get([LEETCODE_ENDPOINT_DIAGNOSTIC_KEY]);
+  await trustedSessionStorage.set({
     [LEETCODE_ENDPOINT_DIAGNOSTIC_KEY]: appendLeetCodeEndpointDiagnostic(
       stored[LEETCODE_ENDPOINT_DIAGNOSTIC_KEY],
       diagnostic,
@@ -974,7 +989,7 @@ chrome.runtime.onInstalled.addListener(() => {
   });
   void settleExtensionOperation(
     () => chrome.alarms.create(FLUSH_ALARM_NAME, { periodInMinutes: 1 }),
-    (error) => console.warn("[capture-v4] flush alarm was not created", error),
+    () => console.warn("[capture-v4] flush alarm was not created"),
   );
 });
 
@@ -1099,7 +1114,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
           message.candidate.problemExternalId,
         );
         if (problemIdentity !== null) {
-          const stored = await chrome.storage.local.get(["confirmedSubmissions"]);
+          const stored = await trustedLocalStorage.get(["confirmedSubmissions"]);
           const confirmedSubmissionIds = readConfirmedSubmissionState(stored).confirmed
             .filter((record) =>
               record.platform === "leetcode"
@@ -1251,6 +1266,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 function chromeArea(
   area: typeof chrome.storage.local,
+  areaName: CaptureStorageAreaName,
 ): {
   readonly get: (keys: readonly string[]) => Promise<Record<string, unknown>>;
   readonly set: (items: Record<string, unknown>) => Promise<void>;
@@ -1258,41 +1274,65 @@ function chromeArea(
 } {
   return {
     get: async (keys: readonly string[]) => {
+      assertCaptureStorageKeys(areaName, keys);
       return area.get([...keys]);
     },
     set: async (items: Record<string, unknown>) => {
+      assertCaptureStorageKeys(areaName, Object.keys(items));
       await area.set(items);
     },
     remove: async (key: string) => {
+      assertCaptureStorageKeys(areaName, [key]);
       await area.remove(key);
     },
   };
 }
 
 async function applyOrchestratorEvent(event: OrchestratorEvent): Promise<OrchestratorEffects> {
+  if (event.kind !== "user_action") {
+    const runtime = await readRuntimeContext();
+    if (!runtime.captureEnabled) {
+      return ignoredCaptureEffects(await orchestrator.snapshot());
+    }
+  }
   const effects = await orchestrator.apply(event);
   await applyPersistence(effects);
   return effects;
 }
 
+function ignoredCaptureEffects(state: OrchestratorState): OrchestratorEffects {
+  return {
+    state,
+    persistence: {
+      local: [],
+      localRemovals: [],
+      session: [],
+      sessionRemovals: [],
+      outbox: [],
+      quarantine: [],
+      confirmed: [],
+      tombstones: [],
+      e0Hints: [],
+      transientE1: [],
+      pageContexts: [],
+      unmatchedFinals: [],
+      ambiguityDiagnostics: [],
+    },
+    executorSchedule: [],
+  };
+}
+
 async function applyPersistence(effects: OrchestratorEffects): Promise<void> {
-  cachedSnapshot = effects.state;
-  if (effects.persistence.local.length > 0) {
-    const items: Record<string, unknown> = {};
-    for (const write of effects.persistence.local) items[write.key] = write.value;
-    await chrome.storage.local.set(items);
-  }
-  for (const key of effects.persistence.localRemovals) {
-    await chrome.storage.local.remove(key);
-  }
-  if (effects.persistence.session.length > 0) {
-    const items: Record<string, unknown> = {};
-    for (const write of effects.persistence.session) items[write.key] = write.value;
-    await chrome.storage.session.set(items);
-  }
-  for (const key of effects.persistence.sessionRemovals) {
-    await chrome.storage.session.remove(key);
-  }
+  await persistEffectsBeforeCaching({
+    effects,
+    persist: async (persistence) => {
+      await applyOrchestratorPersistence({
+        local: trustedLocalStorage,
+        session: trustedSessionStorage,
+      }, persistence);
+    },
+    setCachedSnapshot: (state) => { cachedSnapshot = state; },
+  });
   // Always reschedule the cleanup alarm at the end of every apply so the
   // slot survives Chrome consuming the one-shot `when` after the alarm
   // fires. A no-diff prune (empty session) must still re-anchor the alarm;
@@ -1311,7 +1351,7 @@ async function refreshCachedSnapshot(): Promise<OrchestratorState> {
 }
 
 async function applyMainBridgeSummary(summary: MainBridgeSummary): Promise<void> {
-  const stored = await chrome.storage.session.get(["transientE1"]);
+  const stored = await trustedSessionStorage.get(["transientE1"]);
   const transient = readTransientSessionEvidenceState(stored);
   let correlator: CorrelatorState = createCorrelatorState();
   for (const lifecycle of transient.requestLifecycles) {
@@ -1392,7 +1432,7 @@ function flushOutbox(): Promise<void> {
   const drain = drainCaptureOutbox({
     readState: readOutboxState,
     send: async (item) => {
-      const stored = await chrome.storage.local.get(["captureEndpoint", "captureCredential"]);
+      const stored = await trustedLocalStorage.get(["captureEndpoint", "captureCredential"]);
       return postCaptureAttemptBundle({
         bundle: item.bundle,
         endpoint: stored.captureEndpoint,
@@ -1411,19 +1451,21 @@ function flushOutbox(): Promise<void> {
 }
 
 async function readOutboxState(): Promise<CaptureOutboxState> {
-  const stored = await chrome.storage.local.get(["captureOutbox", "captureQuarantine"]);
+  const stored = await trustedLocalStorage.get(["captureOutbox", "captureQuarantine"]);
   return {
     outbox: readOutbox(stored.captureOutbox),
     quarantine: readQuarantine(stored.captureQuarantine),
+    malformedOutbox: readMalformedOutboxRecords(stored.captureOutbox),
+    malformedQuarantine: readMalformedQuarantineRecords(stored.captureQuarantine),
   };
 }
 
 async function persistOutboxPlan(plan: CaptureOutboxPlan): Promise<void> {
-  await persistCaptureOutboxPlan(chrome.storage.local, plan);
+  await persistCaptureOutboxPlan(trustedLocalStorage, plan);
 }
 
 async function readRuntimeContext(): Promise<CaptureRuntimeContext> {
-  const stored = await chrome.storage.local.get([
+  const stored = await trustedLocalStorage.get([
     "installationId", "captureEnabled", "captureCredential",
   ]);
   return runtimeContextFromStored(stored);
@@ -1432,7 +1474,7 @@ async function readRuntimeContext(): Promise<CaptureRuntimeContext> {
 async function pairCaptureInstallation(
   message: PairCaptureInstallationMessage,
 ): Promise<PairCaptureResult> {
-  const state = await chrome.storage.local.get(["captureEndpoint", "installationId"]);
+  const state = await trustedLocalStorage.get(["captureEndpoint", "installationId"]);
   if (typeof state.installationId !== "string" || state.installationId.length === 0) {
     return { ok: false, error: "Extension installation is not initialized" };
   }
@@ -1442,32 +1484,38 @@ async function pairCaptureInstallation(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ code: message.code, installationId: state.installationId }),
     });
-    if (!response.ok) return { ok: false, error: await response.text() || response.statusText };
+    if (!response.ok) return { ok: false, error: `Pairing request rejected (HTTP ${response.status})` };
     const body: unknown = await response.json();
     const paired = parsePairCaptureApiResponse(body, state.installationId);
-    await chrome.storage.local.set({
+    await trustedLocalStorage.set({
       captureCredential: paired.credential,
       captureCredentialVersion: paired.credentialVersion,
       pairedAt: new Date().toISOString(),
     });
-    await chrome.storage.local.remove("lastCaptureError");
+    await trustedLocalStorage.remove("lastCaptureError");
     await refreshCachedSnapshot();
     await flushOutbox();
     return { ok: true, installationId: paired.installationId, credentialVersion: paired.credentialVersion };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Pairing failed" };
+    void error;
+    return { ok: false, error: "Pairing failed" };
   }
 }
 
 type ActionMessage = {
-  readonly type: "RETRY_CAPTURE_OUTBOX" | "CLEAR_CAPTURE_OUTBOX" | "CLEAR_CAPTURE_QUARANTINE";
+  readonly type: "SET_CAPTURE_ENABLED" | "RETRY_CAPTURE_OUTBOX" | "CLEAR_CAPTURE_OUTBOX" | "CLEAR_CAPTURE_QUARANTINE";
+  readonly enabled?: boolean;
 } | {
   readonly type: "RETRY_QUARANTINED_CAPTURE" | "DELETE_QUARANTINED_CAPTURE";
   readonly id: string;
+  readonly malformed?: boolean;
 };
 
 function isActionMessage(value: unknown): value is ActionMessage {
   if (typeof value !== "object" || value === null || !("type" in value)) return false;
+  if (value.type === "SET_CAPTURE_ENABLED") {
+    return "enabled" in value && typeof value.enabled === "boolean";
+  }
   if (
     value.type === "RETRY_CAPTURE_OUTBOX"
     || value.type === "CLEAR_CAPTURE_OUTBOX"
@@ -1476,11 +1524,14 @@ function isActionMessage(value: unknown): value is ActionMessage {
   return (
     value.type === "RETRY_QUARANTINED_CAPTURE"
     || value.type === "DELETE_QUARANTINED_CAPTURE"
-  ) && "id" in value && typeof value.id === "string";
+  ) && "id" in value && typeof value.id === "string"
+    && (!Object.hasOwn(value, "malformed") || typeof Reflect.get(value, "malformed") === "boolean");
 }
 
 function toOrchestratorAction(message: ActionMessage): OrchestratorUserAction {
   switch (message.type) {
+    case "SET_CAPTURE_ENABLED":
+      return { type: "SET_CAPTURE_ENABLED", enabled: message.enabled === true };
     case "RETRY_CAPTURE_OUTBOX":
       return { type: "RETRY_CAPTURE_OUTBOX" };
     case "CLEAR_CAPTURE_OUTBOX":
@@ -1490,7 +1541,11 @@ function toOrchestratorAction(message: ActionMessage): OrchestratorUserAction {
     case "RETRY_QUARANTINED_CAPTURE":
       return { type: "RETRY_QUARANTINED_CAPTURE", id: message.id };
     case "DELETE_QUARANTINED_CAPTURE":
-      return { type: "DELETE_QUARANTINED_CAPTURE", id: message.id };
+      return {
+        type: "DELETE_QUARANTINED_CAPTURE",
+        id: message.id,
+        ...(message.malformed === true ? { malformed: true } : {}),
+      };
   }
 }
 
@@ -1562,33 +1617,10 @@ function isWebRequestSpikeMarker(value: unknown): value is WebRequestSpikeMarker
     && "receivedAt" in value && typeof value.receivedAt === "string";
 }
 
-// Local outbox/quarantine readers that the V3 flush helpers still expect.
-// They tolerate unknown shapes without ever reading beyond what is supplied.
-
-import type { CaptureOutboxItem, CaptureQuarantineItem } from "./attemptStorage";
-
 function readOutbox(value: unknown): readonly CaptureOutboxItem[] {
-  return Array.isArray(value) ? value.filter(isOutboxItem) : [];
-}
-
-function isOutboxItem(value: unknown): value is CaptureOutboxItem {
-  return typeof value === "object" && value !== null
-    && "kind" in value && Reflect.get(value, "kind") === "attempt_bundle"
-    && "id" in value && typeof Reflect.get(value, "id") === "string"
-    && "bundle" in value && typeof Reflect.get(value, "bundle") === "object"
-    && Reflect.get(value, "bundle") !== null
-    && "attempts" in value && typeof Reflect.get(value, "attempts") === "number"
-    && "createdAt" in value && typeof Reflect.get(value, "createdAt") === "string";
+  return Array.isArray(value) ? value.filter(isCaptureOutboxItem) : [];
 }
 
 function readQuarantine(value: unknown): readonly CaptureQuarantineItem[] {
-  return Array.isArray(value) ? value.filter(isQuarantineItem) : [];
-}
-
-function isQuarantineItem(value: unknown): value is CaptureQuarantineItem {
-  return typeof value === "object" && value !== null
-    && "id" in value && typeof Reflect.get(value, "id") === "string"
-    && "item" in value && isOutboxItem(Reflect.get(value, "item"))
-    && "error" in value && typeof Reflect.get(value, "error") === "string"
-    && "quarantinedAt" in value && typeof Reflect.get(value, "quarantinedAt") === "string";
+  return Array.isArray(value) ? value.filter(isCaptureQuarantineItem) : [];
 }

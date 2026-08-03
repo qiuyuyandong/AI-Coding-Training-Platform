@@ -58,7 +58,8 @@ async function run(announceReady: () => void): Promise<boolean> {
   let pollId: number | undefined;
   let observer: MutationObserver | undefined;
   const contextGuard = createExtensionContextGuard((error) => {
-    console.error("[capture-v4] content callback failed", error);
+    void error;
+    console.error("[capture-v4] content callback failed");
   });
 
   function observeLocation(): boolean {
@@ -214,7 +215,8 @@ function forwardMessages(messages: readonly unknown[]): void {
 
 function reportContentRuntimeError(message: string, error: unknown): void {
   if (isExtensionContextInvalidatedError(error)) return;
-  console.error(message, error);
+  void error;
+  console.error(message);
 }
 
 function getActiveDocumentId(): string | undefined {

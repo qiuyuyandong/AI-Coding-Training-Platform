@@ -320,6 +320,29 @@ function quarantineFromBundle(bundle: CaptureOutboxItem, error = "transient http
 // ---------------------------------------------------------------------------
 
 describe("background orchestrator", () => {
+  it("sanitizes retained legacy errors before exposing snapshot or quarantine details", async () => {
+    const bundle = bundleForIntent(baseIntentDraft);
+    const storage = storageSpy({
+      local: {
+        installationId,
+        captureProtocolVersion: 4,
+        lastCaptureError: "token=secret; source code",
+        captureQuarantine: [quarantineFromBundle(bundle, "Authorization: Bearer secret")],
+      },
+    });
+    const orchestrator = createBackgroundOrchestrator(orchestratorDeps(storage));
+    const effects = await orchestrator.install();
+    await applyEffectsToStorage(storage, effects);
+    const state = effects.state;
+    expect(state.lastCaptureError).toBe("Retained capture error");
+    expect(JSON.stringify(state.quarantineDetails)).not.toContain("secret");
+    expect(state.quarantineDetails[0]?.summary).toContain("Retained capture error");
+    const durable = await storage.local.get(["lastCaptureError", "captureQuarantine"]);
+    expect(JSON.stringify(durable)).not.toContain("secret");
+    expect(durable.lastCaptureError).toBe("Retained capture error");
+    expect(JSON.stringify(durable.captureQuarantine)).not.toContain("Authorization");
+  });
+
   it("does not change waiting, outbox, or confirmed submissions on E1", async () => {
     const storage = storageSpy();
     const orchestrator = createBackgroundOrchestrator(orchestratorDeps(storage));
@@ -370,6 +393,31 @@ describe("background orchestrator", () => {
     expect(effects.executorSchedule).toEqual([]);
     expect(effects.persistence.outbox).toEqual([]);
     expect(effects.persistence.outbox).toHaveLength(effects.state.outboxCount);
+  });
+
+  it("serializes capture pause as a user action without discarding durable state", async () => {
+    const storage = storageSpy({ local: { installationId, captureEnabled: true } });
+    const orchestrator = createBackgroundOrchestrator(orchestratorDeps(storage));
+    await orchestrator.install();
+    const bundle = bundleForIntent(baseIntentDraft);
+    await storage.local.set({
+      captureOutbox: [bundle],
+      captureQuarantine: [quarantineFromBundle(bundle, "isolated")],
+    });
+
+    const effects = await orchestrator.apply({
+      kind: "user_action",
+      action: { type: "SET_CAPTURE_ENABLED", enabled: false },
+    });
+    await applyEffectsToStorage(storage, effects);
+
+    expect(effects.state.captureEnabled).toBe(false);
+    expect(effects.state.outboxCount).toBe(1);
+    expect(effects.state.quarantineCount).toBe(1);
+    const durable = await storage.local.get(["captureEnabled", "captureOutbox", "captureQuarantine"]);
+    expect(durable.captureEnabled).toBe(false);
+    expect(durable.captureOutbox).toEqual([bundle]);
+    expect(durable.captureQuarantine).toHaveLength(1);
   });
 
   it("preserves confirmed and tombstones across orchestrator restarts but loses transientE1", async () => {
@@ -1703,6 +1751,7 @@ type FakeStorageArea = {
   get: (keys: readonly string[]) => Promise<Record<string, unknown>>;
   readonly set: (items: Record<string, unknown>) => Promise<void>;
   readonly remove: (key: string) => Promise<void>;
+  readonly setAccessLevel: (options: { readonly accessLevel: "TRUSTED_CONTEXTS" }) => Promise<void>;
 };
 
 type FakeAlarmListener = (alarm: chrome.alarms.Alarm) => void | Promise<void>;
@@ -1760,9 +1809,14 @@ interface FakeChrome {
   readonly startupListeners: readonly FakeStartupListener[];
   readonly alarmListeners: readonly FakeAlarmListener[];
   readonly messageListeners: readonly FakeMessageListener[];
+  readonly storageAccessLevelCalls: readonly string[];
 }
 
-function createFakeStorageArea(initial: Record<string, unknown> = {}): FakeStorageArea {
+function createFakeStorageArea(
+  name: "local" | "session",
+  accessLevelCalls: string[],
+  initial: Record<string, unknown> = {},
+): FakeStorageArea {
   const store: Record<string, unknown> = { ...initial };
   return {
     get: async (keys) => {
@@ -1774,6 +1828,9 @@ function createFakeStorageArea(initial: Record<string, unknown> = {}): FakeStora
     },
     set: async (items) => { Object.assign(store, items); },
     remove: async (key) => { Reflect.deleteProperty(store, key); },
+    setAccessLevel: async (options) => {
+      accessLevelCalls.push(`${name}:${options.accessLevel}`);
+    },
   };
 }
 
@@ -1792,11 +1849,12 @@ function createFakeChrome(
   const startupListeners: FakeStartupListener[] = [];
   const alarmListeners: FakeAlarmListener[] = [];
   const messageListeners: FakeMessageListener[] = [];
+  const storageAccessLevelCalls: string[] = [];
   const sessionStore = initial.session ?? {};
   return {
     storage: {
-      local: createFakeStorageArea(initial.local),
-      session: createFakeStorageArea(sessionStore),
+      local: createFakeStorageArea("local", storageAccessLevelCalls, initial.local),
+      session: createFakeStorageArea("session", storageAccessLevelCalls, sessionStore),
     },
     alarms: {
       create: async (name, info) => {
@@ -1858,6 +1916,7 @@ function createFakeChrome(
     startupListeners,
     alarmListeners,
     messageListeners,
+    storageAccessLevelCalls,
   };
 }
 
@@ -1865,10 +1924,9 @@ async function pumpMicrotasks(): Promise<void> {
   // Drain enough microtask cycles for the background module's top-level
   // initialization IIFE (orchestrator.install + applyPersistence, each of
   // which performs one await per storage write) to fully settle. Twenty
-  // cycles is comfortably more than the worst-case local-key write fan-out
-  // for an empty prior storage, so any further yields are not the IIFE
-  // finishing — they are subsequent scheduled work like flushOutbox.
-  for (let index = 0; index < 20; index += 1) {
+  // cycles covers the local/session write fan-out plus the persistence-cache
+  // handoff; any further yields are subsequent scheduled work like flushOutbox.
+  for (let index = 0; index < 40; index += 1) {
     await Promise.resolve();
   }
 }
@@ -1920,6 +1978,10 @@ describe("background.ts expireCaptureUiHints alarm wiring", () => {
       local: { installationId: "installation_alarm_test" },
     });
     await loadBackgroundWithChrome(fake);
+    expect(fake.storageAccessLevelCalls).toEqual([
+      "local:TRUSTED_CONTEXTS",
+      "session:TRUSTED_CONTEXTS",
+    ]);
 
     // The onInstalled listener must have been registered exactly once and
     // must establish the cleanup alarm slot before any other async work so

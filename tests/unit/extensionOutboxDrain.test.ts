@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { buildCaptureAttemptBundle, type CaptureOutboxItem } from "@/extension/src/attemptStorage";
 import {
+  captureOutboxStorageUpdate,
   drainCaptureOutbox,
   persistCaptureOutboxPlan,
+  planOutboxAfterFlush,
   retryAllCaptureStorageUpdate,
   retryQuarantinedCaptureStorageUpdate,
   type CaptureOutboxPlan,
+  type CaptureOutboxState,
 } from "@/extension/src/outboxDrain";
-import { presentPopupState } from "@/extension/src/popup";
+import { classifyQuarantineEntry, presentPopupState } from "@/extension/src/popup";
 import type { PendingSubmissionIntent } from "@/extension/src/attemptCapture";
 import type { CaptureAttemptFlushResult } from "@/extension/src/captureTransport";
 
@@ -55,6 +58,43 @@ function fakeStorage(initial: {
 }
 
 describe("capture outbox drain", () => {
+  it("sanitizes direct persistence inputs at the storage boundary", () => {
+    const update = captureOutboxStorageUpdate({
+      outbox: [],
+      quarantine: [],
+      lastCaptureError: "Authorization: Bearer secret",
+      malformedOutbox: [{ id: "bad", accessToken: "secret", nested: { api_key: "key" } }],
+      malformedQuarantine: [{
+        id: "bad-quarantine",
+        error: "session_token=secret",
+        nested: { credential: "secret" },
+        quarantinedAt: "2026-07-21T00:00:00.000Z",
+      }],
+    });
+    expect(update.lastCaptureError).toBe("Retained capture error");
+    expect(update.captureOutbox).toEqual([{ id: "bad" }]);
+    expect(update.captureQuarantine).toEqual([{
+      id: "bad-quarantine",
+      error: "malformed retained bundle",
+      quarantinedAt: "2026-07-21T00:00:00.000Z",
+    }]);
+    expect(JSON.stringify(update)).not.toContain("secret");
+  });
+
+  it("never persists transport-provided raw error text", () => {
+    const first = item("one");
+    const plan = planOutboxAfterFlush(
+      { outbox: [first], quarantine: [] },
+      first,
+      { status: 400, error: "token=secret; submitted source code" },
+      "2026-07-21T00:02:00.000Z",
+    );
+    expect(JSON.stringify(plan)).not.toContain("secret");
+    expect(JSON.stringify(plan)).not.toContain("source code");
+    expect(plan.lastCaptureError).toBe("Isolated result: HTTP 400");
+    expect(plan.quarantine[0]?.error).toBe("HTTP 400");
+  });
+
   it("sends one matching ACK exactly once, clears captureOutbox, and stays empty on the next timer", async () => {
     const first = item("one");
     const storage = fakeStorage({
@@ -111,7 +151,7 @@ describe("capture outbox drain", () => {
       .toEqual({ reason: "deferred", processed: 0 });
     expect(requestCount).toBe(1);
     expect(presentPopupState(storage.values).blockingReasonText)
-      .toBe("阻塞原因：ACK 身份不匹配：expected bundle_one, received bundle_other");
+      .toBe("阻塞原因：ACK 身份不匹配：invalid response");
   });
 
   it("persists manual retry reset before allowing another request", async () => {
@@ -225,6 +265,179 @@ describe("capture outbox drain", () => {
     expect(sent).toEqual(["bundle_bad", "bundle_good"]);
     expect(state.outbox).toEqual([]);
     expect(state.quarantine.map((entry) => entry.id)).toEqual(["bundle_bad"]);
+  });
+
+  it("retains a malformed quarantine record through permanent outbox failure persistence", async () => {
+    const malformed = {
+      id: "malformed-retained",
+      item: {
+        id: "malformed-retained",
+        kind: "attempt_bundle",
+        bundle: { events: null },
+        attempts: 1,
+        createdAt: "2026-07-21T00:00:00.000Z",
+      },
+      error: "malformed retained bundle",
+      quarantinedAt: "2026-07-21T00:00:00.000Z",
+    };
+    let state: CaptureOutboxState = {
+      outbox: [item("bad")],
+      quarantine: [],
+      malformedQuarantine: [malformed],
+    };
+    const sanitizedMalformed = {
+      id: malformed.id,
+      error: malformed.error,
+      quarantinedAt: malformed.quarantinedAt,
+    };
+    let persistedQuarantine: readonly unknown[] = [];
+    const storage = {
+      set: async (items: Record<string, unknown>): Promise<void> => {
+        const next = items.captureQuarantine;
+        if (!Array.isArray(next)) throw new Error("missing persisted quarantine");
+        persistedQuarantine = next;
+      },
+      remove: async (): Promise<void> => undefined,
+    };
+
+    const result = await drainCaptureOutbox({
+      readState: async () => state,
+      send: async () => ({ status: 400 as const, error: "invalid bundle" }),
+      persist: async (plan) => {
+        await persistCaptureOutboxPlan(storage, plan);
+        state = {
+          outbox: plan.outbox,
+          quarantine: plan.quarantine,
+          malformedQuarantine: [sanitizedMalformed],
+        };
+      },
+    });
+
+    expect(result).toEqual({ reason: "empty", processed: 1 });
+    expect(persistedQuarantine).toContainEqual(sanitizedMalformed);
+    expect(state.malformedQuarantine).toEqual([sanitizedMalformed]);
+    expect(state.quarantine.map((entry) => entry.id)).toEqual(["bundle_bad"]);
+  });
+
+  it("retains a malformed outbox record through successful delivery persistence", async () => {
+    const malformed = {
+      id: "malformed-outbox",
+      kind: "attempt_bundle",
+      bundle: { events: null },
+      attempts: 1,
+      createdAt: "2026-07-21T00:00:00.000Z",
+    };
+    let state: CaptureOutboxState = {
+      outbox: [item("good")],
+      quarantine: [],
+      malformedOutbox: [malformed],
+    };
+    const sanitizedMalformed = { id: malformed.id };
+    let persistedOutbox: readonly unknown[] = [];
+    const storage = {
+      set: async (items: Record<string, unknown>): Promise<void> => {
+        const next = items.captureOutbox;
+        if (!Array.isArray(next)) throw new Error("missing persisted outbox");
+        persistedOutbox = next;
+      },
+      remove: async (): Promise<void> => undefined,
+    };
+
+    const result = await drainCaptureOutbox({
+      readState: async () => state,
+      send: async (entry) => success(entry),
+      persist: async (plan) => {
+        await persistCaptureOutboxPlan(storage, plan);
+        state = {
+          outbox: plan.outbox,
+          quarantine: plan.quarantine,
+          malformedOutbox: [sanitizedMalformed],
+          malformedQuarantine: plan.malformedQuarantine,
+        };
+      },
+    });
+
+    expect(result).toEqual({ reason: "empty", processed: 1 });
+    expect(persistedOutbox).toContainEqual(sanitizedMalformed);
+    expect(state.malformedOutbox).toEqual([sanitizedMalformed]);
+    expect(state.outbox).toEqual([]);
+  });
+
+  it("shows malformed fallback quarantine as a diagnostic without retry controls", () => {
+    const malformed = {
+      id: "malformed-popup",
+      item: {
+        id: "malformed-popup",
+        kind: "attempt_bundle",
+        bundle: { events: null },
+        attempts: 1,
+        createdAt: "2026-07-21T00:00:00.000Z",
+      },
+      error: "malformed retained bundle",
+      quarantinedAt: "2026-07-21T00:00:00.000Z",
+    };
+    expect(classifyQuarantineEntry(malformed)).toEqual({
+      summary: "? · ? · malformed quarantine bundle · malformed-popup · malformed retained bundle",
+      retryable: false,
+      deletable: true,
+      malformed: true,
+      id: "malformed-popup",
+    });
+    expect(presentPopupState({ captureQuarantine: [malformed] }).quarantineDetails).toEqual([
+      "? · ? · malformed quarantine bundle · malformed-popup · malformed retained bundle",
+    ]);
+    expect(classifyQuarantineEntry(null)).toEqual({
+      summary: "? · ? · malformed quarantine record · unrecognized retained value",
+      retryable: false,
+      deletable: false,
+      malformed: true,
+    });
+    expect(presentPopupState({ captureQuarantine: [null, "broken"] }).quarantineDetails).toEqual([
+      "? · ? · malformed quarantine record · unrecognized retained value",
+      "? · ? · malformed quarantine record · unrecognized retained value",
+    ]);
+    expect(classifyQuarantineEntry({
+      id: "valid-quarantine",
+      summary: "atcoder · abc · Accepted · time · error",
+      retryable: true,
+      deletable: true,
+    })).toEqual({
+      id: "valid-quarantine",
+      summary: "Retained quarantine diagnostic",
+      retryable: true,
+      deletable: true,
+    });
+    expect(presentPopupState({
+      captureOutbox: [{ id: "malformed-outbox", bundle: { events: null } }],
+    }).quarantineDetails).toEqual([
+      "? · ? · malformed outbox bundle · malformed-outbox · retained without delivery",
+    ]);
+  });
+
+  it("never displays retained legacy error bodies through the popup fallback", () => {
+    const legacy = {
+      id: item("legacy").id,
+      item: item("legacy"),
+      error: "token=secret; source code and request body",
+      quarantinedAt: "2026-07-21T00:02:00.000Z",
+    };
+    const presentation = presentPopupState({
+      lastCaptureError: "Authorization: Bearer secret",
+      captureQuarantine: [legacy, {
+        id: "malformed",
+        error: "accessToken=secret",
+      }, {
+        id: "structured",
+        summary: "token=secret · source code · body=secret · time · HTTP 400",
+        retryable: false,
+        deletable: true,
+      }],
+    });
+    expect(JSON.stringify(presentation)).not.toContain("secret");
+    expect(presentation.blockingReasonText).toBe("阻塞原因：Retained capture error");
+    expect(presentation.quarantineDetails.every((detail) =>
+      !detail.includes("source code") && !detail.includes("request body"))).toBe(true);
+    expect(presentation.quarantineDetails).toContain("Retained quarantine diagnostic");
   });
 
   it("retains all results during a network outage", async () => {

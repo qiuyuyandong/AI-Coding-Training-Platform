@@ -1,27 +1,45 @@
 # Current Handoff
 
-## Status (2026-08-02 V4 Phase C C0-C5 engineering complete)
+## Status (2026-08-03 V4 Phase D D3 candidate preflight in progress)
 
-Phase C C5 is complete on `feature/v1-followup`. The new isolation
-suite proves owner-only LeetCode/NowCoder request interpretation,
-platform-namespaced same raw submission IDs, durable confirmed/outbox
-preservation, explicit terminal readiness for every platform, and no
-production Fake OJ registry claim. The orchestrator no longer accepts V3
-submission-intent or V3 verdict-fallback events; unsupported DOM candidates
-are dropped unless an adapter-owned V4 policy emits E3. Initialization retains
-only legacy-key read/count/delete cleanup, and completed historical bundles
-remain deliverable. `platforms.ts` compatibility exports remain because active
-call sites still depend on them.
+V4 Phase D D1 engineering gates pass on the uncommitted working tree after the
+user approved a one-time, non-precedential D1-U RED-provenance exception. The
+focused D1-U matrix is `27/27` GREEN, exact production-dist D1-E is `5/5`,
+D1-R passes, D1-X is `42 files / 1406 tests`, and the canonical quality gate
+exited 0. This is an engineering-gate result, not D1 phase completion, RC,
+acceptance, or release. Evidence:
+`work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md`.
 
-Phase C terminal matrix: LeetCode and NowCoder network-`experimental`;
-AtCoder, Codeforces, and Luogu network-`blocked`; historical AtCoder DOM
-production remains unchanged. This is an engineering closeout, not RC,
-acceptance, or release. Final gates pass with 2,126 unit tests, 25 app E2E,
-1,376 extension tests, 48 runnable extension E2E, readiness PASS, and
-production build PASS; one Windows capability case and one known extension
-harness case remain skipped. Evidence:
-`work/reports/v4-phase-c-c5-closeout-2026-08-02.md`. Phase D is next and
-requires its own gate.
+D1-C is complete after a user-authorized headed isolated Chromium observation
+passed `5/5` and direct evidence inspection confirmed all lifecycle, hash,
+API/ACK, SQLite, and preservation requirements. Evidence:
+`work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md`. The earlier
+Chrome `150.0.7871.187` real-profile debug remains excluded from D1-C evidence;
+its residual development extension was subsequently removed and temporary tabs
+were closed. No real OJ submission or default database edit/write occurred;
+default DB metadata was read-only compared and unchanged. The independent final
+D1 review returned `APPROVE` with no blocking or important findings. D1 phase is
+complete. D2's first independent review returned `CHANGES REQUIRED`; the
+remote-endpoint, current/legacy raw-error, AST/wrapper, manifest/dist link, and
+fixture findings are now repaired after two review rounds with 35/35 audit
+tests, 68/68 focused product privacy tests, 43 files / 1412 extension tests, and
+`0 findings`. The final independent privacy review returned `APPROVE`, and the
+canonical quality gate passed. D2 is complete. D3 candidate preflight is in
+progress under explicit user authorization; no candidate commit exists yet.
+
+No D3 candidate commit or push has occurred.
+
+## Previous Status (2026-08-02 V4 Phase C C0-C5 engineering complete)
+
+Phase C C5 is complete on `feature/v1-followup`. The new isolation suite proves
+owner-only LeetCode/NowCoder request interpretation, platform-namespaced same
+raw submission IDs, durable confirmed/outbox preservation, explicit terminal
+readiness for every platform, and no production Fake OJ registry claim. The
+orchestrator no longer accepts V3 submission-intent or V3 verdict-fallback
+events; unsupported DOM candidates are dropped unless an adapter-owned V4 policy
+emits E3. Initialization retains only legacy-key read/count/delete cleanup, and
+completed historical bundles remain deliverable. Evidence:
+`work/reports/v4-phase-c-c5-closeout-2026-08-02.md`.
 
 ## Previous Status (2026-08-02 Phase C C4 Luogu `V4_BLOCKED`)
 
@@ -722,8 +740,10 @@ observation, final verification, and acceptance pending.**
 - Branch: `feature/v1-followup`.
 - Phase C closeout: the commit containing this handoff is the engineering
   freeze point; it is not a replacement RC and has not been pushed.
-- Default database: preserved by the Phase C quality gate and real-observation
-  workflows; browser and E2E work used disposable state only.
+- Default database: preserved by the Phase C and D automated gates; the D1-C
+  real-profile debug performed only a read-only metadata comparison and no
+  default-database edit/write. The development extension residual was removed;
+  the real-profile debug remains excluded from D1-C evidence.
 - Operator-only browser profiles and temporary test state remain excluded from
   the commit.
 
@@ -733,6 +753,11 @@ observation, final verification, and acceptance pending.**
   the sole certified production DOM adapter.
 - V4 Phase C: **C0-C5 engineering-complete.** LeetCode and NowCoder are
   network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
+- V4 Phase D: **D1 and D2 complete; D3 candidate preflight in progress.** D2's 35-case audit and 68 focused product
+  privacy tests pass with `0 findings`; independent privacy review returned
+  `APPROVE`; final quality gate passed `2197/1` unit, `25` app E2E, `1412`
+  extension tests, `53/1` extension E2E, and build `20/20`. No candidate SHA
+  exists yet.
 - V0 manual learning loop vertical slice: **implemented but not accepted.**
   Formal observation and replacement-RC work remain gated.
 
@@ -773,12 +798,13 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- No implementation task is in flight after the Phase C closeout.
+- D3 candidate classification and preflight are in flight under explicit user
+  authorization. No candidate commit exists yet.
 
 ## Next Commander Action
 
-1. Define and review the Phase D scope before implementation. Do not treat the
-   Phase C engineering closeout as RC, acceptance, or release.
+1. Complete D3 preflight/review, then explicitly stage and create the immutable
+   implementation candidate without calling it RC or accepted.
 2. Do not resume formal V0 observation, replacement-RC work, or V0.5 until the
    applicable gate explicitly permits it.
 

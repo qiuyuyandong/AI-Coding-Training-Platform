@@ -890,50 +890,61 @@ export type FakeOjOrchestratorStorage = Readonly<{
 
 /** Read the orchestrator-relevant chrome.storage keys through the worker. */
 export async function readFakeOjStorage(worker: Worker): Promise<FakeOjOrchestratorStorage> {
-  return worker.evaluate(async () => {
-    const [local, session] = await Promise.all([
-      chrome.storage.local.get([
-        "confirmedSubmissions",
-        "confirmedSubmissionTombstones",
-        "captureOutbox",
-        "captureQuarantine",
-      ]),
-      chrome.storage.session.get([
-        "uiHints",
-        "transientE1",
-        "transientUnmatchedE3",
-        "transientAmbiguityDiagnostics",
-        "leetcodeEndpointDiagnostics",
-        "webRequestSpikeMarkers",
-      ]),
-    ]);
-    return Object.freeze({
-      uiHints: Array.isArray(session.uiHints) ? (session.uiHints as unknown[]) : [],
-      confirmedSubmissions: Array.isArray(local.confirmedSubmissions)
-        ? (local.confirmedSubmissions as unknown[])
-        : [],
-      confirmedSubmissionTombstones: Array.isArray(local.confirmedSubmissionTombstones)
-        ? (local.confirmedSubmissionTombstones as unknown[])
-        : [],
-      captureOutbox: Array.isArray(local.captureOutbox) ? (local.captureOutbox as unknown[]) : [],
-      captureQuarantine: Array.isArray(local.captureQuarantine)
-        ? (local.captureQuarantine as unknown[])
-        : [],
-      transientE1: Array.isArray(session.transientE1) ? (session.transientE1 as unknown[]) : [],
-      transientUnmatchedE3: Array.isArray(session.transientUnmatchedE3)
-        ? (session.transientUnmatchedE3 as unknown[])
-        : [],
-      transientAmbiguityDiagnostics: Array.isArray(session.transientAmbiguityDiagnostics)
-        ? (session.transientAmbiguityDiagnostics as unknown[])
-        : [],
-      leetcodeEndpointDiagnostics: Array.isArray(session.leetcodeEndpointDiagnostics)
-        ? (session.leetcodeEndpointDiagnostics as unknown[])
-        : [],
-      webRequestSpikeMarkers: Array.isArray(session.webRequestSpikeMarkers)
-        ? (session.webRequestSpikeMarkers as unknown[])
-        : [],
-    });
-  });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await worker.evaluate(async () => {
+        const [local, session] = await Promise.all([
+          chrome.storage.local.get([
+            "confirmedSubmissions",
+            "confirmedSubmissionTombstones",
+            "captureOutbox",
+            "captureQuarantine",
+          ]),
+          chrome.storage.session.get([
+            "uiHints",
+            "transientE1",
+            "transientUnmatchedE3",
+            "transientAmbiguityDiagnostics",
+            "leetcodeEndpointDiagnostics",
+            "webRequestSpikeMarkers",
+          ]),
+        ]);
+        return Object.freeze({
+          uiHints: Array.isArray(session.uiHints) ? (session.uiHints as unknown[]) : [],
+          confirmedSubmissions: Array.isArray(local.confirmedSubmissions)
+            ? (local.confirmedSubmissions as unknown[])
+            : [],
+          confirmedSubmissionTombstones: Array.isArray(local.confirmedSubmissionTombstones)
+            ? (local.confirmedSubmissionTombstones as unknown[])
+            : [],
+          captureOutbox: Array.isArray(local.captureOutbox) ? (local.captureOutbox as unknown[]) : [],
+          captureQuarantine: Array.isArray(local.captureQuarantine)
+            ? (local.captureQuarantine as unknown[])
+            : [],
+          transientE1: Array.isArray(session.transientE1) ? (session.transientE1 as unknown[]) : [],
+          transientUnmatchedE3: Array.isArray(session.transientUnmatchedE3)
+            ? (session.transientUnmatchedE3 as unknown[])
+            : [],
+          transientAmbiguityDiagnostics: Array.isArray(session.transientAmbiguityDiagnostics)
+            ? (session.transientAmbiguityDiagnostics as unknown[])
+            : [],
+          leetcodeEndpointDiagnostics: Array.isArray(session.leetcodeEndpointDiagnostics)
+            ? (session.leetcodeEndpointDiagnostics as unknown[])
+            : [],
+          webRequestSpikeMarkers: Array.isArray(session.webRequestSpikeMarkers)
+            ? (session.webRequestSpikeMarkers as unknown[])
+            : [],
+        });
+      });
+    } catch (error) {
+      lastError = error;
+      await new Promise<void>((resolvePromise) => setTimeout(resolvePromise, 50));
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Fake OJ storage read failed: ${String(lastError)}`);
 }
 
 /**
@@ -1193,8 +1204,25 @@ export async function stopAndReawakenFakeOjWorker(
     const running = waitForFakeOjWorkerStatus(session, worker.url(), "running");
     await trigger();
     await running;
+    await settleFakeOjWorkerInitialization(page, worker);
   } finally {
     await session.detach();
+  }
+}
+
+async function settleFakeOjWorkerInitialization(page: Page, worker: Worker): Promise<void> {
+  const popup = await page.context().newPage();
+  try {
+    const extensionId = new URL(worker.url()).host;
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`, {
+      waitUntil: "domcontentloaded",
+    });
+    await popup.evaluate(async (): Promise<void> => {
+      const state = await chrome.runtime.sendMessage({ type: "GET_CAPTURE_STATE" });
+      if (state === undefined) throw new Error("Fake OJ worker initialization did not settle");
+    });
+  } finally {
+    await popup.close();
   }
 }
 

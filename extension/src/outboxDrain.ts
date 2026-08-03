@@ -7,6 +7,11 @@ import type {
   CaptureQuarantineItem,
 } from "./attemptStorage";
 import { retryQuarantined } from "./attemptStorage";
+import {
+  safeStoredCaptureError,
+  sanitizeCaptureOutboxRecords,
+  sanitizeCaptureQuarantineRecords,
+} from "./captureErrorPrivacy";
 
 export const MAX_DRAIN_BATCH_SIZE = 25;
 const ACK_RETRY_BASE_MS = 30_000;
@@ -15,6 +20,8 @@ const ACK_RETRY_MAX_MS = 120_000;
 export type CaptureOutboxState = {
   readonly outbox: readonly CaptureOutboxItem[];
   readonly quarantine: readonly CaptureQuarantineItem[];
+  readonly malformedOutbox?: readonly unknown[];
+  readonly malformedQuarantine?: readonly unknown[];
 };
 
 export type CaptureOutboxPlan = CaptureOutboxState & {
@@ -29,8 +36,8 @@ export type CaptureOutboxStorageUpdate = Omit<
   CaptureOutboxPlan,
   "outbox" | "quarantine" | "clearLastCaptureError"
 > & {
-  readonly captureOutbox: readonly CaptureOutboxItem[];
-  readonly captureQuarantine: readonly CaptureQuarantineItem[];
+  readonly captureOutbox: readonly unknown[];
+  readonly captureQuarantine: readonly unknown[];
 };
 
 export type CaptureOutboxStorage = {
@@ -41,10 +48,11 @@ export type CaptureOutboxStorage = {
 export function captureOutboxStorageUpdate(
   plan: CaptureOutboxPlan,
 ): CaptureOutboxStorageUpdate {
+  const lastCaptureError = safeStoredCaptureError(plan.lastCaptureError);
   return {
-    ...(plan.lastCaptureError === undefined
+    ...(lastCaptureError === undefined
       ? {}
-      : { lastCaptureError: plan.lastCaptureError }),
+      : { lastCaptureError }),
     ...(plan.lastSuccessfulCaptureAt === undefined
       ? {}
       : { lastSuccessfulCaptureAt: plan.lastSuccessfulCaptureAt }),
@@ -54,8 +62,14 @@ export function captureOutboxStorageUpdate(
     ...(plan.lastDeliveredAttemptStatus === undefined
       ? {}
       : { lastDeliveredAttemptStatus: plan.lastDeliveredAttemptStatus }),
-    captureOutbox: plan.outbox,
-    captureQuarantine: plan.quarantine,
+    captureOutbox: sanitizeCaptureOutboxRecords([
+      ...plan.outbox,
+      ...(plan.malformedOutbox ?? []),
+    ]),
+    captureQuarantine: sanitizeCaptureQuarantineRecords([
+      ...plan.quarantine,
+      ...(plan.malformedQuarantine ?? []),
+    ]),
   };
 }
 
@@ -74,6 +88,8 @@ export function retryAllCaptureStorageUpdate(
 ): {
   readonly captureOutbox: readonly CaptureOutboxItem[];
   readonly captureQuarantine: readonly CaptureQuarantineItem[];
+  readonly malformedOutbox?: readonly unknown[];
+  readonly malformedQuarantine?: readonly unknown[];
 } {
   const pending = state.outbox.map((item) => ({
     ...item,
@@ -90,6 +106,8 @@ export function retryAllCaptureStorageUpdate(
   return {
     captureOutbox: [...pending, ...retried],
     captureQuarantine: [],
+    malformedOutbox: state.malformedOutbox,
+    malformedQuarantine: state.malformedQuarantine,
   };
 }
 
@@ -99,11 +117,15 @@ export function retryQuarantinedCaptureStorageUpdate(
 ): {
   readonly captureOutbox: readonly CaptureOutboxItem[];
   readonly captureQuarantine: readonly CaptureQuarantineItem[];
+  readonly malformedOutbox?: readonly unknown[];
+  readonly malformedQuarantine?: readonly unknown[];
 } {
   const retried = retryQuarantined(state.outbox, state.quarantine, id);
   return {
     captureOutbox: retried.outbox,
     captureQuarantine: retried.quarantine,
+    malformedOutbox: state.malformedOutbox,
+    malformedQuarantine: state.malformedQuarantine,
   };
 }
 
@@ -119,19 +141,22 @@ export function planOutboxAfterFlush(
     return {
       outbox: state.outbox.filter((item) => item.id !== sent.id),
       quarantine: state.quarantine,
+      malformedOutbox: state.malformedOutbox,
+      malformedQuarantine: state.malformedQuarantine,
       clearLastCaptureError: true,
       lastSuccessfulCaptureAt: now,
       lastDeliveredAttemptId: result.ack.attemptId,
       lastDeliveredAttemptStatus: result.ack.attemptStatus,
     };
   }
+  const safeError = captureFlushError(result);
   if (result.status === "network_error" || result.status === 401 || result.status === 403) {
     const prefix = result.status === 401
       ? "Pairing required"
       : result.status === 403
         ? "Origin rejected"
         : "Network unavailable";
-    return { ...state, lastCaptureError: `${prefix}: ${result.error}` };
+    return { ...state, lastCaptureError: `${prefix}: ${safeError}` };
   }
   if (result.status === "ack_error") {
     const attempts = Math.min(current.attempts + 1, MAX_RETRY_ATTEMPTS);
@@ -149,7 +174,7 @@ export function planOutboxAfterFlush(
             automaticRetryBlocked: attempts >= MAX_RETRY_ATTEMPTS,
           }
         : item),
-      lastCaptureError: result.error,
+      lastCaptureError: safeError,
     };
   }
   const attempts = current.attempts + 1;
@@ -159,7 +184,7 @@ export function planOutboxAfterFlush(
       ...state,
       outbox: state.outbox.map((item) =>
         item.id === current.id ? { ...item, attempts } : item),
-      lastCaptureError: result.error,
+      lastCaptureError: safeError,
     };
   }
   return {
@@ -167,11 +192,19 @@ export function planOutboxAfterFlush(
     quarantine: [...state.quarantine, {
       id: sent.id,
       item: { ...current, attempts },
-      error: result.error,
+      error: safeError,
       quarantinedAt: now,
     }],
-    lastCaptureError: `Isolated result: ${result.error}`,
+    malformedOutbox: state.malformedOutbox,
+    malformedQuarantine: state.malformedQuarantine,
+    lastCaptureError: `Isolated result: ${safeError}`,
   };
+}
+
+function captureFlushError(result: Exclude<CaptureAttemptFlushResult, { readonly status: 200 }>): string {
+  if (result.status === "network_error") return "Network request failed";
+  if (result.status === "ack_error") return "ACK mismatch: invalid response";
+  return `HTTP ${result.status}`;
 }
 
 export type OutboxDrainDependencies = {

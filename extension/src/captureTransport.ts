@@ -14,7 +14,11 @@ export function readCaptureEndpoint(value: unknown): string {
   if (typeof value !== "string") return DEFAULT_CAPTURE_ENDPOINT;
   try {
     const url = new URL(value);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
+    const isLoopback = url.hostname === "localhost"
+      || url.hostname === "127.0.0.1"
+      || url.hostname === "[::1]";
+    if (url.protocol !== "http:" || !isLoopback
+      || url.username !== "" || url.password !== "") {
       return DEFAULT_CAPTURE_ENDPOINT;
     }
     return url.toString();
@@ -62,18 +66,18 @@ export async function postCaptureAttemptBundle(input: {
       if (!parsed.success) {
         return {
           status: "ack_error",
-          error: `ACK mismatch: response did not match CaptureAttemptAck (${parsed.error.issues[0]?.message ?? "invalid response"})`,
+          error: "ACK mismatch: invalid response",
         };
       }
       if (parsed.data.bundleId !== input.bundle.bundleId) {
         return {
           status: "ack_error",
-          error: `ACK mismatch: expected bundle ${input.bundle.bundleId}, received ${parsed.data.bundleId}`,
+          error: "ACK mismatch: bundle identity",
         };
       }
       return { status: 200, ack: parsed.data };
     }
-    const error = await readErrorBody(response);
+    const error = `HTTP ${response.status}`;
     if (
       response.status === 400 || response.status === 401 || response.status === 403
       || response.status === 409 || response.status === 413 || response.status === 415
@@ -82,21 +86,10 @@ export async function postCaptureAttemptBundle(input: {
     }
     return { status: 500, error };
   } catch (error) {
+    void error;
     return {
       status: "network_error",
-      error: error instanceof Error ? error.message : "Network error",
+      error: "Network request failed",
     };
   }
-}
-
-async function readErrorBody(response: Response): Promise<string> {
-  try {
-    const body: unknown = await response.json();
-    if (typeof body === "object" && body !== null && "error" in body) {
-      return String(body.error);
-    }
-  } catch (error) {
-    if (!(error instanceof SyntaxError)) throw error;
-  }
-  return response.statusText || `HTTP ${response.status}`;
 }

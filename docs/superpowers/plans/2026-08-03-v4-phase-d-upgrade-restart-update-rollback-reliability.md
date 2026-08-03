@@ -21,6 +21,28 @@ Non-blocking observations are recorded for D2's explicit enumeration of
 forbidden-key occurrences, harmless unconditional legacy cleanup removes, and
 the already-required executor re-check of Git state.
 
+**Independent D1 scope decision (2026-08-03):** The user authorized a narrow
+D1 expansion after review found that the existing runtime did not fail closed
+when capture was paused and that the update-like artifact test did not use a
+normal replacement build. The authorized boundary permits: a runtime
+`captureEnabled` gate at the existing background ingress, a build-script test
+variant that still runs the normal production build from the current source
+SHA, strict fresh-worker acquisition, and stronger disposable API/identity
+assertions. It does not authorize a new kill-switch subsystem, adapter policy,
+permission, schema, migration, or network adapter.
+
+**Independent D1 scope revision (2026-08-03, user authorized):** The user
+approved one additional narrow exception after final review found that
+malformed retained quarantine records could not be safely distinguished from
+valid records at the popup/action boundary. D1 may modify only the existing
+popup presentation and existing delete action payload to: (a) show malformed
+quarantine/outbox diagnostics without retry controls; and (b) carry an explicit
+malformed deletion target so deleting one malformed record cannot delete a
+valid record with the same visible ID. This is not a UI redesign, product
+feature, new control surface, or general action-protocol expansion. No new
+permission, adapter, schema, migration, network behavior, or rollback
+subsystem is authorized by this revision.
+
 ## 1. Authority and Relationship
 
 This plan is subordinate to, and must not rewrite, the following authoritative
@@ -440,7 +462,7 @@ revised; the report must not silently rewrite the expectation.
 | Extension disable/enable | Disable then enable the unpacked extension in the browser UI | Retained while the extension remains installed | Expected cleared; verify diagnostic and B3 sessions do not resume | No stale content runtime or pending click state is accepted | Pending D1 evidence |
 | Browser full restart | Close and reopen the persistent browser context/profile | Retained | Expected cleared; verify no transient evidence is promoted | Startup recovery flushes only supported durable state and does not duplicate attempts | Pending D1 evidence |
 | Same-path unpacked reload | Reload the same unpacked extension path with the same artifact | Retained | Expected cleared; verify extension ID and durable identity remain stable | Reinitialization is content-idempotent and legacy cleanup is safe | Pending D1 evidence |
-| Replacement dist reload | Load the replacement production dist at the same unpacked path/profile | Retained | Expected cleared; verify transient data is not carried across the artifact boundary | New build SHA is recorded; durable state remains forward-compatible; no old click path returns | Pending D1 evidence |
+| Replacement dist reload | Load the same-source `d1-replacement` build-identifier variant at the same unpacked path/profile | Retained | Expected cleared; verify transient data is not carried across the same-source artifact reload | The variant reload is recorded; it does not prove distinct implementation-version or distinct-SHA compatibility, and no old click path returns | Pending D1 evidence |
 
 The expected matrix deliberately distinguishes a worker restart from every
 extension reload and from a browser restart. Existing unit or E2E tests may be
@@ -907,3 +929,161 @@ D1 may now begin under this plan. D1-C, D3 candidate creation, and each D4
 natural-submission observation remain separately gated by the requirements and
 authorizations stated in their respective sections. Do not push, create a PR,
 or call an engineering PASS an RC, acceptance, or release.
+
+### 14.1 D1 execution reconciliation (2026-08-03)
+
+The D1 GREEN commands passed, but the full pre-fix D1-U RED transcript required
+by sections 7.1 and 7.8 was not retained. A targeted malformed-quarantine RED
+reproduction exists, but it is not a substitute for the full matrix RED record.
+At this reconciliation checkpoint, before the later provenance audit and user
+decision in section 14.2, no plan exception had been approved and D1-U remained
+open. This paragraph records that historical checkpoint; section 14.2 is the
+current D1-U authority.
+
+### 14.2 D1 RED provenance audit (2026-08-03)
+
+The retained-log audit is recorded in
+`work/reports/v4-phase-d-d1-red-provenance-audit-2026-08-03.md`. Its initial
+finding was `CHANGES REQUIRED - D1-U RED PROVENANCE EXCEPTION REQUIRED`; after
+the exact exception below was approved, its current verdict became
+`EXCEPTION APPROVED - D1-U PROVENANCE ACCEPTED`. The audit accepts only the
+malformed-quarantine worker-rehydration crash as valid retained product RED. It
+rejects the malformed-outbox count, quarantine-collision, seed-identity,
+alarm-microtask, diagnostic-script, and browser/harness failures as substitutes
+for product RED.
+
+The audit found GREEN-only production changes in the capture pause/cache gate,
+persistence-before-cache boundary, authoritative-write-before-cleanup order,
+same-source replacement build variant, semantic malformed-record preservation,
+and diagnostics-only popup/delete behavior.
+
+**D1-U provenance decision (2026-08-03, user approved):** The user explicitly
+accepted a narrow, non-precedential exception for exactly those six groups in
+the current uncommitted D1 working tree. The exception accepts missing
+historical RED provenance; it does not invent RED evidence. Existing GREEN,
+exact-dist, and quality-gate requirements remain mandatory. Fixture, assertion,
+diagnostic-tool, and browser/harness failures remain excluded from product RED.
+The exception cannot be reused by D2, D3, D4, or future work and does not
+authorize D1-C, D2, D3, commit, push, RC, acceptance, or release.
+
+With that decision recorded, D1-U is accepted under the approved exception and
+the D1 engineering gates pass. At this pre-observation checkpoint D1-C remained
+separately gated and unperformed; section 14.4 controls the current D1-C state.
+
+### 14.3 D1-C Chrome debug attempt (2026-08-03)
+
+The separately authorized D1-C attempt is recorded in
+`work/reports/v4-phase-d-d1-c-chrome-debug-2026-08-03.md` with verdict
+`D1-C NOT PASSED; DEBUG BLOCKED BEFORE PRODUCT OBSERVATION`. Branded Chrome
+`150.0.7871.187` ignored the command-line unpacked-extension load path. The
+follow-up CDP installation debug reused the user's existing default profile
+through Chrome's process singleton and did not complete any D1-C lifecycle
+assertion. The real-profile debug is explicitly excluded from D1-C evidence.
+
+The debug cleanup cleared the extension's local/session storage, disabled the
+development extension, and closed temporary tabs. Automated uninstall initially
+returned `uninstall canceled by user`; a later explicit foreground confirmation
+removed the development extension, and final inspection found no project
+extension residual. No real OJ submission or default database edit/write was
+performed; default database metadata was read-only compared and unchanged.
+
+### 14.4 D1-C disposable observation (2026-08-03)
+
+The user-authorized D1-C retry completed in a headed, isolated Chromium
+`138.0.7204.23` process with disposable profiles, exact production dist, Fake
+OJ/localhost traffic, and disposable SQLite. The full five-scenario command
+passed `5/5`. Direct inspection of
+`.tmp/phase-d-d1-e2e-evidence.json` confirmed all 13 lifecycle transitions,
+stable durable identities, normal/replacement hashes, one extension request and
+ACK, one replay request and ACK, and SQLite deltas `+4/+1/+1`. The default
+database metadata remained unchanged.
+
+The observation is recorded in
+`work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md`. The final post-harness
+`npm run quality:gate` exited `0` with `2156/1` unit tests, `25` app E2E,
+`1406` extension tests, `53/1` extension E2E, and production build PASS.
+
+D1-C is complete.
+
+### 14.5 D1 final review and completion (2026-08-03)
+
+The independent final reviewer inspected the actual D1 diff, the exact six-group
+provenance exception, D1-C headed evidence, real-profile cleanup, default
+database preservation, final quality gate, and reconciled reports. The reviewer
+found no blocking or important issue and returned `APPROVE`.
+
+All section 7.8 completion conditions are now met. D1 phase is complete. D2 has
+not started; D3 remains gated by D2 completion. D1 completion is not RC,
+acceptance, or release.
+
+### 14.6 D2 engineering gate (2026-08-03)
+
+D2 started only after D1 final review returned `APPROVE`. The required audit
+script, 22-case adversarial suite, ambient test declaration, and dated report
+were added. The pre-implementation test and CLI commands both failed because
+their required files did not exist, preserving real RED provenance for the
+missing audit capability.
+
+The final focused suite passes `22/22`. The audit reports `0 findings` against
+the source manifest, current production-built dist manifest/JavaScript,
+production extension TypeScript, and OJ/Fake-OJ fixture corpus. The approved
+production `requestBody` use allowlist remains empty. `npm run extension:check`
+passes with `42` files / `1406` tests and a production build; the privacy audit
+again reports `0 findings` after that rebuild. Default database metadata is
+unchanged.
+
+Evidence is recorded in
+`work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md` with verdict
+`D2 REMEDIATION GREEN; INDEPENDENT PRIVACY RE-REVIEW PENDING`.
+
+The first independent privacy review returned `CHANGES REQUIRED` with one
+BLOCKER, three HIGH findings, and one MEDIUM finding. RED tests proved remote
+capture-endpoint exfiltration, raw transport-error persistence, AST/wrapper
+bypasses, incomplete manifest/dist coverage, and weak fixture provenance. The
+first remediation restricts transport to HTTP loopback, closes newly produced
+transport errors, adds runtime storage-key ownership enforcement and supported
+trusted-context access levels, and strengthens the static audit and fixture
+schemas. A second review returned `CHANGES REQUIRED` for retained legacy-error
+display, direct background storage paths, nested/link collection, and fixture
+credential aliases. The second remediation closes those paths. Focused privacy
+audit is now `35/35`; focused product privacy is `68/68`; `extension:check`
+passes `43` files / `1412` tests; rebuilt-dist audit returns `0 findings`.
+
+At this pre-final-review checkpoint D2 remained incomplete; section 14.7
+controls the current completion state. D3 had not started.
+
+### 14.7 D2 final review and completion (2026-08-03)
+
+A third privacy review found one remaining HIGH structured-summary trust path.
+The final fix discards caller-provided structured quarantine summaries and uses
+a fixed diagnostic, while valid quarantine metadata remains derived only from
+strictly parsed bundle fields. The fourth independent privacy review found no
+remaining issue and returned `APPROVE`.
+
+The final `npm run quality:gate` exited `0`: `99` unit files with `2197/1`,
+`25` app E2E, `43` extension files with `1412` tests, `53/1` extension E2E,
+and production build `20/20`. The post-gate privacy audit reports `0 findings`,
+readiness validation passes, default database metadata is unchanged, and no
+port 3000 listener remains.
+
+D2 is complete. D3 candidate preflight is now in progress under explicit user
+authorization to create the immutable candidate commit. This is not RC,
+acceptance, or release.
+
+### 14.8 D3 authorization and candidate preflight (2026-08-03)
+
+The user explicitly authorized D3 candidate creation, excluding push, PR, RC,
+acceptance, and release. The current dirty paths were classified as task-owned
+D1/D2 implementation, tests, scripts, reports, plan, and handoff paths; no
+database, generated dist, temporary profile, Playwright artifact, environment
+file, raw transcript, or unrelated path was found.
+
+The V4 candidate validator and its 11-case unit suite were added. It rejects
+unowned/generated/secret paths, stale click-runtime symbols, failed extension
+E2E or privacy/readiness evidence, documentation disagreement, database
+metadata mutation, and candidate worktree/path violations. The initial RED
+commands failed because the candidate test and validator did not exist. The
+validator no longer accepts operator-reported extension-E2E or quality-gate
+exit/count flags; `--preflight` runs the real `npm run quality:gate` and parses
+the final Extension E2E summary from its output. The immutable candidate SHA
+does not yet exist; D3 remains in progress.

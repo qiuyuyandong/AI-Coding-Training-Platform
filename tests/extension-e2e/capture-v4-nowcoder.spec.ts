@@ -208,12 +208,16 @@ test("service-worker restart after E1 and after E2 preserves the legal transitio
     // listeners. Drive the same idempotent status witness once more after CDP
     // has reported `running`; this is the event whose post-restart transition
     // the assertion covers.
-    await fetchStatus(page, SUBMISSION_ID);
     await popup.goto(
       `chrome-extension://${new URL(extensionWorker.url()).host}/popup.html`,
       { waitUntil: "domcontentloaded" },
     );
-    await expect.poll(() => readRestartStorage(popup))
+    await expect.poll(async () => {
+      const storage = await readRestartStorage(popup);
+      if (storage.confirmed === 1) return storage;
+      await fetchStatus(page, SUBMISSION_ID);
+      return readRestartStorage(popup);
+    })
       .toMatchObject({ confirmed: 1, tombstones: 0, outbox: 0 });
 
     harness.setResultVerdict("答案错误");
@@ -390,7 +394,7 @@ async function fetchSubmit(page: Page): Promise<void> {
 
 async function fetchStatus(page: Page, submissionId?: string): Promise<void> {
   await page.evaluate(async (url) => {
-    await fetch(url);
+    await fetch(url, { cache: "no-store" });
   }, nowCoderB7StatusUrl(submissionId));
 }
 

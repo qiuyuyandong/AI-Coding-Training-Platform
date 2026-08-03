@@ -3,10 +3,6 @@ import {
   DEFAULT_CAPTURE_ENDPOINT,
   readCaptureEndpoint,
 } from "./captureTransport";
-import type {
-  CaptureOutboxItem,
-  CaptureQuarantineItem,
-} from "./attemptStorage";
 import { CaptureProvenanceLevelSchema } from "@/lib/domain/captureCredential";
 import {
   readConfirmedSubmissionState,
@@ -17,6 +13,11 @@ import {
   readTransientSessionEvidenceState,
   type TransientSessionEvidenceState,
 } from "./transientEvidenceStorage";
+import {
+  safeStoredCaptureError,
+  sanitizeCaptureOutboxRecords,
+  sanitizeCaptureQuarantineRecords,
+} from "./captureErrorPrivacy";
 
 export const CAPTURE_PROTOCOL_VERSION = 4 as const;
 
@@ -46,12 +47,14 @@ export type ExtensionInitializationPlan = {
   readonly confirmedSubmissions: readonly ConfirmedSubmissionRecord[];
   readonly confirmedSubmissionTombstones: readonly ConfirmedSubmissionTombstone[];
   readonly v4ClickIntentMigration?: V4ClickIntentMigration;
-  readonly captureOutbox: readonly CaptureOutboxItem[];
-  readonly captureQuarantine: readonly CaptureQuarantineItem[];
+  readonly captureOutbox: readonly unknown[];
+  readonly captureQuarantine: readonly unknown[];
+  readonly lastCaptureError?: string;
   readonly discardedPreBundleEventCount: number;
   readonly preBundleQueueDiscardedAt?: string;
   readonly shouldRemoveLegacyEventQueue: boolean;
   readonly shouldRemovePendingSubmissionIntents: boolean;
+  readonly shouldRemoveLastCaptureError: boolean;
 };
 
 /**
@@ -121,6 +124,7 @@ export function planExtensionInitialization(
   const pendingSubmissionIntents = Array.isArray(stored.pendingSubmissionIntents)
     ? stored.pendingSubmissionIntents
     : [];
+  const lastCaptureError = safeStoredCaptureError(stored.lastCaptureError);
   const v4ClickIntentMigration = isV4
     ? readV4ClickIntentMigration(stored.v4ClickIntentMigration)
     : isV3
@@ -145,17 +149,18 @@ export function planExtensionInitialization(
     confirmedSubmissions: confirmed.confirmed,
     confirmedSubmissionTombstones: confirmed.tombstones,
     ...(v4ClickIntentMigration === undefined ? {} : { v4ClickIntentMigration }),
-    captureOutbox:
-      isBundleProtocol && Array.isArray(stored.captureOutbox)
-        ? (stored.captureOutbox as readonly CaptureOutboxItem[])
-        : [],
-    captureQuarantine:
-      isBundleProtocol && Array.isArray(stored.captureQuarantine)
-        ? (stored.captureQuarantine as readonly CaptureQuarantineItem[])
-        : [],
+    captureOutbox: isBundleProtocol
+      ? sanitizeCaptureOutboxRecords(stored.captureOutbox)
+      : [],
+    captureQuarantine: isBundleProtocol
+      ? sanitizeCaptureQuarantineRecords(stored.captureQuarantine)
+      : [],
+    ...(lastCaptureError === undefined ? {} : { lastCaptureError }),
     discardedPreBundleEventCount,
     shouldRemoveLegacyEventQueue: !isBundleProtocol || rawQueue.length > 0,
     shouldRemovePendingSubmissionIntents: Object.hasOwn(stored, "pendingSubmissionIntents"),
+    shouldRemoveLastCaptureError: Object.hasOwn(stored, "lastCaptureError")
+      && lastCaptureError === undefined,
   };
   return preBundleQueueDiscardedAt === undefined
     ? base
@@ -191,6 +196,7 @@ export function extensionInitializationLocalStorage(
       : { v4ClickIntentMigration: plan.v4ClickIntentMigration }),
     captureOutbox: plan.captureOutbox,
     captureQuarantine: plan.captureQuarantine,
+    ...(plan.lastCaptureError === undefined ? {} : { lastCaptureError: plan.lastCaptureError }),
     discardedPreBundleEventCount: plan.discardedPreBundleEventCount,
     ...(plan.preBundleQueueDiscardedAt === undefined
       ? {}
@@ -243,6 +249,7 @@ export const LOCAL_INITIALIZATION_KEYS: readonly string[] = [
   "confirmedSubmissionTombstones",
   "captureOutbox",
   "captureQuarantine",
+  "lastCaptureError",
   "v4ClickIntentMigration",
   "discardedPreBundleEventCount",
   "preBundleQueueDiscardedAt",
@@ -277,6 +284,7 @@ export async function applyExtensionInitialization(
   if (plan.shouldRemovePendingSubmissionIntents) {
     await storage.remove("pendingSubmissionIntents");
   }
+  if (plan.shouldRemoveLastCaptureError) await storage.remove("lastCaptureError");
   if (plan.shouldRemoveLegacyEventQueue) await storage.remove("eventQueue");
   await storage.remove("outbox");
   await storage.remove("quarantine");
@@ -313,6 +321,7 @@ export async function applyExtensionInitializationSplit(
   if (plan.shouldRemovePendingSubmissionIntents) {
     await storage.local.remove("pendingSubmissionIntents");
   }
+  if (plan.shouldRemoveLastCaptureError) await storage.local.remove("lastCaptureError");
   if (plan.shouldRemoveLegacyEventQueue) await storage.local.remove("eventQueue");
   await storage.local.remove("outbox");
   await storage.local.remove("quarantine");

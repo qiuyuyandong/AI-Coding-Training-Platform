@@ -4,8 +4,11 @@ import type { OrchestratorState } from "./backgroundOrchestrator";
 import type { CharacterizationExportDocument } from "./characterization";
 import { characterizationPlatformForHostname } from "./characterizationStorage";
 import { parseNetworkTranscriptDocument } from "./networkTranscriptContract";
+import { CaptureAttemptBundleSchema } from "@/lib/capture/attemptBundle";
+import { DEFAULT_CAPTURE_ENDPOINT, readCaptureEndpoint } from "./captureTransport";
+import { safeQuarantineSummary, safeStoredCaptureError } from "./captureErrorPrivacy";
 
-const DEFAULT_ENDPOINT = "http://localhost:3000/api/capture/events";
+const DEFAULT_ENDPOINT = DEFAULT_CAPTURE_ENDPOINT;
 const BUTTON_FEEDBACK_MS = 180;
 const POPUP_STORAGE_KEYS = [
   "captureEnabled", "captureEndpoint", "confirmedSubmissions", "captureOutbox",
@@ -28,6 +31,14 @@ export type PopupPresentation = {
   readonly quarantineDetails: readonly string[];
 };
 
+export type QuarantineEntryPresentation = Readonly<{
+  readonly summary: string;
+  readonly retryable: boolean;
+  readonly deletable: boolean;
+  readonly malformed?: boolean;
+  readonly id?: string;
+}>;
+
 export function presentPopupState(value: unknown): PopupPresentation {
   const captureEnabled = readField(value, "captureEnabled") !== false;
   const endpoint = readField(value, "captureEndpoint");
@@ -44,6 +55,9 @@ export function presentPopupState(value: unknown): PopupPresentation {
   );
   const paired = typeof readField(value, "captureCredential") === "string";
   const credentialVersion = readPositiveInteger(readField(value, "captureCredentialVersion"));
+  const malformedOutboxDetails = outbox
+    .map(classifyOutboxEntry)
+    .filter((entry) => entry.summary.length > 0);
   return {
     captureEnabled,
     endpoint: typeof endpoint === "string" ? endpoint : DEFAULT_ENDPOINT,
@@ -51,7 +65,9 @@ export function presentPopupState(value: unknown): PopupPresentation {
     outboxText: `待同步结果 ${outbox.length}`,
     quarantineText: `已隔离结果 ${quarantine.length}`,
     lastSyncText: lastSync === undefined ? "最近同步：暂无" : `最近同步：${lastSync}`,
-    blockingReasonText: error === undefined ? "阻塞原因：无" : `阻塞原因：${localizeCaptureError(error)}`,
+    blockingReasonText: error === undefined
+      ? "阻塞原因：无"
+      : `阻塞原因：${localizeCaptureError(safeStoredCaptureError(error) ?? "Retained capture error")}`,
     migrationText: removedClickIntents === 0
       ? "未发现点击创建的等待记录"
       : `已移除未经服务器确认的等待记录 ${removedClickIntents} 条`,
@@ -59,7 +75,74 @@ export function presentPopupState(value: unknown): PopupPresentation {
     pairingStateText: error?.startsWith("Pairing required:") === true
       ? "配对需要处理"
       : paired ? pairingSuccessText(credentialVersion) : "未配对",
-    quarantineDetails: quarantine.map(quarantineSummary).filter((text) => text.length > 0),
+    quarantineDetails: quarantine
+      .map(classifyQuarantineEntry)
+      .concat(malformedOutboxDetails)
+      .map((entry) => entry.summary)
+      .filter((text) => text.length > 0),
+  };
+}
+
+export function classifyQuarantineEntry(value: unknown): QuarantineEntryPresentation {
+  const structuredSummary = readNonEmptyString(readField(value, "summary"));
+  const structuredRetryable = readField(value, "retryable");
+  const structuredDeletable = readField(value, "deletable");
+  if (structuredSummary !== undefined
+    && typeof structuredRetryable === "boolean"
+    && typeof structuredDeletable === "boolean") {
+    const id = readNonEmptyString(readField(value, "id"));
+    return {
+      summary: safeQuarantineSummary(structuredSummary),
+      retryable: structuredRetryable,
+      deletable: structuredDeletable,
+      ...(readField(value, "malformed") === true ? { malformed: true } : {}),
+      ...(id === undefined ? {} : { id }),
+    };
+  }
+  const id = readNonEmptyString(readField(value, "id"));
+  if (isValidQuarantineEntry(value) && id !== undefined) {
+    return { id, summary: quarantineSummary(value), retryable: true, deletable: true };
+  }
+  const directSummary = readNonEmptyString(readField(value, "summary"));
+  if (directSummary !== undefined && readField(value, "item") === undefined) {
+    return { summary: safeQuarantineSummary(directSummary), retryable: false, deletable: false };
+  }
+  if (id !== undefined || readField(value, "item") !== undefined) {
+    const error = safeStoredCaptureError(readField(value, "error")) ?? "malformed retained bundle";
+    return {
+      summary: `? · ? · malformed quarantine bundle · ${id ?? "?"} · ${error}`,
+      retryable: false,
+      deletable: id !== undefined,
+      malformed: true,
+      ...(id === undefined ? {} : { id }),
+    };
+  }
+  const error = safeStoredCaptureError(readField(value, "error"));
+  return {
+    summary: `? · ? · malformed quarantine record · ${error ?? "unrecognized retained value"}`,
+    retryable: false,
+    deletable: false,
+    malformed: true,
+  };
+}
+
+function classifyOutboxEntry(value: unknown): QuarantineEntryPresentation {
+  if (isValidOutboxEntry(value)) return { summary: "", retryable: false, deletable: false };
+  if (typeof value !== "object" || value === null) {
+    return {
+      summary: "? · ? · malformed outbox record",
+      retryable: false,
+      deletable: false,
+      malformed: true,
+    };
+  }
+  const id = readNonEmptyString(readField(value, "id"));
+  return {
+    summary: `? · ? · malformed outbox bundle · ${id ?? "?"} · retained without delivery`,
+    retryable: false,
+    deletable: false,
+    malformed: true,
+    ...(id === undefined ? {} : { id }),
   };
 }
 
@@ -79,10 +162,10 @@ export function initializePopup(): void {
   const enabled = document.querySelector<HTMLInputElement>("#captureEnabled");
   const endpoint = document.querySelector<HTMLInputElement>("#captureEndpoint");
   enabled?.addEventListener("change", () => runPopupOperation(
-    () => chrome.storage.local.set({ captureEnabled: enabled.checked }),
+    () => chrome.runtime.sendMessage({ type: "SET_CAPTURE_ENABLED", enabled: enabled.checked }),
   ));
   endpoint?.addEventListener("change", () => runPopupOperation(
-    () => chrome.storage.local.set({ captureEndpoint: endpoint.value }),
+    () => chrome.storage.local.set({ captureEndpoint: readCaptureEndpoint(endpoint.value) }),
   ));
   document.querySelector("#pairingForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -160,7 +243,7 @@ export function renderOrchestratorSnapshot(state: OrchestratorState): void {
   if (enabled !== null) enabled.checked = state.captureEnabled;
   if (endpoint !== null) endpoint.value = state.captureEndpoint;
   const details = document.querySelector("#quarantineDetails");
-  if (details !== null) renderQuarantine(details, state.quarantineDetails.map((line) => ({ summary: line })));
+  if (details !== null) renderQuarantine(details, state.quarantineDetails);
 }
 
 function renderLegacyPresentation(presentation: PopupPresentation, stored: unknown): void {
@@ -178,7 +261,13 @@ function renderLegacyPresentation(presentation: PopupPresentation, stored: unkno
   if (enabled !== null) enabled.checked = presentation.captureEnabled;
   if (endpoint !== null) endpoint.value = presentation.endpoint;
   const details = document.querySelector("#quarantineDetails");
-  if (details !== null) renderQuarantine(details, readArray(readField(stored, "captureQuarantine")));
+  if (details !== null) {
+    const quarantine = readArray(readField(stored, "captureQuarantine"));
+    const malformedOutbox = readArray(readField(stored, "captureOutbox"))
+      .map(classifyOutboxEntry)
+      .filter((entry) => entry.summary.length > 0);
+    renderQuarantine(details, [...quarantine, ...malformedOutbox]);
+  }
 }
 
 async function pairInstallation(): Promise<void> {
@@ -212,14 +301,24 @@ export async function requestPairing(
     }
     return {
       ok: false,
-      text: readNonEmptyString(readField(result, "error")) ?? "配对失败",
+      text: safePairingError(readField(result, "error")),
     };
   } catch (error) {
+    void error;
     return {
       ok: false,
-      text: error instanceof Error ? error.message : "配对失败",
+      text: "配对失败",
     };
   }
+}
+
+function safePairingError(value: unknown): string {
+  if (value === "Extension installation is not initialized") return "扩展尚未初始化";
+  if (value === "Pairing failed") return "配对失败";
+  if (typeof value === "string" && /^Pairing request rejected \(HTTP [1-5][0-9]{2}\)$/u.test(value)) {
+    return "配对请求被拒绝";
+  }
+  return "配对失败";
 }
 
 function bindAction(selector: string, message: Record<string, string>): void {
@@ -287,9 +386,9 @@ function runPopupOperation(operation: () => Promise<unknown>): void {
 }
 
 function reportPopupError(error: unknown): void {
-  const message = error instanceof Error ? error.message : "扩展操作失败";
-  setText("#actionResult", `操作失败：${message}`);
-  console.warn("[capture-v4] popup operation failed", error);
+  void error;
+  setText("#actionResult", "操作失败：扩展操作失败");
+  console.warn("[capture-v4] popup operation failed");
 }
 
 function waitFor(milliseconds: number): Promise<void> {
@@ -306,7 +405,7 @@ function quarantineSummary(value: unknown): string {
   const platform = readNonEmptyString(readField(event, "platform"));
   const problem = readNonEmptyString(readField(event, "problemExternalId"));
   const occurredAt = readNonEmptyString(readField(event, "occurredAt"));
-  const error = readNonEmptyString(readField(value, "error"));
+  const error = safeStoredCaptureError(readField(value, "error"));
   if (verdict === undefined || platform === undefined || problem === undefined
     || occurredAt === undefined || error === undefined) return "";
   return `${platform} · ${problem} · ${verdict} · ${occurredAt} · ${error}`;
@@ -315,30 +414,61 @@ function quarantineSummary(value: unknown): string {
 function renderQuarantine(container: Element, entries: readonly unknown[]): void {
   container.replaceChildren();
   for (const entry of entries) {
-    const id = readNonEmptyString(readField(entry, "id"));
-    const summary = quarantineSummary(entry);
-    if (id === undefined || summary.length === 0) continue;
+    const presentation = classifyQuarantineEntry(entry);
+    if (presentation.summary.length === 0) continue;
     const row = document.createElement("div");
     const text = document.createElement("p");
-    text.textContent = summary;
-    const retry = document.createElement("button");
-    retry.type = "button";
-    retry.textContent = "重试此项";
-    retry.addEventListener("click", () => runPopupButton(retry, "重试此项", () =>
-      chrome.runtime.sendMessage({ type: "RETRY_QUARANTINED_CAPTURE", id })));
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.textContent = "删除此项";
-    remove.addEventListener("click", () => {
-      if (window.confirm("确定删除这条隔离结果？此操作不可恢复。")) {
-        runPopupButton(remove, "删除此项", () => chrome.runtime.sendMessage({
-          type: "DELETE_QUARANTINED_CAPTURE", id,
-        }));
-      }
-    });
-    row.append(text, retry, remove);
+    text.textContent = presentation.summary;
+    if (!presentation.retryable && !presentation.deletable) {
+      row.append(text);
+      container.append(row);
+      continue;
+    }
+    const controls: HTMLButtonElement[] = [];
+    if (presentation.retryable && presentation.id !== undefined) {
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.textContent = "重试此项";
+      retry.addEventListener("click", () => runPopupButton(retry, "重试此项", () =>
+        chrome.runtime.sendMessage({ type: "RETRY_QUARANTINED_CAPTURE", id: presentation.id })));
+      controls.push(retry);
+    }
+    if (presentation.deletable && presentation.id !== undefined) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = "删除此项";
+      remove.addEventListener("click", () => {
+        if (window.confirm("确定删除这条隔离结果？此操作不可恢复。")) {
+          runPopupButton(remove, "删除此项", () => chrome.runtime.sendMessage({
+            type: "DELETE_QUARANTINED_CAPTURE",
+            id: presentation.id,
+            ...(presentation.malformed === true ? { malformed: true } : {}),
+          }));
+        }
+      });
+      controls.push(remove);
+    }
+    row.append(text, ...controls);
     container.append(row);
   }
+}
+
+function isValidQuarantineEntry(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const item = readField(value, "item");
+  return readNonEmptyString(readField(value, "id")) !== undefined
+    && readNonEmptyString(readField(value, "error")) !== undefined
+    && readNonEmptyString(readField(value, "quarantinedAt")) !== undefined
+    && isValidOutboxEntry(item);
+}
+
+function isValidOutboxEntry(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  return readNonEmptyString(readField(value, "id")) !== undefined
+    && readField(value, "kind") === "attempt_bundle"
+    && typeof readField(value, "attempts") === "number"
+    && typeof readField(value, "createdAt") === "string"
+    && CaptureAttemptBundleSchema.safeParse(readField(value, "bundle")).success;
 }
 
 function setText(selector: string, text: string): void {
@@ -562,7 +692,8 @@ export async function deliverCharacterizationExport(
     await download(blobUrl, `${value.meta.fixtureName}.json`);
     return { ok: true, count: value.evidence.length };
   } catch (error) {
-    return { ok: false, reason: error instanceof Error ? error.message : "下载失败" };
+    void error;
+    return { ok: false, reason: "下载失败" };
   } finally {
     URL.revokeObjectURL(blobUrl);
   }

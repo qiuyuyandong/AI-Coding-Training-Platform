@@ -92,7 +92,11 @@ describe("extension popup presenter", () => {
       async () => { throw new Error("配对服务暂不可用"); },
       "PAIR-1234",
     );
-    expect(result).toEqual({ ok: false, text: "配对服务暂不可用" });
+    expect(result).toEqual({ ok: false, text: "配对失败" });
+    await expect(requestPairing(
+      async () => ({ ok: false, error: "token=secret; source code" }),
+      "PAIR-1234",
+    )).resolves.toEqual({ ok: false, text: "配对失败" });
   });
 
   it("keeps visible button feedback until an action settles", async () => {

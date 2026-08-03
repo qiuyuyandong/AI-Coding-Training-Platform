@@ -27,6 +27,50 @@ export type CaptureQuarantineItem = {
   readonly quarantinedAt: string;
 };
 
+export function isCaptureOutboxItem(value: unknown): value is CaptureOutboxItem {
+  if (typeof value !== "object" || value === null) return false;
+  const id = readStoredString(Reflect.get(value, "id"));
+  const kind = Reflect.get(value, "kind");
+  const bundle = Reflect.get(value, "bundle");
+  const parsedBundle = CaptureAttemptBundleSchema.safeParse(bundle);
+  const attempts = Reflect.get(value, "attempts");
+  const createdAt = Reflect.get(value, "createdAt");
+  const nextAttemptAt = Reflect.get(value, "nextAttemptAt");
+  const automaticRetryBlocked = Reflect.get(value, "automaticRetryBlocked");
+  return id !== undefined
+    && kind === "attempt_bundle"
+    && parsedBundle.success
+    && id === parsedBundle.data.bundleId
+    && parsedBundle.data.events.every((event) => isStoredTimestamp(event.occurredAt))
+    && typeof attempts === "number"
+    && Number.isInteger(attempts)
+    && attempts >= 0
+    && isStoredTimestamp(createdAt)
+    && (nextAttemptAt === undefined || isStoredTimestamp(nextAttemptAt))
+    && (automaticRetryBlocked === undefined || typeof automaticRetryBlocked === "boolean");
+}
+
+export function isCaptureQuarantineItem(value: unknown): value is CaptureQuarantineItem {
+  if (typeof value !== "object" || value === null) return false;
+  const id = readStoredString(Reflect.get(value, "id"));
+  const item = Reflect.get(value, "item");
+  return id !== undefined
+    && isCaptureOutboxItem(item)
+    && id === item.id
+    && readStoredString(Reflect.get(value, "error")) !== undefined
+    && isStoredTimestamp(Reflect.get(value, "quarantinedAt"));
+}
+
+function readStoredString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function isStoredTimestamp(value: unknown): value is string {
+  if (typeof value !== "string" || value.length === 0) return false;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value;
+}
+
 export function submissionIntentKey(
   intent: Pick<SubmissionIntentDraft, "installationId" | "platform" | "problemExternalId">,
 ): string {

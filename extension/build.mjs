@@ -6,7 +6,14 @@ import { build } from "esbuild";
 const root = process.cwd();
 const extensionDir = join(root, "extension");
 const outdir = join(extensionDir, "dist");
-const buildSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+const sourceBuildSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+// D1 update-like tests build a second traceable artifact without modifying
+// generated files after esbuild completes. Normal builds always use HEAD.
+const variant = process.env.V4_BUILD_VARIANT;
+if (variant !== undefined && variant !== "d1-replacement") {
+  throw new Error(`Unsupported V4_BUILD_VARIANT: ${variant}`);
+}
+const buildSha = variant === undefined ? sourceBuildSha : `${sourceBuildSha}:d1-replacement`;
 
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(outdir, { recursive: true });

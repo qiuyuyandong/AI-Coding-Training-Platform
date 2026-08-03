@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { captureAttemptEndpoint, postCaptureAttemptBundle } from "@/extension/src/captureTransport";
+import {
+  DEFAULT_CAPTURE_ENDPOINT,
+  captureAttemptEndpoint,
+  postCaptureAttemptBundle,
+  readCaptureEndpoint,
+} from "@/extension/src/captureTransport";
 import { buildCaptureAttemptBundle } from "@/extension/src/attemptStorage";
 import type { PendingSubmissionIntent } from "@/extension/src/attemptCapture";
 
@@ -21,6 +26,26 @@ describe("capture attempt transport", () => {
       .toBe("http://127.0.0.1:3001/api/capture/attempts");
     expect(captureAttemptEndpoint("https://evil.example/upload"))
       .toBe("http://localhost:3000/api/capture/attempts");
+    expect(captureAttemptEndpoint("https://leetcode.com/api/capture/events"))
+      .toBe("http://localhost:3000/api/capture/attempts");
+    expect(readCaptureEndpoint("http://[::1]:4173/api/capture/events"))
+      .toBe("http://[::1]:4173/api/capture/events");
+    expect(readCaptureEndpoint("https://localhost:3000/api/capture/events"))
+      .toBe(DEFAULT_CAPTURE_ENDPOINT);
+  });
+
+  it("never sends a bundle or credential to a configured remote OJ origin", async () => {
+    const fetchImpl = vi.fn(async () => new Response("", { status: 500 }));
+    await postCaptureAttemptBundle({
+      bundle,
+      endpoint: "https://leetcode.com/api/capture/events",
+      credential: "capture_secret",
+      fetchImpl,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "http://localhost:3000/api/capture/attempts",
+      expect.objectContaining({ headers: expect.objectContaining({ authorization: "Bearer capture_secret" }) }),
+    );
   });
 
   it("validates successful ACK identity", async () => {
@@ -41,16 +66,21 @@ describe("capture attempt transport", () => {
       bundle, endpoint: undefined, credential: "capture_secret", fetchImpl,
     })).toEqual({
       status: "ack_error",
-      error: `ACK mismatch: expected bundle ${bundle.bundleId}, received bundle_other`,
+      error: "ACK mismatch: bundle identity",
     });
   });
 
-  it("classifies network and item errors", async () => {
-    const bad = vi.fn(async () => new Response(JSON.stringify({ error: "bad" }), { status: 400 }));
+  it("classifies network and item errors without retaining response or exception text", async () => {
+    const response = new Response(JSON.stringify({
+      error: "token=secret; source code and full problem statement",
+    }), { status: 400 });
+    const json = vi.spyOn(response, "json");
+    const bad = vi.fn(async () => response);
     expect(await postCaptureAttemptBundle({ bundle, endpoint: undefined, credential: undefined, fetchImpl: bad }))
-      .toEqual({ status: 400, error: "bad" });
-    const offline = vi.fn(async () => { throw new Error("offline"); });
+      .toEqual({ status: 400, error: "HTTP 400" });
+    expect(json).not.toHaveBeenCalled();
+    const offline = vi.fn(async () => { throw new Error("token=secret"); });
     expect(await postCaptureAttemptBundle({ bundle, endpoint: undefined, credential: undefined, fetchImpl: offline }))
-      .toEqual({ status: "network_error", error: "offline" });
+      .toEqual({ status: "network_error", error: "Network request failed" });
   });
 });

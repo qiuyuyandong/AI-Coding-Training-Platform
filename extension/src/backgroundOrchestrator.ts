@@ -26,10 +26,17 @@
  *    caches the latest snapshot so popup reads are O(1).
  */
 
-import type {
-  CaptureOutboxItem,
-  CaptureQuarantineItem,
+import {
+  isCaptureOutboxItem,
+  isCaptureQuarantineItem,
+  type CaptureOutboxItem,
+  type CaptureQuarantineItem,
 } from "./attemptStorage";
+import {
+  safeStoredCaptureError,
+  sanitizeCaptureOutboxRecords,
+  sanitizeCaptureQuarantineRecords,
+} from "./captureErrorPrivacy";
 import {
   deleteQuarantined,
   retryQuarantined,
@@ -102,7 +109,14 @@ const LOCAL_KEYS = [
   "lastSuccessfulCaptureAt",
   "lastDeliveredAttemptId",
   "lastDeliveredAttemptStatus",
+  "pairedAt",
+  "discardedPreBundleEventCount",
+  "preBundleQueueDiscardedAt",
   "v4ClickIntentMigration",
+  "pendingSubmissionIntents",
+  "eventQueue",
+  "outbox",
+  "quarantine",
 ] as const;
 
 const SESSION_KEYS = [
@@ -122,11 +136,16 @@ const FLUSH_OUTBOX_WORK_ID = "flush_outbox";
 export type OrchestratorProvenanceLevel = "extension_paired" | "extension_unpaired";
 
 export type OrchestratorUserAction =
+  | { readonly type: "SET_CAPTURE_ENABLED"; readonly enabled: boolean }
   | { readonly type: "RETRY_CAPTURE_OUTBOX" }
   | { readonly type: "CLEAR_CAPTURE_OUTBOX" }
   | { readonly type: "CLEAR_CAPTURE_QUARANTINE" }
   | { readonly type: "RETRY_QUARANTINED_CAPTURE"; readonly id: string }
-  | { readonly type: "DELETE_QUARANTINED_CAPTURE"; readonly id: string };
+  | {
+      readonly type: "DELETE_QUARANTINED_CAPTURE";
+      readonly id: string;
+      readonly malformed?: boolean;
+    };
 
 export type OrchestratorEvent =
   | {
@@ -181,7 +200,15 @@ export type OrchestratorState = Readonly<{
   readonly e1LifecycleCount: number;
   readonly ambiguityCount: number;
   readonly migrationRemovedActiveIntentCount: number;
-  readonly quarantineDetails: readonly string[];
+  readonly quarantineDetails: readonly OrchestratorQuarantineDetail[];
+}>;
+
+export type OrchestratorQuarantineDetail = Readonly<{
+  readonly summary: string;
+  readonly retryable: boolean;
+  readonly deletable: boolean;
+  readonly malformed?: boolean;
+  readonly id?: string;
 }>;
 
 export type OrchestratorPersistence = Readonly<{
@@ -205,6 +232,27 @@ export type OrchestratorEffects = Readonly<{
   readonly persistence: OrchestratorPersistence;
   readonly executorSchedule: ReadonlyArray<{ readonly id: string; readonly work: () => Promise<void> }>;
 }>;
+
+/**
+ * Apply the data-plane storage diff in the same order used by initialization:
+ * authoritative local/session writes first, then legacy cleanup. Keeping the
+ * ordering here makes the background side-effect boundary directly testable.
+ */
+export async function applyOrchestratorPersistence(
+  storage: ExtensionInitializationStorageSplit,
+  persistence: OrchestratorPersistence,
+): Promise<void> {
+  const localItems: Record<string, unknown> = {};
+  for (const write of persistence.local) localItems[write.key] = write.value;
+  if (Object.keys(localItems).length > 0) await storage.local.set(localItems);
+
+  const sessionItems: Record<string, unknown> = {};
+  for (const write of persistence.session) sessionItems[write.key] = write.value;
+  if (Object.keys(sessionItems).length > 0) await storage.session.set(sessionItems);
+
+  for (const key of persistence.localRemovals) await storage.local.remove(key);
+  for (const key of persistence.sessionRemovals) await storage.session.remove(key);
+}
 
 export type Orchestrator = Readonly<{
   readonly apply: (event: OrchestratorEvent) => Promise<OrchestratorEffects>;
@@ -230,29 +278,45 @@ export type OrchestratorDependencies = Readonly<{
 // ---------------------------------------------------------------------------
 
 function readOutbox(value: unknown): readonly CaptureOutboxItem[] {
-  return Array.isArray(value) ? value.filter(isOutboxItem) : [];
-}
-
-function isOutboxItem(value: unknown): value is CaptureOutboxItem {
-  return typeof value === "object" && value !== null
-    && "kind" in value && Reflect.get(value, "kind") === "attempt_bundle"
-    && "id" in value && typeof Reflect.get(value, "id") === "string"
-    && "bundle" in value && typeof Reflect.get(value, "bundle") === "object"
-    && Reflect.get(value, "bundle") !== null
-    && "attempts" in value && typeof Reflect.get(value, "attempts") === "number"
-    && "createdAt" in value && typeof Reflect.get(value, "createdAt") === "string";
+  return Array.isArray(value) ? value.filter(isCaptureOutboxItem) : [];
 }
 
 function readQuarantine(value: unknown): readonly CaptureQuarantineItem[] {
-  return Array.isArray(value) ? value.filter(isQuarantineItem) : [];
+  return Array.isArray(value) ? value.filter(isCaptureQuarantineItem) : [];
 }
 
-function isQuarantineItem(value: unknown): value is CaptureQuarantineItem {
-  return typeof value === "object" && value !== null
-    && "id" in value && typeof Reflect.get(value, "id") === "string"
-    && "item" in value && isOutboxItem(Reflect.get(value, "item"))
-    && "error" in value && typeof Reflect.get(value, "error") === "string"
-    && "quarantinedAt" in value && typeof Reflect.get(value, "quarantinedAt") === "string";
+export function readMalformedQuarantineRecords(value: unknown): readonly unknown[] {
+  return Array.isArray(value) ? value.filter((item) => !isCaptureQuarantineItem(item)) : [];
+}
+
+export function readMalformedOutboxRecords(value: unknown): readonly unknown[] {
+  return Array.isArray(value) ? value.filter((item) => !isCaptureOutboxItem(item)) : [];
+}
+
+function readMalformedQuarantineDetails(
+  value: unknown,
+): readonly OrchestratorQuarantineDetail[] {
+  return readMalformedQuarantineRecords(value).map(malformedQuarantineDetail);
+}
+
+function malformedQuarantineDetail(value: unknown): OrchestratorQuarantineDetail {
+  if (typeof value !== "object" || value === null) {
+    return {
+      summary: "? · ? · malformed quarantine record",
+      retryable: false,
+      deletable: false,
+      malformed: true,
+    };
+  }
+  const id = readNonemptyString(Reflect.get(value, "id"));
+  const error = safeStoredCaptureError(Reflect.get(value, "error")) ?? "malformed retained bundle";
+  return {
+    summary: `? · ? · malformed quarantine bundle · ${id ?? "?"} · ${error}`,
+    retryable: false,
+    deletable: id !== undefined,
+    malformed: true,
+    ...(id === undefined ? {} : { id }),
+  };
 }
 
 function readNonemptyString(value: unknown): string | undefined {
@@ -290,14 +354,17 @@ function deriveState(
     : "extension_paired";
 
   const outbox = readOutbox(local.captureOutbox);
+  const malformedOutbox = readMalformedOutboxRecords(local.captureOutbox);
   const quarantine = readQuarantine(local.captureQuarantine);
+  const malformedQuarantineDetails = readMalformedQuarantineDetails(local.captureQuarantine);
   const confirmedState = readConfirmedSubmissionState(local);
   const confirmed = confirmedState.confirmed;
   const tombstones = confirmedState.tombstones;
 
-  const waitingCount = outbox.length + confirmed.filter((record) => record.finalizedAt === undefined).length;
-  const outboxCount = outbox.length;
-  const quarantineCount = quarantine.length;
+  const waitingCount = outbox.length + malformedOutbox.length
+    + confirmed.filter((record) => record.finalizedAt === undefined).length;
+  const outboxCount = outbox.length + malformedOutbox.length;
+  const quarantineCount = quarantine.length + malformedQuarantineDetails.length;
   const finalizedCount = tombstones.length;
   const sessionCount = waitingCount + finalizedCount;
   const waiting = waitingCount > 0;
@@ -319,9 +386,9 @@ function deriveState(
     finalizedCount,
     outboxCount,
     quarantineCount,
-    ...(readNonemptyString(local.lastCaptureError) === undefined
+    ...(safeStoredCaptureError(local.lastCaptureError) === undefined
       ? {}
-      : { lastCaptureError: readNonemptyString(local.lastCaptureError) as string }),
+      : { lastCaptureError: safeStoredCaptureError(local.lastCaptureError) as string }),
     ...(readNonemptyString(local.lastSuccessfulCaptureAt) === undefined
       ? {}
       : { lastSuccessfulCaptureAt: readNonemptyString(local.lastSuccessfulCaptureAt) as string }),
@@ -335,17 +402,66 @@ function deriveState(
     e1LifecycleCount: e1List.length,
     ambiguityCount: ambiguityDiags.length,
     migrationRemovedActiveIntentCount: readMigrationRemovedCount(local.v4ClickIntentMigration),
-    quarantineDetails: quarantine.map(quarantineDetailLine).filter((line) => line.length > 0),
+    quarantineDetails: [
+      ...quarantine.map((item): OrchestratorQuarantineDetail => ({
+        id: item.id,
+        summary: quarantineDetailLine(item),
+        retryable: true,
+        deletable: true,
+      })),
+      ...malformedQuarantineDetails,
+      ...malformedOutbox.map(malformedOutboxDetail),
+    ],
   });
 }
 
 function quarantineDetailLine(item: CaptureQuarantineItem): string {
   const bundle = item.item.bundle;
+  const firstEvent = bundle.events[0];
   const verdictEvent = bundle.events[2];
   const verdict = verdictEvent && typeof verdictEvent.payload.verdict === "string"
     ? verdictEvent.payload.verdict
     : undefined;
-  return `${bundle.events[0].platform} · ${bundle.events[0].problemExternalId} · ${verdict ?? "?"} · ${verdictEvent?.occurredAt ?? "?"} · ${item.error}`;
+  return `${firstEvent?.platform ?? "?"} · ${firstEvent?.problemExternalId ?? "?"} · ${verdict ?? "?"} · ${verdictEvent?.occurredAt ?? "?"} · ${safeStoredCaptureError(item.error) ?? "Retained capture error"}`;
+}
+
+function malformedOutboxDetail(value: unknown): OrchestratorQuarantineDetail {
+  if (typeof value !== "object" || value === null) {
+    return {
+      summary: "? · ? · malformed outbox record",
+      retryable: false,
+      deletable: false,
+      malformed: true,
+    };
+  }
+  const id = readNonemptyString(Reflect.get(value, "id"));
+  return {
+    summary: `? · ? · malformed outbox bundle · ${id ?? "?"} · retained without delivery`,
+    retryable: false,
+    deletable: false,
+    malformed: true,
+    ...(id === undefined ? {} : { id }),
+  };
+}
+
+function preserveMalformedQuarantine(
+  value: unknown,
+  valid: readonly CaptureQuarantineItem[],
+): readonly unknown[] {
+  return [...valid, ...readMalformedQuarantineRecords(value)];
+}
+
+function preserveMalformedOutbox(
+  value: unknown,
+  valid: readonly CaptureOutboxItem[],
+): readonly unknown[] {
+  return [...valid, ...readMalformedOutboxRecords(value)];
+}
+
+function recordId(value: unknown): string | undefined {
+  return typeof value === "object" && value !== null
+    ? readNonemptyString(Reflect.get(value, "id"))
+    : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -421,6 +537,15 @@ function handleUserAction(
   now: string,
 ): EventOutcome {
   switch (action.type) {
+    case "SET_CAPTURE_ENABLED":
+      return makeLocalOutcome(
+        { ...local, captureEnabled: action.enabled },
+        local,
+        now,
+        false,
+        readOutbox(local.captureOutbox),
+        readQuarantine(local.captureQuarantine),
+      );
     case "CLEAR_CAPTURE_OUTBOX":
       return clearOutbox(local, now);
     case "CLEAR_CAPTURE_QUARANTINE":
@@ -430,7 +555,7 @@ function handleUserAction(
     case "RETRY_QUARANTINED_CAPTURE":
       return retryQuarantineEntry(local, action.id, now);
     case "DELETE_QUARANTINED_CAPTURE":
-      return deleteQuarantineEntry(local, action.id, now);
+      return deleteQuarantineEntry(local, action.id, now, action.malformed === true);
   }
 }
 
@@ -911,7 +1036,7 @@ function handleE3Recorded(
     ...local,
     confirmedSubmissions: remainingConfirmed,
     confirmedSubmissionTombstones: finalized.state.tombstones,
-    captureOutbox: nextOutbox,
+    captureOutbox: preserveMalformedOutbox(local.captureOutbox, nextOutbox),
   };
   const nextTransient: TransientSessionEvidenceState = {
     ...transient,
@@ -1008,8 +1133,8 @@ function retryAll(local: Record<string, unknown>, now: string): EventOutcome {
   const update = retryAllCaptureStorageUpdate({ outbox, quarantine });
   const next: Record<string, unknown> = {
     ...local,
-    captureOutbox: update.captureOutbox,
-    captureQuarantine: update.captureQuarantine,
+    captureOutbox: preserveMalformedOutbox(local.captureOutbox, update.captureOutbox),
+    captureQuarantine: preserveMalformedQuarantine(local.captureQuarantine, update.captureQuarantine),
     lastCaptureError: undefined,
   };
   return makeLocalOutcome(next, local, now, true, update.captureOutbox, update.captureQuarantine);
@@ -1025,8 +1150,8 @@ function retryQuarantineEntry(
   const retried = retryQuarantined(outbox, quarantine, id);
   const next: Record<string, unknown> = {
     ...local,
-    captureOutbox: retried.outbox,
-    captureQuarantine: retried.quarantine,
+    captureOutbox: preserveMalformedOutbox(local.captureOutbox, retried.outbox),
+    captureQuarantine: preserveMalformedQuarantine(local.captureQuarantine, retried.quarantine),
     lastCaptureError: undefined,
   };
   return makeLocalOutcome(next, local, now, true, retried.outbox, retried.quarantine);
@@ -1036,15 +1161,21 @@ function deleteQuarantineEntry(
   local: Record<string, unknown>,
   id: string,
   now: string,
+  malformedTarget: boolean,
 ): EventOutcome {
   const outbox = readOutbox(local.captureOutbox);
   const quarantine = readQuarantine(local.captureQuarantine);
-  const deleted = deleteQuarantined(quarantine, id);
+  const deleted = malformedTarget
+    ? { quarantine, deletedCount: 0 }
+    : deleteQuarantined(quarantine, id);
+  const malformed = readMalformedQuarantineRecords(local.captureQuarantine)
+    .filter((item) => !malformedTarget || recordId(item) !== id);
   const next: Record<string, unknown> = {
     ...local,
-    captureQuarantine: deleted.quarantine,
+    captureQuarantine: [...deleted.quarantine, ...malformed],
   };
-  if (deleted.deletedCount > 0 && deleted.quarantine.length === 0 && outbox.length === 0) {
+  if (deleted.deletedCount > 0 && deleted.quarantine.length === 0
+    && malformed.length === 0 && outbox.length === 0) {
     next.lastCaptureError = undefined;
   }
   return makeLocalOutcome(next, local, now, false, outbox, deleted.quarantine);
@@ -1078,20 +1209,29 @@ function makeLocalOutcome(
   quarantine: readonly CaptureQuarantineItem[],
 ): EventOutcome {
   void now;
+  const safeLastCaptureError = safeStoredCaptureError(next.lastCaptureError);
+  const safeNext: Record<string, unknown> = {
+    ...next,
+    captureOutbox: sanitizeCaptureOutboxRecords(next.captureOutbox),
+    captureQuarantine: sanitizeCaptureQuarantineRecords(next.captureQuarantine),
+    ...(safeLastCaptureError === undefined
+      ? { lastCaptureError: undefined }
+      : { lastCaptureError: safeLastCaptureError }),
+  };
   const writes: Array<{ key: string; value: unknown }> = [];
   const removals: string[] = [];
-  for (const [key, value] of Object.entries(next)) {
+  for (const [key, value] of Object.entries(safeNext)) {
     if (!deepEqual(Reflect.get(prior, key), value)) {
       writes.push({ key, value });
     }
   }
-  for (const [key, value] of Object.entries(next)) {
+  for (const [key, value] of Object.entries(safeNext)) {
     if (value === undefined && Reflect.get(prior, key) !== undefined) {
       removals.push(key);
     }
   }
-  const confirmed = readConfirmedSubmissionState(next).confirmed;
-  const tombstones = readConfirmedSubmissionState(next).tombstones;
+  const confirmed = readConfirmedSubmissionState(safeNext).confirmed;
+  const tombstones = readConfirmedSubmissionState(safeNext).tombstones;
   return {
     localWrites: writes,
     localRemovals: removals,
@@ -1372,6 +1512,7 @@ function computeInitializationDiff(
   }
   const localRemovals: string[] = [];
   if (plan.shouldRemovePendingSubmissionIntents) localRemovals.push("pendingSubmissionIntents");
+  if (plan.shouldRemoveLastCaptureError) localRemovals.push("lastCaptureError");
   if (plan.shouldRemoveLegacyEventQueue) localRemovals.push("eventQueue");
   // `applyExtensionInitializationSplit` always issues these legacy cleanups;
   // the orchestrator only records them in the diff when the key is present
