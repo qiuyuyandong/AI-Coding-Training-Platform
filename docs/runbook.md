@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-08-02 (V4 Phase C C0-C5 engineering complete; C1 LeetCode experimental; C2-C4 blocked)
+Last updated: 2026-08-04 (V4 Phase D D1/D2/D3 candidate engineering complete; final candidate gate `V4 candidate commit PASS`; D4/D5 still gated; the earlier Phase C C0-C5 and Phase C-D readiness contract remain authoritative)
 
 ## Setup
 
@@ -225,6 +225,41 @@ queries: Chrome omits `documentId` for frame navigation, and the landing path
 does not carry the stable submission plus contest/problem identity required by
 the reviewed E2 contract. A retry requires a separately reviewed scalar bridge
 or first-party protocol change.
+
+### Phase D candidate gate
+
+The Phase D D3 candidate validator
+(`scripts/validate-v4-candidate.mjs`) is the gate that binds an immutable
+implementation candidate to its full quality gate result. Use it against
+the current documentation-reconciled HEAD before any D4 authorization
+decision:
+
+```powershell
+node scripts/validate-v4-candidate.mjs --candidate <full-sha>
+```
+
+The validator rejects (a) paths outside `CANDIDATE_ALLOWED_PATHS` (no
+`extension/dist`, `.tmp`, `training-platform.sqlite`, `.env`, raw
+transcripts, or unrelated files); (b) stale click-runtime symbols
+(`v3_submission_intent_recorded`, `SUBMISSION_INTENT_OBSERVED`); (c) failed
+extension E2E, privacy audit, or readiness on the candidate's own quality
+gate; (d) docs disagreements between the plan and the handoff; and (e)
+any default-database `Length` / `LastWriteTimeUtc` mutation. The
+preflight mode (`--preflight`) requires an explicit `--db-length` and
+`--db-last-write-time-utc` snapshot of the developer's
+`training-platform.sqlite`; the candidate mode takes the full SHA and
+reruns the real `npm run quality:gate`. The validator's 14-case unit
+suite (`tests/unit/v4CandidateValidator.test.ts`) freezes the rejected
+inputs the same way the gate does, including the explicit `lastCaptureError`
+drift and stale click-runtime symbol checks.
+
+The `--preflight` mode does not create a candidate; it only runs the
+validator against the current working tree. The `--candidate <full-sha>`
+mode identifies the implementation commit and reruns the full gate; a
+short SHA returns `candidate.is-head` failure. There is no operator
+flag for the gate exit code or extension E2E count; the validator
+parses the final Extension E2E summary from the real `npm run
+quality:gate` output.
 
 ## Recovery
 

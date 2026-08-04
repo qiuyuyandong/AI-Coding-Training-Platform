@@ -112,47 +112,59 @@
 
 # Agent Handoff Guide
 
-> **Status (2026-08-02):** **V4 Phase C C0-C5 engineering work is complete**
-> on `feature/v1-followup`. C1 LeetCode and
-> NowCoder are network-`experimental`; C2 AtCoder, C3 Codeforces, and C4 Luogu
-> are network-`V4_BLOCKED`. C5 proves platform ownership and namespaced identity,
-> preserves unrelated durable state, and removes the reachable V3 click-derived
-> pending-intent/verdict fallback. Legacy pending state is only counted and
-> deleted during upgrade; completed outbox bundles remain compatible. This is
-> not RC, acceptance, or release. **Phase C Task C2
-> AtCoder remains `V4_BLOCKED`** for the same browser-document limitation on
-> its independently observed form flow; historical AtCoder DOM production
-> certification remains unchanged. Its terminal gates passed with focused
-> 401/401, readiness CLI, frozen fixture hashes 9/9, full quality gate with
-> 2034 unit tests, 25 app E2E, 1286 extension tests, 48 runnable extension E2E,
-> and production build. C3 terminal gates pass with focused 433/433,
-> readiness 21/21 plus CLI PASS, frozen AtCoder hashes 9/9, 2075 unit tests,
-> 25 app E2E, 1326 extension tests, 48 runnable extension E2E, and production
-> build. C4 Luogu later closed `V4_BLOCKED` after its P1001 submit E1 and
-> numeric record landing were observed in different browser documents without
-> an approved continuity signal.
-> **Phase C Task C1
-> LeetCode remains `V4_EXPERIMENTAL`** on the same Phase C closeout.
-> Adapter `v4-leetcode-network-6` captured fresh
-> submission `cn/739108591`, finalized one `Wrong Answer`, delivered one
-> paired bundle, and projected 4 capture events, 1 session, and 1 non-voided
-> attempt into disposable SQLite. Localhost was healthy; the repaired causes
-> were current GraphQL/result-distribution protocol drift, scoped problem-slug
-> rejection, and tombstone/confirmation replay chronology. Final gates:
-> readiness CLI PASS, 2009 runnable unit tests, 25 app E2E, 1261 extension
-> tests, 48 runnable extension E2E, and production build PASS; one Windows
-> capability test and one known extension harness case remain skipped. C2
-> AtCoder characterization was authorized on 2026-07-31 and its derived delta
-> plan revision 2 is independently `APPROVED`. Historical AtCoder certification
-> remains green at 171/171 focused tests with all nine fixture hashes frozen.
-> The pre-storage AtCoder pathname privacy prerequisite passes 331 focused
-> tests; `extension:check` passes 39 files / 1285 tests; exact production-dist
-> hashes are frozen in the 2026-07-31 preflight receipt. The same extension id
-> was reloaded in the already-open Chrome. The former login-pending state is
-> superseded by the terminal C2 blocker. NowCoder remains
-> `experimental`; the
-> Phase B B8 missing-E3
-> layer is closed on `c26c578` (Tasks 0-6 of
+> **Status (2026-08-04):** **V4 Phase D D1, D2, and D3 candidate engineering
+> work is complete** on `feature/v1-followup`. The implementation candidate
+> is `509faf0e60532cf565a6a57aa796b96bc1053f38`
+> (`feat(v4): harden Phase D capture reliability`); the documentation-reconciled
+> HEAD is `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`. The final candidate gate
+> bound to that HEAD exited `0`: unit `2217/1`, app E2E `25/25`, extension
+> unit `1414/1414`, extension E2E `53/1`, production build `20/20`, privacy
+> audit `0 findings`, readiness `PASS`, default-database preservation
+> confirmed, and a 14-case validator suite. D1 closes upgrade/restart/pause/
+> recovery reliability with `lastCaptureError` lifecycle evidence; D2 closes
+> privacy/permission audit; D3 freezes one immutable implementation candidate
+> under `scripts/validate-v4-candidate.mjs --candidate <sha>`. This is not
+> RC, acceptance, or release; D4 same-SHA real observations and D5 F1-F4
+> still require separate authorization. The earlier **V4 Phase C C0-C5
+> engineering work is complete** verdict remains authoritative. C1 LeetCode
+> and NowCoder are network-`experimental`; C2 AtCoder, C3 Codeforces, and
+> C4 Luogu are network-`V4_BLOCKED`. C5 proves platform ownership and
+> namespaced identity, preserves unrelated durable state, and removes the
+> reachable V3 click-derived pending-intent/verdict fallback. Legacy pending
+> state is only counted and deleted during upgrade; completed outbox bundles
+> remain compatible. Historical AtCoder DOM production certification is
+> unchanged. **Phase C Task C2 AtCoder remains `V4_BLOCKED`** for the same
+> browser-document limitation on its independently observed form flow;
+> historical AtCoder DOM production certification remains unchanged. Its
+> terminal gates passed with focused 401/401, readiness CLI, frozen fixture
+> hashes 9/9, full quality gate with 2034 unit tests, 25 app E2E, 1286
+> extension tests, 48 runnable extension E2E, and production build. C3
+> terminal gates pass with focused 433/433, readiness 21/21 plus CLI PASS,
+> frozen AtCoder hashes 9/9, 2075 unit tests, 25 app E2E, 1326 extension
+> tests, 48 runnable extension E2E, and production build. C4 Luogu later
+> closed `V4_BLOCKED` after its P1001 submit E1 and numeric record landing
+> were observed in different browser documents without an approved
+> continuity signal. **Phase C Task C1 LeetCode remains `V4_EXPERIMENTAL`**
+> on the same Phase C closeout. Adapter `v4-leetcode-network-6` captured
+> fresh submission `cn/739108591`, finalized one `Wrong Answer`, delivered
+> one paired bundle, and projected 4 capture events, 1 session, and 1
+> non-voided attempt into disposable SQLite. Localhost was healthy; the
+> repaired causes were current GraphQL/result-distribution protocol drift,
+> scoped problem-slug rejection, and tombstone/confirmation replay
+> chronology. Final gates: readiness CLI PASS, 2009 runnable unit tests,
+> 25 app E2E, 1261 extension tests, 48 runnable extension E2E, and
+> production build PASS; one Windows capability test and one known
+> extension harness case remain skipped. C2 AtCoder characterization was
+> authorized on 2026-07-31 and its derived delta plan revision 2 is
+> independently `APPROVED`. Historical AtCoder certification remains green
+> at 171/171 focused tests with all nine fixture hashes frozen. The
+> pre-storage AtCoder pathname privacy prerequisite passes 331 focused
+> tests; `extension:check` passes 39 files / 1285 tests; exact
+> production-dist hashes are frozen in the 2026-07-31 preflight receipt.
+> The same extension id was reloaded in the already-open Chrome. The
+> former login-pending state is superseded by the terminal C2 blocker.
+> NowCoder remains `experimental`; the Phase B B8 missing-E3 layer is
+> closed on `c26c578` (Tasks 0-6 of
 > `docs/superpowers/plans/2026-07-29-v4-nowcoder-e3-ingress-repair-and-retest.md`).
 > Phase B B8's missing-E3 layer is fixed through a pure
 > `extension/src/contentIngress.ts` coordinator (closed 7-input / 5-effect
@@ -300,6 +312,38 @@
   - Every authoritative gate command exits 0. Real platforms remain
     uncharacterized for V4 network capture; B3 later adds only a NowCoder
     browse-only navigation witness.
+- V4 Phase D D1, D2, and D3 candidate engineering (commits
+  `509faf0` and the documentation-reconciled `78ac9c7` / `78ac9c73`):
+  - D1 reliability: `extension/src/{background,installation,popup,outboxDrain,transport,attemptStorage}.ts`
+    harden upgrade/restart/pause/recovery and surface a closed
+    `lastCaptureError` lifecycle (initializing → before → after → retried
+    → idempotent). The 27/27 `tests/unit/extensionV4UpgradeMatrix.test.ts`
+    matrix covers every initialization mutation boundary; the five-case
+    exact-production-dist D1-E and the four-case D1-R prove the closed
+    full chain across worker restarts, paused retries, and disabled
+    installs.
+  - D2 privacy/permission: the 35-case AST/wrapper `scripts/audit-v4-extension-privacy.mjs`
+    rejects every forbidden-key path (raw fields, body, code, headers,
+    token, account, any depth, alias and reflective handles) and
+    discovers 0 findings on the candidate sources. The 68-case focused
+    product privacy suite and the manifest/dist link check pass with
+    `0 findings`. Independent privacy review returned `APPROVE`.
+  - D3 candidate: `scripts/validate-v4-candidate.mjs` plus the 14-case
+    `tests/unit/v4CandidateValidator.test.ts` form the immutable
+    candidate gate. `CANDIDATE_ALLOWED_PATHS` (35 paths) is the explicit
+    task-owned whitelist; `GENERATED_OR_SECRET_PATH` and
+    `RAW_TRANSCRIPT_PATH` reject generated dist, secret/env files, and
+    raw transcripts; the runtime check rejects `lastCaptureError` drift
+    and stale click-runtime symbols; `database.metadata-preserved` and
+    `database.baseline-matches-before` enforce default-SQLite byte and
+    mtime equality. `--candidate <sha>` reruns the real
+    `npm run quality:gate`, parses the final Extension E2E summary from
+    its output, and replays the candidate identity post-gate.
+  - The candidate gate exits 0 with unit `2217/1`, app E2E `25/25`,
+    extension unit `1414/1414`, extension E2E `53/1`, production build
+    `20/20`, privacy audit `0 findings`, readiness `PASS`, and
+    default-database preservation confirmed. Independent D3 review
+    returned `APPROVE` with no HIGH or MEDIUM findings.
 - `/training` supports automatic and manual attempts, optimistic
   corrections, correction history, and logical voiding. Capture
   identity fields remain immutable.
@@ -388,6 +432,30 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
+- V4 Phase D D1, D2, and D3 candidate engineering are complete on
+  `feature/v1-followup`. The implementation candidate is
+  `509faf0e60532cf565a6a57aa796b96bc1053f38`
+  (`feat(v4): harden Phase D capture reliability`); the
+  documentation-reconciled HEAD is
+  `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`. D1 engineering gates
+  pass with the user-authorized D1-C disposable Chromium observation
+  recording `5/5` real-browser evidence; evidence:
+  `work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md`.
+  D2 audit and 68 focused product privacy tests pass with `0 findings`
+  after two review rounds; evidence:
+  `work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md`.
+  D3 freezes the implementation candidate under
+  `scripts/validate-v4-candidate.mjs --candidate 78ac9c73fbfe3359dab0044d82e52cc36abd7b12`
+  with the full quality gate exit `0` (unit `2217/1`, app E2E `25/25`,
+  extension unit `1414/1414`, extension E2E `53/1`, production build
+  `20/20`, privacy `0 findings`, readiness `PASS`, default-database
+  preservation confirmed). This is engineering evidence only; not RC,
+  acceptance, or release. D4 same-SHA real natural observations and
+  D5 F1-F4 still require separate user authorization. The standalone
+  Phase D plan is
+  `docs/superpowers/plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`
+  (entry gate `APPROVED`; current entry verdict and stop state in
+  §14.8 records the candidate engineering completion).
 - Phase C Task C2 is terminally `V4_BLOCKED` on 2026-08-02. Two natural
   `abc001_1` submissions were safely corroborated, and the final ready-gated
   live window proved zero retained records through a real `/submit` to
@@ -464,6 +532,7 @@ These are current implementation boundaries, not a permanent rejection of the ap
   2026-07-31 AtCoder plan closes terminally `V4_BLOCKED` with two natural
   submissions, a zero-record live observation, no network implementation, and
   the historical DOM baseline unchanged. C3 independently closes
-  `V4_BLOCKED`; C4 also closes `V4_BLOCKED` and C5 is complete. D1-D5 remain
-  sequentially gated; do not push or create a PR without explicit
-  authorization.
+  `V4_BLOCKED`; C4 also closes `V4_BLOCKED` and C5 is complete. V4 Phase D
+  D1, D2, and D3 candidate engineering are complete; D4 same-SHA real
+  observations and D5 F1-F4 still require separate authorization. Do not
+  push or create a PR without explicit authorization.

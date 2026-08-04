@@ -1,14 +1,22 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-02):** **V4 Phase C C0-C5 engineering work is complete**
-> on `feature/v1-followup`. C1 LeetCode is
-> network-`V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are
-> network-`V4_BLOCKED`; NowCoder remains network-`experimental`. C5 proves
-> cross-platform policy/identity/storage isolation and removes the reachable
-> V3 click-derived pending-intent fallback while retaining one-time legacy-key
-> cleanup and historical bundle compatibility. Historical AtCoder DOM
-> production certification is unchanged. This is not RC, acceptance, or
-> release; Phase D is the next engineering phase and requires separate scope.
+> **Status (2026-08-04):** **V4 Phase D D1/D2/D3 candidate engineering work is
+> complete** on `feature/v1-followup`. The implementation candidate is
+> `509faf0e60532cf565a6a57aa796b96bc1053f38`
+> (`feat(v4): harden Phase D capture reliability`); the documentation-reconciled
+> HEAD is `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`. The final candidate gate
+> passed `2217/1` unit, `25` app E2E, `1414` extension tests, `53/1` extension
+> E2E, production build `20/20`, zero privacy findings, and default-database
+> preservation. D1 closes upgrade/restart/pause/recovery reliability with
+> `lastCaptureError` lifecycle, D2 closes privacy/permission audit with
+> `0 findings`, and D3 freezes one immutable implementation candidate under
+> `scripts/validate-v4-candidate.mjs` with a 14-case unit suite. This is not
+> RC, acceptance, or release; D4 real same-SHA natural observations and D5
+> F1-F4 still require separate authorization. The earlier Phase C C0-C5
+> verdict remains authoritative: C1 LeetCode is network-`V4_EXPERIMENTAL`;
+> C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED`; NowCoder
+> remains network-`experimental`. Historical AtCoder DOM production
+> certification is unchanged.
 >
 > **Earlier V4 evidence (still authoritative for their own scope):**
 > V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12.
@@ -42,7 +50,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; V4 Phase D D1, D2, and D3 candidate engineering are complete (D3 freezes one immutable implementation candidate; D4/D5 remain gated). Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 
@@ -66,7 +74,7 @@ The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem s
 - `DESIGN.md` defines the quiet slate/white UI system used by app pages and panels.
 - `COMPLIANCE.md` documents local-first privacy and platform-boundary rules.
 
-`README.md`, `docs/architecture.md`, `docs/runbook.md`, and `COMPLIANCE.md` describe the current local implementation. `IDEA.md` and the roadmap describe the approved target direction, including the later hosted Public Beta; do not treat target features as already implemented. Phase C-D's readiness contract lives in `docs/architecture.md`; the terminal C1 LeetCode plan and evidence are at `docs/superpowers/plans/2026-07-30-v4-leetcode-network-capture-migration.md` and `work/reports/v4-leetcode-c1-closeout-2026-07-30.md`. The terminal C2 AtCoder blocker is documented in `work/reports/v4-atcoder-c2-blocker-2026-08-02.md`; the terminal C3 Codeforces blocker is documented in `work/reports/v4-codeforces-c3-blocker-2026-08-02.md`; the terminal C4 Luogu blocker is documented in `work/reports/v4-luogu-c4-blocker-2026-08-02.md`; and the Phase C closeout is `work/reports/v4-phase-c-c5-closeout-2026-08-02.md`.
+`README.md`, `docs/architecture.md`, `docs/runbook.md`, and `COMPLIANCE.md` describe the current local implementation. `IDEA.md` and the roadmap describe the approved target direction, including the later hosted Public Beta; do not treat target features as already implemented. Phase C-D's readiness contract lives in `docs/architecture.md`; the terminal C1 LeetCode plan and evidence are at `docs/superpowers/plans/2026-07-30-v4-leetcode-network-capture-migration.md` and `work/reports/v4-leetcode-c1-closeout-2026-07-30.md`. The terminal C2 AtCoder blocker is documented in `work/reports/v4-atcoder-c2-blocker-2026-08-02.md`; the terminal C3 Codeforces blocker is documented in `work/reports/v4-codeforces-c3-blocker-2026-08-02.md`; the terminal C4 Luogu blocker is documented in `work/reports/v4-luogu-c4-blocker-2026-08-02.md`; and the Phase C closeout is `work/reports/v4-phase-c-c5-closeout-2026-08-02.md`. The Phase D D1 reliability report is `work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md`, the D1-C disposable observation is `work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md`, and the D2 privacy/permission audit is `work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md`; the standalone Phase D plan is `docs/superpowers/plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`.
 
 ## Commands
 

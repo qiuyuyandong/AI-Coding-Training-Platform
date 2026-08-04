@@ -1,24 +1,34 @@
 # Superpowers Documentation Index
 
-> **Status (2026-08-02):** **V4 Phase C C0-C5 engineering work is complete**
-> on the uncommitted `feature/v1-followup` working tree. C1 LeetCode is
-> network-`V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are
-> network-`V4_BLOCKED`; NowCoder remains network-`experimental`. C5 proves
-> adapter ownership, namespaced identity, durable-state isolation, terminal
-> readiness coverage, and removes the reachable V3 click-derived pending
-> fallback. Historical AtCoder DOM production certification is unchanged.
-> **Phase C Task C1 LeetCode remains `V4_EXPERIMENTAL`** on the uncommitted
-> `feature/v1-followup` working
-> tree. Adapter `v4-leetcode-network-6` completed the user's same-build
-> LeetCode.cn submission `cn/739108591`, final verdict, paired API delivery,
-> and disposable SQLite projection. C1's readiness CLI, 2009 runnable unit
+> **Status (2026-08-04):** **V4 Phase D D1, D2, and D3 candidate engineering
+> work is complete** on `feature/v1-followup`. The implementation candidate
+> is `509faf0e60532cf565a6a57aa796b96bc1053f38`; the documentation-reconciled
+> HEAD is `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`. The final candidate
+> gate passed `2217/1` unit, `25` app E2E, `1414` extension tests,
+> `53/1` extension E2E, production build `20/20`, zero privacy findings,
+> readiness `PASS`, and default-database preservation. D1, D2, and D3
+> engineering output describes one immutable implementation candidate
+> under `scripts/validate-v4-candidate.mjs --candidate <sha>`; this is not
+> RC, acceptance, or release. D4 same-SHA real natural observations and
+> D5 F1-F4 still require separate authorization. The earlier **V4 Phase C
+> C0-C5 engineering work is complete** verdict remains authoritative on
+> the same branch. C1 LeetCode is network-`V4_EXPERIMENTAL`; C2 AtCoder,
+> C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED`; NowCoder remains
+> network-`experimental`. C5 proves adapter ownership, namespaced identity,
+> durable-state isolation, terminal readiness coverage, and removes the
+> reachable V3 click-derived pending fallback. Historical AtCoder DOM
+> production certification is unchanged. **Phase C Task C1 LeetCode
+> remains `V4_EXPERIMENTAL`** on the same Phase C closeout. Adapter
+> `v4-leetcode-network-6` completed the user's same-build LeetCode.cn
+> submission `cn/739108591`, final verdict, paired API delivery, and
+> disposable SQLite projection. C1's readiness CLI, 2009 runnable unit
 > tests, 25 app E2E, 1261 extension tests, 48 runnable extension E2E, and
-> production build pass; one Windows capability test and one known extension
-> harness case remain explicitly skipped. Authenticated evidence caps
-> LeetCode at experimental. Luogu Revision 3 was approved and executed; its
-> different-document submit/record observation is terminally blocked. Any
-> blocked-platform retry requires a separately reviewed browser-owned bridge
-> or platform-protocol change.
+> production build pass; one Windows capability test and one known
+> extension harness case remain explicitly skipped. Authenticated
+> evidence caps LeetCode at experimental. Luogu Revision 3 was approved
+> and executed; its different-document submit/record observation is
+> terminally blocked. Any blocked-platform retry requires a separately
+> reviewed browser-owned bridge or platform-protocol change.
 >
 > **Earlier V4 evidence (still authoritative for their own scope):**
 > V4 Phase 0 click-ingress stopgap, Phase A A0-A12, Phase B B0-B7, and
@@ -93,9 +103,19 @@ and closes terminally `V4_BLOCKED`, with evidence at
 [`../../work/reports/v4-luogu-c4-blocker-2026-08-02.md`](../../work/reports/v4-luogu-c4-blocker-2026-08-02.md).
 C5 closes Phase C isolation/scaffolding work, with evidence at
 [`../../work/reports/v4-phase-c-c5-closeout-2026-08-02.md`](../../work/reports/v4-phase-c-c5-closeout-2026-08-02.md).
-D1-D5 remain gated. Formal V0
-observation remains blocked; V0.5 stays out of scope.
-The total product target is **Phase 7 / Public Beta hosted SaaS**.
+Phase D D1, D2, and D3 candidate engineering are complete (candidate
+`509faf0e60532cf565a6a57aa796b96bc1053f38`; documentation-reconciled HEAD
+`78ac9c73fbfe3359dab0044d82e52cc36abd7b12`). D1 evidence:
+[`../../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md`](../../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md)
+and
+[`../../work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md`](../../work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md).
+D2 evidence:
+[`../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md`](../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md).
+The standalone Phase D plan is
+[`plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`](plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md).
+D4 same-SHA real observations and D5 F1-F4 still require separate
+authorization. Formal V0 observation remains blocked; V0.5 stays out of
+scope. The total product target is **Phase 7 / Public Beta hosted SaaS**.
 
 ## Completed Phase 0 records
 

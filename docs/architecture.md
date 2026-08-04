@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-08-02 (V4 Phase C C0-C5 engineering complete; C1 LeetCode experimental; C2 AtCoder, C3 Codeforces, C4 Luogu blocked; historical AtCoder DOM production unchanged)
+Last updated: 2026-08-04 (V4 Phase D D1/D2/D3 candidate engineering complete; final candidate gate `V4 candidate commit PASS` on `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`; D4/D5 still gated; the earlier Phase C C0-C5 and C1-C5 evidence and Phase C-D readiness contract remain authoritative)
 
 ## Overview
 
@@ -433,3 +433,63 @@ and verdict fallback. Upgrade initialization still reads and deletes the old
 deliverable. `tests/unit/extensionV4Isolation.test.ts` pins owner-only request
 interpretation, platform-namespaced submission IDs, durable-state isolation,
 terminal readiness coverage, and absence of synthetic Fake OJ registry claims.
+
+## Phase D reliability, privacy, and candidate freeze (2026-08-04, D1/D2/D3 engineering complete)
+
+Phase D D1, D2, and D3 candidate engineering are complete on
+`feature/v1-followup` under the standalone plan
+[`plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`](../superpowers/plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md).
+The implementation candidate is
+`509faf0e60532cf565a6a57aa796b96bc1053f38`
+(`feat(v4): harden Phase D capture reliability`); the documentation-reconciled
+HEAD is `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`. This is engineering
+evidence only, not RC, acceptance, or release.
+
+- **D1 reliability** — the upgrade/restart/pause/recovery boundary is
+  hardened in `extension/src/background.ts`,
+  `extension/src/backgroundOrchestrator.ts`,
+  `extension/src/installation.ts`,
+  `extension/src/outboxDrain.ts`,
+  `extension/src/popup.ts`,
+  `extension/src/transport.ts` (via `captureTransport.ts`), and
+  `extension/src/attemptStorage.ts`. A closed `lastCaptureError`
+  lifecycle (`initializing → before → after → retried → idempotent`) is
+  surfaced and consumed by the popup without leaking into capture state.
+  The 27/27 `tests/unit/extensionV4UpgradeMatrix.test.ts` matrix covers
+  every initialization mutation boundary; the five-case exact-production-dist
+  D1-E and the four-case D1-R prove the closed full chain across worker
+  restarts, paused retries, and disabled installs.
+  `tests/extension-e2e/capture-v4-upgrade.spec.ts` exercises the
+  same-build chain end-to-end. Evidence:
+  [`../../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md`](../../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md)
+  and the user-authorized disposable Chromium observation
+  [`../../work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md`](../../work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md).
+- **D2 privacy/permission** — `scripts/audit-v4-extension-privacy.mjs`
+  is a 35-case AST/wrapper audit that rejects every forbidden-key path
+  (raw fields, body, code, headers, token, account, any depth, alias and
+  reflective handles). It discovers 0 findings on the candidate sources.
+  The 68-case focused product privacy suite
+  (`tests/unit/v4ExtensionPrivacyAudit.test.ts`) and the manifest/dist
+  link check pass with `0 findings`. Independent privacy review returned
+  `APPROVE`. Evidence:
+  [`../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md`](../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md).
+- **D3 candidate freeze** — `scripts/validate-v4-candidate.mjs` and the
+  14-case `tests/unit/v4CandidateValidator.test.ts` form the immutable
+  candidate gate. `CANDIDATE_ALLOWED_PATHS` (35 paths) is the explicit
+  task-owned whitelist; `GENERATED_OR_SECRET_PATH` and
+  `RAW_TRANSCRIPT_PATH` reject generated dist, secret/env files, and raw
+  transcripts; the runtime check rejects `lastCaptureError` drift and
+  stale click-runtime symbols; `database.metadata-preserved` and
+  `database.baseline-matches-before` enforce default-SQLite byte and
+  mtime equality. `--candidate <sha>` reruns the real
+  `npm run quality:gate`, parses the final Extension E2E summary from
+  its output, and replays the candidate identity post-gate. The final
+  gate exits 0 with unit `2217/1`, app E2E `25/25`, extension unit
+  `1414/1414`, extension E2E `53/1`, production build `20/20`, privacy
+  `0 findings`, readiness `PASS`, and default-database preservation
+  confirmed. Independent D3 review returned `APPROVE` with no HIGH or
+  MEDIUM findings.
+
+D4 same-SHA real natural observations and D5 F1-F4 still require separate
+authorization. The candidate is not pushed, not a PR, and is not RC,
+acceptance, or release.
