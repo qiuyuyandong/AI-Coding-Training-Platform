@@ -1391,6 +1391,7 @@ function ignoredCaptureEffects(state: OrchestratorState): OrchestratorEffects {
       ambiguityDiagnostics: [],
     },
     executorSchedule: [],
+    verdictCandidateResolutions: [],
   };
 }
 

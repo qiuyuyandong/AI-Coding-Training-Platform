@@ -29,6 +29,7 @@ import type {
 import type { CorrelatedCaptureResult, RejectedCaptureResult } from "@/extension/src/captureStateMachine";
 import type { MainBridgeSummary } from "@/extension/src/submissionCorrelator";
 import type { ExtensionInitializationStorageSplit } from "@/extension/src/installation";
+import type { TransientVerdictCandidate } from "@/extension/src/transientEvidenceStorage";
 import { UI_HINT_TTL_MS } from "@/extension/src/uiHint";
 
 // ---------------------------------------------------------------------------
@@ -2258,5 +2259,371 @@ describe("background.ts expireCaptureUiHints alarm wiring", () => {
     expect(reestablished).toBeDefined();
     expect(reestablished?.name).toBe("expireCaptureUiHints");
     expect(reestablished?.periodInMinutes).toBe(1);
+  });
+});
+
+describe("verdict candidate orchestration (Task 5)", () => {
+  const candidateNow = "2026-08-06T11:22:00.000Z";
+
+  const verdictCandidate = (overrides: Partial<TransientVerdictCandidate> = {}): TransientVerdictCandidate => ({
+    schemaVersion: 1,
+    tier: "E3",
+    kind: "verdict_candidate",
+    candidateId: "candidate_flow_1",
+    platform: "leetcode",
+    problemExternalId: "two-sum",
+    verdict: "Accepted",
+    observedAt: "2026-08-06T11:21:00.000Z",
+    tabId: 1,
+    frameId: 0,
+    documentId: "doc_e1",
+    transitionEvidence: "same_document_transition",
+    receivedAt: "2026-08-06T11:20:30.000Z",
+    ...overrides,
+  });
+
+  const candidateE1 = (): E1RequestObserved => ({
+    ...baseE1,
+    evidenceId: "e1_leetcode_840",
+    receivedAt: "2026-08-06T11:20:01.000Z",
+    apiTimeStamp: 1000.5,
+    requestId: "request_840",
+    endpointKey: "leetcode/submit/cn/two-sum",
+    statusCode: 200,
+  });
+
+  const candidateE1Check = (): E1RequestObserved => ({
+    ...baseE1,
+    evidenceId: "e1_leetcode_841",
+    receivedAt: "2026-08-06T11:20:02.500Z",
+    apiTimeStamp: 1001.5,
+    requestId: "request_841",
+    method: "GET",
+    endpointKey: "leetcode/check/cn/920",
+    statusCode: 200,
+  });
+
+  const candidateE2 = (): E2SubmissionConfirmed => ({
+    schemaVersion: 1,
+    evidenceId: "e2_leetcode_cn_920",
+    platform: "leetcode",
+    tier: "E2",
+    kind: "submission_confirmed",
+    receivedAt: "2026-08-06T11:20:02.500Z",
+    tabId: 1,
+    frameId: 0,
+    documentId: "doc_e1",
+    adapterVersion: "v4-leetcode-network-6",
+    requestEvidenceId: "e1_leetcode_841",
+    externalSubmissionId: "cn/920",
+    problemExternalId: "two-sum",
+    phase: "judging",
+  });
+
+  const candidateE3 = (): E3FinalVerdictConfirmed => ({
+    schemaVersion: 1,
+    evidenceId: "e3_leetcode_cn_920",
+    platform: "leetcode",
+    tier: "E3",
+    kind: "final_verdict_confirmed",
+    receivedAt: "2026-08-06T11:21:00.000Z",
+    tabId: 1,
+    frameId: 0,
+    documentId: "doc_e1",
+    adapterVersion: "v4-leetcode-network-6",
+    externalSubmissionId: "cn/920",
+    problemExternalId: "two-sum",
+    verdict: "Accepted",
+  });
+
+  async function installWithLifecycles(
+    storage: ExtensionInitializationStorageSplit,
+    now: string,
+  ): Promise<ReturnType<typeof createBackgroundOrchestrator>> {
+    const orchestrator = createBackgroundOrchestrator(orchestratorDeps(storage, now));
+    const installEffects = await orchestrator.install();
+    await applyEffectsToStorage(storage, installEffects);
+    return orchestrator;
+  }
+
+  async function recordLifecyclePair(
+    storage: ExtensionInitializationStorageSplit,
+    orchestrator: ReturnType<typeof createBackgroundOrchestrator>,
+  ): Promise<void> {
+    for (const evidence of [candidateE1(), candidateE1Check()]) {
+      const effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffectsToStorage(storage, effects);
+    }
+  }
+
+  it("candidate-only event changes session state but not waiting/outbox", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const effects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate(),
+    });
+    await applyEffectsToStorage(storage, effects);
+    expect(effects.verdictCandidateResolutions).toEqual([]);
+    expect(effects.state.waitingCount).toBe(0);
+    expect(effects.state.outboxCount).toBe(0);
+    expect(effects.persistence.verdictCandidates).toHaveLength(1);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toHaveLength(1);
+  });
+
+  it("E2 event returns one resolution for the matching candidate", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate(),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    const effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: candidateE2(),
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, effects);
+    expect(effects.verdictCandidateResolutions).toHaveLength(1);
+    const resolution = effects.verdictCandidateResolutions[0];
+    if (resolution === undefined) throw new Error("resolution missing");
+    expect(resolution.candidateId).toBe("candidate_flow_1");
+    expect(resolution.externalSubmissionId).toBe("cn/920");
+    expect(resolution.problemExternalId).toBe("two-sum");
+    expect(resolution.verdict).toBe("Accepted");
+    expect(effects.persistence.confirmed).toHaveLength(1);
+  });
+
+  it("E2 event does not resolve unrelated candidates", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate({ candidateId: "candidate_other", problemExternalId: "reverse-integer" }),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    const effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: candidateE2(),
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, effects);
+    expect(effects.verdictCandidateResolutions).toEqual([]);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toHaveLength(1);
+  });
+
+  it("successful E3 consumes candidate and confirmed record", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate(),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: candidateE2(),
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, e2Effects);
+    const resolution = e2Effects.verdictCandidateResolutions[0];
+    if (resolution === undefined) throw new Error("resolution missing");
+    const effects = await orchestrator.apply({
+      kind: "e3_recorded",
+      evidence: candidateE3(),
+      candidateId: resolution.candidateId,
+    });
+    await applyEffectsToStorage(storage, effects);
+    expect(effects.persistence.outbox).toHaveLength(1);
+    expect(effects.persistence.confirmed).toEqual([]);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toEqual([]);
+  });
+
+  it("successful E3 adds one tombstone and one outbox item", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate(),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: candidateE2(),
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, e2Effects);
+    const resolution = e2Effects.verdictCandidateResolutions[0];
+    if (resolution === undefined) throw new Error("resolution missing");
+    const effects = await orchestrator.apply({
+      kind: "e3_recorded",
+      evidence: candidateE3(),
+      candidateId: resolution.candidateId,
+    });
+    await applyEffectsToStorage(storage, effects);
+    expect(effects.persistence.tombstones).toHaveLength(1);
+    expect(effects.persistence.outbox).toHaveLength(1);
+  });
+
+  it("duplicate E3 creates no second bundle", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate(),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: candidateE2(),
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, e2Effects);
+    const resolution = e2Effects.verdictCandidateResolutions[0];
+    if (resolution === undefined) throw new Error("resolution missing");
+    const first = await orchestrator.apply({
+      kind: "e3_recorded",
+      evidence: candidateE3(),
+      candidateId: resolution.candidateId,
+    });
+    await applyEffectsToStorage(storage, first);
+    const duplicate = await orchestrator.apply({
+      kind: "e3_recorded",
+      evidence: candidateE3(),
+      candidateId: resolution.candidateId,
+    });
+    await applyEffectsToStorage(storage, duplicate);
+    expect(first.persistence.outbox).toHaveLength(1);
+    expect(duplicate.persistence.outbox).toEqual([]);
+    expect(duplicate.persistence.tombstones).toEqual([]);
+    const durable = await storage.local.get(["captureOutbox"]);
+    expect(durable.captureOutbox).toHaveLength(1);
+    const durables = await storage.local.get(["confirmedSubmissions"]);
+    expect(durables.confirmedSubmissions).toEqual([]);
+  });
+
+  it("restart/install re-emits a recoverable resolution", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate(),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: candidateE2(),
+      matchedSubmitRequestId: "request_840",
+    });
+    // Simulate a worker stop before the E3 was applied: the durable
+    // confirmed record exists, the candidate was consumed by the resolution,
+    // so nothing is left to reconcile.
+    await applyEffectsToStorage(storage, e2Effects);
+    const restarted = createBackgroundOrchestrator(orchestratorDeps(storage, candidateNow));
+    const effects = await restarted.install();
+    await applyEffectsToStorage(storage, effects);
+    expect(effects.verdictCandidateResolutions).toEqual([]);
+    expect(effects.persistence.verdictCandidates).toEqual([]);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toEqual([]);
+  });
+
+  it("terminal chronology removes only the offending candidate", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate({
+        candidateId: "candidate_late",
+        observedAt: "2026-08-06T11:20:01.000Z",
+      }),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    expect(candidateEffects.verdictCandidateResolutions).toEqual([]);
+    const effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: candidateE2(),
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, effects);
+    expect(effects.verdictCandidateResolutions).toEqual([]);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toEqual([]);
+  });
+
+  it("two candidates do not overwrite one another", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    const first = verdictCandidate();
+    const second = verdictCandidate({
+      candidateId: "candidate_flow_2",
+      receivedAt: "2026-08-06T11:20:40.000Z",
+    });
+    for (const candidate of [first, second]) {
+      const effects = await orchestrator.apply({
+        kind: "verdict_candidate_recorded",
+        candidate,
+      });
+      await applyEffectsToStorage(storage, effects);
+    }
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toHaveLength(2);
+  });
+
+  it("all writes remain routed through orchestrator persistence", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const effects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate(),
+    });
+    await applyEffectsToStorage(storage, effects);
+    const local = await storage.local.get(["lastCaptureError"]);
+    expect(local.lastCaptureError).toBeUndefined();
+    expect(effects.persistence.session).toHaveLength(1);
+    const writeLog = storage.writeLog.filter(
+      (write) => write.area === "session" && write.operation === "set",
+    );
+    expect(writeLog.some((write) => write.keys.includes("transientVerdictCandidates"))).toBe(true);
   });
 });
