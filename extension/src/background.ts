@@ -740,7 +740,6 @@ async function applyLeetCodeCheckConfirmation(details: WebRequestDetails): Promi
   const confirmation = selectLeetCodeConfirmation({
     checkEvidence: checkLifecycle.evidence,
     submitCandidates,
-    now: new Date().toISOString(),
   });
   if (confirmation.kind !== "confirmed") return;
   await applyOrchestratorEvent({
@@ -782,7 +781,6 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
     resultEvidence: resultLifecycle.evidence,
     graphqlCandidates,
     problemCandidates,
-    now: new Date().toISOString(),
   });
   if (confirmation.kind !== "confirmed") return;
   await applyOrchestratorEvent({

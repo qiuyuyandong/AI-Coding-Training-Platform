@@ -81,7 +81,6 @@ export type LeetCodeEndpointDiagnosticInput = Readonly<{
 export type LeetCodeConfirmationInput = Readonly<{
   checkEvidence: E1RequestObserved;
   submitCandidates: readonly E1RequestObserved[];
-  now: string;
 }>;
 
 export type LeetCodeProblemCandidate = Readonly<{
@@ -97,7 +96,6 @@ export type LeetCodeResultConfirmationInput = Readonly<{
   resultEvidence: E1RequestObserved;
   graphqlCandidates: readonly E1RequestObserved[];
   problemCandidates: readonly LeetCodeProblemCandidate[];
-  now: string;
 }>;
 
 export type LeetCodeConfirmationResult =
@@ -288,7 +286,7 @@ export function selectLeetCodeConfirmation(
     platform: "leetcode",
     tier: "E2",
     kind: "submission_confirmed",
-    receivedAt: input.now,
+    receivedAt: check.receivedAt,
     tabId: check.tabId,
     frameId: check.frameId,
     documentId: check.documentId,
@@ -386,7 +384,7 @@ export function selectLeetCodeResultConfirmation(
     platform: "leetcode",
     tier: "E2",
     kind: "submission_confirmed",
-    receivedAt: input.now,
+    receivedAt: result.receivedAt,
     tabId: result.tabId,
     frameId: result.frameId,
     documentId: result.documentId,
@@ -455,28 +453,24 @@ function submissionEvidence(input: unknown): unknown {
     const resultEvidence = Reflect.get(input, "resultEvidence");
     const graphqlCandidates = Reflect.get(input, "graphqlCandidates");
     const problemCandidates = Reflect.get(input, "problemCandidates");
-    const now = readString(input, "now");
     if (!isLeetCodeE1(resultEvidence)
       || !Array.isArray(graphqlCandidates)
       || !graphqlCandidates.every(isLeetCodeE1)
       || !Array.isArray(problemCandidates)
-      || !problemCandidates.every(isLeetCodeProblemCandidate)
-      || now === null) return null;
+      || !problemCandidates.every(isLeetCodeProblemCandidate)) return null;
     const result = selectLeetCodeResultConfirmation({
       resultEvidence,
       graphqlCandidates,
       problemCandidates,
-      now,
     });
     return result.kind === "confirmed" ? result.evidence : null;
   }
   if (Reflect.get(input, "kind") !== "confirmation") return null;
   const checkEvidence = Reflect.get(input, "checkEvidence");
   const submitCandidates = Reflect.get(input, "submitCandidates");
-  const now = readString(input, "now");
   if (!isLeetCodeE1(checkEvidence) || !Array.isArray(submitCandidates)
-    || !submitCandidates.every(isLeetCodeE1) || now === null) return null;
-  const result = selectLeetCodeConfirmation({ checkEvidence, submitCandidates, now });
+    || !submitCandidates.every(isLeetCodeE1)) return null;
+  const result = selectLeetCodeConfirmation({ checkEvidence, submitCandidates });
   return result.kind === "confirmed" ? result.evidence : null;
 }
 
