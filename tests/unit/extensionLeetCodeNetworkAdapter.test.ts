@@ -411,6 +411,27 @@ describe("LeetCode E2 confirmation policy", () => {
       now: NOW,
     })).toMatchObject({ kind: "no_match", reason: "expired_submit" });
   });
+
+  it("RED: preserves the check evidence time as E2 receivedAt (executor clock must not leak in)", () => {
+    const result = selectLeetCodeConfirmation({
+      checkEvidence: check({
+        receivedAt: "2026-08-06T11:20:02.500Z",
+        evidenceId: "e1_leetcode_841",
+        requestId: "841",
+      }),
+      submitCandidates: [submit({
+        receivedAt: "2026-08-06T11:20:00.000Z",
+        evidenceId: "e1_leetcode_840",
+        requestId: "840",
+      })],
+      now: "2026-08-06T11:20:03.065Z",
+    });
+    expect(result.kind).toBe("confirmed");
+    if (result.kind === "confirmed") {
+      expect(result.evidence.receivedAt).toBe("2026-08-06T11:20:02.500Z");
+      expect(result.evidence.receivedAt).not.toBe("2026-08-06T11:20:03.065Z");
+    }
+  });
 });
 
 describe("LeetCode GraphQL result E2 confirmation policy", () => {
@@ -496,6 +517,27 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
       problemCandidates: [problemHint()],
       now: NOW,
     })).toMatchObject({ kind: "no_match", reason: "invalid_result_evidence" });
+  });
+
+  it("RED: preserves the result evidence time as E2 receivedAt (executor clock must not leak in)", () => {
+    const result = selectLeetCodeResultConfirmation({
+      resultEvidence: result({
+        receivedAt: "2026-08-06T11:20:02.500Z",
+      }),
+      graphqlCandidates: [graphql({
+        receivedAt: "2026-08-06T11:20:02.200Z",
+        requestId: "graphql-841",
+      })],
+      problemCandidates: [problemHint({
+        observedAt: "2026-08-06T11:20:02.000Z",
+      })],
+      now: "2026-08-06T11:20:03.065Z",
+    });
+    expect(result.kind).toBe("confirmed");
+    if (result.kind === "confirmed") {
+      expect(result.evidence.receivedAt).toBe("2026-08-06T11:20:02.500Z");
+      expect(result.evidence.receivedAt).not.toBe("2026-08-06T11:20:03.065Z");
+    }
   });
 
   it("exposes the modern confirmation through the policy without accepting forbidden fields", () => {
