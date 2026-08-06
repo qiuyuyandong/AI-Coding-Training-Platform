@@ -541,7 +541,7 @@ describe("applyExtensionInitializationSplit", () => {
     await spy.local.set(existing);
     await spy.session.set({
       uiHints: [], transientE1: [], transientPageContexts: [],
-      transientUnmatchedE3: [], transientAmbiguityDiagnostics: [],
+      transientUnmatchedE3: [], transientVerdictCandidates: [], transientAmbiguityDiagnostics: [],
     });
     spy.localSpy.writes.length = 0;
     spy.sessionSpy.writes.length = 0;

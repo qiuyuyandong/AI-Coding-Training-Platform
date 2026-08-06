@@ -35,12 +35,8 @@ import {
   LEETCODE_CHECK_ENDPOINT_PREFIX,
   LEETCODE_SUBMIT_ENDPOINT_PREFIX,
 } from "@/extension/src/adapters/leetcode/network";
-import {
-  reconcileVerdictCandidates,
-  type VerdictCandidateResolution,
-} from "@/extension/src/verdictCandidateCoordinator";
+import type { VerdictCandidateResolution } from "@/extension/src/verdictCandidateCoordinator";
 import type {
-  TransientE1Lifecycle,
   TransientVerdictCandidate,
 } from "@/extension/src/transientEvidenceStorage";
 import type { E1RequestObserved, E2SubmissionConfirmed } from "@/extension/src/evidence";
@@ -74,20 +70,6 @@ function lifecycle(
     lifecycle: "completed",
     apiTimeStamp: 1000.5,
     statusCode: 200,
-    ...overrides,
-  };
-}
-
-function submitLifecycle(overrides: Partial<TransientE1Lifecycle> = {}): TransientE1Lifecycle {
-  return {
-    schemaVersion: 1,
-    tier: "E1",
-    kind: "request_lifecycle",
-    evidence: lifecycle(),
-    outcome: "pending",
-    stableSubmissionId: null,
-    rejectionReason: null,
-    receivedAt: SUBMIT_TIME,
     ...overrides,
   };
 }
@@ -250,6 +232,22 @@ describe("verdict candidate flow", () => {
     });
     await applyEffects(storage, second);
 
+    // The confirmation (check/result) E1 lifecycle is also present.
+    const confirmation = await orchestrator.apply({
+      kind: "e1_recorded",
+      evidence: lifecycle({
+        evidenceId: "e1_leetcode_841",
+        requestId: "841",
+        method: "GET",
+        endpointKey: `${LEETCODE_CHECK_ENDPOINT_PREFIX}/cn/${SUBMISSION_ID}`,
+      }),
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+      adapterVersion: "v4-leetcode-network-6",
+    });
+    await applyEffects(storage, confirmation);
+
     // E2 arrives (network evidence time 11:20:02.500, NOT executor 11:20:03.065).
     const third = await orchestrator.apply({
       kind: "e2_recorded",
@@ -288,6 +286,25 @@ describe("verdict candidate flow", () => {
       now: () => EXECUTOR_TIME,
       flushOutbox: async (): Promise<void> => undefined,
     });
+    for (const record of [
+      lifecycle(),
+      lifecycle({
+        evidenceId: "e1_leetcode_841",
+        requestId: "841",
+        method: "GET",
+        endpointKey: `${LEETCODE_CHECK_ENDPOINT_PREFIX}/cn/${SUBMISSION_ID}`,
+      }),
+    ]) {
+      const events = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence: record,
+        tabId: 7,
+        frameId: 0,
+        documentId: DOCUMENT_ID,
+        adapterVersion: "v4-leetcode-network-6",
+      });
+      await applyEffects(storage, events);
+    }
     const effects = await orchestrator.apply({
       kind: "e2_recorded",
       evidence: confirmedE2({ receivedAt: NETWORK_TIME }),

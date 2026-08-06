@@ -81,6 +81,7 @@ import {
   type TransientPageContext,
   type TransientSessionEvidenceState,
   type TransientUnmatchedFinal,
+  type TransientVerdictCandidate,
 } from "./transientEvidenceStorage";
 import {
   extensionInitializationLocalStorage,
@@ -124,6 +125,7 @@ const SESSION_KEYS = [
   "transientE1",
   "transientPageContexts",
   "transientUnmatchedE3",
+  "transientVerdictCandidates",
   "transientAmbiguityDiagnostics",
 ] as const;
 
@@ -224,6 +226,7 @@ export type OrchestratorPersistence = Readonly<{
   readonly transientE1: ReadonlyArray<TransientE1Lifecycle>;
   readonly pageContexts: ReadonlyArray<TransientPageContext>;
   readonly unmatchedFinals: ReadonlyArray<TransientUnmatchedFinal>;
+  readonly verdictCandidates: ReadonlyArray<TransientVerdictCandidate>;
   readonly ambiguityDiagnostics: ReadonlyArray<TransientAmbiguityDiagnostic>;
 }>;
 
@@ -1333,6 +1336,7 @@ export function createBackgroundOrchestrator(
         transientE1: pruned.requestLifecycles,
         pageContexts: pruned.pageContexts,
         unmatchedFinals: pruned.unmatchedE3,
+        verdictCandidates: pruned.verdictCandidates,
         ambiguityDiagnostics: pruned.ambiguityDiagnostics,
       }),
       executorSchedule,
@@ -1378,6 +1382,7 @@ export function createBackgroundOrchestrator(
         transientE1: readTransientSessionEvidenceState(nextSession).requestLifecycles,
         pageContexts: readTransientSessionEvidenceState(nextSession).pageContexts,
         unmatchedFinals: readTransientSessionEvidenceState(nextSession).unmatchedE3,
+        verdictCandidates: readTransientSessionEvidenceState(nextSession).verdictCandidates,
         ambiguityDiagnostics: readTransientSessionEvidenceState(nextSession).ambiguityDiagnostics,
       }),
       executorSchedule,
@@ -1419,6 +1424,7 @@ export function createBackgroundOrchestrator(
         transientE1: pruned.requestLifecycles,
         pageContexts: pruned.pageContexts,
         unmatchedFinals: pruned.unmatchedE3,
+        verdictCandidates: pruned.verdictCandidates,
         ambiguityDiagnostics: pruned.ambiguityDiagnostics,
       }),
       executorSchedule: [],
@@ -1443,6 +1449,7 @@ function transientStateAsStorage(state: TransientSessionEvidenceState): Record<s
     transientE1: state.requestLifecycles,
     transientPageContexts: state.pageContexts,
     transientUnmatchedE3: state.unmatchedE3,
+    transientVerdictCandidates: state.verdictCandidates,
     transientAmbiguityDiagnostics: state.ambiguityDiagnostics,
   };
 }
@@ -1548,6 +1555,7 @@ function diffPrunedSession(
     ["requestLifecycles", "transientE1"],
     ["pageContexts", "transientPageContexts"],
     ["unmatchedE3", "transientUnmatchedE3"],
+    ["verdictCandidates", "transientVerdictCandidates"],
     ["ambiguityDiagnostics", "transientAmbiguityDiagnostics"],
   ];
   const sessionWrites: Array<{ key: string; value: unknown }> = [];

@@ -217,6 +217,7 @@ export function extensionInitializationSessionStorage(
     transientE1: plan.transientSessionEvidence.requestLifecycles,
     transientPageContexts: plan.transientSessionEvidence.pageContexts,
     transientUnmatchedE3: plan.transientSessionEvidence.unmatchedE3,
+    transientVerdictCandidates: plan.transientSessionEvidence.verdictCandidates,
     transientAmbiguityDiagnostics: plan.transientSessionEvidence.ambiguityDiagnostics,
   };
 }
@@ -260,6 +261,7 @@ export const SESSION_INITIALIZATION_KEYS: readonly string[] = [
   "transientE1",
   "transientPageContexts",
   "transientUnmatchedE3",
+  "transientVerdictCandidates",
   "transientAmbiguityDiagnostics",
 ];
 

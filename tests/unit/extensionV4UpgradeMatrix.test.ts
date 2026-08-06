@@ -348,7 +348,7 @@ function semanticSnapshot(snapshot: ReturnType<StorageHarness["snapshot"]>): {
   readonly session: Record<string, unknown>;
 } {
   const session = clone(snapshot.session);
-  for (const key of ["uiHints", "transientE1", "transientPageContexts", "transientUnmatchedE3", "transientAmbiguityDiagnostics"]) {
+  for (const key of ["uiHints", "transientE1", "transientPageContexts", "transientUnmatchedE3", "transientVerdictCandidates", "transientAmbiguityDiagnostics"]) {
     if (Array.isArray(session[key]) && session[key].length === 0) delete session[key];
   }
   return { local: clone(snapshot.local), session };
@@ -764,6 +764,7 @@ describe("Phase D D1 V4 upgrade matrix", () => {
       transientE1: [],
       pageContexts: [],
       unmatchedFinals: [],
+      verdictCandidates: [],
       ambiguityDiagnostics: [],
     });
 

@@ -65,6 +65,7 @@ import {
   AMBIGUITY_TTL_MS,
   E1_LIFECYCLE_TTL_MS,
   UNMATCHED_E3_TTL_MS,
+  VERDICT_CANDIDATE_TTL_MS,
   type TransientSessionEvidenceState,
 } from "./transientEvidenceStorage";
 import {
@@ -299,6 +300,7 @@ const PRUNE_DEADLINE_KEYS = [
   "uiHints",
   "transientE1",
   "transientUnmatchedE3",
+  "transientVerdictCandidates",
   "transientAmbiguityDiagnostics",
 ] as const;
 
@@ -329,6 +331,10 @@ function nextSessionPruneDeadline(
     const ms = Date.parse(unmatched.receivedAt) + UNMATCHED_E3_TTL_MS;
     if (Number.isFinite(ms) && ms > nowMs && ms < earliest) earliest = ms;
   }
+  for (const candidate of state.verdictCandidates) {
+    const ms = Date.parse(candidate.receivedAt) + VERDICT_CANDIDATE_TTL_MS;
+    if (Number.isFinite(ms) && ms > nowMs && ms < earliest) earliest = ms;
+  }
   for (const diagnostic of state.ambiguityDiagnostics) {
     const ms = Date.parse(diagnostic.receivedAt) + AMBIGUITY_TTL_MS;
     if (Number.isFinite(ms) && ms > nowMs && ms < earliest) earliest = ms;
@@ -345,6 +351,7 @@ function persistenceAsTransientState(
     requestLifecycles: persistence.transientE1,
     pageContexts: persistence.pageContexts,
     unmatchedE3: persistence.unmatchedFinals,
+    verdictCandidates: persistence.verdictCandidates,
     ambiguityDiagnostics: persistence.ambiguityDiagnostics,
   };
 }
@@ -1380,6 +1387,7 @@ function ignoredCaptureEffects(state: OrchestratorState): OrchestratorEffects {
       transientE1: [],
       pageContexts: [],
       unmatchedFinals: [],
+      verdictCandidates: [],
       ambiguityDiagnostics: [],
     },
     executorSchedule: [],
