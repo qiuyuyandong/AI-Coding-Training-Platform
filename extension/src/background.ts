@@ -2,6 +2,9 @@ import {
   isVerdictCandidateMessage,
 } from "./attemptCapture";
 import {
+  safeStoredCaptureError,
+} from "./captureErrorPrivacy";
+import {
   postCaptureAttemptBundle,
 } from "./captureTransport";
 import {
@@ -86,6 +89,8 @@ import {
   normalizeLeetCodeProblemIdentity,
   selectLeetCodeConfirmation,
   selectLeetCodeResultConfirmation,
+  shouldRetryLeetCodeVerdictCandidate,
+  storageChangeRevivesVerdictCandidate,
 } from "./adapters/leetcode/network";
 import {
   NOWCODER_NETWORK_POLICY,
@@ -132,14 +137,27 @@ const INGRESS_DIAGNOSTIC_KEY = "contentIngressDiagnostics";
 const INGRESS_DIAGNOSTIC_LIMIT = 20;
 const INGRESS_READY_KEY = "contentIngressReady";
 const INGRESS_READY_LIMIT = 20;
+const VERDICT_CANDIDATE_RETRY_DELAY_MS = 500;
+const MAX_VERDICT_CANDIDATE_RETRY_ATTEMPTS = 40;
 let activeOutboxFlush: Promise<void> | undefined;
 let cachedSnapshot: OrchestratorState | undefined;
 let ingressState: IngressCoordinatorState = INITIAL_INGRESS_STATE;
+let pendingVerdictCandidateRecheck: (() => Promise<void>) | undefined;
 const characterizationClock = (): string => new Date().toISOString();
 
 chrome.storage.onChanged?.addListener((changes, areaName) => {
-  if (areaName === "local" && Object.hasOwn(changes, "captureEnabled")) {
+  if (areaName !== "local") return;
+  if (Object.hasOwn(changes, "captureEnabled")) {
     cachedSnapshot = undefined;
+  }
+  // Event-driven revival: the E2 confirmation for a pending verdict candidate
+  // is written by a later serialized executor stage than the stage that reads
+  // candidate state. A bounded poll also exists, but the storage change is
+  // the authoritative signal that a confirmed submission is now visible.
+  if (storageChangeRevivesVerdictCandidate(changes) && pendingVerdictCandidateRecheck !== undefined) {
+    const recheck = pendingVerdictCandidateRecheck;
+    pendingVerdictCandidateRecheck = undefined;
+    executor.schedule(recheck);
   }
 });
 
@@ -1082,36 +1100,47 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return false;
   }
   if (isVerdictCandidateMessage(message)) {
-    executor.schedule(async () => {
-      if (await blocksCharacterizationProductionIngress(message.candidate.platform, characterizationController)) return;
-      if (message.candidate.platform === "nowcoder"
-        && typeof sender.tab?.url === "string"
-        && typeof sender.tab.id === "number"
-        && typeof sender.frameId === "number"
-        && typeof sender.documentId === "string") {
+    const candidate = message.candidate;
+    const senderTabUrl = typeof sender.tab?.url === "string" ? sender.tab.url : undefined;
+    const senderTabId = typeof sender.tab?.id === "number" ? sender.tab.id : undefined;
+    const senderFrameId = typeof sender.frameId === "number" ? sender.frameId : undefined;
+    const senderDocumentId = typeof sender.documentId === "string" ? sender.documentId : undefined;
+
+    // A single attempt at adapter-owned E3 evidence. Returns true only when
+    // the failure is a confirmed-submission race that may be retried (the
+    // E2 confirmation is written by a later serialized executor stage than
+    // the stage that reads candidate state). Every other failure is terminal.
+    const tryOnce = async (): Promise<boolean> => {
+      if (await blocksCharacterizationProductionIngress(candidate.platform, characterizationController)) return false;
+      if (candidate.platform === "nowcoder"
+        && senderTabUrl !== undefined
+        && senderTabId !== undefined
+        && senderFrameId !== undefined
+        && senderDocumentId !== undefined) {
         const e3 = NOWCODER_NETWORK_POLICY.verdictEvidence({
           kind: "verdict",
-          pageUrl: sender.tab.url,
-          problemExternalId: message.candidate.problemExternalId,
-          verdictText: message.candidate.verdict,
-          tabId: sender.tab.id,
-          frameId: sender.frameId,
-          documentId: sender.documentId,
-          receivedAt: message.candidate.observedAt,
+          pageUrl: senderTabUrl,
+          problemExternalId: candidate.problemExternalId,
+          verdictText: candidate.verdict,
+          tabId: senderTabId,
+          frameId: senderFrameId,
+          documentId: senderDocumentId,
+          receivedAt: candidate.observedAt,
         });
         if (e3?.kind === "final_verdict_confirmed") {
           await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3 });
-          return;
+          return false;
         }
+        return false;
       }
-      if (message.candidate.platform === "leetcode"
-        && typeof sender.tab?.url === "string"
-        && typeof sender.tab.id === "number"
-        && typeof sender.frameId === "number"
-        && typeof sender.documentId === "string") {
+      if (candidate.platform === "leetcode"
+        && senderTabUrl !== undefined
+        && senderTabId !== undefined
+        && senderFrameId !== undefined
+        && senderDocumentId !== undefined) {
         const problemIdentity = normalizeLeetCodeProblemIdentity(
-          sender.tab.url,
-          message.candidate.problemExternalId,
+          senderTabUrl,
+          candidate.problemExternalId,
         );
         if (problemIdentity !== null) {
           const stored = await trustedLocalStorage.get(["confirmedSubmissions"]);
@@ -1123,25 +1152,62 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
             .map((record) => record.externalSubmissionId);
           const e3 = LEETCODE_NETWORK_POLICY.verdictEvidence({
             kind: "verdict",
-            pageUrl: sender.tab.url,
-            problemExternalId: message.candidate.problemExternalId,
-            verdictText: message.candidate.verdict,
+            pageUrl: senderTabUrl,
+            problemExternalId: candidate.problemExternalId,
+            verdictText: candidate.verdict,
             confirmedSubmissionIds,
-            tabId: sender.tab.id,
-            frameId: sender.frameId,
-            documentId: sender.documentId,
-            receivedAt: message.candidate.observedAt,
+            tabId: senderTabId,
+            frameId: senderFrameId,
+            documentId: senderDocumentId,
+            receivedAt: candidate.observedAt,
           });
           if (e3?.kind === "final_verdict_confirmed") {
             await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3 });
-            return;
+            return false;
           }
+          return shouldRetryLeetCodeVerdictCandidate(confirmedSubmissionIds);
         }
       }
       // Unsupported DOM candidates are intentionally dropped. Only an
       // adapter-owned V4 verdict policy may turn a candidate into E3; the
       // removed fallback used click-derived V3 pending intent.
-    });
+      return false;
+    };
+
+    let attempts = 0;
+    const recheck = async (): Promise<void> => {
+      executor.schedule(attempt);
+    };
+    const attempt = async (): Promise<void> => {
+      attempts += 1;
+      const shouldRetry = await tryOnce();
+      if (!shouldRetry) {
+        if (pendingVerdictCandidateRecheck === recheck) pendingVerdictCandidateRecheck = undefined;
+        return;
+      }
+      if (attempts < MAX_VERDICT_CANDIDATE_RETRY_ATTEMPTS) {
+        // Delayed re-entry into the serialized executor: sleeping inside the
+        // current task would block the E2 confirmation stages this retry
+        // depends on. Each retry re-reads confirmed submissions from storage.
+        setTimeout(() => {
+          executor.schedule(attempt);
+        }, VERDICT_CANDIDATE_RETRY_DELAY_MS);
+        return;
+      }
+      // Poll window exhausted: record the closed diagnostic, but stay armed so
+      // a late E2 confirmation written after the window can still revive the
+      // attempt via the storage-change listener below. The service-worker
+      // lifetime bounds the wait; a stale candidate can never fabricate E3.
+      if (candidate.platform === "leetcode") {
+        const reason = `verdict candidate unconfirmed: leetcode:${candidate.problemExternalId}`;
+        const safe = safeStoredCaptureError(reason);
+        if (safe !== undefined) {
+          await trustedLocalStorage.set({ lastCaptureError: safe });
+        }
+      }
+    };
+    pendingVerdictCandidateRecheck = recheck;
+    executor.schedule(attempt);
     return false;
   }
   if (isActionMessage(message)) {
