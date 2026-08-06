@@ -31,6 +31,7 @@ import type { MainBridgeSummary } from "@/extension/src/submissionCorrelator";
 import type { ExtensionInitializationStorageSplit } from "@/extension/src/installation";
 import type { TransientVerdictCandidate } from "@/extension/src/transientEvidenceStorage";
 import { UI_HINT_TTL_MS } from "@/extension/src/uiHint";
+import { safeStoredCaptureError } from "@/extension/src/captureErrorPrivacy";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -2625,5 +2626,120 @@ describe("verdict candidate orchestration (Task 5)", () => {
       (write) => write.area === "session" && write.operation === "set",
     );
     expect(writeLog.some((write) => write.keys.includes("transientVerdictCandidates"))).toBe(true);
+  });
+
+  it("each allowed verdict-blocked reason survives privacy sanitization", () => {
+    for (const reason of ["ambiguous", "chronology", "expired", "identity", "adapter"] as const) {
+      const diagnostic = `verdict candidate blocked: leetcode:two-sum:${reason}`;
+      expect(safeStoredCaptureError(diagnostic)).toBe(diagnostic);
+    }
+  });
+
+  it("an unknown verdict-blocked reason is replaced with the safe fallback", () => {
+    const diagnostic = "verdict candidate blocked: leetcode:two-sum:overflow";
+    expect(safeStoredCaptureError(diagnostic)).toBe("Retained capture error");
+  });
+
+  it("slash, space, and control-character slugs are rejected", () => {
+    expect(safeStoredCaptureError("verdict candidate blocked: leetcode:two/sum:ambiguous"))
+      .toBe("Retained capture error");
+    expect(safeStoredCaptureError("verdict candidate blocked: leetcode:two sum:ambiguous"))
+      .toBe("Retained capture error");
+    expect(safeStoredCaptureError("verdict candidate blocked: leetcode:two\u0001sum:ambiguous"))
+      .toBe("Retained capture error");
+  });
+
+  it("orchestrator snapshot immediately exposes a blocked diagnostic", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    // Seed a confirmed record whose `problemExternalId` differs from the
+    // matched submit lifecycle's `endpointKey`-derived slug. The candidate
+    // matches the submit lifecycle (so it passes Step A) but the join
+    // exposes an identity mismatch against the confirmed record.
+    const seedConfirm: E2SubmissionConfirmed = {
+      ...candidateE2(),
+      evidenceId: "e2_leetcode_three",
+      externalSubmissionId: "cn/921",
+      problemExternalId: "three-sum",
+    };
+    for (const evidence of [candidateE1(), candidateE1Check()]) {
+      const e1Effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffectsToStorage(storage, e1Effects);
+    }
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: seedConfirm,
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, e2Effects);
+
+    const candidate = verdictCandidate({ problemExternalId: "two-sum" });
+    const effects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate,
+    });
+    await applyEffectsToStorage(storage, effects);
+    expect(effects.state.lastCaptureError).toBe(
+      "verdict candidate blocked: leetcode:two-sum:identity",
+    );
+    const local = await storage.local.get(["lastCaptureError"]);
+    expect(local.lastCaptureError).toBe(
+      "verdict candidate blocked: leetcode:two-sum:identity",
+    );
+  });
+
+  it("the cached snapshot is refreshed when the orchestrator writes a new diagnostic", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    const first = await orchestrator.snapshot();
+    expect(first.lastCaptureError).toBeUndefined();
+
+    const seedConfirm: E2SubmissionConfirmed = {
+      ...candidateE2(),
+      evidenceId: "e2_leetcode_three",
+      externalSubmissionId: "cn/921",
+      problemExternalId: "three-sum",
+    };
+    for (const evidence of [candidateE1(), candidateE1Check()]) {
+      const e1Effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffectsToStorage(storage, e1Effects);
+    }
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: seedConfirm,
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, e2Effects);
+
+    const candidate = verdictCandidate({ problemExternalId: "two-sum" });
+    const effects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate,
+    });
+    await applyEffectsToStorage(storage, effects);
+
+    const second = await orchestrator.snapshot();
+    expect(second.lastCaptureError).toBe(
+      "verdict candidate blocked: leetcode:two-sum:identity",
+    );
+    expect(second.lastCaptureError).not.toBe(first.lastCaptureError);
   });
 });
