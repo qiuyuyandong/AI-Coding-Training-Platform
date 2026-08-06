@@ -493,3 +493,25 @@ evidence only, not RC, acceptance, or release.
 D4 same-SHA real natural observations and D5 F1-F4 still require separate
 authorization. The candidate is not pushed, not a PR, and is not RC,
 acceptance, or release.
+
+## D4 E3-confirmed race fix (2026-08-06, implemented; end-to-end delivery pending)
+
+The 7th and 8th real natural observations on LeetCode.cn (longest-substring
+and reverse-integer) proved the D3 candidate's verdict-candidate path still
+loses E3: the content runtime observes the verdict DOM and emits a
+VERDICT_CANDIDATE, but the E2 confirmation (`confirmedSubmissions` local
+record) is written by a later serialized executor stage. Both observations
+failed closed with the new diagnostic `verdict candidate unconfirmed:
+leetcode:<slug>` (waiting 5→6→7), meaning E2 WAS eventually written but later
+than the bounded poll window (3 s, then widened to 20 s — still insufficient).
+
+The repair is event-driven rather than poll-driven: `chrome.storage.onChanged`
+reacts to `confirmedSubmissions` changes and immediately re-schedules the
+pending verdict-candidate attempt (pure helper
+`storageChangeRevivesVerdictCandidate` in
+`extension/src/adapters/leetcode/network.ts`); poll exhaustion no longer
+un-arms the pending recheck, and the closed `lastCaptureError` diagnostic is
+still recorded on exhaustion. No new storage keys, no schema/migration or
+manifest change, no adapter policy change. A 9th real observation is required
+to confirm end-to-end delivery. Plan:
+[`plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`](../superpowers/plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md).

@@ -1,6 +1,49 @@
 # Current Handoff
 
-## Status (2026-08-04 V4 Phase D D3 candidate engineering complete)
+## Status (2026-08-06 V4 Phase D D4 E3-confirmed race fix implemented; delivery unverified)
+
+The D4 E3-confirmed race fix is implemented and verified through automated
+gates, but end-to-end delivery is NOT yet confirmed: real natural observations
+7 and 8 on LeetCode.cn both failed closed. Plan:
+`docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`.
+
+Evidence chain (same candidate `509faf0` build lineage, rebuilt
+`extension/dist`):
+- Observation 6 (next-permutation, `cn/740549003`, Wrong Answer/failed,
+  `2026-08-06T10:53:01Z-10:53:03Z`) delivered one bundle to the local server
+  (one `POST /api/capture/attempts` 200, one SQLite training attempt) — the
+  baseline where E2 happened to be written before the verdict candidate.
+- Observation 7 (longest-substring-without-repeating-characters, after
+  reloading the rebuilt dist): popup waiting 5→6, sync-queued 0, quarantined 0,
+  blocking reason exactly `verdict candidate unconfirmed:
+  leetcode:longest-substring-without-repeating-characters` (the NEW
+  diagnostic). The E2 confirmation WAS eventually written (waiting +1) but
+  after the original 3 s poll window expired. No server request; no bundle.
+- Observation 8 (reverse-integer, no extension reload, 20 s poll window):
+  identical failure mode — waiting 6→7, blocking reason `verdict candidate
+  unconfirmed: leetcode:reverse-integer`; E2 written after the 20 s window.
+  No server request; no bundle. This proved window enlargement alone is not
+  sufficient.
+
+Final repair (implemented 2026-08-06, verified by gates only):
+- Event-driven revival: `chrome.storage.onChanged` now reacts to
+  `confirmedSubmissions` changes and re-schedules the pending verdict-candidate
+  attempt immediately (pure helper `storageChangeRevivesVerdictCandidate`
+  next to `shouldRetryLeetCodeVerdictCandidate`).
+- Poll exhaustion no longer un-arms the pending recheck; the closed diagnostic
+  (`lastCaptureError`) is still recorded on exhaustion. No new storage keys,
+  no schema/migration/manifest change, no adapter policy change.
+- Gates: `npm run typecheck` exit 0; focused
+  `tests/unit/extensionLeetCodeVerdictRetry.test.ts` 7/7; eslint exit 0;
+  `npm run extension:check` exit 0 (44 files / 1421 tests, MV3 build PASS,
+  dist parity PASS); privacy audit 0 findings.
+- A 9th real natural observation is still required to confirm end-to-end
+  delivery (bundle → outbox → POST /api/capture/attempts → SQLite row).
+
+This is not RC, acceptance, or release. D4 same-SHA observations and D5 F1-F4
+still require separate user authorization.
+
+## Previous Status (2026-08-04 V4 Phase D D3 candidate engineering complete)
 
 V4 Phase D D1 engineering gates pass on the uncommitted working tree after the
 user approved a one-time, non-precedential D1-U RED-provenance exception. The

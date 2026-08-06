@@ -1,16 +1,18 @@
 # Superpowers Documentation Index
 
-> **Status (2026-08-04):** **V4 Phase D D1, D2, and D3 candidate engineering
-> work is complete** on `feature/v1-followup`. The implementation candidate
-> is `509faf0e60532cf565a6a57aa796b96bc1053f38`; the documentation-reconciled
-> HEAD is `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`. The final candidate
-> gate passed `2217/1` unit, `25` app E2E, `1414` extension tests,
+> **Status (2026-08-06):** **V4 Phase D D1, D2, and D3 candidate engineering
+> work is complete** on `feature/v1-followup` (candidate `509faf0e60532cf565a6a57aa796b96bc1053f38`;
+> doc-reconciled HEAD `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`; final
+> candidate gate `2217/1` unit, `25` app E2E, `1414` extension tests,
 > `53/1` extension E2E, production build `20/20`, zero privacy findings,
-> readiness `PASS`, and default-database preservation. D1, D2, and D3
-> engineering output describes one immutable implementation candidate
-> under `scripts/validate-v4-candidate.mjs --candidate <sha>`; this is not
-> RC, acceptance, or release. D4 same-SHA real natural observations and
-> D5 F1-F4 still require separate authorization. The earlier **V4 Phase C
+> readiness `PASS`, default-database preservation). This is not RC,
+> acceptance, or release. The **D4 E3-confirmed race fix** (2026-08-06)
+> is implemented but unverified end-to-end: observations 7 and 8 proved
+> the E2 confirmation lands after any bounded poll window; the repair is
+> event-driven revival from `chrome.storage.onChanged`
+> (see [`plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`](plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md)).
+> A 9th real observation is required before D5 F1-F4 authorization. The
+> earlier **V4 Phase C
 > C0-C5 engineering work is complete** verdict remains authoritative on
 > the same branch. C1 LeetCode is network-`V4_EXPERIMENTAL`; C2 AtCoder,
 > C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED`; NowCoder remains
@@ -113,6 +115,12 @@ D2 evidence:
 [`../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md`](../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md).
 The standalone Phase D plan is
 [`plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`](plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md).
+The D4 E3-confirmed race fix (implemented 2026-08-06, end-to-end delivery
+pending a 9th real observation) is tracked in
+[`plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`](plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md):
+observations 7 and 8 proved the E2 confirmation lands after any bounded poll
+window, and the repair re-schedules the pending verdict candidate from
+`chrome.storage.onChanged` instead of polling.
 D4 same-SHA real observations and D5 F1-F4 still require separate
 authorization. Formal V0 observation remains blocked; V0.5 stays out of
 scope. The total product target is **Phase 7 / Public Beta hosted SaaS**.

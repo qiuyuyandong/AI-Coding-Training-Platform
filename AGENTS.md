@@ -432,6 +432,21 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
+- V4 Phase D D4 E3-confirmed race fix is implemented and verified
+  (committed at `051e636`; see the plan
+  `docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`).
+  Real natural observations 7 (longest-substring-without-repeating-characters)
+  and 8 (reverse-integer) on LeetCode.cn both failed closed with the new
+  diagnostic `verdict candidate unconfirmed: leetcode:<slug>`; each proved the
+  E2 confirmation WAS eventually written (popup waiting 5→6→7) but later than
+  the bounded poll window (3 s then 20 s). The final repair is event-driven
+  revival: `chrome.storage.onChanged` on `confirmedSubmissions` immediately
+  re-schedules the pending verdict-candidate attempt (pure helper
+  `storageChangeRevivesVerdictCandidate`), and poll exhaustion no longer
+  un-arms the pending recheck; the closed diagnostic is still recorded on
+  exhaustion. Gates: typecheck exit 0, focused suite 7/7, eslint exit 0,
+  `extension:check` exit 0 (44 files / 1421 tests), privacy audit 0 findings.
+  9th observation is still required to confirm end-to-end delivery.
 - V4 Phase D D1, D2, and D3 candidate engineering are complete on
   `feature/v1-followup`. The implementation candidate is
   `509faf0e60532cf565a6a57aa796b96bc1053f38`
