@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendLeetCodeEndpointDiagnostic,
   createLeetCodeEndpointDiagnostic,
+  createLeetCodeFinalVerdictEvidence,
   LEETCODE_CHECK_ENDPOINT_PREFIX,
   LEETCODE_CONFIRMATION_WINDOW_MS,
   LEETCODE_ENDPOINT_DIAGNOSTIC_LIMIT,
@@ -14,6 +15,7 @@ import {
   selectLeetCodeResultConfirmation,
 } from "@/extension/src/adapters/leetcode/network";
 import type { E1RequestObserved } from "@/extension/src/evidence";
+import { parseSafeEvidence } from "@/extension/src/evidence";
 
 const NOW = "2026-07-30T08:40:11.300Z";
 const DOCUMENT_ID = "8C588C1A68D0E6D2F798877E4292FB05";
@@ -591,5 +593,98 @@ describe("LeetCode E3 policy", () => {
       receivedAt: NOW,
       ...override,
     })).toBeNull();
+  });
+});
+
+describe("createLeetCodeFinalVerdictEvidence", () => {
+  const baseInput = {
+    problemExternalId: "add-two-numbers",
+    externalSubmissionId: "cn/739040551",
+    verdictText: "Accepted",
+    tabId: 7,
+    frameId: 0,
+    documentId: DOCUMENT_ID,
+    receivedAt: NOW,
+  };
+
+  it("produces valid cn evidence with the shared identity convention", () => {
+    const e3 = createLeetCodeFinalVerdictEvidence(baseInput);
+    expect(e3).toMatchObject({
+      schemaVersion: 1,
+      evidenceId: "e3_leetcode_cn_739040551",
+      platform: "leetcode",
+      tier: "E3",
+      kind: "final_verdict_confirmed",
+      externalSubmissionId: "cn/739040551",
+      problemExternalId: "add-two-numbers",
+      verdict: "Accepted",
+      receivedAt: NOW,
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+    });
+  });
+
+  it("produces valid com evidence", () => {
+    const e3 = createLeetCodeFinalVerdictEvidence({
+      ...baseInput,
+      externalSubmissionId: "com/739040551",
+    });
+    expect(e3).not.toBeNull();
+    expect(e3?.evidenceId).toBe("e3_leetcode_com_739040551");
+    expect(e3?.externalSubmissionId).toBe("com/739040551");
+  });
+
+  it.each([
+    { externalSubmissionId: "us/739040551" },
+    { externalSubmissionId: "leetcode.cn/739040551" },
+  ])("rejects invalid scope %#", (override) => {
+    expect(createLeetCodeFinalVerdictEvidence({ ...baseInput, ...override })).toBeNull();
+  });
+
+  it.each([
+    { externalSubmissionId: "cn/abc" },
+    { externalSubmissionId: "cn/" },
+    { externalSubmissionId: "cn/739040551/2" },
+    { externalSubmissionId: "cn/123456789012345678901" },
+    { problemExternalId: "AddTwoNumbers" },
+    { problemExternalId: "" },
+  ])("rejects malformed identity %#", (override) => {
+    expect(createLeetCodeFinalVerdictEvidence({ ...baseInput, ...override })).toBeNull();
+  });
+
+  it.each([
+    { verdictText: "Judging" },
+    { verdictText: "Other Failure" },
+    { verdictText: "Waiting" },
+    { verdictText: "" },
+  ])("rejects pending or non-final verdict %#", (override) => {
+    expect(createLeetCodeFinalVerdictEvidence({ ...baseInput, ...override })).toBeNull();
+  });
+
+  it.each([
+    { receivedAt: "2026-07-30T08:40:11.3Z" },
+    { receivedAt: "2026-13-30T08:40:11.300Z" },
+    { receivedAt: "not a time" },
+    { receivedAt: "" },
+  ])("rejects malformed time %#", (override) => {
+    expect(createLeetCodeFinalVerdictEvidence({ ...baseInput, ...override })).toBeNull();
+  });
+
+  it.each([
+    { problemExternalId: "two-sum\u0000" },
+    { externalSubmissionId: "cn/739040551\u0001" },
+    { documentId: "doc\u0000id" },
+    { receivedAt: `${NOW}\n` },
+  ])("rejects control-character identity %#", (override) => {
+    expect(createLeetCodeFinalVerdictEvidence({ ...baseInput, ...override })).toBeNull();
+  });
+
+  it("output remains parseable as Safe Evidence", () => {
+    const e3 = createLeetCodeFinalVerdictEvidence(baseInput);
+    expect(e3).not.toBeNull();
+    const parsed = parseSafeEvidence(e3 as object);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.value.kind).toBe("final_verdict_confirmed");
   });
 });

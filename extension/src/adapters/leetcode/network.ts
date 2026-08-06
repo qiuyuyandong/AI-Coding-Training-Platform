@@ -2,6 +2,7 @@ import { defineNetworkAdapterPolicy } from "@/extension/src/adapters/contract";
 import type {
   E1RequestObserved,
   E2SubmissionConfirmed,
+  E3FinalVerdictConfirmed,
 } from "@/extension/src/evidence";
 import { normalizeTrustedVerdictText } from "@/lib/capture/verdictTaxonomy";
 
@@ -401,6 +402,58 @@ export function selectLeetCodeResultConfirmation(
   };
 }
 
+/**
+ * Constructs the LeetCode E3 final-verdict evidence from an exact, already
+ * resolved verdict candidate. All identity fields are validated (external
+ * submission scope, problem slug, canonical UTC time, non-negative
+ * tab/frame, non-empty document ID, no control characters) and the verdict
+ * text is normalized through the shared taxonomy. Returns `null` for any
+ * malformed or non-final verdict.
+ */
+export function createLeetCodeFinalVerdictEvidence(
+  input: Readonly<{
+    problemExternalId: string;
+    externalSubmissionId: string;
+    verdictText: string;
+    tabId: number;
+    frameId: number;
+    documentId: string;
+    receivedAt: string;
+  }>,
+): E3FinalVerdictConfirmed | null {
+  if (!isProblemSlug(input.problemExternalId)
+    || !/^(?:cn|com)\/[0-9]{1,20}$/u.test(input.externalSubmissionId)
+    || !isCanonicalUtcDateTime(input.receivedAt)
+    || !Number.isInteger(input.tabId)
+    || input.tabId < 0
+    || !Number.isInteger(input.frameId)
+    || input.frameId < 0
+    || input.documentId.length === 0
+    || /[\u0000-\u001f\u007f]/u.test(input.problemExternalId)
+    || /[\u0000-\u001f\u007f]/u.test(input.externalSubmissionId)
+    || /[\u0000-\u001f\u007f]/u.test(input.documentId)
+    || /[\u0000-\u001f\u007f]/u.test(input.receivedAt)) {
+    return null;
+  }
+  const verdict = normalizeTrustedVerdictText(input.verdictText);
+  if (verdict === null || verdict === "Other Failure") return null;
+  return {
+    schemaVersion: 1,
+    evidenceId: `e3_leetcode_${input.externalSubmissionId.replace("/", "_")}`,
+    platform: "leetcode",
+    tier: "E3",
+    kind: "final_verdict_confirmed",
+    receivedAt: input.receivedAt,
+    tabId: input.tabId,
+    frameId: input.frameId,
+    documentId: input.documentId,
+    adapterVersion: LEETCODE_NETWORK_ADAPTER_VERSION,
+    externalSubmissionId: input.externalSubmissionId,
+    problemExternalId: input.problemExternalId,
+    verdict,
+  };
+}
+
 function requestEvidence(input: unknown): unknown {
   if (!isSafeInputObject(input) || Reflect.get(input, "kind") !== "request") return null;
   const url = readString(input, "url");
@@ -495,23 +548,15 @@ function verdictEvidence(input: unknown): unknown {
   const confirmedId = confirmedSubmissionIds[0];
   if (confirmedId === undefined
     || !new RegExp(`^${page.scope}/[0-9]{1,20}$`, "u").test(confirmedId)) return null;
-  const verdict = normalizeTrustedVerdictText(verdictText);
-  if (verdict === null || verdict === "Other Failure") return null;
-  return {
-    schemaVersion: 1,
-    evidenceId: `e3_leetcode_${confirmedId.replace("/", "_")}`,
-    platform: "leetcode",
-    tier: "E3",
-    kind: "final_verdict_confirmed",
-    receivedAt,
+  return createLeetCodeFinalVerdictEvidence({
+    problemExternalId: problemIdentity,
+    externalSubmissionId: confirmedId,
+    verdictText,
     tabId,
     frameId,
     documentId,
-    adapterVersion: LEETCODE_NETWORK_ADAPTER_VERSION,
-    externalSubmissionId: confirmedId,
-    problemExternalId: problemIdentity,
-    verdict,
-  };
+    receivedAt,
+  });
 }
 
 /**
