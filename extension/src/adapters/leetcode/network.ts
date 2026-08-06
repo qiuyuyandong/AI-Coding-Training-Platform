@@ -559,30 +559,6 @@ function verdictEvidence(input: unknown): unknown {
   });
 }
 
-/**
- * Verdict candidates observed before the matching E2 confirmation is
- * persisted can be retried: the confirmed submission may be written by a
- * later executor stage than the one reading candidate state. Any other
- * failure (ambiguous multi-candidate, invalid verdict, identity mismatch)
- * is terminal and must fail closed.
- */
-export function shouldRetryLeetCodeVerdictCandidate(
-  confirmedSubmissionIds: readonly string[],
-): boolean {
-  return confirmedSubmissionIds.length === 0;
-}
-
-/**
- * True when a local-storage change contains the confirmed-submissions key.
- * A late E2 confirmation written after the bounded poll window may revive a
- * pending verdict candidate through the storage-change listener; the check
- * stays closed (key-existence only) so unrelated changes never retry.
- */
-export function storageChangeRevivesVerdictCandidate(changes: unknown): boolean {
-  return typeof changes === "object" && changes !== null
-    && Object.hasOwn(changes, "confirmedSubmissions");
-}
-
 export const LEETCODE_NETWORK_POLICY = defineNetworkAdapterPolicy({
   requestEvidence,
   submissionEvidence,
