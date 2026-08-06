@@ -2,6 +2,7 @@ import { defineNetworkAdapterPolicy } from "@/extension/src/adapters/contract";
 import type {
   E1RequestObserved,
   E2SubmissionConfirmed,
+  E3FinalVerdictConfirmed,
 } from "@/extension/src/evidence";
 import { normalizeTrustedVerdictText } from "@/lib/capture/verdictTaxonomy";
 
@@ -81,7 +82,6 @@ export type LeetCodeEndpointDiagnosticInput = Readonly<{
 export type LeetCodeConfirmationInput = Readonly<{
   checkEvidence: E1RequestObserved;
   submitCandidates: readonly E1RequestObserved[];
-  now: string;
 }>;
 
 export type LeetCodeProblemCandidate = Readonly<{
@@ -97,7 +97,6 @@ export type LeetCodeResultConfirmationInput = Readonly<{
   resultEvidence: E1RequestObserved;
   graphqlCandidates: readonly E1RequestObserved[];
   problemCandidates: readonly LeetCodeProblemCandidate[];
-  now: string;
 }>;
 
 export type LeetCodeConfirmationResult =
@@ -288,7 +287,7 @@ export function selectLeetCodeConfirmation(
     platform: "leetcode",
     tier: "E2",
     kind: "submission_confirmed",
-    receivedAt: input.now,
+    receivedAt: check.receivedAt,
     tabId: check.tabId,
     frameId: check.frameId,
     documentId: check.documentId,
@@ -386,7 +385,7 @@ export function selectLeetCodeResultConfirmation(
     platform: "leetcode",
     tier: "E2",
     kind: "submission_confirmed",
-    receivedAt: input.now,
+    receivedAt: result.receivedAt,
     tabId: result.tabId,
     frameId: result.frameId,
     documentId: result.documentId,
@@ -400,6 +399,58 @@ export function selectLeetCodeResultConfirmation(
     kind: "confirmed",
     evidence,
     matchedSubmitRequestId: graphql.requestId,
+  };
+}
+
+/**
+ * Constructs the LeetCode E3 final-verdict evidence from an exact, already
+ * resolved verdict candidate. All identity fields are validated (external
+ * submission scope, problem slug, canonical UTC time, non-negative
+ * tab/frame, non-empty document ID, no control characters) and the verdict
+ * text is normalized through the shared taxonomy. Returns `null` for any
+ * malformed or non-final verdict.
+ */
+export function createLeetCodeFinalVerdictEvidence(
+  input: Readonly<{
+    problemExternalId: string;
+    externalSubmissionId: string;
+    verdictText: string;
+    tabId: number;
+    frameId: number;
+    documentId: string;
+    receivedAt: string;
+  }>,
+): E3FinalVerdictConfirmed | null {
+  if (!isProblemSlug(input.problemExternalId)
+    || !/^(?:cn|com)\/[0-9]{1,20}$/u.test(input.externalSubmissionId)
+    || !isCanonicalUtcDateTime(input.receivedAt)
+    || !Number.isInteger(input.tabId)
+    || input.tabId < 0
+    || !Number.isInteger(input.frameId)
+    || input.frameId < 0
+    || input.documentId.length === 0
+    || /[\u0000-\u001f\u007f]/u.test(input.problemExternalId)
+    || /[\u0000-\u001f\u007f]/u.test(input.externalSubmissionId)
+    || /[\u0000-\u001f\u007f]/u.test(input.documentId)
+    || /[\u0000-\u001f\u007f]/u.test(input.receivedAt)) {
+    return null;
+  }
+  const verdict = normalizeTrustedVerdictText(input.verdictText);
+  if (verdict === null || verdict === "Other Failure") return null;
+  return {
+    schemaVersion: 1,
+    evidenceId: `e3_leetcode_${input.externalSubmissionId.replace("/", "_")}`,
+    platform: "leetcode",
+    tier: "E3",
+    kind: "final_verdict_confirmed",
+    receivedAt: input.receivedAt,
+    tabId: input.tabId,
+    frameId: input.frameId,
+    documentId: input.documentId,
+    adapterVersion: LEETCODE_NETWORK_ADAPTER_VERSION,
+    externalSubmissionId: input.externalSubmissionId,
+    problemExternalId: input.problemExternalId,
+    verdict,
   };
 }
 
@@ -455,28 +506,24 @@ function submissionEvidence(input: unknown): unknown {
     const resultEvidence = Reflect.get(input, "resultEvidence");
     const graphqlCandidates = Reflect.get(input, "graphqlCandidates");
     const problemCandidates = Reflect.get(input, "problemCandidates");
-    const now = readString(input, "now");
     if (!isLeetCodeE1(resultEvidence)
       || !Array.isArray(graphqlCandidates)
       || !graphqlCandidates.every(isLeetCodeE1)
       || !Array.isArray(problemCandidates)
-      || !problemCandidates.every(isLeetCodeProblemCandidate)
-      || now === null) return null;
+      || !problemCandidates.every(isLeetCodeProblemCandidate)) return null;
     const result = selectLeetCodeResultConfirmation({
       resultEvidence,
       graphqlCandidates,
       problemCandidates,
-      now,
     });
     return result.kind === "confirmed" ? result.evidence : null;
   }
   if (Reflect.get(input, "kind") !== "confirmation") return null;
   const checkEvidence = Reflect.get(input, "checkEvidence");
   const submitCandidates = Reflect.get(input, "submitCandidates");
-  const now = readString(input, "now");
   if (!isLeetCodeE1(checkEvidence) || !Array.isArray(submitCandidates)
-    || !submitCandidates.every(isLeetCodeE1) || now === null) return null;
-  const result = selectLeetCodeConfirmation({ checkEvidence, submitCandidates, now });
+    || !submitCandidates.every(isLeetCodeE1)) return null;
+  const result = selectLeetCodeConfirmation({ checkEvidence, submitCandidates });
   return result.kind === "confirmed" ? result.evidence : null;
 }
 
@@ -501,47 +548,15 @@ function verdictEvidence(input: unknown): unknown {
   const confirmedId = confirmedSubmissionIds[0];
   if (confirmedId === undefined
     || !new RegExp(`^${page.scope}/[0-9]{1,20}$`, "u").test(confirmedId)) return null;
-  const verdict = normalizeTrustedVerdictText(verdictText);
-  if (verdict === null || verdict === "Other Failure") return null;
-  return {
-    schemaVersion: 1,
-    evidenceId: `e3_leetcode_${confirmedId.replace("/", "_")}`,
-    platform: "leetcode",
-    tier: "E3",
-    kind: "final_verdict_confirmed",
-    receivedAt,
+  return createLeetCodeFinalVerdictEvidence({
+    problemExternalId: problemIdentity,
+    externalSubmissionId: confirmedId,
+    verdictText,
     tabId,
     frameId,
     documentId,
-    adapterVersion: LEETCODE_NETWORK_ADAPTER_VERSION,
-    externalSubmissionId: confirmedId,
-    problemExternalId: problemIdentity,
-    verdict,
-  };
-}
-
-/**
- * Verdict candidates observed before the matching E2 confirmation is
- * persisted can be retried: the confirmed submission may be written by a
- * later executor stage than the one reading candidate state. Any other
- * failure (ambiguous multi-candidate, invalid verdict, identity mismatch)
- * is terminal and must fail closed.
- */
-export function shouldRetryLeetCodeVerdictCandidate(
-  confirmedSubmissionIds: readonly string[],
-): boolean {
-  return confirmedSubmissionIds.length === 0;
-}
-
-/**
- * True when a local-storage change contains the confirmed-submissions key.
- * A late E2 confirmation written after the bounded poll window may revive a
- * pending verdict candidate through the storage-change listener; the check
- * stays closed (key-existence only) so unrelated changes never retry.
- */
-export function storageChangeRevivesVerdictCandidate(changes: unknown): boolean {
-  return typeof changes === "object" && changes !== null
-    && Object.hasOwn(changes, "confirmedSubmissions");
+    receivedAt,
+  });
 }
 
 export const LEETCODE_NETWORK_POLICY = defineNetworkAdapterPolicy({

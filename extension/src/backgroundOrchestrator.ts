@@ -81,7 +81,13 @@ import {
   type TransientPageContext,
   type TransientSessionEvidenceState,
   type TransientUnmatchedFinal,
+  type TransientVerdictCandidate,
 } from "./transientEvidenceStorage";
+import {
+  reconcileVerdictCandidates,
+  type VerdictCandidateResolution,
+  type VerdictCandidateTerminal,
+} from "./verdictCandidateCoordinator";
 import {
   extensionInitializationLocalStorage,
   extensionInitializationSessionStorage,
@@ -124,6 +130,7 @@ const SESSION_KEYS = [
   "transientE1",
   "transientPageContexts",
   "transientUnmatchedE3",
+  "transientVerdictCandidates",
   "transientAmbiguityDiagnostics",
 ] as const;
 
@@ -169,7 +176,15 @@ export type OrchestratorEvent =
       readonly evidence: E2SubmissionConfirmed;
       readonly matchedSubmitRequestId: string;
     }
-  | { readonly kind: "e3_recorded"; readonly evidence: E3FinalVerdictConfirmed }
+  | {
+      readonly kind: "e3_recorded";
+      readonly evidence: E3FinalVerdictConfirmed;
+      readonly candidateId?: string;
+    }
+  | {
+      readonly kind: "verdict_candidate_recorded";
+      readonly candidate: TransientVerdictCandidate;
+    }
   | { readonly kind: "main_bridge_ambiguous"; readonly ambiguous: AmbiguousCaptureResult }
   | { readonly kind: "main_bridge_no_match"; readonly noMatch: NoMatchCaptureResult; readonly summary: MainBridgeSummary }
   | { readonly kind: "main_bridge_rejected"; readonly rejected: RejectedCaptureResult; readonly summary: MainBridgeSummary }
@@ -224,6 +239,7 @@ export type OrchestratorPersistence = Readonly<{
   readonly transientE1: ReadonlyArray<TransientE1Lifecycle>;
   readonly pageContexts: ReadonlyArray<TransientPageContext>;
   readonly unmatchedFinals: ReadonlyArray<TransientUnmatchedFinal>;
+  readonly verdictCandidates: ReadonlyArray<TransientVerdictCandidate>;
   readonly ambiguityDiagnostics: ReadonlyArray<TransientAmbiguityDiagnostic>;
 }>;
 
@@ -231,6 +247,7 @@ export type OrchestratorEffects = Readonly<{
   readonly state: OrchestratorState;
   readonly persistence: OrchestratorPersistence;
   readonly executorSchedule: ReadonlyArray<{ readonly id: string; readonly work: () => Promise<void> }>;
+  readonly verdictCandidateResolutions: readonly VerdictCandidateResolution[];
 }>;
 
 /**
@@ -478,6 +495,7 @@ type EventOutcome = Readonly<{
   readonly quarantine: readonly CaptureQuarantineItem[];
   readonly confirmed: readonly ConfirmedSubmissionRecord[];
   readonly tombstones: readonly ConfirmedSubmissionTombstone[];
+  readonly verdictCandidateResolutions: readonly VerdictCandidateResolution[];
 }>;
 
 function handleEvent(
@@ -497,6 +515,8 @@ function handleEvent(
       return handleMainBridgeCorrelated(event, local, session, now);
     case "e2_recorded":
       return handleE2Recorded(event, local, session, now);
+    case "verdict_candidate_recorded":
+      return handleVerdictCandidateRecorded(event, local, session, now);
     case "e3_recorded":
       return handleE3Recorded(event, local, session, now);
     case "main_bridge_ambiguous":
@@ -808,7 +828,17 @@ function handleE2Recorded(
         rejectionReason: null,
       })
       : entry);
-  const nextSession = { ...transient, requestLifecycles };
+  const matchedSession: TransientSessionEvidenceState = { ...transient, requestLifecycles };
+  const reconciliation = reconcileVerdictCandidates({
+    candidates: matchedSession.verdictCandidates,
+    requestLifecycles: matchedSession.requestLifecycles,
+    confirmed: recorded.state.confirmed,
+    now,
+  });
+  const nextSession: TransientSessionEvidenceState = {
+    ...matchedSession,
+    verdictCandidates: reconciliation.pending,
+  };
   const sessionOutcome = makeSessionOnlyOutcome(nextSession, session, now);
   const outbox = readOutbox(local.captureOutbox);
   const quarantine = readQuarantine(local.captureQuarantine);
@@ -830,13 +860,100 @@ function handleE2Recorded(
     return {
       ...replayOutcome,
       sessionWrites: mergeWrites(sessionOutcome.sessionWrites, replayOutcome.sessionWrites),
+      verdictCandidateResolutions: [
+        ...reconciliation.resolutions,
+        ...replayOutcome.verdictCandidateResolutions,
+      ],
     };
   }
   return {
     ...localOutcome,
     sessionWrites: sessionOutcome.sessionWrites,
     sessionRemovals: sessionOutcome.sessionRemovals,
+    verdictCandidateResolutions: reconciliation.resolutions,
   };
+}
+
+/**
+ * Verdict candidate intake. The candidate is appended (deduped by
+ * `candidateId`, capped at 32) and reconciled against matched submit
+ * lifecycles and confirmed submissions. Exact resolutions are returned for
+ * the background to construct adapter E3 evidence; terminal reasons are
+ * persisted as a closed `lastCaptureError` diagnostic.
+ */
+function handleVerdictCandidateRecorded(
+  event: Extract<OrchestratorEvent, { readonly kind: "verdict_candidate_recorded" }>,
+  local: Record<string, unknown>,
+  session: Record<string, unknown>,
+  now: string,
+): EventOutcome {
+  const transient = readTransientSessionEvidenceState(session);
+  const deduped = transient.verdictCandidates.filter(
+    (candidate) => candidate.candidateId !== event.candidate.candidateId,
+  );
+  const appended = [...deduped, event.candidate].slice(-32);
+  const confirmedState = readConfirmedSubmissionState(local);
+  const reconciliation = reconcileVerdictCandidates({
+    candidates: appended,
+    requestLifecycles: transient.requestLifecycles,
+    confirmed: confirmedState.confirmed,
+    now,
+  });
+  const nextSession: TransientSessionEvidenceState = {
+    ...transient,
+    verdictCandidates: reconciliation.pending,
+  };
+  const sessionOutcome = makeSessionOnlyOutcome(nextSession, session, now);
+  const terminalDiagnostic = terminalDiagnosticFor(reconciliation.terminal);
+  if (terminalDiagnostic === undefined) {
+    return {
+      ...sessionOutcome,
+      verdictCandidateResolutions: reconciliation.resolutions,
+    };
+  }
+  const outbox = readOutbox(local.captureOutbox);
+  const quarantine = readQuarantine(local.captureQuarantine);
+  const nextLocal: Record<string, unknown> = {
+    ...local,
+    lastCaptureError: terminalDiagnostic,
+  };
+  const localOutcome = makeLocalOutcome(nextLocal, local, now, false, outbox, quarantine);
+  return {
+    ...localOutcome,
+    sessionWrites: sessionOutcome.sessionWrites,
+    sessionRemovals: sessionOutcome.sessionRemovals,
+    verdictCandidateResolutions: reconciliation.resolutions,
+  };
+}
+
+/**
+ * Closed one-line diagnostic for a terminal verdict candidate. The reason is
+ * narrowed from the coordinator's four reasons to the allowed capture-error
+ * allowlist (Task 8). Identity-sensitive fields (submission/document/tab/
+ * request id, timestamps, URL, verdict text) never enter the diagnostic.
+ */
+function terminalDiagnosticFor(
+  terminal: readonly VerdictCandidateTerminal[],
+): string | undefined {
+  const last = terminal[terminal.length - 1];
+  if (last === undefined) return undefined;
+  const reason = reasonForTerminal(last.reason);
+  return `verdict candidate blocked: leetcode:${last.problemExternalId}:${reason}`;
+}
+
+function reasonForTerminal(
+  reason: VerdictCandidateTerminal["reason"],
+): string {
+  switch (reason) {
+    case "ambiguous_latest_submit":
+      return "ambiguous";
+    case "identity_mismatch":
+      return "identity";
+    case "chronology_mismatch":
+      return "chronology";
+    case "expired":
+      return "expired";
+  }
 }
 
 function handleMainBridgeCorrelated(
@@ -923,7 +1040,13 @@ function handleE3Recorded(
     tombstone.submissionKey === key
     && Number.isFinite(nowMs)
     && Date.parse(tombstone.expiresAt) > nowMs);
-  if (alreadyFinalized) return emptyOutcome(now);
+  if (alreadyFinalized) {
+    // Idempotent success: the submission is already finalized, so a matching
+    // candidate must be consumed without constructing a second bundle.
+    return event.candidateId === undefined
+      ? emptyOutcome(now)
+      : removeVerdictCandidate(event.candidateId, session, now);
+  }
   const confirmed = confirmedState.confirmed.find((record) =>
     record.storageKey === key
     && record.finalizedAt === undefined
@@ -1017,7 +1140,26 @@ function handleE3Recorded(
     metadata,
   });
   const bundleEffect = finalizedReduction.effects.find((effect) => effect.kind === "bundle");
-  if (bundleEffect === undefined || bundleEffect.kind !== "bundle") return emptyOutcome(now);
+  if (bundleEffect === undefined || bundleEffect.kind !== "bundle") {
+    // Terminal mismatch/rejection: consume the candidate and persist a closed
+    // diagnostic. The candidate is never retained for a later retry because
+    // the coordinator already enforced identity/chronology at resolution.
+    if (event.candidateId === undefined) return emptyOutcome(now);
+    const outcome = removeVerdictCandidate(event.candidateId, session, now);
+    const diagnostic = terminalDiagnosticFor([{
+      candidateId: event.candidateId,
+      platform: "leetcode",
+      problemExternalId: evidence.problemExternalId,
+      reason: "ambiguous_latest_submit",
+    }]) ?? "Retained capture error";
+    return {
+      ...outcome,
+      localWrites: [...outcome.localWrites, {
+        key: "lastCaptureError",
+        value: safeStoredCaptureError(diagnostic) ?? "Retained capture error",
+      }],
+    };
+  }
 
   const finalized = markConfirmedSubmissionFinalized(confirmedState, confirmed, evidence.receivedAt);
   const remainingConfirmed = finalized.state.confirmed.filter((record) => record.storageKey !== key);
@@ -1043,6 +1185,9 @@ function handleE3Recorded(
     requestLifecycles: transient.requestLifecycles.filter((entry) => entry.stableSubmissionId !== key),
     unmatchedE3: transient.unmatchedE3.filter((entry) =>
       `${entry.evidence.platform}:${entry.evidence.externalSubmissionId}` !== key),
+    verdictCandidates: event.candidateId === undefined
+      ? transient.verdictCandidates
+      : transient.verdictCandidates.filter((candidate) => candidate.candidateId !== event.candidateId),
   };
   const localOutcome = makeLocalOutcome(nextLocal, local, now, nextOutbox.length > priorOutbox.length, nextOutbox, quarantine);
   const sessionOutcome = makeSessionOnlyOutcome(nextTransient, session, now);
@@ -1051,6 +1196,21 @@ function handleE3Recorded(
     sessionWrites: sessionOutcome.sessionWrites,
     sessionRemovals: sessionOutcome.sessionRemovals,
   };
+}
+
+/**
+ * Remove a verdict candidate by id and return its session-only outcome.
+ */
+function removeVerdictCandidate(
+  candidateId: string,
+  session: Record<string, unknown>,
+  now: string,
+): EventOutcome {
+  const transient = readTransientSessionEvidenceState(session);
+  const verdictCandidates = transient.verdictCandidates.filter(
+    (candidate) => candidate.candidateId !== candidateId,
+  );
+  return makeSessionOnlyOutcome({ ...transient, verdictCandidates }, session, now);
 }
 
 function handleMainBridgeDiagnostic(
@@ -1197,6 +1357,7 @@ function emptyOutcome(now: string): EventOutcome {
     quarantine: [],
     confirmed: [],
     tombstones: [],
+    verdictCandidateResolutions: [],
   };
 }
 
@@ -1242,6 +1403,7 @@ function makeLocalOutcome(
     quarantine,
     confirmed,
     tombstones,
+    verdictCandidateResolutions: [],
   };
 }
 
@@ -1258,6 +1420,7 @@ function makeSessionOnlyOutcome(
     ["requestLifecycles", "transientE1"],
     ["pageContexts", "transientPageContexts"],
     ["unmatchedE3", "transientUnmatchedE3"],
+    ["verdictCandidates", "transientVerdictCandidates"],
     ["ambiguityDiagnostics", "transientAmbiguityDiagnostics"],
   ];
   for (const [key, storageKey] of mapping) {
@@ -1277,6 +1440,7 @@ function makeSessionOnlyOutcome(
     quarantine: [],
     confirmed: [],
     tombstones: [],
+    verdictCandidateResolutions: [],
   };
 }
 
@@ -1309,12 +1473,25 @@ export function createBackgroundOrchestrator(
     const sessionWrites = mergeWriteArrays(initDiff.sessionWrites, prunedSessionDiff.sessionWrites);
     const sessionRemovals = [...initDiff.sessionRemovals];
     const nextLocal = applyLocalDiff(priorLocal, localWrites, localRemovals);
-    const nextSession = applySessionDiff(priorSession, sessionWrites, sessionRemovals);
-    const state = deriveState(nextLocal, nextSession);
+    // Reconcile persisted candidates against matched lifecycles and confirmed
+    // submissions so a service worker that stopped after candidate or E2
+    // persistence can resume safely and re-emit a recoverable resolution.
+    const confirmedState = readConfirmedSubmissionState(nextLocal);
+    const reconciliation = reconcileVerdictCandidates({
+      candidates: pruned.verdictCandidates,
+      requestLifecycles: pruned.requestLifecycles,
+      confirmed: confirmedState.confirmed,
+      now: deps.now(),
+    });
+    const candidateWrites = deepEqual(reconciliation.pending, pruned.verdictCandidates)
+      ? []
+      : [{ key: "transientVerdictCandidates", value: reconciliation.pending }];
+    const sessionWritesWithCandidates = mergeWrites(sessionWrites, candidateWrites);
+    const state = deriveState(nextLocal, applySessionDiff(priorSession, sessionWritesWithCandidates, sessionRemovals));
     const outbox = readOutbox(nextLocal.captureOutbox);
     const quarantine = readQuarantine(nextLocal.captureQuarantine);
-    const confirmed = readConfirmedSubmissionState(nextLocal).confirmed;
-    const tombstones = readConfirmedSubmissionState(nextLocal).tombstones;
+    const confirmed = confirmedState.confirmed;
+    const tombstones = confirmedState.tombstones;
     const executorSchedule = outbox.length > 0
       ? [{ id: FLUSH_OUTBOX_WORK_ID, work: async (): Promise<void> => { await deps.flushOutbox(); } }]
       : [];
@@ -1323,7 +1500,7 @@ export function createBackgroundOrchestrator(
       persistence: deepFreeze({
         local: localWrites,
         localRemovals,
-        session: sessionWrites,
+        session: sessionWritesWithCandidates,
         sessionRemovals,
         outbox,
         quarantine,
@@ -1333,9 +1510,11 @@ export function createBackgroundOrchestrator(
         transientE1: pruned.requestLifecycles,
         pageContexts: pruned.pageContexts,
         unmatchedFinals: pruned.unmatchedE3,
+        verdictCandidates: reconciliation.pending,
         ambiguityDiagnostics: pruned.ambiguityDiagnostics,
       }),
       executorSchedule,
+      verdictCandidateResolutions: reconciliation.resolutions,
     });
   };
 
@@ -1378,9 +1557,11 @@ export function createBackgroundOrchestrator(
         transientE1: readTransientSessionEvidenceState(nextSession).requestLifecycles,
         pageContexts: readTransientSessionEvidenceState(nextSession).pageContexts,
         unmatchedFinals: readTransientSessionEvidenceState(nextSession).unmatchedE3,
+        verdictCandidates: readTransientSessionEvidenceState(nextSession).verdictCandidates,
         ambiguityDiagnostics: readTransientSessionEvidenceState(nextSession).ambiguityDiagnostics,
       }),
       executorSchedule,
+      verdictCandidateResolutions: outcome.verdictCandidateResolutions,
     });
   };
 
@@ -1419,9 +1600,11 @@ export function createBackgroundOrchestrator(
         transientE1: pruned.requestLifecycles,
         pageContexts: pruned.pageContexts,
         unmatchedFinals: pruned.unmatchedE3,
+        verdictCandidates: pruned.verdictCandidates,
         ambiguityDiagnostics: pruned.ambiguityDiagnostics,
       }),
       executorSchedule: [],
+      verdictCandidateResolutions: [],
     });
   };
 
@@ -1443,6 +1626,7 @@ function transientStateAsStorage(state: TransientSessionEvidenceState): Record<s
     transientE1: state.requestLifecycles,
     transientPageContexts: state.pageContexts,
     transientUnmatchedE3: state.unmatchedE3,
+    transientVerdictCandidates: state.verdictCandidates,
     transientAmbiguityDiagnostics: state.ambiguityDiagnostics,
   };
 }
@@ -1548,6 +1732,7 @@ function diffPrunedSession(
     ["requestLifecycles", "transientE1"],
     ["pageContexts", "transientPageContexts"],
     ["unmatchedE3", "transientUnmatchedE3"],
+    ["verdictCandidates", "transientVerdictCandidates"],
     ["ambiguityDiagnostics", "transientAmbiguityDiagnostics"],
   ];
   const sessionWrites: Array<{ key: string; value: unknown }> = [];

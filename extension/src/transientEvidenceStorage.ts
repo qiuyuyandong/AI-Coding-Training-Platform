@@ -14,6 +14,8 @@ export const E1_LIFECYCLE_TTL_MS = 5 * 60_000;
 export const UNMATCHED_E3_TTL_MS = 60_000;
 export const PAGE_CONTEXT_TTL_MS = 30 * 60_000;
 export const AMBIGUITY_TTL_MS = 24 * 60 * 60_000;
+export const VERDICT_CANDIDATE_TTL_MS = E1_LIFECYCLE_TTL_MS;
+export const VERDICT_CANDIDATE_MAX_COUNT = 32;
 
 export type TransientE1Lifecycle = Readonly<{
   schemaVersion: 1;
@@ -43,6 +45,24 @@ export type TransientUnmatchedFinal = Readonly<{
   tier: "E3";
   kind: "unmatched_final";
   evidence: E3FinalVerdictConfirmed;
+  receivedAt: string;
+}>;
+
+export type TransientVerdictCandidate = Readonly<{
+  schemaVersion: 1;
+  tier: "E3";
+  kind: "verdict_candidate";
+  candidateId: string;
+  platform: "leetcode";
+  problemExternalId: string;
+  verdict: string;
+  observedAt: string;
+  tabId: number;
+  frameId: number;
+  documentId: string;
+  transitionEvidence:
+    | "same_document_transition"
+    | "exact_result_document";
   receivedAt: string;
 }>;
 
@@ -95,6 +115,7 @@ export type TransientSessionEvidenceState = Readonly<{
   requestLifecycles: readonly TransientE1Lifecycle[];
   pageContexts: readonly TransientPageContext[];
   unmatchedE3: readonly TransientUnmatchedFinal[];
+  verdictCandidates: readonly TransientVerdictCandidate[];
   ambiguityDiagnostics: readonly TransientAmbiguityDiagnostic[];
 }>;
 
@@ -110,8 +131,34 @@ export const emptyTransientSessionEvidenceState = (): TransientSessionEvidenceSt
   requestLifecycles: EMPTY as readonly TransientE1Lifecycle[],
   pageContexts: EMPTY as readonly TransientPageContext[],
   unmatchedE3: EMPTY as readonly TransientUnmatchedFinal[],
+  verdictCandidates: EMPTY as readonly TransientVerdictCandidate[],
   ambiguityDiagnostics: EMPTY as readonly TransientAmbiguityDiagnostic[],
 });
+
+/**
+ * Deterministic pure candidate identity. Control characters are rejected by
+ * the parser before storage, so the join separator (\u001f) cannot collide.
+ */
+export function verdictCandidateIdentity(
+  candidate: Pick<
+    TransientVerdictCandidate,
+    | "platform"
+    | "tabId"
+    | "frameId"
+    | "documentId"
+    | "problemExternalId"
+    | "observedAt"
+  >,
+): string {
+  return [
+    candidate.platform,
+    String(candidate.tabId),
+    String(candidate.frameId),
+    candidate.documentId,
+    candidate.problemExternalId,
+    candidate.observedAt,
+  ].join("\u001f");
+}
 
 const ISO_DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{3})?Z$/;
 const CONTROL_CHAR_PATTERN = /[\x00-\x1f\x7f]/;
@@ -232,6 +279,22 @@ const UNMATCHED_FINAL_KEYS: readonly string[] = [
   "receivedAt",
 ];
 
+const VERDICT_CANDIDATE_KEYS: readonly string[] = [
+  "schemaVersion",
+  "tier",
+  "kind",
+  "candidateId",
+  "platform",
+  "problemExternalId",
+  "verdict",
+  "observedAt",
+  "tabId",
+  "frameId",
+  "documentId",
+  "transitionEvidence",
+  "receivedAt",
+];
+
 const DIAGNOSTIC_KEYS: readonly string[] = [
   "schemaVersion",
   "tier",
@@ -348,6 +411,55 @@ function parseFinal(
   };
 }
 
+function parseVerdictCandidate(
+  v: unknown,
+): { readonly value?: TransientVerdictCandidate; readonly reason: TransientAmbiguityDiagnosticReason } {
+  if (!objectRecord(v)) return { reason: "corrupt_record" };
+  if (v.schemaVersion !== 1) return { reason: "schema_version_mismatch" };
+  if (v.tier !== "E3") return { reason: "unknown_kind" };
+  if (v.kind !== "verdict_candidate") return { reason: "unknown_kind" };
+  if (!hasOnly(v, VERDICT_CANDIDATE_KEYS)) return { reason: "unknown_field" };
+  if (v.platform !== "leetcode") return { reason: "unknown_kind" };
+  if (!nonempty(v.candidateId) || !nonempty(v.problemExternalId) || !nonempty(v.verdict)) {
+    return { reason: "unknown_field" };
+  }
+  if (!nonempty(v.documentId)) return { reason: "unknown_field" };
+  if (!integer(v.tabId) || !integer(v.frameId)) return { reason: "unknown_field" };
+  if (!isoDatetime(v.observedAt) || !isoDatetime(v.receivedAt)) return { reason: "malformed_timestamp" };
+  if (v.transitionEvidence !== "same_document_transition" && v.transitionEvidence !== "exact_result_document") {
+    return { reason: "unknown_field" };
+  }
+  const identityStrings = [
+    v.candidateId,
+    v.problemExternalId,
+    v.verdict,
+    v.documentId,
+  ];
+  for (const value of identityStrings) {
+    if (typeof value === "string" && CONTROL_CHAR_PATTERN.test(value)) {
+      return { reason: "control_character_in_identity" };
+    }
+  }
+  return {
+    value: Object.freeze({
+      schemaVersion: 1,
+      tier: "E3",
+      kind: "verdict_candidate",
+      candidateId: v.candidateId,
+      platform: "leetcode",
+      problemExternalId: v.problemExternalId,
+      verdict: v.verdict,
+      observedAt: v.observedAt,
+      tabId: v.tabId,
+      frameId: v.frameId,
+      documentId: v.documentId,
+      transitionEvidence: v.transitionEvidence,
+      receivedAt: v.receivedAt,
+    }),
+    reason: "corrupt_record",
+  };
+}
+
 function parseDiagnostic(
   v: unknown,
 ): { readonly value?: TransientAmbiguityDiagnostic; readonly reason: TransientAmbiguityDiagnosticReason } {
@@ -439,6 +551,7 @@ export function readTransientSessionEvidenceState(
     requestLifecycles: freezeArray(read(stored.transientE1, parseLifecycle)),
     pageContexts: freezeArray(read(stored.transientPageContexts, parsePage)),
     unmatchedE3: freezeArray(read(stored.transientUnmatchedE3, parseFinal)),
+    verdictCandidates: freezeArray(read(stored.transientVerdictCandidates, parseVerdictCandidate)),
     ambiguityDiagnostics: freezeArray(diagnostics.slice(-32)),
   });
 }
@@ -449,6 +562,7 @@ function sessionItems(state: TransientSessionEvidenceState): Record<string, unkn
     transientE1: state.requestLifecycles,
     transientPageContexts: state.pageContexts,
     transientUnmatchedE3: state.unmatchedE3,
+    transientVerdictCandidates: state.verdictCandidates,
     transientAmbiguityDiagnostics: state.ambiguityDiagnostics,
   });
 }
@@ -487,6 +601,11 @@ export function pruneTransientSessionEvidence(
     unmatchedE3: freezeArray(
       state.unmatchedE3.filter((r) => !expired(r.receivedAt, now, UNMATCHED_E3_TTL_MS)),
     ),
+    verdictCandidates: freezeArray(
+      state.verdictCandidates
+        .filter((c) => !expired(c.receivedAt, now, VERDICT_CANDIDATE_TTL_MS))
+        .slice(-VERDICT_CANDIDATE_MAX_COUNT),
+    ),
     ambiguityDiagnostics: freezeArray(
       state.ambiguityDiagnostics.filter((r) => !expired(r.receivedAt, now, AMBIGUITY_TTL_MS)),
     ),
@@ -505,7 +624,7 @@ export async function pruneAndWriteTransientSessionEvidence(
   now: string = new Date(0).toISOString(),
 ): Promise<TransientSessionEvidenceState> {
   const current = readTransientSessionEvidenceState(
-    await storage.get(["uiHints", "transientE1", "transientPageContexts", "transientUnmatchedE3", "transientAmbiguityDiagnostics"]),
+    await storage.get(["uiHints", "transientE1", "transientPageContexts", "transientUnmatchedE3", "transientVerdictCandidates", "transientAmbiguityDiagnostics"]),
   );
   const next = pruneTransientSessionEvidence(current, now);
   if (JSON.stringify(current) !== JSON.stringify(next)) await storage.set(sessionItems(next));

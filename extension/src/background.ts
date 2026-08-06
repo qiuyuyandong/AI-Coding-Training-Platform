@@ -5,6 +5,10 @@ import {
   safeStoredCaptureError,
 } from "./captureErrorPrivacy";
 import {
+  verdictCandidateIdentity,
+  type TransientVerdictCandidate,
+} from "./transientEvidenceStorage";
+import {
   postCaptureAttemptBundle,
 } from "./captureTransport";
 import {
@@ -65,6 +69,7 @@ import {
   AMBIGUITY_TTL_MS,
   E1_LIFECYCLE_TTL_MS,
   UNMATCHED_E3_TTL_MS,
+  VERDICT_CANDIDATE_TTL_MS,
   type TransientSessionEvidenceState,
 } from "./transientEvidenceStorage";
 import {
@@ -80,17 +85,15 @@ import { parseSafeEvidence, type E3FinalVerdictConfirmed } from "./evidence";
 import {
   appendLeetCodeEndpointDiagnostic,
   createLeetCodeEndpointDiagnostic,
+  createLeetCodeFinalVerdictEvidence,
   LEETCODE_CHECK_ENDPOINT_PREFIX,
   LEETCODE_ENDPOINT_DIAGNOSTIC_KEY,
-  LEETCODE_NETWORK_POLICY,
   LEETCODE_RESULT_ENDPOINT_PREFIX,
   LEETCODE_SUBMIT_ENDPOINT_PREFIX,
   normalizeLeetCodeNetworkEndpoint,
   normalizeLeetCodeProblemIdentity,
   selectLeetCodeConfirmation,
   selectLeetCodeResultConfirmation,
-  shouldRetryLeetCodeVerdictCandidate,
-  storageChangeRevivesVerdictCandidate,
 } from "./adapters/leetcode/network";
 import {
   NOWCODER_NETWORK_POLICY,
@@ -98,7 +101,9 @@ import {
   NOWCODER_SUBMIT_ENDPOINT_KEY,
   selectNowCoderConfirmation,
 } from "./adapters/nowcoder/network";
-import { readConfirmedSubmissionState } from "./confirmedSubmissionStorage";
+// readConfirmedSubmissionState lives in confirmedSubmissionStorage and is
+// only read by the orchestrator; the background never inspects confirmed
+// submissions directly (plan Task 7).
 import {
   applyOrchestratorPersistence,
   createBackgroundOrchestrator,
@@ -137,27 +142,15 @@ const INGRESS_DIAGNOSTIC_KEY = "contentIngressDiagnostics";
 const INGRESS_DIAGNOSTIC_LIMIT = 20;
 const INGRESS_READY_KEY = "contentIngressReady";
 const INGRESS_READY_LIMIT = 20;
-const VERDICT_CANDIDATE_RETRY_DELAY_MS = 500;
-const MAX_VERDICT_CANDIDATE_RETRY_ATTEMPTS = 40;
 let activeOutboxFlush: Promise<void> | undefined;
 let cachedSnapshot: OrchestratorState | undefined;
 let ingressState: IngressCoordinatorState = INITIAL_INGRESS_STATE;
-let pendingVerdictCandidateRecheck: (() => Promise<void>) | undefined;
 const characterizationClock = (): string => new Date().toISOString();
 
 chrome.storage.onChanged?.addListener((changes, areaName) => {
   if (areaName !== "local") return;
   if (Object.hasOwn(changes, "captureEnabled")) {
     cachedSnapshot = undefined;
-  }
-  // Event-driven revival: the E2 confirmation for a pending verdict candidate
-  // is written by a later serialized executor stage than the stage that reads
-  // candidate state. A bounded poll also exists, but the storage change is
-  // the authoritative signal that a confirmed submission is now visible.
-  if (storageChangeRevivesVerdictCandidate(changes) && pendingVerdictCandidateRecheck !== undefined) {
-    const recheck = pendingVerdictCandidateRecheck;
-    pendingVerdictCandidateRecheck = undefined;
-    executor.schedule(recheck);
   }
 });
 
@@ -299,6 +292,7 @@ const PRUNE_DEADLINE_KEYS = [
   "uiHints",
   "transientE1",
   "transientUnmatchedE3",
+  "transientVerdictCandidates",
   "transientAmbiguityDiagnostics",
 ] as const;
 
@@ -329,6 +323,10 @@ function nextSessionPruneDeadline(
     const ms = Date.parse(unmatched.receivedAt) + UNMATCHED_E3_TTL_MS;
     if (Number.isFinite(ms) && ms > nowMs && ms < earliest) earliest = ms;
   }
+  for (const candidate of state.verdictCandidates) {
+    const ms = Date.parse(candidate.receivedAt) + VERDICT_CANDIDATE_TTL_MS;
+    if (Number.isFinite(ms) && ms > nowMs && ms < earliest) earliest = ms;
+  }
   for (const diagnostic of state.ambiguityDiagnostics) {
     const ms = Date.parse(diagnostic.receivedAt) + AMBIGUITY_TTL_MS;
     if (Number.isFinite(ms) && ms > nowMs && ms < earliest) earliest = ms;
@@ -345,6 +343,7 @@ function persistenceAsTransientState(
     requestLifecycles: persistence.transientE1,
     pageContexts: persistence.pageContexts,
     unmatchedE3: persistence.unmatchedFinals,
+    verdictCandidates: persistence.verdictCandidates,
     ambiguityDiagnostics: persistence.ambiguityDiagnostics,
   };
 }
@@ -740,7 +739,6 @@ async function applyLeetCodeCheckConfirmation(details: WebRequestDetails): Promi
   const confirmation = selectLeetCodeConfirmation({
     checkEvidence: checkLifecycle.evidence,
     submitCandidates,
-    now: new Date().toISOString(),
   });
   if (confirmation.kind !== "confirmed") return;
   await applyOrchestratorEvent({
@@ -782,7 +780,6 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
     resultEvidence: resultLifecycle.evidence,
     graphqlCandidates,
     problemCandidates,
-    now: new Date().toISOString(),
   });
   if (confirmation.kind !== "confirmed") return;
   await applyOrchestratorEvent({
@@ -1106,17 +1103,18 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     const senderFrameId = typeof sender.frameId === "number" ? sender.frameId : undefined;
     const senderDocumentId = typeof sender.documentId === "string" ? sender.documentId : undefined;
 
-    // A single attempt at adapter-owned E3 evidence. Returns true only when
-    // the failure is a confirmed-submission race that may be retried (the
-    // E2 confirmation is written by a later serialized executor stage than
-    // the stage that reads candidate state). Every other failure is terminal.
-    const tryOnce = async (): Promise<boolean> => {
-      if (await blocksCharacterizationProductionIngress(candidate.platform, characterizationController)) return false;
-      if (candidate.platform === "nowcoder"
-        && senderTabUrl !== undefined
-        && senderTabId !== undefined
-        && senderFrameId !== undefined
-        && senderDocumentId !== undefined) {
+    // Validate the sender's tab/frame/document identity before any storage
+    // work. A malformed sender can never reach the candidate pipeline.
+    if (senderTabUrl === undefined
+      || senderTabId === undefined
+      || senderFrameId === undefined
+      || senderDocumentId === undefined) {
+      return false;
+    }
+
+    if (candidate.platform === "nowcoder") {
+      executor.schedule(async () => {
+        if (await blocksCharacterizationProductionIngress(candidate.platform, characterizationController)) return;
         const e3 = NOWCODER_NETWORK_POLICY.verdictEvidence({
           kind: "verdict",
           pageUrl: senderTabUrl,
@@ -1129,85 +1127,50 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
         });
         if (e3?.kind === "final_verdict_confirmed") {
           await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3 });
-          return false;
         }
-        return false;
-      }
-      if (candidate.platform === "leetcode"
-        && senderTabUrl !== undefined
-        && senderTabId !== undefined
-        && senderFrameId !== undefined
-        && senderDocumentId !== undefined) {
+      });
+      return false;
+    }
+
+    if (candidate.platform === "leetcode") {
+      executor.schedule(async () => {
+        if (await blocksCharacterizationProductionIngress(candidate.platform, characterizationController)) return;
         const problemIdentity = normalizeLeetCodeProblemIdentity(
           senderTabUrl,
           candidate.problemExternalId,
         );
-        if (problemIdentity !== null) {
-          const stored = await trustedLocalStorage.get(["confirmedSubmissions"]);
-          const confirmedSubmissionIds = readConfirmedSubmissionState(stored).confirmed
-            .filter((record) =>
-              record.platform === "leetcode"
-              && record.problemExternalId === problemIdentity
-              && record.finalizedAt === undefined)
-            .map((record) => record.externalSubmissionId);
-          const e3 = LEETCODE_NETWORK_POLICY.verdictEvidence({
-            kind: "verdict",
-            pageUrl: senderTabUrl,
-            problemExternalId: candidate.problemExternalId,
-            verdictText: candidate.verdict,
-            confirmedSubmissionIds,
+        if (problemIdentity === null) return;
+        const transientCandidate: TransientVerdictCandidate = Object.freeze({
+          schemaVersion: 1,
+          tier: "E3",
+          kind: "verdict_candidate",
+          candidateId: verdictCandidateIdentity({
+            platform: "leetcode",
             tabId: senderTabId,
             frameId: senderFrameId,
             documentId: senderDocumentId,
-            receivedAt: candidate.observedAt,
-          });
-          if (e3?.kind === "final_verdict_confirmed") {
-            await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3 });
-            return false;
-          }
-          return shouldRetryLeetCodeVerdictCandidate(confirmedSubmissionIds);
-        }
-      }
-      // Unsupported DOM candidates are intentionally dropped. Only an
-      // adapter-owned V4 verdict policy may turn a candidate into E3; the
-      // removed fallback used click-derived V3 pending intent.
+            problemExternalId: problemIdentity,
+            observedAt: candidate.observedAt,
+          }),
+          platform: "leetcode",
+          problemExternalId: problemIdentity,
+          verdict: candidate.verdict,
+          observedAt: candidate.observedAt,
+          tabId: senderTabId,
+          frameId: senderFrameId,
+          documentId: senderDocumentId,
+          transitionEvidence: candidate.transitionEvidence,
+          receivedAt: candidate.observedAt,
+        });
+        await applyOrchestratorEvent({
+          kind: "verdict_candidate_recorded",
+          candidate: transientCandidate,
+        });
+      });
       return false;
-    };
+    }
 
-    let attempts = 0;
-    const recheck = async (): Promise<void> => {
-      executor.schedule(attempt);
-    };
-    const attempt = async (): Promise<void> => {
-      attempts += 1;
-      const shouldRetry = await tryOnce();
-      if (!shouldRetry) {
-        if (pendingVerdictCandidateRecheck === recheck) pendingVerdictCandidateRecheck = undefined;
-        return;
-      }
-      if (attempts < MAX_VERDICT_CANDIDATE_RETRY_ATTEMPTS) {
-        // Delayed re-entry into the serialized executor: sleeping inside the
-        // current task would block the E2 confirmation stages this retry
-        // depends on. Each retry re-reads confirmed submissions from storage.
-        setTimeout(() => {
-          executor.schedule(attempt);
-        }, VERDICT_CANDIDATE_RETRY_DELAY_MS);
-        return;
-      }
-      // Poll window exhausted: record the closed diagnostic, but stay armed so
-      // a late E2 confirmation written after the window can still revive the
-      // attempt via the storage-change listener below. The service-worker
-      // lifetime bounds the wait; a stale candidate can never fabricate E3.
-      if (candidate.platform === "leetcode") {
-        const reason = `verdict candidate unconfirmed: leetcode:${candidate.problemExternalId}`;
-        const safe = safeStoredCaptureError(reason);
-        if (safe !== undefined) {
-          await trustedLocalStorage.set({ lastCaptureError: safe });
-        }
-      }
-    };
-    pendingVerdictCandidateRecheck = recheck;
-    executor.schedule(attempt);
+    // Unsupported platforms: drop the candidate without storage work.
     return false;
   }
   if (isActionMessage(message)) {
@@ -1363,7 +1326,41 @@ async function applyOrchestratorEvent(event: OrchestratorEvent): Promise<Orchest
   }
   const effects = await orchestrator.apply(event);
   await applyPersistence(effects);
+  await processVerdictCandidateResolutions(effects.verdictCandidateResolutions);
   return effects;
+}
+
+async function processVerdictCandidateResolutions(
+  resolutions: readonly import("./verdictCandidateCoordinator").VerdictCandidateResolution[],
+): Promise<void> {
+  for (const resolution of resolutions) {
+    if (resolution.platform !== "leetcode") continue;
+    const e3 = createLeetCodeFinalVerdictEvidence({
+      problemExternalId: resolution.problemExternalId,
+      externalSubmissionId: resolution.externalSubmissionId,
+      verdictText: resolution.verdict,
+      tabId: resolution.tabId,
+      frameId: resolution.frameId,
+      documentId: resolution.documentId,
+      receivedAt: resolution.observedAt,
+    });
+    if (e3 === null) {
+      // The plan requires that a failed E3 construction never returns
+      // silently. Surface the diagnostic through the orchestrator so the
+      // popup and cached snapshot reflect it.
+      const reason = `verdict candidate blocked: leetcode:${resolution.problemExternalId}:adapter`;
+      const safe = safeStoredCaptureError(reason);
+      if (safe !== undefined) {
+        await trustedLocalStorage.set({ lastCaptureError: safe });
+      }
+      continue;
+    }
+    await applyOrchestratorEvent({
+      kind: "e3_recorded",
+      evidence: e3,
+      candidateId: resolution.candidateId,
+    });
+  }
 }
 
 function ignoredCaptureEffects(state: OrchestratorState): OrchestratorEffects {
@@ -1382,9 +1379,11 @@ function ignoredCaptureEffects(state: OrchestratorState): OrchestratorEffects {
       transientE1: [],
       pageContexts: [],
       unmatchedFinals: [],
+      verdictCandidates: [],
       ambiguityDiagnostics: [],
     },
     executorSchedule: [],
+    verdictCandidateResolutions: [],
   };
 }
 

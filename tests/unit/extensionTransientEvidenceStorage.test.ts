@@ -7,6 +7,9 @@ import {
   pruneTransientSessionEvidence,
   readTransientSessionEvidenceState,
   UNMATCHED_E3_TTL_MS,
+  VERDICT_CANDIDATE_MAX_COUNT,
+  VERDICT_CANDIDATE_TTL_MS,
+  verdictCandidateIdentity,
   type TransientSessionEvidenceState,
 } from "@/extension/src/transientEvidenceStorage";
 
@@ -55,7 +58,24 @@ const state: TransientSessionEvidenceState = Object.freeze({
     }),
   ]),
   unmatchedE3: Object.freeze([]),
+  verdictCandidates: Object.freeze([]),
   ambiguityDiagnostics: Object.freeze([]),
+});
+
+const candidate = Object.freeze({
+  schemaVersion: 1 as const,
+  tier: "E3" as const,
+  kind: "verdict_candidate" as const,
+  candidateId: "candidate_two-sum_740553045",
+  platform: "leetcode" as const,
+  problemExternalId: "two-sum",
+  verdict: "Accepted",
+  observedAt: "2026-07-24T00:00:01.000Z",
+  tabId: 7,
+  frameId: 0,
+  documentId: "doc",
+  transitionEvidence: "exact_result_document" as const,
+  receivedAt: "2026-07-24T00:00:01.000Z",
 });
 
 describe("transient evidence storage", () => {
@@ -198,5 +218,105 @@ describe("transient ambiguity diagnostic round-trip", () => {
     expect(rehydrated.ambiguityDiagnostics.length).toBe(2);
     expect(rehydrated.ambiguityDiagnostics[0]?.reason).toBe("multiple_e1_candidates");
     expect(rehydrated.ambiguityDiagnostics[1]?.reason).toBe("e1_window_expired");
+  });
+});
+
+describe("transient verdict candidate storage", () => {
+  it("round-trips a valid candidate through the write plan", () => {
+    const withCandidate: TransientSessionEvidenceState = Object.freeze({
+      ...state,
+      verdictCandidates: Object.freeze([candidate]),
+    });
+    const plan = planTransientSessionEvidenceWrite(withCandidate);
+    expect(plan.items.transientVerdictCandidates).toEqual([candidate]);
+    const rehydrated = readTransientSessionEvidenceState(plan.items);
+    expect(rehydrated.verdictCandidates).toEqual([candidate]);
+  });
+
+  it("rejects an unknown field on the candidate", () => {
+    const parsed = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [Object.freeze({ ...candidate, url: "https://leetcode.cn" })],
+    });
+    expect(parsed.verdictCandidates).toEqual([]);
+    expect(parsed.ambiguityDiagnostics.some((d) => d.reason === "unknown_field")).toBe(true);
+  });
+
+  it("rejects a malformed timestamp", () => {
+    const parsed = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [
+        Object.freeze({ ...candidate, observedAt: "not-a-date" }),
+        Object.freeze({ ...candidate, receivedAt: "2026-99-99T00:00:00.000Z" }),
+      ],
+    });
+    expect(parsed.verdictCandidates).toEqual([]);
+    expect(parsed.ambiguityDiagnostics.some((d) => d.reason === "malformed_timestamp")).toBe(true);
+  });
+
+  it("rejects control characters in identity strings", () => {
+    const parsed = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [
+        Object.freeze({ ...candidate, problemExternalId: "two\u001fsum" }),
+      ],
+    });
+    expect(parsed.verdictCandidates).toEqual([]);
+    expect(parsed.ambiguityDiagnostics.some((d) => d.reason === "control_character_in_identity")).toBe(true);
+  });
+
+  it("rejects forbidden raw fields", () => {
+    const parsed = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [
+        Object.freeze({ ...candidate, code: "class Solution {}" }),
+        Object.freeze({ ...candidate, token: "secret" }),
+        Object.freeze({ ...candidate, pageUrl: "https://leetcode.cn" }),
+      ],
+    });
+    expect(parsed.verdictCandidates).toEqual([]);
+  });
+
+  it("expires candidates at the E1 lifecycle TTL boundary deterministically", () => {
+    expect(VERDICT_CANDIDATE_TTL_MS).toBe(E1_LIFECYCLE_TTL_MS);
+    const withCandidate: TransientSessionEvidenceState = Object.freeze({
+      ...state,
+      verdictCandidates: Object.freeze([candidate]),
+    });
+    expect(pruneTransientSessionEvidence(withCandidate, "2026-07-24T00:04:59.999Z").verdictCandidates).toHaveLength(1);
+    expect(pruneTransientSessionEvidence(withCandidate, "2026-07-24T00:05:00.999Z").verdictCandidates).toHaveLength(1);
+    expect(pruneTransientSessionEvidence(withCandidate, "2026-07-24T00:05:01.000Z").verdictCandidates).toEqual([]);
+    expect(pruneTransientSessionEvidence(withCandidate, "2026-07-23T00:00:00.000Z").verdictCandidates).toEqual([]);
+  });
+
+  it("caps the retained candidate count at 32", () => {
+    expect(VERDICT_CANDIDATE_MAX_COUNT).toBe(32);
+    const many = Object.freeze(Array.from({ length: 40 }, (_, i) => Object.freeze({
+      ...candidate,
+      candidateId: `candidate_${i}`,
+      observedAt: new Date(Date.parse(candidate.observedAt) + i * 1000).toISOString(),
+      receivedAt: new Date(Date.parse(candidate.receivedAt) + i * 1000).toISOString(),
+    })));
+    const withMany: TransientSessionEvidenceState = Object.freeze({ ...state, verdictCandidates: many });
+    const pruned = pruneTransientSessionEvidence(withMany, "2026-07-24T00:05:00.000Z");
+    expect(pruned.verdictCandidates).toHaveLength(32);
+    expect(pruned.verdictCandidates[31]?.candidateId).toBe("candidate_39");
+  });
+
+  it("reads legacy storage without the key as an empty candidate array", () => {
+    const parsed = readTransientSessionEvidenceState({});
+    expect(parsed.verdictCandidates).toEqual([]);
+  });
+
+  it("computes a deterministic candidate identity", () => {
+    expect(verdictCandidateIdentity(candidate)).toBe(
+      "leetcode\u001f7\u001f0\u001fdoc\u001ftwo-sum\u001f2026-07-24T00:00:01.000Z",
+    );
+    expect(verdictCandidateIdentity(candidate)).toBe(
+      verdictCandidateIdentity({
+        platform: candidate.platform,
+        tabId: candidate.tabId,
+        frameId: candidate.frameId,
+        documentId: candidate.documentId,
+        problemExternalId: candidate.problemExternalId,
+        observedAt: "2026-07-24T00:00:01.000Z",
+      }),
+    );
   });
 });

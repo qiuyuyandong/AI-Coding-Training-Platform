@@ -30,6 +30,7 @@ export const APPROVED_SESSION_STORAGE_KEYS: readonly string[] = Object.freeze([
   "transientE1",
   "transientPageContexts",
   "transientUnmatchedE3",
+  "transientVerdictCandidates",
   "transientAmbiguityDiagnostics",
   "characterizationSession",
   "b3WitnessState",
