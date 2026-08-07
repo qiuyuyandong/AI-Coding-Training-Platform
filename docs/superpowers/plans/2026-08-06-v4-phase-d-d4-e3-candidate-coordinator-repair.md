@@ -1393,6 +1393,26 @@ changed files exit 0; focused orchestrator/coordinator/storage/flow suite
 extension:check` exit 0; `node scripts/audit-v4-extension-privacy.mjs`
 `0 findings`; `npm run extension:e2e` 53 passed / 1 known skip, exit 0.
 
+## Task 10 execution result (2026-08-08)
+
+Round-two fixes and this plan were committed in one coherent commit:
+
+```text
+a9515a8ad5afd25120246bb69d26d6379995905e
+fix(v4): surface expired diagnostics and pin graphql coordination
+```
+
+- Base SHA: `3246713` (merge of Task 7-9 verdict candidate coordinator repair)
+- Implementation SHA: `a9515a8` (this commit)
+- Documentation SHA: `a9515a8` (plan + disposition recorded in the same commit)
+- Test counts: focused 4 files 105/105; full extension unit suite
+  45 files / 1514 tests; `npm run extension:e2e` 53 passed / 1 known skip
+- Build result: `npm run extension:check` exit 0, production `extension/dist`
+  rebuilt; `git diff --check` exit 0
+- Privacy audit: `node scripts/audit-v4-extension-privacy.mjs` → `0 findings`
+- Working-tree status: clean
+- No push, no PR, no RC marker, no D4 acceptance performed.
+
 ---
 
 # Task 10: Commit candidate engineering result
