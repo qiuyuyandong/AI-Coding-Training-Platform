@@ -136,8 +136,10 @@ export const emptyTransientSessionEvidenceState = (): TransientSessionEvidenceSt
 });
 
 /**
- * Deterministic pure candidate identity. Control characters are rejected by
- * the parser before storage, so the join separator (\u001f) cannot collide.
+ * Deterministic pure candidate identity. The parser rejects raw control
+ * characters before storage, so the identity must be a printable string too:
+ * JSON.stringify escapes any control character as \uXXXX, keeping the joined
+ * result control-free while remaining collision-free and order-deterministic.
  */
 export function verdictCandidateIdentity(
   candidate: Pick<
@@ -150,14 +152,14 @@ export function verdictCandidateIdentity(
     | "observedAt"
   >,
 ): string {
-  return [
+  return JSON.stringify([
     candidate.platform,
     String(candidate.tabId),
     String(candidate.frameId),
     candidate.documentId,
     candidate.problemExternalId,
     candidate.observedAt,
-  ].join("\u001f");
+  ]);
 }
 
 const ISO_DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{3})?Z$/;

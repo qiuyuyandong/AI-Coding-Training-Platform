@@ -3,6 +3,7 @@ import {
   appendLeetCodeEndpointDiagnostic,
   createLeetCodeEndpointDiagnostic,
   createLeetCodeFinalVerdictEvidence,
+  createLeetCodeTransientVerdictCandidate,
   LEETCODE_CHECK_ENDPOINT_PREFIX,
   LEETCODE_CONFIRMATION_WINDOW_MS,
   LEETCODE_ENDPOINT_DIAGNOSTIC_LIMIT,
@@ -686,5 +687,80 @@ describe("createLeetCodeFinalVerdictEvidence", () => {
     const parsed = parseSafeEvidence(e3 as object);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.value.kind).toBe("final_verdict_confirmed");
+  });
+});
+
+describe("createLeetCodeTransientVerdictCandidate", () => {
+  const baseInput = {
+    problemExternalId: "add-two-numbers",
+    verdictText: "Accepted",
+    observedAt: NOW,
+    tabId: 7,
+    frameId: 0,
+    documentId: DOCUMENT_ID,
+    transitionEvidence: "exact_result_document" as const,
+  };
+
+  it("produces a session-only candidate with the normalized verdict", () => {
+    const candidate = createLeetCodeTransientVerdictCandidate(baseInput);
+    expect(candidate).toMatchObject({
+      schemaVersion: 1,
+      tier: "E3",
+      kind: "verdict_candidate",
+      platform: "leetcode",
+      problemExternalId: "add-two-numbers",
+      verdict: "Accepted",
+      observedAt: NOW,
+      receivedAt: NOW,
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+      transitionEvidence: "exact_result_document",
+    });
+    expect(candidate?.candidateId.length).toBeGreaterThan(0);
+  });
+
+  it("normalizes a trusted Chinese label through the shared taxonomy", () => {
+    const candidate = createLeetCodeTransientVerdictCandidate({
+      ...baseInput,
+      verdictText: "答案正确",
+    });
+    expect(candidate?.verdict).toBe("Accepted");
+  });
+
+  it.each([
+    { verdictText: "Judging" },
+    { verdictText: "Other Failure" },
+    { verdictText: "Waiting" },
+    { verdictText: "已提交" },
+    { verdictText: "-" },
+    { verdictText: "" },
+  ])("rejects non-final, pending, placeholder or fallback verdict text %#", (override) => {
+    expect(createLeetCodeTransientVerdictCandidate({ ...baseInput, ...override })).toBeNull();
+  });
+
+  it.each([
+    { problemExternalId: "AddTwoNumbers" },
+    { problemExternalId: "" },
+    { problemExternalId: "two-sum\u0000" },
+    { observedAt: "2026-07-30T08:40:11.3Z" },
+    { observedAt: "not a time" },
+    { documentId: "" },
+    { documentId: "doc\u0000id" },
+    { tabId: -1 },
+    { frameId: -1.5 },
+  ])("rejects malformed identity fields %#", (override) => {
+    expect(createLeetCodeTransientVerdictCandidate({ ...baseInput, ...override })).toBeNull();
+  });
+
+  it("candidate identity is deterministic and distinct per observation", () => {
+    const first = createLeetCodeTransientVerdictCandidate(baseInput);
+    const same = createLeetCodeTransientVerdictCandidate(baseInput);
+    const later = createLeetCodeTransientVerdictCandidate({
+      ...baseInput,
+      observedAt: "2026-07-30T08:40:12.000Z",
+    });
+    expect(first?.candidateId).toBe(same?.candidateId);
+    expect(first?.candidateId).not.toBe(later?.candidateId);
   });
 });

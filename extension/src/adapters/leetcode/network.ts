@@ -4,6 +4,10 @@ import type {
   E2SubmissionConfirmed,
   E3FinalVerdictConfirmed,
 } from "@/extension/src/evidence";
+import {
+  verdictCandidateIdentity,
+  type TransientVerdictCandidate,
+} from "@/extension/src/transientEvidenceStorage";
 import { normalizeTrustedVerdictText } from "@/lib/capture/verdictTaxonomy";
 
 export const LEETCODE_NETWORK_ADAPTER_VERSION = "v4-leetcode-network-6";
@@ -226,6 +230,62 @@ export function normalizeLeetCodeProblemIdentity(
   return page === null || page.problemSlug !== problemExternalId
     ? null
     : page.problemSlug;
+}
+
+/**
+ * Pure LeetCode verdict-candidate intake. The verdict text is normalized
+ * through the shared taxonomy before anything can be persisted: pending
+ * labels, placeholders, non-verdict narrative and the `Other Failure`
+ * fallback all return `null`, so a bogus label can never enter the bounded
+ * session slice or wait for an E2 that can never satisfy it. Identity fields
+ * follow the same strict validation as E3 construction.
+ */
+export function createLeetCodeTransientVerdictCandidate(
+  input: Readonly<{
+    problemExternalId: string;
+    verdictText: string;
+    observedAt: string;
+    tabId: number;
+    frameId: number;
+    documentId: string;
+    transitionEvidence: TransientVerdictCandidate["transitionEvidence"];
+  }>,
+): TransientVerdictCandidate | null {
+  const verdict = normalizeTrustedVerdictText(input.verdictText);
+  if (verdict === null || verdict === "Other Failure") return null;
+  if (!isProblemSlug(input.problemExternalId)
+    || !isCanonicalUtcDateTime(input.observedAt)
+    || !Number.isInteger(input.tabId)
+    || input.tabId < 0
+    || !Number.isInteger(input.frameId)
+    || input.frameId < 0
+    || input.documentId.length === 0
+    || /[\u0000-\u001f\u007f]/u.test(input.problemExternalId)
+    || /[\u0000-\u001f\u007f]/u.test(input.documentId)) {
+    return null;
+  }
+  return Object.freeze({
+    schemaVersion: 1,
+    tier: "E3",
+    kind: "verdict_candidate",
+    candidateId: verdictCandidateIdentity({
+      platform: "leetcode",
+      tabId: input.tabId,
+      frameId: input.frameId,
+      documentId: input.documentId,
+      problemExternalId: input.problemExternalId,
+      observedAt: input.observedAt,
+    }),
+    platform: "leetcode",
+    problemExternalId: input.problemExternalId,
+    verdict,
+    observedAt: input.observedAt,
+    tabId: input.tabId,
+    frameId: input.frameId,
+    documentId: input.documentId,
+    transitionEvidence: input.transitionEvidence,
+    receivedAt: input.observedAt,
+  });
 }
 
 export function selectLeetCodeConfirmation(

@@ -2548,17 +2548,70 @@ describe("verdict candidate orchestration (Task 5)", () => {
       evidence: candidateE2(),
       matchedSubmitRequestId: "request_840",
     });
-    // Simulate a worker stop before the E3 was applied: the durable
-    // confirmed record exists, the candidate was consumed by the resolution,
-    // so nothing is left to reconcile.
+    // Simulate a worker stop between E2 persistence and E3 handling: the
+    // durable confirmed record exists and the resolution was already emitted,
+    // but the candidate must survive so the restarted worker can replay it.
     await applyEffectsToStorage(storage, e2Effects);
     const restarted = createBackgroundOrchestrator(orchestratorDeps(storage, candidateNow));
     const effects = await restarted.install();
     await applyEffectsToStorage(storage, effects);
-    expect(effects.verdictCandidateResolutions).toEqual([]);
-    expect(effects.persistence.verdictCandidates).toEqual([]);
+    expect(effects.verdictCandidateResolutions).toHaveLength(1);
+    const resolution = effects.verdictCandidateResolutions[0];
+    if (resolution === undefined) throw new Error("resolution missing");
+    expect(resolution.candidateId).toBe("candidate_flow_1");
+    expect(resolution.externalSubmissionId).toBe("cn/920");
+    // The retained candidate must still be present for the replay.
+    expect(effects.persistence.verdictCandidates).toHaveLength(1);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toHaveLength(1);
+    // Consuming the recovered resolution finalizes exactly one bundle.
+    const e3Effects = await restarted.apply({
+      kind: "e3_recorded",
+      evidence: candidateE3(),
+      candidateId: resolution.candidateId,
+    });
+    await applyEffectsToStorage(storage, e3Effects);
+    expect(e3Effects.persistence.outbox).toHaveLength(1);
+    expect(e3Effects.persistence.tombstones).toHaveLength(1);
+    const after = await storage.session.get(["transientVerdictCandidates"]);
+    expect(after.transientVerdictCandidates).toEqual([]);
+  });
+
+  it("verdict_candidate_blocked persists the adapter diagnostic and consumes the candidate", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    await recordLifecyclePair(storage, orchestrator);
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate(),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: candidateE2(),
+      matchedSubmitRequestId: "request_840",
+    });
+    await applyEffectsToStorage(storage, e2Effects);
+    const resolution = e2Effects.verdictCandidateResolutions[0];
+    if (resolution === undefined) throw new Error("resolution missing");
+    const effects = await orchestrator.apply({
+      kind: "verdict_candidate_blocked",
+      candidateId: resolution.candidateId,
+      platform: "leetcode",
+      problemExternalId: resolution.problemExternalId,
+    });
+    await applyEffectsToStorage(storage, effects);
+    const diagnostic = "verdict candidate blocked: leetcode:two-sum:adapter";
+    expect(effects.state.lastCaptureError).toBe(diagnostic);
+    expect(effects.persistence.local.some((write) =>
+      write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
+    const local = await storage.local.get(["lastCaptureError"]);
+    expect(local.lastCaptureError).toBe(diagnostic);
     const session = await storage.session.get(["transientVerdictCandidates"]);
     expect(session.transientVerdictCandidates).toEqual([]);
+    expect(effects.persistence.outbox).toEqual([]);
   });
 
   it("terminal chronology removes only the offending candidate", async () => {
@@ -2585,6 +2638,143 @@ describe("verdict candidate orchestration (Task 5)", () => {
     expect(effects.verdictCandidateResolutions).toEqual([]);
     const session = await storage.session.get(["transientVerdictCandidates"]);
     expect(session.transientVerdictCandidates).toEqual([]);
+  });
+
+  it("install surfaces a TTL-pruned expired candidate as a closed diagnostic", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    // Seed an expired candidate directly into session storage, then re-install.
+    const expiredCandidate = verdictCandidate({
+      candidateId: "candidate_expired_install",
+      receivedAt: "2026-08-06T11:00:00.000Z",
+    });
+    await storage.session.set({
+      transientVerdictCandidates: [expiredCandidate],
+    });
+    const effects = await orchestrator.install();
+    await applyEffectsToStorage(storage, effects);
+    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    expect(effects.persistence.local.some((write) =>
+      write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
+    const local = await storage.local.get(["lastCaptureError"]);
+    expect(local.lastCaptureError).toBe(diagnostic);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toEqual([]);
+  });
+
+  it("apply surfaces a TTL-pruned expired candidate as a closed diagnostic", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    const expiredCandidate = verdictCandidate({
+      candidateId: "candidate_expired_apply",
+      receivedAt: "2026-07-24T00:00:00.000Z",
+    });
+    await storage.session.set({
+      transientVerdictCandidates: [expiredCandidate],
+    });
+    // Any subsequent event runs the prune first; the pruned expired candidate
+    // must surface as a closed diagnostic instead of vanishing silently.
+    const effects = await orchestrator.apply({
+      kind: "e1_recorded",
+      evidence: candidateE1(),
+      tabId: candidateE1().tabId,
+      frameId: candidateE1().frameId,
+      documentId: candidateE1().documentId,
+      adapterVersion: candidateE1().adapterVersion,
+    });
+    await applyEffectsToStorage(storage, effects);
+    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    expect(effects.persistence.local.some((write) =>
+      write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
+    const local = await storage.local.get(["lastCaptureError"]);
+    expect(local.lastCaptureError).toBe(diagnostic);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toEqual([]);
+  });
+
+  it("pruneOrchestratorSession surfaces a TTL-pruned expired candidate as a closed diagnostic", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    const expiredCandidate = verdictCandidate({
+      candidateId: "candidate_expired_prune",
+      receivedAt: "2026-07-24T00:00:00.000Z",
+    });
+    await storage.session.set({
+      transientVerdictCandidates: [expiredCandidate],
+    });
+    const effects = await orchestrator.pruneOrchestratorSession(candidateNow);
+    await applyEffectsToStorage(storage, effects);
+    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    expect(effects.persistence.local.some((write) =>
+      write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
+    // The returned state must already reflect the exact final persistence diff
+    // (state derived AFTER the diagnostic write), not the previous refresh.
+    expect(effects.state.lastCaptureError).toBe(diagnostic);
+    const local = await storage.local.get(["lastCaptureError"]);
+    expect(local.lastCaptureError).toBe(diagnostic);
+    const session = await storage.session.get(["transientVerdictCandidates"]);
+    expect(session.transientVerdictCandidates).toEqual([]);
+  });
+
+  it("install keeps a fresh diagnostic write over a plan-driven same-key removal", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    // A stale, unsanitizable lastCaptureError makes the init plan request its
+    // removal, while a TTL-pruned expired candidate reconciliated by this
+    // install writes a fresh closed diagnostic to the same key.
+    await storage.local.set({ lastCaptureError: "" });
+    const expiredCandidate = verdictCandidate({
+      candidateId: "candidate_expired_install_conflict",
+      receivedAt: "2026-07-24T00:00:00.000Z",
+    });
+    await storage.session.set({
+      transientVerdictCandidates: [expiredCandidate],
+    });
+    const effects = await orchestrator.install();
+    await applyEffectsToStorage(storage, effects);
+    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    expect(effects.persistence.local.some((write) =>
+      write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
+    expect(effects.persistence.localRemovals).not.toContain("lastCaptureError");
+    const local = await storage.local.get(["lastCaptureError"]);
+    expect(local.lastCaptureError).toBe(diagnostic);
+  });
+
+  it("apply keeps a fresh diagnostic write over a concurrent clear-event removal", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    // The TTL prune inside this apply surfaces an expired candidate diagnostic
+    // while the clear user action also removes `lastCaptureError`; the fresh
+    // diagnostic must survive the write-then-remove order.
+    await storage.local.set({ lastCaptureError: "Isolated result: HTTP 500" });
+    const expiredCandidate = verdictCandidate({
+      candidateId: "candidate_expired_apply_conflict",
+      receivedAt: "2026-07-24T00:00:00.000Z",
+    });
+    await storage.session.set({
+      transientVerdictCandidates: [expiredCandidate],
+    });
+    const effects = await orchestrator.apply({
+      kind: "user_action",
+      action: { type: "CLEAR_CAPTURE_QUARANTINE" },
+    });
+    await applyEffectsToStorage(storage, effects);
+    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    expect(effects.persistence.local.some((write) =>
+      write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
+    expect(effects.persistence.localRemovals).not.toContain("lastCaptureError");
+    const local = await storage.local.get(["lastCaptureError"]);
+    expect(local.lastCaptureError).toBe(diagnostic);
   });
 
   it("two candidates do not overwrite one another", async () => {

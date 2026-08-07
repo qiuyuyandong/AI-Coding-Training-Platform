@@ -306,7 +306,14 @@ describe("transient verdict candidate storage", () => {
 
   it("computes a deterministic candidate identity", () => {
     expect(verdictCandidateIdentity(candidate)).toBe(
-      "leetcode\u001f7\u001f0\u001fdoc\u001ftwo-sum\u001f2026-07-24T00:00:01.000Z",
+      JSON.stringify([
+        "leetcode",
+        "7",
+        "0",
+        "doc",
+        "two-sum",
+        "2026-07-24T00:00:01.000Z",
+      ]),
     );
     expect(verdictCandidateIdentity(candidate)).toBe(
       verdictCandidateIdentity({

@@ -21,7 +21,8 @@ export type VerdictCandidateTerminalReason =
   | "ambiguous_latest_submit"
   | "identity_mismatch"
   | "chronology_mismatch"
-  | "expired";
+  | "expired"
+  | "adapter";
 
 export type VerdictCandidateTerminal = Readonly<{
   candidateId: string;
@@ -173,7 +174,15 @@ function selectEligibleSubmitLifecycles(
     if (evidence.frameId !== candidate.frameId) continue;
     if (evidence.documentId !== candidate.documentId) continue;
     const parsed = parseSubmitEndpointKey(evidence.endpointKey);
-    if (parsed === null || parsed.problemSlug !== candidate.problemExternalId) continue;
+    if (parsed === null && evidence.endpointKey !== "graphql") continue;
+    if (parsed !== null && parsed.problemSlug !== candidate.problemExternalId) continue;
+    // The `graphql` endpoint carries no problem identity, so recency alone can
+    // never tell an unrelated same-document POST /graphql from the actual
+    // submission. Only the lifecycle already matched to the confirmed E2 is a
+    // trustworthy candidate; an unmatched graph lifecycle must not shadow or
+    // outrank the real submit on receivedAt ordering.
+    if (evidence.endpointKey === "graphql"
+      && (lifecycle.outcome !== "matched" || lifecycle.stableSubmissionId === null)) continue;
     if (evidence.method !== "POST") continue;
     if (evidence.resourceType !== "xmlhttprequest") continue;
     if (evidence.lifecycle !== "completed") continue;

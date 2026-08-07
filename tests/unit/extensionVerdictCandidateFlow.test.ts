@@ -32,9 +32,13 @@ import type {
 import type { ExtensionInitializationStorageSplit } from "@/extension/src/installation";
 import {
   createLeetCodeFinalVerdictEvidence,
+  createLeetCodeTransientVerdictCandidate,
   LEETCODE_CHECK_ENDPOINT_PREFIX,
+  LEETCODE_RESULT_ENDPOINT_PREFIX,
   LEETCODE_SUBMIT_ENDPOINT_PREFIX,
+  selectLeetCodeResultConfirmation,
 } from "@/extension/src/adapters/leetcode/network";
+import { readTransientSessionEvidenceState } from "@/extension/src/transientEvidenceStorage";
 import type { VerdictCandidateResolution } from "@/extension/src/verdictCandidateCoordinator";
 import type {
   TransientVerdictCandidate,
@@ -283,6 +287,140 @@ describe("verdict candidate flow", () => {
     expect(finalState.outboxCount).toBe(1);
     expect(finalState.finalizedCount).toBe(1);
     expect(finalState.sessionCount).toBe(2);
+    const session = storage.sessionState();
+    const retained = session.transientVerdictCandidates as readonly unknown[];
+    expect(retained).toHaveLength(0);
+  });
+
+  it("graphql result-distribution full chain: E2 from the adapter drives one bundle", async () => {
+    const storage = storageSpy();
+    const orchestrator = createBackgroundOrchestrator({
+      storage,
+      now: () => EXECUTOR_TIME,
+      flushOutbox: async (): Promise<void> => undefined,
+    });
+
+    // WebRequest E1s: a GraphQL POST submit and the exact result-distribution
+    // path that carries the stable numeric submission id. Both are retained by
+    // the normal E1 pipeline (what `applyLeetCodeResultConfirmation` reads).
+    const graphqlE1: E1RequestObserved = {
+      schemaVersion: 1,
+      evidenceId: "e1_leetcode_graphql_841",
+      platform: "leetcode",
+      tier: "E1",
+      kind: "request_observed",
+      receivedAt: "2026-08-06T11:20:01.500Z",
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+      adapterVersion: "v4-leetcode-network-6",
+      requestId: "graphql-841",
+      method: "POST",
+      endpointKey: "graphql",
+      resourceType: "xmlhttprequest",
+      lifecycle: "completed",
+      apiTimeStamp: 1500.25,
+      statusCode: 200,
+    };
+    const resultE1: E1RequestObserved = {
+      ...lifecycle({ method: "GET", requestId: "result-842", statusCode: 200 }),
+      evidenceId: "e1_leetcode_result_842",
+      receivedAt: NETWORK_TIME,
+      endpointKey: `${LEETCODE_RESULT_ENDPOINT_PREFIX}/cn/740553045`,
+      apiTimeStamp: 2000.5,
+    };
+    for (const evidence of [graphqlE1, resultE1]) {
+      const effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffects(storage, effects);
+    }
+
+    // Candidate (from the visible verdict on the final page) arrives before
+    // the adapter-driven confirmation.
+    const first = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: candidate(),
+    });
+    expect(first.verdictCandidateResolutions).toEqual([]);
+    await applyEffects(storage, first);
+
+    // A trusted visible click discovered the problem before the GraphQL POST
+    // (`applyLeetCodeResultConfirmation` filters hints by source documentId).
+    const hintEffects = await orchestrator.apply({
+      kind: "e0_recorded",
+      hint: {
+        schemaVersion: 1,
+        tier: "E0",
+        kind: "ui_hint",
+        platform: "leetcode",
+        problemExternalId: PROBLEM,
+        observedAt: "2026-08-06T11:20:01.200Z",
+      },
+      sourceDocumentId: DOCUMENT_ID,
+    });
+    await applyEffects(storage, hintEffects);
+
+    // Reproduce `applyLeetCodeResultConfirmation` exactly: read the transient
+    // session, find the result lifecycle, gather the GraphQL and problem
+    // candidates, then confirm through the adapter-owned constructor.
+    const transient = readTransientSessionEvidenceState(storage.sessionState());
+    const resultLifecycle = transient.requestLifecycles.find((entry) =>
+      entry.evidence.platform === "leetcode"
+      && entry.evidence.endpointKey.startsWith(`${LEETCODE_RESULT_ENDPOINT_PREFIX}/`));
+    expect(resultLifecycle).toBeDefined();
+    if (resultLifecycle === undefined) return;
+    const graphqlCandidates = transient.requestLifecycles
+      .filter((entry) => entry.evidence.platform === "leetcode" && entry.evidence.endpointKey === "graphql")
+      .map((entry) => entry.evidence);
+    const problemCandidates = transient.uiHints
+      .filter((hint) => hint.platform === "leetcode" && hint.sourceDocumentId === resultLifecycle.evidence.documentId)
+      .map((hint) => ({
+        platform: "leetcode" as const,
+        problemExternalId: hint.problemExternalId,
+        observedAt: hint.observedAt,
+        tabId: resultLifecycle.evidence.tabId,
+        frameId: resultLifecycle.evidence.frameId,
+        documentId: hint.sourceDocumentId,
+      }));
+    const confirmation = selectLeetCodeResultConfirmation({
+      resultEvidence: resultLifecycle.evidence,
+      graphqlCandidates,
+      problemCandidates,
+    });
+    expect(confirmation.kind).toBe("confirmed");
+    if (confirmation.kind !== "confirmed") return;
+
+    // The adapter-driven E2 carries the result path's network evidence time.
+    const confirmedE2 = confirmation.evidence;
+    expect(confirmedE2.receivedAt).toBe(NETWORK_TIME);
+    expect(confirmedE2.externalSubmissionId).toBe(SUBMISSION_ID);
+    expect(confirmation.matchedSubmitRequestId).toBe("graphql-841");
+
+    const third = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: confirmedE2,
+      matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
+    });
+    expect(third.verdictCandidateResolutions).toHaveLength(1);
+    expect(third.verdictCandidateResolutions[0]).toMatchObject({
+      candidateId: candidate().candidateId,
+      externalSubmissionId: SUBMISSION_ID,
+      problemExternalId: PROBLEM,
+      verdict: "Accepted",
+    });
+    await applyEffects(storage, third);
+
+    // E3 finalization: exactly one bundle, one tombstone, no retained candidate.
+    await drainResolutions(storage, third);
+    const finalState = await orchestrator.snapshot();
+    expect(finalState.outboxCount).toBe(1);
+    expect(finalState.finalizedCount).toBe(1);
     const session = storage.sessionState();
     const retained = session.transientVerdictCandidates as readonly unknown[];
     expect(retained).toHaveLength(0);
@@ -580,7 +718,7 @@ describe("verdict candidate flow", () => {
     expect(finalState.finalizedCount).toBe(1);
   });
 
-  it("adapter construction failure is diagnosed", async () => {
+  it("adapter construction failure is diagnosed through the orchestrator", async () => {
     const storage = storageSpy();
     const orchestrator = createBackgroundOrchestrator({
       storage,
@@ -608,10 +746,11 @@ describe("verdict candidate flow", () => {
       await applyEffects(storage, events);
     }
 
-    // Use a verdict label that is part of the closed taxonomy but the
-    // resolution carries a verdict text that createLeetCodeFinalVerdictEvidence
-    // refuses to normalize. The background must surface an `adapter` diagnostic
-    // instead of silently returning.
+    // Stale persisted state (written before intake rejection existed) can
+    // still carry a verdict `createLeetCodeFinalVerdictEvidence` refuses to
+    // normalize. The background must route the failure through the
+    // orchestrator's `verdict_candidate_blocked` event, never write storage
+    // directly.
     const bogusCandidate = candidate({ verdict: "Other Failure" });
     const retained = await orchestrator.apply({
       kind: "verdict_candidate_recorded",
@@ -626,41 +765,36 @@ describe("verdict candidate flow", () => {
     });
     await applyEffects(storage, e2);
     expect(e2.verdictCandidateResolutions).toHaveLength(1);
+    const resolution = e2.verdictCandidateResolutions[0];
+    if (resolution === undefined) throw new Error("resolution missing");
 
-    // Drive the background's resolution-processing path manually so the
-    // adapter-failure diagnostic is written exactly the way the worker would.
-    let adapterFailureDiagnosed = false;
-    for (const resolution of e2.verdictCandidateResolutions) {
-      const e3 = createLeetCodeFinalVerdictEvidence({
-        problemExternalId: resolution.problemExternalId,
-        externalSubmissionId: resolution.externalSubmissionId,
-        verdictText: resolution.verdict,
-        tabId: resolution.tabId,
-        frameId: resolution.frameId,
-        documentId: resolution.documentId,
-        receivedAt: resolution.observedAt,
-      });
-      if (e3 === null) {
-        await storage.local.set({
-          lastCaptureError:
-            `verdict candidate blocked: leetcode:${resolution.problemExternalId}:adapter`,
-        });
-        adapterFailureDiagnosed = true;
-        continue;
-      }
-      const next = await orchestrator.apply({
-        kind: "e3_recorded",
-        evidence: e3,
-        candidateId: resolution.candidateId,
-      });
-      await applyEffects(storage, next);
-    }
-    expect(adapterFailureDiagnosed).toBe(true);
+    const e3 = createLeetCodeFinalVerdictEvidence({
+      problemExternalId: resolution.problemExternalId,
+      externalSubmissionId: resolution.externalSubmissionId,
+      verdictText: resolution.verdict,
+      tabId: resolution.tabId,
+      frameId: resolution.frameId,
+      documentId: resolution.documentId,
+      receivedAt: resolution.observedAt,
+    });
+    expect(e3).toBeNull();
 
+    // The background applies the orchestrator event instead of a direct
+    // `storage.local.set` (Task 8 review fix).
+    const blocked = await orchestrator.apply({
+      kind: "verdict_candidate_blocked",
+      candidateId: resolution.candidateId,
+      platform: "leetcode",
+      problemExternalId: resolution.problemExternalId,
+    });
+    await applyEffects(storage, blocked);
+    const diagnostic = `verdict candidate blocked: leetcode:${PROBLEM}:adapter`;
+    expect(blocked.persistence.local.some((write) =>
+      write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
     const local = storage.localState();
-    expect(local.lastCaptureError).toBe(
-      `verdict candidate blocked: leetcode:${PROBLEM}:adapter`,
-    );
+    expect(local.lastCaptureError).toBe(diagnostic);
+    const session = storage.sessionState();
+    expect(session.transientVerdictCandidates).toEqual([]);
   });
 
   it("duplicate candidate and E3 signals remain idempotent", async () => {
@@ -738,5 +872,47 @@ describe("verdict candidate flow", () => {
     );
     expect(backgroundSource).not.toMatch(/shouldRetryLeetCodeVerdictCandidate/);
     expect(backgroundSource).not.toMatch(/storageChangeRevivesVerdictCandidate/);
+  });
+
+  it("background routes adapter failure through the orchestrator event, not a direct write", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const backgroundSource = readFileSync(
+      resolve(process.cwd(), "extension/src/background.ts"),
+      "utf8",
+    );
+    expect(backgroundSource).toContain('kind: "verdict_candidate_blocked"');
+    expect(backgroundSource).not.toMatch(/verdict candidate blocked/u);
+  });
+
+  it("background normalizes verdict text at intake through the shared taxonomy", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const backgroundSource = readFileSync(
+      resolve(process.cwd(), "extension/src/background.ts"),
+      "utf8",
+    );
+    expect(backgroundSource).toContain("createLeetCodeTransientVerdictCandidate");
+    expect(backgroundSource).not.toMatch(/candidateId: verdictCandidateIdentity/u);
+  });
+
+  it("adapter-produced candidate survives a session write/read round-trip", () => {
+    const produced = createLeetCodeTransientVerdictCandidate({
+      problemExternalId: PROBLEM,
+      verdictText: "Accepted",
+      observedAt: CANDIDATE_TIME,
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+      transitionEvidence: "exact_result_document",
+    });
+    expect(produced).not.toBeNull();
+    if (produced === null) return;
+    const roundTripped = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [produced],
+    });
+    expect(roundTripped.verdictCandidates).toHaveLength(1);
+    expect(roundTripped.verdictCandidates[0]?.candidateId).toBe(produced.candidateId);
+    expect(roundTripped.ambiguityDiagnostics).toEqual([]);
   });
 });

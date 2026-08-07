@@ -1294,6 +1294,105 @@ test adequacy
 
 No commit may be called “verified” until all commands above have recorded exit 0.
 
+### Review gate disposition (2026-08-07)
+
+One focused review returned `REQUEST-CHANGES` on the Task 7-9 combined diff. User
+authorized fixing all HIGH/MEDIUM findings before re-verification. Disposition:
+
+1. **HIGH — TTL-pruned candidates vanished without a terminal diagnostic.**
+   Fixed. `terminalDiagnosticForRemovedCandidates` reconciles every candidate
+   removed by the TTL prune exactly once in all three orchestrator paths
+   (`installImpl`, `applyImpl`, `pruneOrchestratorSessionImpl`) and persists the
+   closed `verdict candidate blocked: leetcode:<slug>:expired` diagnostic
+   through `localWrites` before the candidate is dropped. Covered by three new
+   tests in `tests/unit/extensionBackgroundOrchestrator.test.ts`.
+2. **MEDIUM — intake rejections were silent.** Judged **not applicable** after
+   user consultation: both silent returns in the LeetCode candidate message
+   branch (`background.ts` `normalizeLeetCodeProblemIdentity === null` and the
+   taxonomy rejection `createLeetCodeTransientVerdictCandidate === null`) are
+   *input filters* at the same trust tier as the sender URL/tab/frame/document
+   validation that precedes them, not candidate terminal paths. The diagnostic
+   contract in this plan is frozen to
+   `verdict candidate blocked: leetcode:<slug>:(ambiguous|chronology|expired|identity|adapter)`
+   (see `extension/src/captureErrorPrivacy.ts`), and `verdict_candidate_blocked`
+   requires a persisted `candidateId`, which cannot exist before intake succeeds.
+   The `problemIdentity === null` case additionally has no slug at all, so no
+   compliant diagnostic shape exists. Forcing a diagnostic would (a) extend the
+   frozen allowlist and the privacy audit, and (b) write storage influenced by
+   an unverified DOM verdict text — exactly what the taxonomy guard exists to
+   prevent. No change made.
+3. **MEDIUM — GraphQL regression lacked a full-chain unit test.** Fixed. Added
+   `graphql result-distribution full chain: E2 from the adapter drives one
+   bundle` to `tests/unit/extensionVerdictCandidateFlow.test.ts`: it reproduces
+   `applyLeetCodeResultConfirmation` against orchestrator-retained transient
+   state, drives the E2 through `selectLeetCodeResultConfirmation`, and asserts
+   resolution, E3 finalization, one bundle, one tombstone, and no retained
+   candidate.
+
+Re-verification after the fixes: see Task 9 gates above; all exit 0, plus
+`npm run extension:e2e` passed to completion.
+
+### Second review-gate disposition (2026-08-07)
+
+A second independent review returned `REQUEST-CHANGES` with one BLOCKER, two
+HIGH, and one MEDIUM finding on the Task 7-9 re-verification diff. User
+authorized fixing all findings before re-verification. Disposition:
+
+1. **BLOCKER — candidateId used a control character.** `verdictCandidateIdentity`
+   joined identity fields with `\u001f` (0x1F), but `parseVerdictCandidate`
+   rejects control characters `[\\x00-\\x1f\\x7f]` in the identity strings it
+   validates (candidateId is among them). A session write/read round-trip of
+   an adapter-produced candidate therefore always re-parsed it as corrupt and
+   dropped the pending candidate. Fixed: `verdictCandidateIdentity` now emits
+   `JSON.stringify([...])` of the same identity fields — printable, free of
+   control characters, deterministic, and collision-free — without relaxing
+   the parser's control-character rejection. Proven first as a failing RED
+   test (`adapter-produced candidate survives a session write/read round trip`
+   in `tests/unit/extensionVerdictCandidateFlow.test.ts`), then green; the
+   pinned identity expectation in
+   `tests/unit/extensionTransientEvidenceStorage.test.ts` was updated to the
+   JSON encoding.
+2. **HIGH — `lastCaptureError` write/remove concurrence loss.** `applyLocalDiff`
+   and `applyOrchestratorPersistence` apply writes first, then removals, so a
+   fresh closed diagnostic write combined with a same-key removal for
+   `lastCaptureError` could be net-deleted. Sources of those removals:
+   `computeInitializationDiff` honoring `shouldRemoveLastCaptureError` (a
+   stale unsanitizable stored error), and the clear user actions
+   (`CLEAR_CAPTURE_OUTBOX` / `CLEAR_CAPTURE_QUARANTINE`) that transition the
+   key to `undefined`. Fixed with a pure helper
+   `dropRemovalsOverwrittenByWrites`: a non-undefined write to a key wins over
+   a same-key removal (an `undefined` write is itself a deletion intent and
+   does not cancel the removal). Wired into `installImpl` and `applyImpl`;
+   both now derive `nextLocal` and expose `persistence.localRemovals` from the
+   resolved final diff. Two regression tests added to
+   `tests/unit/extensionBackgroundOrchestrator.test.ts`: install keeps a fresh
+   diagnostic over a plan-driven removal, and apply keeps a fresh diagnostic
+   over a concurrent clear-event removal.
+3. **HIGH — the `graphql` endpoint bound too broadly.** `selectEligibleSubmitLifecycles`
+   treated ANY same-document POST `/graphql` (the endpoint carries no problem
+   identity) as an eligible submit lifecycle, so an unrelated newer graph
+   POST could shadow a matching completed lifecycle whose E2 had already
+   marked a specific graph lifecycle `matched`. Fixed: a `graphql` lifecycle
+   participates only when it is already matched to the confirmed E2
+   (`outcome === "matched"` with a stable submission id); unmatched graph
+   POSTs can no longer outrank the real submit on `receivedAt` ordering.
+   A competing-graph regression test added to
+   `tests/unit/extensionVerdictCandidateCoordinator.test.ts` proves an
+   unrelated newer graph POST never shadows the matched submit.
+4. **MEDIUM — prune returned state before the diagnostic write.** In
+   `pruneOrchestratorSessionImpl`, `state` was derived from `priorLocal`
+   before the TTL-expiry diagnostic was applied to local, so the popup would
+   only see a `lastCaptureError` on the next refresh even though the prune
+   already persisted it. Fixed: apply `localWrites` to `priorLocal` first,
+   then derive `state` from the final diff. The existing prune-surface test
+   now also asserts `effects.state.lastCaptureError === <diagnostic>`.
+
+Re-verification after round two fixes: typecheck exit 0; ESLint on the four
+changed files exit 0; focused orchestrator/coordinator/storage/flow suite
+105/105; full extension unit suite 45 files / 1514 tests; `npm run
+extension:check` exit 0; `node scripts/audit-v4-extension-privacy.mjs`
+`0 findings`; `npm run extension:e2e` 53 passed / 1 known skip, exit 0.
+
 ---
 
 # Task 10: Commit candidate engineering result

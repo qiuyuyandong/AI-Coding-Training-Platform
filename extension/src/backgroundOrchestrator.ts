@@ -185,6 +185,12 @@ export type OrchestratorEvent =
       readonly kind: "verdict_candidate_recorded";
       readonly candidate: TransientVerdictCandidate;
     }
+  | {
+      readonly kind: "verdict_candidate_blocked";
+      readonly candidateId: string;
+      readonly platform: "leetcode";
+      readonly problemExternalId: string;
+    }
   | { readonly kind: "main_bridge_ambiguous"; readonly ambiguous: AmbiguousCaptureResult }
   | { readonly kind: "main_bridge_no_match"; readonly noMatch: NoMatchCaptureResult; readonly summary: MainBridgeSummary }
   | { readonly kind: "main_bridge_rejected"; readonly rejected: RejectedCaptureResult; readonly summary: MainBridgeSummary }
@@ -517,6 +523,8 @@ function handleEvent(
       return handleE2Recorded(event, local, session, now);
     case "verdict_candidate_recorded":
       return handleVerdictCandidateRecorded(event, local, session, now);
+    case "verdict_candidate_blocked":
+      return handleVerdictCandidateBlocked(event, local, session, now);
     case "e3_recorded":
       return handleE3Recorded(event, local, session, now);
     case "main_bridge_ambiguous":
@@ -835,9 +843,20 @@ function handleE2Recorded(
     confirmed: recorded.state.confirmed,
     now,
   });
+  // A resolved candidate is intentionally NOT consumed here: the background
+  // constructs E3 after this apply completes, so the candidate must survive
+  // a worker stop between E2 persistence and E3 handling, and `install` must
+  // be able to replay the resolution from the retained candidate + confirmed
+  // record. Only terminal candidates (whose closed diagnostic is persisted in
+  // this same outcome) are removed.
+  const terminalCandidateIds = new Set(
+    reconciliation.terminal.map((entry) => entry.candidateId),
+  );
   const nextSession: TransientSessionEvidenceState = {
     ...matchedSession,
-    verdictCandidates: reconciliation.pending,
+    verdictCandidates: matchedSession.verdictCandidates.filter(
+      (candidate) => !terminalCandidateIds.has(candidate.candidateId),
+    ),
   };
   const sessionOutcome = makeSessionOnlyOutcome(nextSession, session, now);
   const outbox = readOutbox(local.captureOutbox);
@@ -880,6 +899,12 @@ function handleE2Recorded(
  * lifecycles and confirmed submissions. Exact resolutions are returned for
  * the background to construct adapter E3 evidence; terminal reasons are
  * persisted as a closed `lastCaptureError` diagnostic.
+ *
+ * Resolved candidates remain in the slice until E3 is recorded (or the
+ * submission is already finalized), so a worker stop between E2 persistence
+ * and E3 handling can never strand a confirmed submission without a final
+ * verdict. Terminal candidates are removed because their closed diagnostic
+ * is persisted in the same outcome.
  */
 function handleVerdictCandidateRecorded(
   event: Extract<OrchestratorEvent, { readonly kind: "verdict_candidate_recorded" }>,
@@ -899,9 +924,14 @@ function handleVerdictCandidateRecorded(
     confirmed: confirmedState.confirmed,
     now,
   });
+  const terminalCandidateIds = new Set(
+    reconciliation.terminal.map((entry) => entry.candidateId),
+  );
   const nextSession: TransientSessionEvidenceState = {
     ...transient,
-    verdictCandidates: reconciliation.pending,
+    verdictCandidates: appended.filter(
+      (candidate) => !terminalCandidateIds.has(candidate.candidateId),
+    ),
   };
   const sessionOutcome = makeSessionOnlyOutcome(nextSession, session, now);
   const terminalDiagnostic = terminalDiagnosticFor(reconciliation.terminal);
@@ -932,6 +962,36 @@ function handleVerdictCandidateRecorded(
  * allowlist (Task 8). Identity-sensitive fields (submission/document/tab/
  * request id, timestamps, URL, verdict text) never enter the diagnostic.
  */
+/**
+ * Closed diagnostic for verdict candidates that a TTL prune removed before
+ * any later reconciliation could observe them. `reconcileVerdictCandidates`
+ * is the single source of truth for expiry, so the removed candidates are
+ * reconciled once against the surviving lifecycles; any candidate classified
+ * expired (or another terminal reason) this way is surfaced through the same
+ * `lastCaptureError` channel instead of disappearing silently.
+ */
+function terminalDiagnosticForRemovedCandidates(
+  prior: readonly TransientVerdictCandidate[],
+  pruned: readonly TransientVerdictCandidate[],
+  requestLifecycles: readonly TransientE1Lifecycle[],
+  confirmed: readonly ConfirmedSubmissionRecord[],
+  now: string,
+): string | undefined {
+  const removedIds = new Set(
+    prior.map((candidate) => candidate.candidateId),
+  );
+  for (const retained of pruned) removedIds.delete(retained.candidateId);
+  if (removedIds.size === 0) return undefined;
+  const removed = prior.filter((candidate) => removedIds.has(candidate.candidateId));
+  const reconciliation = reconcileVerdictCandidates({
+    candidates: removed,
+    requestLifecycles,
+    confirmed,
+    now,
+  });
+  return terminalDiagnosticFor(reconciliation.terminal);
+}
+
 function terminalDiagnosticFor(
   terminal: readonly VerdictCandidateTerminal[],
 ): string | undefined {
@@ -953,7 +1013,45 @@ function reasonForTerminal(
       return "chronology";
     case "expired":
       return "expired";
+    case "adapter":
+      return "adapter";
   }
+}
+
+/**
+ * Adapter-failure terminal event. The background routes a resolution whose
+ * E3 construction failed through this event so the closed `lastCaptureError`
+ * diagnostic and the candidate removal share the single orchestrator
+ * persistence path (Task 8 review fix). The candidate is consumed only here,
+ * in `handleE3Recorded` success/tombstone paths, and by the terminal
+ * diagnostic persisted in intake outcomes.
+ */
+function handleVerdictCandidateBlocked(
+  event: Extract<OrchestratorEvent, { readonly kind: "verdict_candidate_blocked" }>,
+  local: Record<string, unknown>,
+  session: Record<string, unknown>,
+  now: string,
+): EventOutcome {
+  const outcome = removeVerdictCandidate(event.candidateId, session, now);
+  const diagnostic = terminalDiagnosticFor([{
+    candidateId: event.candidateId,
+    platform: event.platform,
+    problemExternalId: event.problemExternalId,
+    reason: "adapter",
+  }]);
+  if (diagnostic === undefined) return outcome;
+  const outbox = readOutbox(local.captureOutbox);
+  const quarantine = readQuarantine(local.captureQuarantine);
+  const nextLocal: Record<string, unknown> = {
+    ...local,
+    lastCaptureError: diagnostic,
+  };
+  const localOutcome = makeLocalOutcome(nextLocal, local, now, false, outbox, quarantine);
+  return {
+    ...localOutcome,
+    sessionWrites: outcome.sessionWrites,
+    sessionRemovals: outcome.sessionRemovals,
+  };
 }
 
 function handleMainBridgeCorrelated(
@@ -1472,21 +1570,56 @@ export function createBackgroundOrchestrator(
     const localRemovals = [...initDiff.localRemovals];
     const sessionWrites = mergeWriteArrays(initDiff.sessionWrites, prunedSessionDiff.sessionWrites);
     const sessionRemovals = [...initDiff.sessionRemovals];
-    const nextLocal = applyLocalDiff(priorLocal, localWrites, localRemovals);
     // Reconcile persisted candidates against matched lifecycles and confirmed
     // submissions so a service worker that stopped after candidate or E2
     // persistence can resume safely and re-emit a recoverable resolution.
-    const confirmedState = readConfirmedSubmissionState(nextLocal);
+    const provisionalLocal = applyLocalDiff(priorLocal, localWrites, localRemovals);
+    const confirmedState = readConfirmedSubmissionState(provisionalLocal);
     const reconciliation = reconcileVerdictCandidates({
       candidates: pruned.verdictCandidates,
       requestLifecycles: pruned.requestLifecycles,
       confirmed: confirmedState.confirmed,
       now: deps.now(),
     });
-    const candidateWrites = deepEqual(reconciliation.pending, pruned.verdictCandidates)
+    // Resolved candidates survive install: they stay in the slice until E3
+    // consumes them, so a worker restart that landed after E2 persistence but
+    // before E3 handling replays the resolution from the retained candidate
+    // plus the confirmed record. Only terminal candidates are dropped, and
+    // only after their closed diagnostic is persisted here (defensive: a
+    // persisted terminal candidate implies an apply whose diagnostic write
+    // never completed).
+    const terminalCandidateIds = new Set(
+      reconciliation.terminal.map((entry) => entry.candidateId),
+    );
+    const retainedCandidates = pruned.verdictCandidates.filter(
+      (candidate) => !terminalCandidateIds.has(candidate.candidateId),
+    );
+    const candidateWrites = deepEqual(retainedCandidates, pruned.verdictCandidates)
       ? []
-      : [{ key: "transientVerdictCandidates", value: reconciliation.pending }];
+      : [{ key: "transientVerdictCandidates", value: retainedCandidates }];
     const sessionWritesWithCandidates = mergeWrites(sessionWrites, candidateWrites);
+    // Candidates pruned by TTL are reconciled once before deletion so an
+    // expiry is surfaced as a closed diagnostic instead of disappearing
+    // silently (Task 9 review gate: every terminal path observable).
+    const removedDiagnostic = terminalDiagnosticForRemovedCandidates(
+      readTransientSessionEvidenceState(priorSession).verdictCandidates,
+      pruned.verdictCandidates,
+      pruned.requestLifecycles,
+      confirmedState.confirmed,
+      deps.now(),
+    );
+    const terminalDiagnostic = removedDiagnostic
+      ?? terminalDiagnosticFor(reconciliation.terminal);
+    const diagnosticWrites = terminalDiagnostic === undefined
+      ? []
+      : [{ key: "lastCaptureError", value: terminalDiagnostic }];
+    const localWritesWithDiagnostic = mergeWriteArrays(localWrites, diagnosticWrites);
+    // A fresh diagnostic write must win over a plan-driven removal of the same
+    // key: `computeInitializationDiff` may ask to delete a stale
+    // `lastCaptureError` while a reconciliated terminal candidate installs a
+    // new one, and the write-then-remove order would net delete the new error.
+    const finalLocalRemovals = dropRemovalsOverwrittenByWrites(localRemovals, localWritesWithDiagnostic);
+    const nextLocal = applyLocalDiff(priorLocal, localWritesWithDiagnostic, finalLocalRemovals);
     const state = deriveState(nextLocal, applySessionDiff(priorSession, sessionWritesWithCandidates, sessionRemovals));
     const outbox = readOutbox(nextLocal.captureOutbox);
     const quarantine = readQuarantine(nextLocal.captureQuarantine);
@@ -1498,8 +1631,8 @@ export function createBackgroundOrchestrator(
     return deepFreeze({
       state,
       persistence: deepFreeze({
-        local: localWrites,
-        localRemovals,
+        local: localWritesWithDiagnostic,
+        localRemovals: finalLocalRemovals,
         session: sessionWritesWithCandidates,
         sessionRemovals,
         outbox,
@@ -1510,7 +1643,7 @@ export function createBackgroundOrchestrator(
         transientE1: pruned.requestLifecycles,
         pageContexts: pruned.pageContexts,
         unmatchedFinals: pruned.unmatchedE3,
-        verdictCandidates: reconciliation.pending,
+        verdictCandidates: retainedCandidates,
         ambiguityDiagnostics: pruned.ambiguityDiagnostics,
       }),
       executorSchedule,
@@ -1529,14 +1662,31 @@ export function createBackgroundOrchestrator(
     const normalizedSession = transientStateAsStorage(prunedSessionState);
     const pruneOutcome = makeSessionOnlyOutcome(prunedSessionState, priorSession, now);
     const eventOutcome = handleEvent(event, priorLocal, normalizedSession, now);
+    // Surface candidates that the TTL prune removed before this event could
+    // be reconciled as a closed expired diagnostic (Task 9 review gate).
+    const removedDiagnostic = terminalDiagnosticForRemovedCandidates(
+      readTransientSessionEvidenceState(priorSession).verdictCandidates,
+      prunedSessionState.verdictCandidates,
+      prunedSessionState.requestLifecycles,
+      readConfirmedSubmissionState(priorLocal).confirmed,
+      now,
+    );
+    const removedWrites = removedDiagnostic === undefined
+      ? []
+      : [{ key: "lastCaptureError", value: removedDiagnostic }];
     const outcome: EventOutcome = {
       ...eventOutcome,
+      localWrites: mergeWriteArrays(eventOutcome.localWrites, removedWrites),
       sessionWrites: mergeWrites(pruneOutcome.sessionWrites, eventOutcome.sessionWrites),
       sessionRemovals: [...new Set([...pruneOutcome.sessionRemovals, ...eventOutcome.sessionRemovals])],
     };
+    // A fresh write merged above must win over a same-key removal from the
+    // event outcome (e.g. an event that clears `lastCaptureError` while the
+    // TTL prune concurrently surfaces an expiry diagnostic for that key).
+    const finalLocalRemovals = dropRemovalsOverwrittenByWrites(outcome.localRemovals, outcome.localWrites);
     // Pure: no `deps.storage.*` writes here. The background owns the single
     // round of writes per `apply` invocation and consumes `persistence`.
-    const nextLocal = applyLocalDiff(priorLocal, outcome.localWrites, outcome.localRemovals);
+    const nextLocal = applyLocalDiff(priorLocal, outcome.localWrites, finalLocalRemovals);
     const nextSession = applySessionDiff(priorSession, outcome.sessionWrites, outcome.sessionRemovals);
     const state = deriveState(nextLocal, nextSession);
     const executorSchedule = outcome.scheduleFlush
@@ -1546,7 +1696,7 @@ export function createBackgroundOrchestrator(
       state,
       persistence: deepFreeze({
         local: outcome.localWrites,
-        localRemovals: outcome.localRemovals,
+        localRemovals: finalLocalRemovals,
         session: outcome.sessionWrites,
         sessionRemovals: outcome.sessionRemovals,
         outbox: outcome.outbox,
@@ -1580,15 +1730,31 @@ export function createBackgroundOrchestrator(
     );
     const sessionDiff = diffPrunedSession(pruned, priorSession);
     const nextSession = applySessionDiff(priorSession, sessionDiff.sessionWrites, sessionDiff.sessionRemovals);
-    const state = deriveState(priorLocal, nextSession);
     const outbox = readOutbox(priorLocal.captureOutbox);
     const quarantine = readQuarantine(priorLocal.captureQuarantine);
     const confirmed = readConfirmedSubmissionState(priorLocal).confirmed;
     const tombstones = readConfirmedSubmissionState(priorLocal).tombstones;
+    // Candidates removed by the TTL prune are reconciled once so expiry is
+    // surfaced as a closed diagnostic instead of vanishing silently.
+    const removedDiagnostic = terminalDiagnosticForRemovedCandidates(
+      readTransientSessionEvidenceState(priorSession).verdictCandidates,
+      pruned.verdictCandidates,
+      pruned.requestLifecycles,
+      confirmed,
+      now,
+    );
+    const localWrites = removedDiagnostic === undefined
+      ? []
+      : [{ key: "lastCaptureError", value: removedDiagnostic }];
+    // Derive the returned state from the *final* local diff so the popup sees
+    // the closed expiry diagnostic on the same prune pass instead of the next
+    // refresh (Task 9 review gate: state must reflect the exact persistence).
+    const nextLocal = applyLocalDiff(priorLocal, localWrites, []);
+    const state = deriveState(nextLocal, nextSession);
     return deepFreeze({
       state,
       persistence: deepFreeze({
-        local: [],
+        local: localWrites,
         localRemovals: [],
         session: sessionDiff.sessionWrites,
         sessionRemovals: sessionDiff.sessionRemovals,
@@ -1763,6 +1929,25 @@ function applyLocalDiff(
   for (const write of writes) next[write.key] = write.value;
   for (const key of removals) Reflect.deleteProperty(next, key);
   return next;
+}
+
+/**
+ * Resolve the same-key write/removal conflict before a diff is applied:
+ * a fresh non-undefined write (e.g. a closed `lastCaptureError` diagnostic)
+ * must win over a legacy cleanup removal of the same key, otherwise the
+ * write-then-remove order used by `applyLocalDiff` and
+ * `applyOrchestratorPersistence` would net delete the diagnostic. A write
+ * whose value is `undefined` is itself a deletion intent and does NOT cancel
+ * the matching removal.
+ */
+function dropRemovalsOverwrittenByWrites(
+  removals: readonly string[],
+  writes: ReadonlyArray<{ readonly key: string; readonly value: unknown }>,
+): readonly string[] {
+  const writtenKeys = new Set(
+    writes.filter((write) => write.value !== undefined).map((write) => write.key),
+  );
+  return removals.filter((key) => !writtenKeys.has(key));
 }
 
 /**

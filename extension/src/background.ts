@@ -2,13 +2,6 @@ import {
   isVerdictCandidateMessage,
 } from "./attemptCapture";
 import {
-  safeStoredCaptureError,
-} from "./captureErrorPrivacy";
-import {
-  verdictCandidateIdentity,
-  type TransientVerdictCandidate,
-} from "./transientEvidenceStorage";
-import {
   postCaptureAttemptBundle,
 } from "./captureTransport";
 import {
@@ -86,6 +79,7 @@ import {
   appendLeetCodeEndpointDiagnostic,
   createLeetCodeEndpointDiagnostic,
   createLeetCodeFinalVerdictEvidence,
+  createLeetCodeTransientVerdictCandidate,
   LEETCODE_CHECK_ENDPOINT_PREFIX,
   LEETCODE_ENDPOINT_DIAGNOSTIC_KEY,
   LEETCODE_RESULT_ENDPOINT_PREFIX,
@@ -422,6 +416,10 @@ const initialization = (async (): Promise<void> => {
   }
   const effects = await orchestrator.install();
   await applyPersistence(effects);
+  // Replay resolutions recovered from retained persisted candidates plus
+  // confirmed E2 records: a worker that stopped after E2 persistence but
+  // before E3 handling resumes exactly where the previous worker stopped.
+  await processVerdictCandidateResolutions(effects.verdictCandidateResolutions);
   await reconcileOpenNowCoderResultTabs();
 })();
 
@@ -1140,28 +1138,20 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
           candidate.problemExternalId,
         );
         if (problemIdentity === null) return;
-        const transientCandidate: TransientVerdictCandidate = Object.freeze({
-          schemaVersion: 1,
-          tier: "E3",
-          kind: "verdict_candidate",
-          candidateId: verdictCandidateIdentity({
-            platform: "leetcode",
-            tabId: senderTabId,
-            frameId: senderFrameId,
-            documentId: senderDocumentId,
-            problemExternalId: problemIdentity,
-            observedAt: candidate.observedAt,
-          }),
-          platform: "leetcode",
+        const transientCandidate = createLeetCodeTransientVerdictCandidate({
           problemExternalId: problemIdentity,
-          verdict: candidate.verdict,
+          verdictText: candidate.verdict,
           observedAt: candidate.observedAt,
           tabId: senderTabId,
           frameId: senderFrameId,
           documentId: senderDocumentId,
           transitionEvidence: candidate.transitionEvidence,
-          receivedAt: candidate.observedAt,
         });
+        // The shared taxonomy rejects pending labels, placeholders and the
+        // `Other Failure` fallback before any session write, so a bogus
+        // verdict can never wait in the bounded candidate slice for an E2
+        // that cannot satisfy it.
+        if (transientCandidate === null) return;
         await applyOrchestratorEvent({
           kind: "verdict_candidate_recorded",
           candidate: transientCandidate,
@@ -1346,13 +1336,15 @@ async function processVerdictCandidateResolutions(
     });
     if (e3 === null) {
       // The plan requires that a failed E3 construction never returns
-      // silently. Surface the diagnostic through the orchestrator so the
-      // popup and cached snapshot reflect it.
-      const reason = `verdict candidate blocked: leetcode:${resolution.problemExternalId}:adapter`;
-      const safe = safeStoredCaptureError(reason);
-      if (safe !== undefined) {
-        await trustedLocalStorage.set({ lastCaptureError: safe });
-      }
+      // silently. Route the closed diagnostic through the orchestrator so
+      // the popup and cached snapshot stay consistent with the single
+      // state-change path (Task 8 review fix); never write storage here.
+      await applyOrchestratorEvent({
+        kind: "verdict_candidate_blocked",
+        candidateId: resolution.candidateId,
+        platform: "leetcode",
+        problemExternalId: resolution.problemExternalId,
+      });
       continue;
     }
     await applyOrchestratorEvent({

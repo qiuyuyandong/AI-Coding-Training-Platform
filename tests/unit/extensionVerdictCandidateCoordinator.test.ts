@@ -203,6 +203,95 @@ describe("verdictCandidateCoordinator", () => {
     expect(result.terminal[0]?.reason).toBe("identity_mismatch");
   });
 
+  it("graphql submit lifecycle resolves (v2 result-distribution flow)", () => {
+    const graphqlSubmit = lifecycle({
+      evidence: {
+        ...lifecycle().evidence,
+        evidenceId: "e1_leetcode_graphql",
+        requestId: "graphql-1",
+        receivedAt: "2026-08-06T11:20:01.000Z",
+        apiTimeStamp: 1001,
+        endpointKey: "graphql",
+      },
+      stableSubmissionId: "leetcode:cn:920",
+    });
+    const result = reconcileVerdictCandidates({
+      candidates: [candidate()],
+      requestLifecycles: [graphqlSubmit],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result.pending).toHaveLength(0);
+    expect(result.terminal).toHaveLength(0);
+    expect(result.resolutions).toHaveLength(1);
+    const resolution = result.resolutions[0] as VerdictCandidateResolution;
+    expect(resolution.candidateId).toBe("cand_1");
+    expect(resolution.externalSubmissionId).toBe("cn/920");
+  });
+
+  it("graphql submit lifecycle stays pending until matched", () => {
+    const graphqlSubmit = lifecycle({
+      evidence: {
+        ...lifecycle().evidence,
+        evidenceId: "e1_leetcode_graphql",
+        requestId: "graphql-1",
+        receivedAt: "2026-08-06T11:20:01.000Z",
+        apiTimeStamp: 1001,
+        endpointKey: "graphql",
+      },
+      outcome: "pending",
+      stableSubmissionId: null,
+    });
+    const result = reconcileVerdictCandidates({
+      candidates: [candidate()],
+      requestLifecycles: [graphqlSubmit],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result.resolutions).toHaveLength(0);
+    expect(result.terminal).toHaveLength(0);
+    expect(result.pending).toHaveLength(1);
+  });
+
+  it("unrelated newer graphql POST never shadows the matched submit", () => {
+    const matchedSubmit = lifecycle({
+      receivedAt: "2026-08-06T11:20:10.000Z",
+      evidence: {
+        ...lifecycle().evidence,
+        evidenceId: "e1_leetcode_graphql_submit",
+        requestId: "graphql-submit",
+        receivedAt: "2026-08-06T11:20:10.000Z",
+        apiTimeStamp: 1100,
+        endpointKey: "graphql",
+      },
+    });
+    const unrelatedGraphql = lifecycle({
+      receivedAt: "2026-08-06T11:20:15.000Z",
+      outcome: "pending",
+      stableSubmissionId: null,
+      evidence: {
+        ...lifecycle().evidence,
+        evidenceId: "e1_leetcode_graphql_other",
+        requestId: "graphql-other",
+        receivedAt: "2026-08-06T11:20:15.000Z",
+        apiTimeStamp: 1150,
+        endpointKey: "graphql",
+      },
+    });
+    const result = reconcileVerdictCandidates({
+      candidates: [candidate()],
+      requestLifecycles: [unrelatedGraphql, matchedSubmit],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result.pending).toHaveLength(0);
+    expect(result.terminal).toHaveLength(0);
+    expect(result.resolutions).toHaveLength(1);
+    const resolution = result.resolutions[0] as VerdictCandidateResolution;
+    expect(resolution.candidateId).toBe("cand_1");
+    expect(resolution.externalSubmissionId).toBe("cn/920");
+  });
+
   it("two independent tabs resolve independently", () => {
     const result = reconcileVerdictCandidates({
       candidates: [
