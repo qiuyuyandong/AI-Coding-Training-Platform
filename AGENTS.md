@@ -432,21 +432,25 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
-- V4 Phase D D4 E3-confirmed race fix is implemented and verified
-  (committed at `051e636`; see the plan
-  `docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`).
-  Real natural observations 7 (longest-substring-without-repeating-characters)
-  and 8 (reverse-integer) on LeetCode.cn both failed closed with the new
-  diagnostic `verdict candidate unconfirmed: leetcode:<slug>`; each proved the
-  E2 confirmation WAS eventually written (popup waiting 5→6→7) but later than
-  the bounded poll window (3 s then 20 s). The final repair is event-driven
-  revival: `chrome.storage.onChanged` on `confirmedSubmissions` immediately
-  re-schedules the pending verdict-candidate attempt (pure helper
-  `storageChangeRevivesVerdictCandidate`), and poll exhaustion no longer
-  un-arms the pending recheck; the closed diagnostic is still recorded on
-  exhaustion. Gates: typecheck exit 0, focused suite 7/7, eslint exit 0,
-  `extension:check` exit 0 (44 files / 1421 tests), privacy audit 0 findings.
-  9th observation is still required to confirm end-to-end delivery.
+- V4 Phase D D4 coordinator repair Tasks 0-10 are complete (implementation
+  `a9515a8` `fix(v4): surface expired diagnostics and pin graphql
+  coordination`, doc reconciliation `a1aeda0`, base `3246713`; plan
+  `docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`).
+  The 9th real natural observation (merge-two-sorted-lists, `cn/741081653`,
+  Accepted) FAILED on 2026-08-09: E2 was written (confirmedAt
+  08:43:52.814Z) and E3 recorded (lastE3At 08:43:53.728Z), but a stale
+  historical "Accepted" result panel misclassified as a transition created a
+  verdict candidate at 08:43:49.309 — predating the submit E1 (08:43:51.614) —
+  and the real result's identical "Accepted" text was deduped by
+  `contentRuntime.ts` lines 206-211, so the correct candidate was never
+  emitted. The coordinator failed closed by design (eligible submit
+  lifecycles require `received <= observed`), leaving waiting=1 with no
+  bundle, no `POST /api/capture/attempts`, and empty SQLite. Failure protocol
+  followed: no timeout/polling/chronology change, no patch, evidence exported
+  in the plan. Required next step (unauthorized): a RED test for
+  same-problem repeat submissions with a residual result panel, then a
+  written plan revision. One failed observation does not authorize an
+  architectural change; D4 end-to-end delivery remains unproven.
 - V4 Phase D D1, D2, and D3 candidate engineering are complete on
   `feature/v1-followup`. The implementation candidate is
   `509faf0e60532cf565a6a57aa796b96bc1053f38`

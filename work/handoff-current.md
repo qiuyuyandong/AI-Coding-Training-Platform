@@ -1,6 +1,47 @@
 # Current Handoff
 
-## Status (2026-08-06 V4 Phase D D4 E3-confirmed race fix implemented; delivery unverified)
+## Status (2026-08-09 V4 Phase D D4 coordinator repair Tasks 0-10 complete; 9th observation FAILED)
+
+The D4 E3 candidate/E2 coordinator repair (Tasks 0-10) is implemented,
+committed, and gate-verified: implementation `a9515a8` (`fix(v4): surface
+expired diagnostics and pin graphql coordination`), doc reconciliation
+`a1aeda0`, base `3246713`. Gates: focused 4 files 105/105; full extension
+unit suite 45 files / 1514 tests; `extension:check` exit 0; `extension:e2e`
+53 passed / 1 known skip; privacy audit `0 findings`. Plan:
+`docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`.
+This is not RC, acceptance, or release.
+
+**The 9th real natural observation FAILED on 2026-08-09** (merge-two-sorted-
+lists, `cn/741081653`, Accepted). The event-driven revival from the 8th
+observation worked as designed — E2 WAS written (confirmedAt
+08:43:52.814Z, record present without `finalizedAt`), E3 WAS recorded
+(lastE3At 08:43:53.728Z, `transientUnmatchedE3` empty), and the new JSON-
+array `candidateId` identity encoding held in the wild — but no bundle was
+produced: popup waiting stayed 1, `captureOutbox` empty, no
+`POST /api/capture/attempts` in the server log, SQLite
+`capture_events=0 / training_sessions=0 / training_attempts=0`.
+
+First divergent layer (per failure protocol): candidate creation in
+`extension/src/contentRuntime.ts`. The LeetCode.cn SPA restored a historical
+"Accepted" result panel for this previously-practiced problem; after a null
+phase the runtime misread it as a genuine transition and emitted the
+candidate at 08:43:49.309 — 2.3 s BEFORE the real submit E1 (08:43:51.614).
+The real submission's result was also "Accepted", so the same-text dedupe
+(`contentRuntime.ts` lines 206-211) suppressed the correct candidate
+forever. The coordinator then failed closed by design
+(`selectEligibleSubmitLifecycles` requires `received <= observed`; the only
+candidate predates every submit lifecycle), leaving the candidate `pending`
+until 5-minute TTL expiry, the confirmed record unfinalized, and delivery
+never occurring.
+
+Failure protocol was followed: no timeout increase, no polling, no chronology
+weakening, no immediate patch, evidence exported. Required next step (not
+yet authorized): a new RED test covering "repeat submission of the same
+problem with a previous result panel on the page" must fail before any
+production change; then this plan file must be revised and reviewed. One
+failed observation does not authorize an architectural change.
+
+## Previous Status (2026-08-06 V4 Phase D D4 E3-confirmed race fix implemented; delivery unverified)
 
 The D4 E3-confirmed race fix is implemented and verified through automated
 gates, but end-to-end delivery is NOT yet confirmed: real natural observations
@@ -783,13 +824,19 @@ observation, final verification, and acceptance pending.**
 
 ## Workspace
 
-- Branch: `feature/v1-followup`.
+- Branch: `feature/v1-followup`, working tree clean at `a1aeda0`.
 - Phase C closeout: the commit containing this handoff is the engineering
   freeze point; it is not a replacement RC and has not been pushed.
 - Default database: preserved by the Phase C and D automated gates; the D1-C
   real-profile debug performed only a read-only metadata comparison and no
   default-database edit/write. The development extension residual was removed;
   the real-profile debug remains excluded from D1-C evidence.
+- Observation-9 environment (2026-08-09): disposable SQLite
+  `.tmp/observation-9/training-platform.sqlite` (migrated, 462848 bytes,
+  all three capture tables empty) with local dev server on `localhost:3000`
+  (PID 48076, stdout `.tmp/observation-9/server.out.log`); no
+  `POST /api/capture/attempts` ever reached it. Observation evidence retained
+  for the failure record; server still running until the user stops it.
 - Operator-only browser profiles and temporary test state remain excluded from
   the commit.
 
@@ -799,13 +846,15 @@ observation, final verification, and acceptance pending.**
   the sole certified production DOM adapter.
 - V4 Phase C: **C0-C5 engineering-complete.** LeetCode and NowCoder are
   network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
-- V4 Phase D: **D1 and D2 complete; D3 candidate engineering complete.** D2's
-  35-case audit and 68 focused product privacy tests pass with `0 findings`; independent
-  privacy review returned `APPROVE`. The candidate gate passed `2217/1` unit,
-  `25` app E2E, `1414` extension tests, `53/1` extension E2E, and production
-  build `20/20`. The implementation candidate is
-  `509faf0e60532cf565a6a57aa796b96bc1053f38`; the current HEAD is the
-  documentation-reconciled candidate and remains engineering evidence only.
+- V4 Phase D: **D1 and D2 complete; D3 candidate engineering complete; D4
+  coordinator repair Tasks 0-10 complete; 9th observation FAILED
+  (2026-08-09).** The 9th real observation (merge-two-sorted-lists,
+  `cn/741081653`) confirmed E2 and E3 but produced no bundle: a stale
+  historical "Accepted" result panel misclassified as a transition created a
+  candidate predating the submit, and the real result's identical verdict text
+  was deduped away. Coordinator failed closed by design. RED test + written
+  plan revision required before further code changes; D4 end-to-end delivery
+  remains unproven. D5 F1-F4 and D4 acceptance remain blocked.
 - V0 manual learning loop vertical slice: **implemented but not accepted.**
   Formal observation and replacement-RC work remain gated.
 

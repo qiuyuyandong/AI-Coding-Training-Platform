@@ -1,18 +1,25 @@
 # Superpowers Documentation Index
 
-> **Status (2026-08-06):** **V4 Phase D D1, D2, and D3 candidate engineering
+> **Status (2026-08-09):** **V4 Phase D D1, D2, and D3 candidate engineering
 > work is complete** on `feature/v1-followup` (candidate `509faf0e60532cf565a6a57aa796b96bc1053f38`;
 > doc-reconciled HEAD `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`; final
 > candidate gate `2217/1` unit, `25` app E2E, `1414` extension tests,
 > `53/1` extension E2E, production build `20/20`, zero privacy findings,
 > readiness `PASS`, default-database preservation). This is not RC,
-> acceptance, or release. The **D4 E3-confirmed race fix** (2026-08-06)
-> is implemented but unverified end-to-end: observations 7 and 8 proved
-> the E2 confirmation lands after any bounded poll window; the repair is
-> event-driven revival from `chrome.storage.onChanged`
-> (see [`plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`](plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md)).
-> A 9th real observation is required before D5 F1-F4 authorization. The
-> earlier **V4 Phase C
+> acceptance, or release. The **D4 E3 candidate/E2 coordinator repair**
+> (Tasks 0-10, implementation `a9515a8`, plan
+> [`plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`](plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md))
+> is complete but end-to-end delivery is unproven: observations 7 and 8
+> proved the E2 confirmation lands after any bounded poll window, and the
+> 9th real observation (2026-08-09, merge-two-sorted-lists,
+> `cn/741081653`) FAILED with a new root cause — a stale historical
+> "Accepted" result panel misclassified as a transition created a candidate
+> predating the submit, while the real result's identical "Accepted" text
+> was deduped (`contentRuntime.ts` lines 206-211), so the coordinator
+> failed closed with no bundle. A RED test for same-problem repeat
+> submissions and a written plan revision are required before further code
+> changes; a 10th observation is required before D5 F1-F4 authorization.
+> The earlier **V4 Phase C
 > C0-C5 engineering work is complete** verdict remains authoritative on
 > the same branch. C1 LeetCode is network-`V4_EXPERIMENTAL`; C2 AtCoder,
 > C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED`; NowCoder remains
@@ -115,12 +122,15 @@ D2 evidence:
 [`../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md`](../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md).
 The standalone Phase D plan is
 [`plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`](plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md).
-The D4 E3-confirmed race fix (implemented 2026-08-06, end-to-end delivery
-pending a 9th real observation) is tracked in
-[`plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`](plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md):
-observations 7 and 8 proved the E2 confirmation lands after any bounded poll
-window, and the repair re-schedules the pending verdict candidate from
-`chrome.storage.onChanged` instead of polling.
+The D4 E3-confirmed race fix (implemented 2026-08-06) is superseded by the
+D4 E3 candidate/E2 coordinator repair (Tasks 0-10, `a9515a8`,
+[`plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`](plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md)),
+which replaced polling/storage-key revival with an exact restart-safe
+coordinator. Observations 7 and 8 proved the E2 confirmation lands after any
+bounded poll window; the 9th real observation (2026-08-09) FAILED with a new
+root cause (stale historical result panel → candidate predating the submit;
+real result deduped by identical verdict text), and a RED test plus plan
+revision are required before further code changes.
 D4 same-SHA real observations and D5 F1-F4 still require separate
 authorization. Formal V0 observation remains blocked; V0.5 stays out of
 scope. The total product target is **Phase 7 / Public Beta hosted SaaS**.

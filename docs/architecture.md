@@ -494,7 +494,7 @@ D4 same-SHA real natural observations and D5 F1-F4 still require separate
 authorization. The candidate is not pushed, not a PR, and is not RC,
 acceptance, or release.
 
-## D4 E3-confirmed race fix (2026-08-06, implemented; end-to-end delivery pending)
+## D4 E3-confirmed race fix (2026-08-06, superseded 2026-08-08 by the candidate coordinator repair)
 
 The 7th and 8th real natural observations on LeetCode.cn (longest-substring
 and reverse-integer) proved the D3 candidate's verdict-candidate path still
@@ -512,6 +512,36 @@ pending verdict-candidate attempt (pure helper
 `extension/src/adapters/leetcode/network.ts`); poll exhaustion no longer
 un-arms the pending recheck, and the closed `lastCaptureError` diagnostic is
 still recorded on exhaustion. No new storage keys, no schema/migration or
-manifest change, no adapter policy change. A 9th real observation is required
-to confirm end-to-end delivery. Plan:
-[`plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md`](../superpowers/plans/2026-08-06-v4-phase-d-d4-e3-confirmed-race-fix.md).
+manifest change, no adapter policy change.
+
+## D4 E3 candidate/E2 coordinator repair (2026-08-06 to 2026-08-08; 9th observation FAILED 2026-08-09)
+
+The event-driven revival was superseded by an exact, restart-safe candidate
+coordinator (implementation `a9515a8`; plan
+[`plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`](../superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md)):
+a bounded `TransientVerdictCandidate` slice in session storage, candidate
+registration and E2 confirmation serialized through the existing background
+orchestrator, and a pure coordinator
+(`extension/src/verdictCandidateCoordinator.ts`) that joins a candidate to the
+exact latest LeetCode submit lifecycle (platform, problem, tab, frame,
+document, submit ordering, `stableSubmissionId`) with no polling or
+storage-key wake-up. A resolution effect becomes adapter-owned E3 evidence;
+the candidate identity is a JSON-array encoded id and candidates expire after
+`VERDICT_CANDIDATE_TTL_MS` (5 minutes).
+
+The 9th real observation (2026-08-09, merge-two-sorted-lists, `cn/741081653`)
+confirmed E2 (08:43:52.814Z) and E3 (lastE3At 08:43:53.728Z) but produced no
+bundle. Root cause, first divergent layer = candidate creation in
+`extension/src/contentRuntime.ts`: the LeetCode.cn SPA restored a historical
+"Accepted" result panel for a previously-practiced problem, which after a null
+phase was misread as a genuine transition (candidate observedAt 08:43:49.309,
+predating the submit E1 at 08:43:51.614); the real submission's identical
+"Accepted" result was then suppressed by the same-text dedupe
+(`contentRuntime.ts` lines 206-211), so no correct candidate was ever emitted.
+The coordinator failed closed by design (`selectEligibleSubmitLifecycles`
+requires `received <= observed`), leaving the confirmed record unfinalized,
+waiting=1, no bundle, no `POST /api/capture/attempts`, empty SQLite. Required
+before further code changes: a new RED test for same-problem repeat
+submissions with a residual result panel, then a written plan revision.
+A 10th real observation is required to confirm end-to-end delivery. Plan:
+[`plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`](../superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md).

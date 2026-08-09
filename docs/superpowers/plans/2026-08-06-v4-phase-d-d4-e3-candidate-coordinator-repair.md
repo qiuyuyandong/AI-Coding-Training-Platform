@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` to execute this plan task-by-task. Do not parallelize Tasks 2–7 because they modify shared data contracts and must remain sequentially reviewable.
 
-**Status:** `PROPOSED — BLOCKED BEFORE REAL OBSERVATION`
+**Status:** `EXECUTION — Tasks 0-10 COMPLETE (2026-08-08); Task 11 9th observation FAILED (2026-08-09); RED test + plan revision required before further code changes`
 
 **Date:** 2026-08-06
 
@@ -1444,6 +1444,84 @@ working-tree status
 ```
 
 Do not push, open a PR, mark RC or mark D4 accepted without explicit authorization.
+
+---
+
+# Task 11 execution result (2026-08-09)
+
+**FAILED: 9th real observation (merge-two-sorted-lists, `cn/741081653`,
+Accepted).** E2 and E3 were confirmed, but no bundle was generated and no
+server delivery occurred. Failure protocol was followed: no timeout increase,
+no polling added, no chronology weakening, no patch without a new RED test.
+
+Evidence (sanitized boundary evidence, exported 2026-08-09):
+
+```text
+candidate:
+  problemExternalId: merge-two-sorted-lists
+  observedAt: 2026-08-09T08:43:49.309Z   <- stale; PREDATES the submit E1
+  tabId: 1454626896, frameId: 0
+  documentId: B71E6B4E5A438816D0DC95856E482127
+  transitionEvidence: same_document_transition
+  verdict: Accepted
+  (candidateId is the new JSON-array encoding - D4 identity fix held in the wild)
+
+latest submit lifecycle (matched):
+  receivedAt: 2026-08-09T08:43:51.614Z   POST leetcode/submit/cn/merge-two-sorted-lists
+  outcome: matched
+  stableSubmissionId: leetcode:cn/741081653
+
+E2:
+  externalSubmissionId: cn/741081653
+  confirmedAt: 2026-08-09T08:43:52.814Z  (record present, NO finalizedAt)
+  matched graphql lifecycles at 08:43:52.813Z / 08:43:53.812Z / 08:43:53.836Z
+
+E3:
+  externalSubmissionId: cn/741081653
+  lastE3At: 2026-08-09T08:43:53.728Z
+  transientUnmatchedE3: [] (empty)
+
+coordinator:
+  candidate pending (no resolution, no terminal reason)
+  transientAmbiguityDiagnostics: [] (empty)
+
+finalization:
+  confirmed consumed: false
+  tombstone created: none
+  outbox delta: 0  (captureOutbox: [])
+  POST /api/capture/attempts: NONE in server log
+  SQLite: capture_events=0, training_sessions=0, training_attempts=0
+```
+
+**First divergent layer (per failure protocol): candidate creation in
+`extension/src/contentRuntime.ts`.** The LeetCode.cn SPA restored a historical
+"Accepted" result panel for this problem (the user had previously practiced
+it); after a null phase the runtime misread that stale panel as a genuine
+transition and emitted the candidate at 08:43:49.309 — 2.3 s BEFORE the real
+submit E1 (08:43:51.614). When the new submission's result arrived, it was
+also "Accepted", so the same-text dedupe at `contentRuntime.ts` lines
+206-211 (`last.verdict === snapshot.verdict` → no candidate) suppressed the
+correct candidate forever.
+
+The coordinator then correctly failed closed by design: with the only
+candidate predating every eligible submit lifecycle,
+`selectEligibleSubmitLifecycles` (verdictCandidateCoordinator.ts line 192,
+`received > observed → skip`) yields an empty eligible set, so the candidate
+stays `pending` until the 5-minute `VERDICT_CANDIDATE_TTL_MS` expiry; the
+confirmed record is never finalized; waiting stays 1; no bundle, no outbox
+delta, no POST, no SQLite row.
+
+**Root-cause statements (both verified against code):**
+1. Stale historical result panels can be misclassified as post-submit
+   transitions (`contentRuntime.ts` null-phase + same-text dedupe interplay).
+2. A same-text repeat verdict (Accepted after Accepted) is deduped and never
+   creates the correct candidate for the new submission.
+
+**Required next step (not yet authorized):** a new RED test covering
+"repeat submission of the same problem, previous result panel still on the
+page" must fail before any production change. Then a written plan revision
+(this file) must be updated and reviewed before code changes. One failed
+observation does not authorize an architectural change.
 
 ---
 
