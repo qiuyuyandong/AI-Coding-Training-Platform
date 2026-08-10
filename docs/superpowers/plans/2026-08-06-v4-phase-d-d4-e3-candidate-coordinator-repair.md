@@ -2333,3 +2333,35 @@ cross-problem invalidation cases, the second review returned `APPROVE` with no
 remaining blockers. Task 18 is authorized within this frozen revision. No
 production file had been changed at the time of approval, and no additional
 browser submission was performed.
+
+### Tasks 18-20 closeout
+
+Tasks 18-20 are complete. Task 18 implemented only the frozen manifest,
+top-level DOM identity, exact-result descriptor, and same-identity runtime
+lifecycle repair. Task 19 independent code, privacy, and plan/evidence reviews
+all returned `APPROVE`. The candidate-path whitelist increment was separately
+reviewed and approved after the first implementation head `22fa470` correctly
+failed the explicit-ownership preflight.
+
+The immutable candidate is
+`4e7a47bfc22fece4aa60e4bab2f4223668be480b`. Its exact validator exited `0`
+with root unit `2372/1`, app E2E `25/25`, extension unit `1567/1567`, extension
+E2E `53/1`, production build `20/20`, privacy `0 findings`, readiness `PASS`,
+stable pre/post-gate candidate identity, and preserved default-database
+metadata. Port 3000 is free.
+
+Frozen dist hashes:
+
+```text
+manifest.json         A85C3275D559BD46AAA034FEEA9B14EAFECFC6F56341713B2AFB8B024E2B3E64
+background.js         B67A702066262EAAE9F3C24D3FD6BF480B2EC04B60CD0266821EE418E7FD429C
+content.js            F5D69DDBAB46D0379AB5ED8A9C8A7AAA2A65B9C9B8A693E6CA7B8C7296A115B3
+popup.js              3D164737873BB36A522300FC4B92829C419A3EAEC4CACDC0CF111A91497CF478
+main-world-bridge.js   4D89A80F0351295EE1C0CD173BE107080983868D18510D028854695EACEE3943
+```
+
+Evidence is in
+`work/reports/v4-phase-d-task20-result-route-repair-refreeze-2026-08-10.md`.
+Task 21 is now the only next action. No additional runtime, manifest, protocol,
+build, migration, or generated-dist change is permitted without repeating the
+candidate freeze. No third LeetCode submission has yet occurred.

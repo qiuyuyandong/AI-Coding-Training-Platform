@@ -1,6 +1,38 @@
 # Current Handoff
 
-## Status (2026-08-10 V4 Phase D Task 15 COMPLETE; Task 16 next)
+## Status (2026-08-10 V4 Phase D Tasks 17-20 COMPLETE; Task 21 next)
+
+The immutable repaired candidate is
+`4e7a47bfc22fece4aa60e4bab2f4223668be480b`. It adds strict content-runtime
+coverage for the real LeetCode.cn `/submissions/<digits>/` route, derives
+identity only from one visible leaf `a.cursor-text[href]`, and preserves an
+armed epoch across SPA navigation only when post-navigation detection proves
+the exact same platform/problem identity. Null, ambiguous, unsupported, and
+cross-problem navigation remain fail-closed.
+
+Its exact candidate validator exited `0`: root unit `2372/1`, app E2E `25/25`,
+extension unit `1567/1567`, extension E2E `53/1`, production build `20/20`,
+privacy `0 findings`, readiness `PASS`, stable pre/post-gate identity, and
+preserved default-database metadata. Frozen dist hashes and the full receipt
+are recorded in
+`work/reports/v4-phase-d-task20-result-route-repair-refreeze-2026-08-10.md`.
+Port 3000 is free.
+
+Task 21 is now the only next action: load one fresh extension instance from
+the exact new dist, use fresh extension and isolated database state, recheck
+all five hashes, pair, and repeat the single authorized LeetCode automated
+engineering observation. No NowCoder or blocked-platform action precedes a
+LeetCode PASS. This remains engineering evidence, not a natural-user
+observation, D5 approval, RC, acceptance, or release.
+
+Task 16 failed twice, including once with a fresh exact-dist extension and
+fresh isolated database. Both new Accepted submissions produced zero capture
+POSTs/rows and the fixed `epoch_target_delivery_failed` diagnostic. The
+failure and causal RED are retained in
+`work/reports/v4-phase-d-task16-leetcode-automated-observation-2026-08-10.md`.
+The prior `f18eddf4...` candidate and both waiting states are historical only.
+
+## Previous Status (2026-08-10 V4 Phase D Task 15 COMPLETE; Task 16 next)
 
 Task 15 is engineering-complete on immutable candidate
 `f18eddf4cb4d7dd24c439b2dea5917793839e6a2`. Its exact candidate validator
@@ -935,12 +967,13 @@ observation, final verification, and acceptance pending.**
 
 ## Workspace
 
-- Branch: `feature/v1-followup`; Task 13 implementation is
-  `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`, Task 14 implementation is
-  `0f695ddfad6989e407424feff457d28d081d657b`, and the Task 14 documentation
-  closeout is `23c81fa67f85c6e9396d39eadc446371b2f55e73`. The next commit is the
-  authorized Task 15 candidate freeze only after its three review verdicts
-  are `APPROVE`.
+- Branch: `feature/v1-followup`; immutable repaired candidate is
+  `4e7a47bfc22fece4aa60e4bab2f4223668be480b`. Tasks 17-20 are complete and
+  reviewed; Task 21 clean LeetCode re-observation is the only next action.
+  Candidate `f18eddf4cb4d7dd24c439b2dea5917793839e6a2` is historical after the
+  runtime/manifest repair, and `22fa470d24724c15b5bdb2874e6817b599505f3c`
+  never became a candidate because its explicit path-ownership preflight
+  failed before the quality gate.
 - Phase C closeout: the commit containing this handoff is the engineering
   freeze point; it is not a replacement RC and has not been pushed.
 - Default database: preserved by the Phase C and D automated gates; the D1-C
@@ -966,7 +999,9 @@ observation, final verification, and acceptance pending.**
 - V4 Phase D: **D1 and D2 complete; historical D3 candidate engineering
   complete; D4 coordinator repair Tasks 0-10 complete; 9th observation FAILED;
   Task 12 plan gate APPROVED; Tasks 13 and 14 engineering COMPLETE and
-  independently APPROVED (2026-08-10); Task 15 re-freeze active.** The 9th
+  independently APPROVED; Task 15 initial re-freeze complete; Task 16 failed
+  twice; Tasks 17-20 repair/review/re-freeze COMPLETE (2026-08-10); Task 21
+  clean LeetCode re-observation next.** The 9th
   real observation (merge-two-sorted-lists,
   `cn/741081653`) confirmed E2 and E3 but produced no bundle: a stale
   historical "Accepted" result panel misclassified as a transition created a
@@ -976,9 +1011,10 @@ observation, final verification, and acceptance pending.**
   LeetCode submit-epoch control plane and closes same-verdict repeat causality,
   including A/B exclusivity and the 32-entry capacity edge. Task 14 binds each
   new candidate to its exact persisted request identity and closes restart and
-  legacy pre-E1 cleanup. Task 15 must complete three reviews, candidate commit,
-  same-SHA validator gate, and exact dist hashes; D4 end-to-end engineering
-  delivery remains unproven. D5 F1-F4 and final user acceptance remain blocked.
+  legacy pre-E1 cleanup. Tasks 17-20 add the strict top-level result route and
+  same-identity-only SPA epoch preservation on immutable candidate `4e7a47b`.
+  D4 end-to-end engineering delivery remains unproven until Task 21 passes.
+  D5 F1-F4 and final user acceptance remain blocked.
 - V0 manual learning loop vertical slice: **implemented but not accepted.**
   Formal observation and replacement-RC work remain gated.
 
@@ -995,6 +1031,15 @@ observation, final verification, and acceptance pending.**
   `0f695ddfad6989e407424feff457d28d081d657b`.
 - Task 14 documentation closeout:
   `23c81fa67f85c6e9396d39eadc446371b2f55e73`.
+
+### V4 Phase D Tasks 15-20 (2026-08-10)
+
+- Task 15 initial repaired candidate: `f18eddf4cb4d7dd24c439b2dea5917793839e6a2`;
+  documentation closeout: `e4b863a98c43e95047e65d6ea339bf7b16cd8007`.
+- Task 16 failure evidence and Task 17 approved causal RED: `42d45bb`.
+- Task 18 top-level LeetCode result repair: `22fa470`.
+- Task 20 exact candidate-path ownership repair and immutable candidate:
+  `4e7a47bfc22fece4aa60e4bab2f4223668be480b`.
 
 ### Phase 0D (2026-07-15)
 
@@ -1031,18 +1076,18 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- Task 15 reviews and focused gate-isolation re-review are all `APPROVE`; the
-  new exact-SHA candidate gate passed and Task 16 is next. The prior D3
-  candidate is superseded for future observation because Tasks 13-14 changed
-  runtime; it remains historical evidence and is not RC, accepted, released,
-  pushed, or proposed through a PR.
+- Tasks 17-20 are complete and independently approved. The exact candidate
+  gate passed on `4e7a47b`; Task 21 clean LeetCode re-observation is next. The
+  prior `f18eddf4` candidate and both Task 16 waiting states are historical
+  failure evidence only. Nothing is RC, accepted, released, pushed, or
+  proposed through a PR.
 
 ## Next Commander Action
 
-1. Recheck candidate `f18eddf4cb4d7dd24c439b2dea5917793839e6a2`
-   lineage and exact dist hashes, then execute only the authorized Task 16
-   LeetCode automated engineering observation under its browser evidence
-   contract.
+1. Recheck candidate `4e7a47bfc22fece4aa60e4bab2f4223668be480b`
+   lineage and exact dist hashes, then load one fresh exact-dist extension and
+   isolated database for Task 21's single LeetCode automated engineering
+   re-observation.
 2. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 
