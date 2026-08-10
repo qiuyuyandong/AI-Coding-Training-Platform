@@ -1,6 +1,32 @@
 # Current Handoff
 
-## Status (2026-08-10 V4 Phase D D4 Task 13 engineering COMPLETE; Task 14 next)
+## Status (2026-08-10 V4 Phase D D4 Tasks 13-14 engineering COMPLETE; Task 15 next)
+
+Task 14 is implemented at
+`0f695ddfad6989e407424feff457d28d081d657b` and independently `APPROVE`
+with no findings. New LeetCode verdict candidates carry an additive strict
+`submitRequestId`; the coordinator binds only that exact lifecycle and
+revalidates the complete identity, status, stable-submission, and chronology
+tuple without a latest-by-time fallback. Legacy candidates remain readable
+without a fabricated request ID, but a matching later E1 terminalizes a stale
+pre-E1 candidate immediately without consuming confirmed state or suppressing
+an armed candidate. Restart recovery re-reads authoritative storage after E3
+recovery and replays only an exact unfinalized `CONFIRMED` to the original
+tab/frame/document; it never fabricates `STARTED` or a baseline.
+
+The Task 14 focused lane passed 228/228 tests, typecheck, targeted ESLint, and
+diff-check. Identity-bearing historical verdict diagnostic patterns were
+removed from the privacy allowlist; the reviewed fixed diagnostic enums are the
+only accepted submit-epoch/coordinator values. Full extension gates, privacy
+audit, build/dist, D3 candidate validation, and browser observation remain
+deliberately unrun until Task 15. Task 15 must now run the complete gates and
+independent code/privacy/plan reviews, then freeze and validate a new immutable
+candidate SHA and exact dist hashes before Task 16. This is engineering
+evidence only, not D4 delivery, D5 approval, RC, acceptance, or release.
+
+Evidence: `work/reports/v4-phase-d-task14-exact-candidate-binding-2026-08-10.md`.
+
+## Previous Status (2026-08-10 V4 Phase D D4 Task 13 engineering COMPLETE; Task 14 next)
 
 Task 13 is implemented at
 `fe36f6b4770d3d929479464c03e8bea6dbb97ba9` and independently `APPROVE` after

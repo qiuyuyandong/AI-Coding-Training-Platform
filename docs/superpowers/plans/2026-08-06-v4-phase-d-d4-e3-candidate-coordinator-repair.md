@@ -2085,3 +2085,46 @@ to Task 15 after Task 14 completes. Task 13 is not D4 delivery evidence, D5,
 RC, acceptance, or release. Task 14 is now the next sequential action: persist
 the additive request identity, bind it exactly in the coordinator, preserve
 legacy fail-closed compatibility, and close restart/pre-E1 cleanup behavior.
+
+## Task 14 implementation closeout (2026-08-10)
+
+Task 14 is engineering-complete at implementation commit
+`0f695ddfad6989e407424feff457d28d081d657b` (`fix(v4): bind verdict
+candidates to exact submits`). New armed verdict candidates persist an additive
+`submitRequestId` in their strict session identity; legacy candidates without
+the field remain readable without being assigned a fabricated request ID.
+
+The coordinator now binds armed candidates only to the exact request lifecycle
+and revalidates the complete platform/problem/tab/frame/document/method/
+endpoint/lifecycle/status/stable-submission/chronology tuple. It never falls
+back to latest-by-time. A historical request-unbound candidate is terminalized
+as soon as a matching later E1 proves the chronology inversion; that cleanup
+does not consume the confirmed record or suppress an independent armed
+candidate. Worker initialization reads local confirmed/tombstone state and
+session E1 state afresh after candidate recovery, then replays only the unique
+exact unfinalized `CONFIRMED` control to the original tab/frame/document. It
+never fabricates `STARTED` or a DOM baseline.
+
+The strict capture-error allowlist now accepts only the reviewed fixed,
+identity-free submit-epoch/coordinator reasons. Both historical verdict-
+candidate patterns that embedded a problem slug were removed. The independent
+exact-diff review returned `APPROVE` with no blocking or non-blocking findings,
+including explicit confirmation that an arrived but not-yet-eligible exact
+lifecycle remains fail-closed pending and cannot fall back to another request.
+
+Commander-owned verification recorded:
+
+```text
+focused Task 14 suite: 6 files, 228/228 passed
+npm run typecheck:      exit 0
+targeted ESLint:        exit 0
+git diff --check:       exit 0 (CRLF conversion warnings only)
+```
+
+No full `extension:check`, extension E2E, production build, privacy audit,
+candidate validation, browser observation, migration, or database operation was
+run in Task 14. Task 14 is not D4 delivery evidence, D5, RC, acceptance, or
+release. Task 15 is now the only authorized next action: execute the focused
+and full gates plus independent code/privacy/plan reviews, repair only within
+the frozen design, then create and validate a new immutable D3 candidate SHA
+and record exact production-dist hashes before Task 16.
