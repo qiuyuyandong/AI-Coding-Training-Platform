@@ -1140,7 +1140,50 @@ automated engineering observation PASS
 ```
 
 Task 12 received one supplemental project-GPT `REJECT` and one authoritative
-local reviewer `REJECT`; only tests and plans were revised in response. Tasks
-13-16 remain unauthorized until both reviewers approve the revised contract.
+local reviewer `REJECT`; only tests and plans were revised in response. Both
+reviewers subsequently approved the repaired frozen contract. Tasks 13 and 14
+are now engineering-complete on that contract; Task 15 re-freeze is active.
+Tasks 16 and D5 remain gated by the new immutable candidate and their own
+evidence contracts.
+
+### 14.10 D4 Tasks 13-14 completion and Task 15 re-freeze entry (2026-08-10)
+
+Task 13 implementation `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`
+adds the exact in-document submit-epoch control plane. Task 14 implementation
+`0f695ddfad6989e407424feff457d28d081d657b` persists the additive request
+identity, binds the coordinator to the exact lifecycle, terminalizes stale
+legacy pre-E1 candidates, and adds fresh exact restart replay. Their detailed
+contracts and closeouts remain in the D4 coordinator repair plan and Task 13/
+14 reports; neither commit is D4 observation, D5, RC, acceptance, or release.
+
+Task 15 pre-freeze verification on the clean documentation-reconciled tree
+recorded:
+
+```text
+focused Task 13/14 suite: 12 files, 507/507 passed
+privacy audit:            PASS, 0 findings
+adapter readiness:        PASS
+extension:check:          exit 0; 47 files, 1549/1549 tests; build/parity PASS
+extension:e2e:            53 passed, 1 known harness skip
+default database:         479232 bytes; mtime 2026-07-23T15:56:38.8411343Z
+```
+
+The independent code and privacy reviews returned `APPROVE` with no findings.
+The first plan review returned `REJECT (HIGH)` because non-archived handoff
+sections still named Task 14 as the next action; Workspace, Current Phase,
+Chronology, In Flight, Next Commander Action, and the current E2E count were
+reconciled without a runtime change. The plan re-review then returned
+`APPROVE` with the exact validator invocation and same-SHA/hash/re-freeze
+boundaries confirmed.
+
+All three pre-commit verdicts are now `APPROVE`. The Task 15 candidate commit
+may contain only this plan and `work/handoff-current.md`, both classified by
+the D3 validator. Its exact SHA cannot be self-referenced in that commit and
+must be recorded in the later evidence-only closeout. The candidate validator
+must now run `npm run quality:gate`, recheck privacy/readiness, prove exact HEAD
+and clean worktree before and after the gate, and preserve the default database
+metadata. Exact dist hashes are recorded only after that successful same-SHA
+gate. Any subsequent runtime/protocol/manifest/permission/build/migration/dist
+change invalidates the candidate before Task 16.
 Production runtime, manifest, build scripts, protocol, and artifact remain
 unchanged at this stop state.

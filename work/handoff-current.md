@@ -1,6 +1,28 @@
 # Current Handoff
 
-## Status (2026-08-10 V4 Phase D D4 Tasks 13-14 engineering COMPLETE; Task 15 next)
+## Status (2026-08-10 V4 Phase D Task 15 re-freeze gate ACTIVE)
+
+Tasks 13 and 14 are engineering-complete at `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`
+and `0f695ddfad6989e407424feff457d28d081d657b`. Task 15 pre-freeze gates now
+pass on their clean documentation-reconciled lineage: the combined focused
+suite is 507/507; privacy audit is `0 findings`; adapter readiness is `PASS`;
+`extension:check` passes 47 files / 1549 tests plus production build/parity;
+and exact-dist extension E2E passes 53 with 1 known harness skip. The default
+database remains at the recorded 479232-byte / 2026-07-23T15:56:38.8411343Z
+metadata baseline.
+
+Independent code and privacy review returned `APPROVE` with no findings. Plan
+review first returned `REJECT (HIGH)` for stale non-archived Task 14 status in
+this handoff; those sections and the current E2E count were reconciled without
+a runtime change, and plan re-review returned `APPROVE`. All three pre-candidate
+verdicts are now `APPROVE`. The next commit freezes the new candidate tree
+using only the D3-classified master plan and handoff paths. The candidate
+validator must then rerun the complete quality gate and prove exact HEAD, clean
+worktree, privacy/readiness, and database preservation before exact dist hashes
+are recorded. Task 16 browser work has not started. This is not D4 delivery
+evidence, D5 approval, RC, acceptance, or release.
+
+## Previous Status (2026-08-10 V4 Phase D D4 Tasks 13-14 engineering COMPLETE; Task 15 next)
 
 Task 14 is implemented at
 `0f695ddfad6989e407424feff457d28d081d657b` and independently `APPROVE`
@@ -883,9 +905,11 @@ observation, final verification, and acceptance pending.**
 ## Workspace
 
 - Branch: `feature/v1-followup`; Task 13 implementation is
-  `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`. The commit containing this
-  handoff is the Task 13 documentation closeout; use local Git for its exact
-  SHA.
+  `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`, Task 14 implementation is
+  `0f695ddfad6989e407424feff457d28d081d657b`, and the Task 14 documentation
+  closeout is `23c81fa67f85c6e9396d39eadc446371b2f55e73`. The next commit is the
+  authorized Task 15 candidate freeze only after its three review verdicts
+  are `APPROVE`.
 - Phase C closeout: the commit containing this handoff is the engineering
   freeze point; it is not a replacement RC and has not been pushed.
 - Default database: preserved by the Phase C and D automated gates; the D1-C
@@ -910,28 +934,36 @@ observation, final verification, and acceptance pending.**
   network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
 - V4 Phase D: **D1 and D2 complete; historical D3 candidate engineering
   complete; D4 coordinator repair Tasks 0-10 complete; 9th observation FAILED;
-  Task 12 plan gate APPROVED; Task 13 engineering COMPLETE and independently
-  APPROVED (2026-08-10).** The 9th real observation (merge-two-sorted-lists,
+  Task 12 plan gate APPROVED; Tasks 13 and 14 engineering COMPLETE and
+  independently APPROVED (2026-08-10); Task 15 re-freeze active.** The 9th
+  real observation (merge-two-sorted-lists,
   `cn/741081653`) confirmed E2 and E3 but produced no bundle: a stale
   historical "Accepted" result panel misclassified as a transition created a
   candidate predating the submit, and the real result's identical verdict text
   was deduped away. Coordinator failed closed by design. RED test + written
   plan revision and causal RED are now approved. Task 13 adds an exact
   LeetCode submit-epoch control plane and closes same-verdict repeat causality,
-  including A/B exclusivity and the 32-entry capacity edge. Task 14 is next;
-  D4 end-to-end engineering delivery remains unproven. D5 F1-F4 and final user
-  acceptance remain blocked.
+  including A/B exclusivity and the 32-entry capacity edge. Task 14 binds each
+  new candidate to its exact persisted request identity and closes restart and
+  legacy pre-E1 cleanup. Task 15 must complete three reviews, candidate commit,
+  same-SHA validator gate, and exact dist hashes; D4 end-to-end engineering
+  delivery remains unproven. D5 F1-F4 and final user acceptance remain blocked.
 - V0 manual learning loop vertical slice: **implemented but not accepted.**
   Formal observation and replacement-RC work remain gated.
 
 ## Commit Chronology
 
-### V4 Phase D Task 12-13 (2026-08-10)
+### V4 Phase D Tasks 12-14 (2026-08-10)
 
 - Task 12 reviewed RED and frozen repair contract:
   `1d6e9571c36fc3feb1ad0c99dd4f3ddd8393cfdb`.
 - Task 13 submit-epoch control implementation:
   `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`.
+- Task 13 documentation closeout: `515a3ff`.
+- Task 14 exact candidate binding implementation:
+  `0f695ddfad6989e407424feff457d28d081d657b`.
+- Task 14 documentation closeout:
+  `23c81fa67f85c6e9396d39eadc446371b2f55e73`.
 
 ### Phase 0D (2026-07-15)
 
@@ -968,16 +1000,17 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- No worker is in flight at the Task 13 closeout. Task 14 is next. The prior D3
-  candidate is superseded for future observation because Task 13 changed
+- Task 15 code/privacy/plan reviews are all `APPROVE`; the classified candidate
+  freeze commit and its exact-SHA validator gate are next. The prior D3
+  candidate is superseded for future observation because Tasks 13-14 changed
   runtime; it remains historical evidence and is not RC, accepted, released,
   pushed, or proposed through a PR.
 
 ## Next Commander Action
 
-1. Execute Task 14 test-first: add strict session/parser compatibility for the
-   optional `submitRequestId`, bind new candidates to the exact lifecycle,
-   terminally clean stale pre-E1 candidates, and prove restart behavior.
+1. Obtain `APPROVE` for all three Task 15 review tracks, create the classified
+   candidate freeze commit, run `scripts/validate-v4-candidate.mjs --candidate
+   <new-sha>`, and record exact production-dist hashes only after it passes.
 2. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 
@@ -993,7 +1026,7 @@ observation, final verification, and acceptance pending.**
   `work/reports/luogu-adapter-blocker.json`).
 - The Windows file-symlink capability test may remain skipped under EPERM;
   mandatory junction safety tests must pass.
-- The extension E2E lane has 48 runnable passing tests and one known skipped
+- The current extension E2E lane has 53 runnable passing tests and one known skipped
   service-worker-restart harness case; the skip is not production evidence.
 - Phase 1– and 5 capability portfolios contain implemented V0 thin
   slices but are not complete; Phase 4 and 6 are future. None is an
