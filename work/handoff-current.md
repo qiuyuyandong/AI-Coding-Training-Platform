@@ -1,21 +1,21 @@
 # Current Handoff
 
-## Status (2026-08-10 V4 Phase D D4 Task 12 plan gate APPROVED; Task 13 next)
+## Status (2026-08-10 V4 Phase D D4 Task 13 engineering COMPLETE; Task 14 next)
 
-Task 12 is closed after the observation-9 same-verdict residual-panel defect
-was converted into a causal intentional RED and the repair contract passed two
-review layers. The side-panel project GPT supplemental re-review returned
-`APPROVE`; the independent local reviewer inspected the latest real diff and
-production code and returned the authoritative `APPROVE`. The final RED models
-exact E1 `STARTED`, exact E2 `CONFIRMED`, stable narrow DOM-node replacement,
-request-bound candidate identity, duplicate idempotency, unrelated-E2
-isolation, and `observedAt >= confirmedAt`. It remains intentionally RED at
-`6 passed / 1 failed` because production has no submit-epoch control plane yet.
+Task 13 is implemented at
+`fe36f6b4770d3d929479464c03e8bea6dbb97ba9` and independently `APPROVE` after
+two review rounds. The former intentional RED is now a green regression. The
+LeetCode runtime receives exact E1 `STARTED` and persisted-E2 `CONFIRMED`
+controls, evaluates stable narrow DOM-node proof before legacy text dedupe, and
+emits one request-bound candidate only after legal chronology is established.
+Same-problem epochs are exclusive; bounded superseded markers also prevent
+A/B, duplicate, out-of-order, and full-registry legacy escapes.
 
 The approved Task 13-16 contract is in
 `docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`.
 Task 12 evidence is recorded in
-`work/reports/v4-phase-d-task12-plan-review-2026-08-10.md`.
+`work/reports/v4-phase-d-task12-plan-review-2026-08-10.md`; Task 13 evidence is
+`work/reports/v4-phase-d-task13-submit-epoch-control-2026-08-10.md`.
 It freezes exact tab/frame/document delivery, exact `submitRequestId`, stable
 DOM node identity, a 32-entry/5-minute in-memory epoch bound, fixed no-identity
 diagnostics through existing `lastCaptureError`, strict chronology, legacy
@@ -28,8 +28,9 @@ actions as **real-platform automated engineering observations**. Their PASS is
 not a natural user submission, user acceptance, RC, or release. D4 engineering
 evidence must pass on one new candidate SHA before D5 F1-F4; after four
 independent APPROVE verdicts, the process stops at the user's final acceptance
-gate. No production code changed in Task 12. Task 13 is the next sequential
-action.
+gate. Task 13's Commander-owned focused lane passed 338/338 tests, typecheck,
+targeted ESLint, and diff-check. Full gates and dist remain deliberately
+deferred to Task 15. Task 14 is the next sequential action.
 
 ## Status (2026-08-09 V4 Phase D D4 coordinator repair Tasks 0-10 complete; 9th observation FAILED)
 
@@ -855,9 +856,10 @@ observation, final verification, and acceptance pending.**
 
 ## Workspace
 
-- Branch: `feature/v1-followup`; Task 12 base HEAD
-  `9cbac5919aafea130c34b248171d96eaadaf4596`. The commit containing this
-  handoff is the Task 12 closeout commit; use local Git for its exact SHA.
+- Branch: `feature/v1-followup`; Task 13 implementation is
+  `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`. The commit containing this
+  handoff is the Task 13 documentation closeout; use local Git for its exact
+  SHA.
 - Phase C closeout: the commit containing this handoff is the engineering
   freeze point; it is not a replacement RC and has not been pushed.
 - Default database: preserved by the Phase C and D automated gates; the D1-C
@@ -880,20 +882,30 @@ observation, final verification, and acceptance pending.**
   the sole certified production DOM adapter.
 - V4 Phase C: **C0-C5 engineering-complete.** LeetCode and NowCoder are
   network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
-- V4 Phase D: **D1 and D2 complete; D3 candidate engineering complete; D4
-  coordinator repair Tasks 0-10 complete; 9th observation FAILED; Task 12
-  plan gate APPROVED (2026-08-10).** The 9th real observation (merge-two-sorted-lists,
+- V4 Phase D: **D1 and D2 complete; historical D3 candidate engineering
+  complete; D4 coordinator repair Tasks 0-10 complete; 9th observation FAILED;
+  Task 12 plan gate APPROVED; Task 13 engineering COMPLETE and independently
+  APPROVED (2026-08-10).** The 9th real observation (merge-two-sorted-lists,
   `cn/741081653`) confirmed E2 and E3 but produced no bundle: a stale
   historical "Accepted" result panel misclassified as a transition created a
   candidate predating the submit, and the real result's identical verdict text
   was deduped away. Coordinator failed closed by design. RED test + written
-  plan revision and causal RED are now approved. Task 13 is authorized within
-  the frozen contract; D4 end-to-end engineering delivery remains unproven.
-  D5 F1-F4 and final user acceptance remain blocked.
+  plan revision and causal RED are now approved. Task 13 adds an exact
+  LeetCode submit-epoch control plane and closes same-verdict repeat causality,
+  including A/B exclusivity and the 32-entry capacity edge. Task 14 is next;
+  D4 end-to-end engineering delivery remains unproven. D5 F1-F4 and final user
+  acceptance remain blocked.
 - V0 manual learning loop vertical slice: **implemented but not accepted.**
   Formal observation and replacement-RC work remain gated.
 
 ## Commit Chronology
+
+### V4 Phase D Task 12-13 (2026-08-10)
+
+- Task 12 reviewed RED and frozen repair contract:
+  `1d6e9571c36fc3feb1ad0c99dd4f3ddd8393cfdb`.
+- Task 13 submit-epoch control implementation:
+  `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`.
 
 ### Phase 0D (2026-07-15)
 
@@ -930,16 +942,16 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- No worker is in flight at the Task 12 closeout. Task 13 is next. The prior D3
-  candidate is superseded for future observation as soon as Task 13 changes
+- No worker is in flight at the Task 13 closeout. Task 14 is next. The prior D3
+  candidate is superseded for future observation because Task 13 changed
   runtime; it remains historical evidence and is not RC, accepted, released,
   pushed, or proposed through a PR.
 
 ## Next Commander Action
 
-1. Execute Task 13 test-first: closed submit-epoch messages, exact routing,
-   bounded content-runtime arming, stable narrow DOM-node identity, and fixed
-   diagnostics; obtain independent review before the Task 13 local commit.
+1. Execute Task 14 test-first: add strict session/parser compatibility for the
+   optional `submitRequestId`, bind new candidates to the exact lifecycle,
+   terminally clean stale pre-E1 candidates, and prove restart behavior.
 2. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 

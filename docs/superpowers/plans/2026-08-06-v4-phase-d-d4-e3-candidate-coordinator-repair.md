@@ -2042,6 +2042,46 @@ production changes. The final local re-review returned `APPROVE`, citing the
 new assertion, candidate validator/freeze/hash contract, and Task 16 loaded-
 artifact proof. It authorizes Tasks 13-16 only inside this frozen contract.
 
-Task 12 is therefore closed. Task 13 is the next sequential action. D4 real-
+At that Task 12 checkpoint, Task 13 became the next sequential action. D4 real-
 platform engineering delivery, D5 F1-F4, final user acceptance, RC, and release
 remain unproven or pending as applicable.
+
+## Task 13 implementation closeout (2026-08-10)
+
+Task 13 is engineering-complete at implementation commit
+`fe36f6b4770d3d929479464c03e8bea6dbb97ba9` (`fix(v4): bind repeated
+verdicts to submit epochs`). The implementation adds the strict LeetCode-only
+`STARTED` / `CONFIRMED` control plane, exact one-shot tab/frame/document
+delivery, a bounded in-document epoch registry, stable narrow DOM `Element`
+identity, request-bound runtime candidates, and fixed identity-free diagnostics
+through the existing orchestrator-owned `lastCaptureError` path.
+
+The first independent implementation review returned `REJECT` with three
+blocking findings: same-document A/B epochs could share one DOM proof; the
+exact Chrome delivery path lacked behavior-level regression evidence; and the
+production adapter-to-runtime `Element` identity plus DTO/wrapper rejection was
+not tested. All three were repaired. The Commander then found one additional
+capacity-edge causal escape: a 33rd E1 rejection could leave an older epoch or
+the legacy path able to consume the new result. The final implementation marks
+same-problem predecessors `superseded` before capacity rejection and keeps any
+unexpired marker authoritative over legacy evaluation until TTL or navigation
+cleanup. Duplicate old `STARTED` messages cannot resurrect a superseded epoch.
+
+The second independent exact-diff review returned `APPROVE`. Commander-owned
+verification after the final capacity repair recorded:
+
+```text
+focused Task 13 / adjacent suite: 7 files, 338/338 passed
+renamed regression test:          1 file, 7/7 passed
+npm run typecheck:                exit 0
+targeted ESLint:                  exit 0
+git diff --check:                 exit 0 (CRLF conversion warnings only)
+```
+
+No full `extension:check`, extension E2E, production build, privacy audit,
+candidate validation, browser observation, migration, or database operation was
+run in Task 13. No `extension/dist` was generated. Those gates remain assigned
+to Task 15 after Task 14 completes. Task 13 is not D4 delivery evidence, D5,
+RC, acceptance, or release. Task 14 is now the next sequential action: persist
+the additive request identity, bind it exactly in the coordinator, preserve
+legacy fail-closed compatibility, and close restart/pre-E1 cleanup behavior.
