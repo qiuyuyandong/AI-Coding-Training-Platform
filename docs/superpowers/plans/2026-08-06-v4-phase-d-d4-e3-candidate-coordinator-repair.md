@@ -2128,3 +2128,21 @@ release. Task 15 is now the only authorized next action: execute the focused
 and full gates plus independent code/privacy/plan reviews, repair only within
 the frozen design, then create and validate a new immutable D3 candidate SHA
 and record exact production-dist hashes before Task 16.
+
+## Task 15 validation and re-freeze closeout (2026-08-10)
+
+Task 15 is engineering-complete on immutable candidate
+`f18eddf4cb4d7dd24c439b2dea5917793839e6a2`. The first attempted freeze
+`0c263ccf2459b2dda7897ad899e0c3fd439876ec` is explicitly invalid because its
+quality gate discovered ignored historical `.worktrees`; the reviewed minimal
+root-test isolation repair produced the new candidate and preserved both dirty
+historical worktrees without reset or deletion.
+
+The exact candidate validator exited `0`: unit `2353/1`, app E2E `25/25`,
+extension unit `1549/1549`, extension E2E `53/1`, production build `20/20`,
+privacy `0 findings`, readiness `PASS`, candidate identity stable, default
+database metadata preserved, and no port 3000 listener. Exact hashes are
+recorded in the Phase D master plan and Task 15 report. Task 16 is now the only
+next action and must recheck those hashes before the authorized LeetCode
+automated engineering observation. This is not D4 delivery evidence, D5, RC,
+acceptance, or release.

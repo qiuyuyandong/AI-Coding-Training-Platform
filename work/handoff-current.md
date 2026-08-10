@@ -1,6 +1,20 @@
 # Current Handoff
 
-## Status (2026-08-10 V4 Phase D Task 15 gate-isolation repair ACTIVE)
+## Status (2026-08-10 V4 Phase D Task 15 COMPLETE; Task 16 next)
+
+Task 15 is engineering-complete on immutable candidate
+`f18eddf4cb4d7dd24c439b2dea5917793839e6a2`. Its exact candidate validator
+exited `0` with unit `2353/1`, app E2E `25/25`, extension unit `1549/1549`,
+extension E2E `53/1`, production build `20/20`, privacy `0 findings`, readiness
+`PASS`, stable candidate identity, and preserved default-database metadata.
+The generated exact dist hashes are recorded in the Phase D master plan and
+`work/reports/v4-phase-d-task15-candidate-refreeze-2026-08-10.md`. Port 3000
+has no listener.
+
+Task 16 is now the only next action. Before any platform action it must verify
+HEAD lineage, confirm no runtime/dist drift, and recheck all five hashes. The
+observation is a real-platform automated engineering observation, not a
+natural user submission, D5 approval, RC, acceptance, or release.
 
 The first Task 15 freeze commit
 `0c263ccf2459b2dda7897ad899e0c3fd439876ec` is **invalid**: its exact
@@ -1017,19 +1031,18 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- The original Task 15 reviews and focused gate-isolation re-review are all
-  `APPROVE`; a new classified candidate commit and fresh exact-SHA validator
-  gate are next. The prior D3
+- Task 15 reviews and focused gate-isolation re-review are all `APPROVE`; the
+  new exact-SHA candidate gate passed and Task 16 is next. The prior D3
   candidate is superseded for future observation because Tasks 13-14 changed
   runtime; it remains historical evidence and is not RC, accepted, released,
   pushed, or proposed through a PR.
 
 ## Next Commander Action
 
-1. Obtain focused review `APPROVE` for the test-isolation repair, create a new
-   classified candidate commit, run `scripts/validate-v4-candidate.mjs
-   --candidate <new-sha>`, and record exact production-dist hashes only after
-   it passes.
+1. Recheck candidate `f18eddf4cb4d7dd24c439b2dea5917793839e6a2`
+   lineage and exact dist hashes, then execute only the authorized Task 16
+   LeetCode automated engineering observation under its browser evidence
+   contract.
 2. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 

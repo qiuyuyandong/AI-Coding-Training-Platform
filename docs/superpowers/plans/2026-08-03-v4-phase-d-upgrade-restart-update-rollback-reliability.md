@@ -1211,5 +1211,40 @@ findings. The reviewer additionally listed the effective root Vitest suite and
 confirmed it contains no `.worktrees` entry while retaining the real root
 tests. The isolation repair is therefore authorized for the new candidate
 commit; only a successful fresh exact-SHA validator may complete Task 15.
+
+#### Task 15 immutable candidate completion
+
+The new immutable candidate is
+`f18eddf4cb4d7dd24c439b2dea5917793839e6a2` (`fix(v4): isolate candidate
+gate from worktrees`). The exact command
+
+```powershell
+node scripts/validate-v4-candidate.mjs --candidate f18eddf4cb4d7dd24c439b2dea5917793839e6a2
+```
+
+exited `0` with `V4 candidate commit PASS`. Its internal nine-stage quality
+gate recorded unit `2353/1`, app E2E `25/25`, extension unit `1549/1549`,
+extension E2E `53/1`, and production build `20/20`; privacy audit remained
+`0 findings`, readiness remained `PASS`, candidate HEAD/worktree identity held
+before and after the gate, and the default database remained 479232 bytes with
+mtime `2026-07-23T15:56:38.8411343Z`. No listener remained on port 3000.
+
+The exact candidate-built artifacts are frozen as:
+
+```text
+manifest.json         22B1FBEAC7FEAC799C159D5A5D295700F7FEF5A395C40F1A39168EA9E0293D08
+background.js         4575A8BC67F4775D78AC5756DDED77B70FC905E2AE6953B90C3E9896369DCE7B
+content.js            C68465D60D21F6B74A7A081ED6E053DC1FB968B93871A7EE3D7500ABD997CD3B
+popup.js              3D164737873BB36A522300FC4B92829C419A3EAEC4CACDC0CF111A91497CF478
+main-world-bridge.js   4D89A80F0351295EE1C0CD173BE107080983868D18510D028854695EACEE3943
+```
+
+Task 15 is engineering-complete. The generated ignored `extension/dist`
+remains the exact artifact for Task 16 and must be hash-checked again before
+the first platform action. Later evidence/status documentation commits do not
+replace the candidate SHA. Any runtime, protocol, manifest, permission, build,
+migration, or dist change invalidates it and returns to Task 15 re-freeze.
+This is D3/Task 15 engineering evidence only, not D4 delivery, D5 approval,
+RC, acceptance, or release.
 Production runtime, manifest, build scripts, protocol, and artifact remain
 unchanged at this stop state.
