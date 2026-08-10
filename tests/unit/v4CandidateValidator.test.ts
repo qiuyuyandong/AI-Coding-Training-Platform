@@ -46,6 +46,23 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("training-platform.sqlite").kind).toBe("forbidden");
   });
 
+  it("owns only the reviewed revision-4 plan, runtime, tests, and evidence paths", () => {
+    const revisionFourPaths = [
+      "docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md",
+      "extension/manifest.json",
+      "extension/src/contentRuntime.ts",
+      "extension/src/platforms.ts",
+      "tests/unit/extensionContentRuntime.test.ts",
+      "tests/unit/extensionDomesticOjAuth.test.ts",
+      "tests/unit/extensionSubmitEpochControl.test.ts",
+      "work/reports/v4-phase-d-task16-leetcode-automated-observation-2026-08-10.md",
+    ] as const;
+
+    expect(validateCandidatePaths([...revisionFourPaths]).failedChecks).toEqual([]);
+    expect(classifyCandidatePath("extension/src/unreviewed-route.ts").kind).toBe("unknown");
+    expect(classifyCandidatePath("work/reports/raw-task16-transcript.json").kind).toBe("forbidden");
+  });
+
   it("keeps the root quality gate isolated from ignored Git worktrees", () => {
     const source = readFileSync(resolve(process.cwd(), "vitest.config.ts"), "utf8");
     expect(source).toContain('".worktrees/**"');

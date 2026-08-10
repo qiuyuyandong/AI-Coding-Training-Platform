@@ -15,6 +15,8 @@ const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "docs/superpowers/plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md",
+  "docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md",
+  "extension/manifest.json",
   "extension/build.mjs",
   "extension/src/attemptStorage.ts",
   "extension/src/background.ts",
@@ -23,8 +25,10 @@ export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "extension/src/captureErrorPrivacy.ts",
   "extension/src/captureTransport.ts",
   "extension/src/content.ts",
+  "extension/src/contentRuntime.ts",
   "extension/src/installation.ts",
   "extension/src/outboxDrain.ts",
+  "extension/src/platforms.ts",
   "extension/src/popup.ts",
   "extension/src/storagePrivacy.ts",
   "scripts/audit-v4-extension-privacy.mjs",
@@ -35,10 +39,13 @@ export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "tests/types/v4CandidateValidator.d.ts",
   "tests/types/v4ExtensionPrivacyAudit.d.ts",
   "tests/unit/extensionBackgroundOrchestrator.test.ts",
+  "tests/unit/extensionContentRuntime.test.ts",
+  "tests/unit/extensionDomesticOjAuth.test.ts",
   "tests/unit/extensionInstallation.test.ts",
   "tests/unit/extensionOutboxDrain.test.ts",
   "tests/unit/extensionPopup.test.ts",
   "tests/unit/extensionStoragePrivacy.test.ts",
+  "tests/unit/extensionSubmitEpochControl.test.ts",
   "tests/unit/extensionTransport.test.ts",
   "tests/unit/extensionV4UpgradeMatrix.test.ts",
   "tests/unit/v4CandidateValidator.test.ts",
@@ -50,6 +57,7 @@ export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "work/reports/v4-phase-d-d1-red-provenance-audit-2026-08-03.md",
   "work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md",
   "work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md",
+  "work/reports/v4-phase-d-task16-leetcode-automated-observation-2026-08-10.md",
 ]);
 
 const GENERATED_OR_SECRET_PATH = /(?:^|\/)(?:\.tmp|test-results|playwright-report)(?:\/|$)|^extension\/dist(?:\/|$)|(?:^|\/)(?:\.env(?:\.|$)|node_modules)(?:\/|$)|(?:^|\/)(?:training-platform\.sqlite|.*\.(?:sqlite|sqlite3|db|key|pem|p12))$/iu;
