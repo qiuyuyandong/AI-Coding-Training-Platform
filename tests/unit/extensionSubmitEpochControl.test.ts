@@ -38,10 +38,11 @@ const confirmed = (requestId: string, confirmedAt = "2026-08-10T00:00:01.000Z") 
 
 function createHarness() {
   let now = "2026-08-10T00:00:00.500Z";
+  let detected: DetectedProblem | null = problem;
   let verdict: string | null = "Accepted";
   let surface: Element | null = document.createElement("div");
   const runtime = createCaptureContentRuntime({
-    detectProblem: () => problem,
+    detectProblem: () => detected,
     detectVerdict: () => ({ verdict, verdictSurface: surface }),
     exactResultPage: () => false,
     now: () => now,
@@ -50,6 +51,7 @@ function createHarness() {
   return {
     runtime,
     setNow: (value: string) => { now = value; },
+    setDetected: (value: DetectedProblem | null) => { detected = value; },
     setVerdict: (value: string | null) => { verdict = value; },
     setSurface: (value: Element | null) => { surface = value; },
   };
@@ -204,7 +206,7 @@ describe("LeetCode submit epoch control plane", () => {
     expect(genericRuntime.documentMutated()).toEqual([]);
   });
 
-  it("bounds entries at 32, expires lazily at five minutes, and clears on navigation", () => {
+  it("bounds entries at 32, expires lazily at five minutes, and clears on identity-invalidating navigation", () => {
     const harness = createHarness();
     for (let i = 0; i < 32; i += 1) deliver(harness.runtime, started(`request-${i}`));
     deliver(harness.runtime, started("request-over-capacity"));
@@ -227,6 +229,7 @@ describe("LeetCode submit epoch control plane", () => {
 
     const navigation = createHarness();
     deliver(navigation.runtime, started("request-nav"));
+    navigation.setDetected(null);
     navigation.runtime.locationObserved();
     deliver(navigation.runtime, confirmed("request-nav"));
     expect(navigation.runtime.takeControlDiagnostic()).toBe("epoch_started_missing");

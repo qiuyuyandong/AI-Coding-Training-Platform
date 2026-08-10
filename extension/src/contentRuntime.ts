@@ -180,6 +180,12 @@ export function createCaptureContentRuntime(
     }
   }
 
+  function hasEpochMarkerForDetectedProblem(): boolean {
+    return state.detected?.platform === "leetcode"
+      && [...epochs.values()].some((epoch) =>
+        epoch.problemExternalId === state.detected?.problemExternalId);
+  }
+
   function baselineFromObservation(): EpochBaseline {
     const snapshot = currentVerdictSnapshot();
     if (snapshot === null) {
@@ -529,20 +535,23 @@ export function createCaptureContentRuntime(
     },
     locationObserved: () => {
       if (epochs.size > 0) pruneExpiredEpochs();
-      clearEpochs();
+      // Strict identity reconciliation preserves a same-problem epoch. Null,
+      // ambiguous, unsupported, or cross-problem detection still clears it.
       observeDetectedProblem();
       clearVerdictTransitions();
       state = { ...state, lastVerdictSnapshot: undefined };
-      return evaluateVerdictCandidate();
+      const armed = evaluateArmedEpochs();
+      if (armed.length > 0) return armed;
+      // An armed request owns the transition; never emit an unbound legacy
+      // candidate while its bounded marker is present.
+      return hasEpochMarkerForDetectedProblem() ? [] : evaluateVerdictCandidate();
     },
     documentMutated: () => {
       if (epochs.size > 0) pruneExpiredEpochs();
       observeDetectedProblem();
       const armed = evaluateArmedEpochs();
       if (armed.length > 0) return armed;
-      const hasEpochMarker = state.detected?.platform === "leetcode"
-        && [...epochs.values()].some((epoch) =>
-          epoch.problemExternalId === state.detected?.problemExternalId);
+      const hasEpochMarker = hasEpochMarkerForDetectedProblem();
       // An armed request owns transition evaluation.  Do not allow legacy
       // same-text dedupe to turn a post-E1 observation into an unbound one.
       // Superseded/terminal markers also block legacy evaluation until their

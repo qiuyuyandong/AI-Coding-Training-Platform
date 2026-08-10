@@ -426,6 +426,8 @@ type DomesticAnchorExternalIdResolver = (
 interface DomesticSubmissionRoute {
   readonly platform: Platform;
   readonly host: string;
+  /** Route-owned anchor scope; broad legacy routes retain `a[href]`. */
+  readonly anchorSelector: string;
   /**
    * Returns true iff the parsed URL matches the exact documented route
    * shape, including any expected query string and absence of hash.
@@ -448,6 +450,7 @@ const DOMESTIC_ROUTES: readonly DomesticSubmissionRoute[] = [
   {
     platform: "leetcode",
     host: "leetcode.cn",
+    anchorSelector: "a[href]",
     matchUrl: (parsed) =>
       parsed.search === ""
       && parsed.hash === ""
@@ -455,8 +458,21 @@ const DOMESTIC_ROUTES: readonly DomesticSubmissionRoute[] = [
     resolveAnchor: resolveLeetCodeProblemAnchor,
   },
   {
+    platform: "leetcode",
+    host: "leetcode.cn",
+    // The top-level SPA result contains many recommendation links. Only the
+    // unique visible current-problem anchor is route-owned identity evidence.
+    anchorSelector: "a.cursor-text[href]",
+    matchUrl: (parsed) =>
+      parsed.search === ""
+      && parsed.hash === ""
+      && /^\/submissions\/\d+\/?$/u.test(parsed.pathname),
+    resolveAnchor: resolveLeetCodeProblemAnchor,
+  },
+  {
     platform: "nowcoder",
     host: "ac.nowcoder.com",
+    anchorSelector: "a[href]",
     // NowCoder's view-submission page is reachable at the exact path
     // `/acm/contest/view-submission` with a single required query
     // parameter `submissionId=<digits>` and no hash. The query parameter
@@ -479,6 +495,7 @@ const DOMESTIC_ROUTES: readonly DomesticSubmissionRoute[] = [
   {
     platform: "luogu",
     host: "www.luogu.com.cn",
+    anchorSelector: "a[href]",
     matchUrl: (parsed) =>
       parsed.search === ""
       && parsed.hash === ""
@@ -552,7 +569,7 @@ function resolveDomesticRoute(
   // the FIRST-seen trimmed anchor text, never overwriting with a
   // divergent value. Multiple distinct identities yield null below.
   const identities = new Map<string, string>();
-  for (const anchor of Array.from(pageDocument.querySelectorAll("a[href]"))) {
+  for (const anchor of Array.from(pageDocument.querySelectorAll(route.anchorSelector))) {
     const href = anchor.getAttribute("href");
     if (href === null) continue;
     const anchorUrl = safeParseAnchorUrl(href, route.host);
@@ -710,11 +727,11 @@ function isExactResultRouteForPlatform(platform: Platform, parsed: URL): boolean
   if (platform === "leetcode" && isLeetCodeProblemSubmissionResultRoute(parsed)) {
     return true;
   }
-  const domestic = DOMESTIC_ROUTES.find((route) => route.platform === platform);
-  return domestic !== undefined
-    && adapterOwnsHost(domestic.platform, domestic.host)
-    && parsed.hostname === domestic.host
-    && domestic.matchUrl(parsed);
+  return DOMESTIC_ROUTES.some((route) =>
+    route.platform === platform
+    && adapterOwnsHost(route.platform, route.host)
+    && parsed.hostname === route.host
+    && route.matchUrl(parsed));
 }
 
 function isLeetCodeProblemSubmissionResultRoute(parsed: URL): boolean {

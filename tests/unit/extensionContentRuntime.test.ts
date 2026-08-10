@@ -42,7 +42,7 @@ type LeetCodeSubmitEpochControlMessage = Readonly<{
 function deliverControlMessage(
   runtime: CaptureContentRuntime,
   message: LeetCodeSubmitEpochControlMessage,
-): unknown {
+): readonly AttemptCaptureRuntimeMessage[] {
   if (!("controlMessageReceived" in runtime)
     || typeof runtime.controlMessageReceived !== "function") {
     throw new Error("expected the reviewed submit-epoch control plane");

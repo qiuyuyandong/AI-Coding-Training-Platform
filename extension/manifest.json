@@ -27,7 +27,7 @@
         "https://leetcode.cn/problems/*",
         "https://leetcode.cn/problems/*/description/*",
         "https://leetcode.cn/problems/*/submissions/*",
-        "https://leetcode.cn/submissions/detail/*",
+        "https://leetcode.cn/submissions/*",
         "https://www.nowcoder.com/practice/*",
         "https://ac.nowcoder.com/acm/problem/*",
         "https://ac.nowcoder.com/acm/contest/18839",
