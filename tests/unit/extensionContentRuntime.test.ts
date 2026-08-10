@@ -14,6 +14,13 @@ const twoSum: DetectedProblem = {
   canonicalUrl: "https://leetcode.cn/problems/two-sum/",
 };
 
+const addTwoNumbers: DetectedProblem = {
+  platform: "leetcode",
+  problemExternalId: "add-two-numbers",
+  problemTitle: "Add Two Numbers",
+  canonicalUrl: "https://leetcode.cn/problems/add-two-numbers/",
+};
+
 type Harness = {
   readonly runtime: CaptureContentRuntime;
   readonly setDetected: (value: DetectedProblem | null) => void;
@@ -231,6 +238,83 @@ describe("V4 Phase 0 capture content runtime", () => {
       Date.parse(confirmed.confirmedAt),
     );
     expect(deliverControlMessage(harness.runtime, confirmed)).toEqual([]);
+  });
+
+  it("preserves an armed epoch across a same-problem SPA result URL transition", () => {
+    const harness = createHarness();
+    const historicalSurface = document.createElement("div");
+    const freshSurface = document.createElement("div");
+    harness.setVerdict("Accepted");
+    harness.setVerdictSurface(historicalSurface);
+    harness.runtime.start();
+
+    expect(deliverControlMessage(harness.runtime, {
+      type: "LEETCODE_SUBMIT_EPOCH_STARTED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "same-document-request",
+      receivedAt: "2026-07-24T00:00:02.500Z",
+    })).toEqual([]);
+
+    harness.setVerdictSurface(freshSurface);
+    expect(harness.runtime.locationObserved()).toEqual([]);
+    const confirmed = deliverControlMessage(harness.runtime, {
+      type: "LEETCODE_SUBMIT_EPOCH_CONFIRMED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "same-document-request",
+      confirmedAt: "2026-07-24T00:00:04.500Z",
+    });
+
+    expect(confirmed).toHaveLength(1);
+    expect(confirmed[0]).toMatchObject({
+      type: "VERDICT_CANDIDATE_OBSERVED",
+      candidate: {
+        problemExternalId: "two-sum",
+        submitRequestId: "same-document-request",
+        verdict: "Accepted",
+      },
+    });
+  });
+
+  it.each([
+    ["unknown identity", null],
+    ["another LeetCode problem", addTwoNumbers],
+  ] as const)("clears an armed epoch when SPA navigation resolves to %s", (_name, nextDetected) => {
+    const harness = createHarness();
+    const historicalSurface = document.createElement("div");
+    const unrelatedSurface = document.createElement("div");
+    harness.setVerdict("Accepted");
+    harness.setVerdictSurface(historicalSurface);
+    harness.runtime.start();
+
+    expect(deliverControlMessage(harness.runtime, {
+      type: "LEETCODE_SUBMIT_EPOCH_STARTED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "navigation-invalidated-request",
+      receivedAt: "2026-07-24T00:00:02.500Z",
+    })).toEqual([]);
+
+    harness.setDetected(nextDetected);
+    harness.setVerdictSurface(unrelatedSurface);
+    expect(harness.runtime.locationObserved()).toEqual([]);
+    expect(deliverControlMessage(harness.runtime, {
+      type: "LEETCODE_SUBMIT_EPOCH_CONFIRMED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "navigation-invalidated-request",
+      confirmedAt: "2026-07-24T00:00:04.500Z",
+    })).toEqual([]);
+    expect(harness.runtime.controlMessageResponse()).toEqual({
+      ok: false,
+      diagnostic: "epoch_started_missing",
+    });
+    expect(harness.runtime.documentMutated()).toEqual([]);
   });
 
   it("navigation away prevents later verdict output", () => {

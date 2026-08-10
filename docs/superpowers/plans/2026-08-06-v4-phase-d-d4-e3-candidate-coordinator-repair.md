@@ -2146,3 +2146,190 @@ recorded in the Phase D master plan and Task 15 report. Task 16 is now the only
 next action and must recheck those hashes before the authorized LeetCode
 automated engineering observation. This is not D4 delivery evidence, D5, RC,
 acceptance, or release.
+
+## Task 16 failure and revision 4 repair contract (2026-08-10)
+
+Task 16 failed twice and is stopped. Neither failure is D4 PASS evidence.
+
+The first automated submission, `cn/741314390`, started from residual
+`cn/741081653` (`Accepted`). Its isolated database stayed at zero capture
+events, sessions, and attempts. The previously installed extension reported
+two waiting E2 records, zero outbox, zero quarantine, no last sync, and the
+fixed diagnostic `epoch_target_delivery_failed`.
+
+To exclude stale extension state, the old instance was disabled without
+deleting its evidence. A new unpacked instance
+`pdpnfigfaonkljaofocndcmmnbmfeaab` was loaded from a temporary byte-for-byte
+copy of the exact Task 15 dist. All five frozen hashes matched. The new
+instance was the only enabled capture extension, was paired to a second fresh
+isolated database, and began with waiting/outbox/quarantine all zero and no
+blocking diagnostic. After a full LeetCode page refresh, the second automated
+submission `cn/741318477` also reached `Accepted`, but the second isolated
+database again stayed at zero capture events, sessions, attempts, and capture
+POSTs. The fresh popup then reported waiting `1`, outbox `0`, quarantine `0`,
+no last sync, and `epoch_target_delivery_failed`.
+
+This clean reproduction proves a candidate defect rather than an operator,
+pairing, localhost, database, or stale-state problem. Task 16 and all later D4
+platform actions are blocked until the following repair sequence re-enters the
+D3 freeze boundary.
+
+### Root cause
+
+The real LeetCode.cn SPA uses a top-level result route:
+
+```text
+https://leetcode.cn/submissions/<numeric-id>/
+```
+
+The manifest currently injects content runtime into problem-scoped submission
+routes and `/submissions/detail/*`, but not this top-level route. E1/E2 are
+therefore persisted by the background network observer while exact
+`tabId/frameId/documentId` control delivery has no matching content receiver.
+The reviewed fail-closed sender correctly emits `epoch_target_delivery_failed`
+and never falls back or broadcasts.
+
+A manifest-only change is insufficient. `detectProblemFromPage` also accepts
+only `/submissions/detail/<id>/` for DOM-owned LeetCode submission identity.
+The real top-level page contains many first-party recommendation/problem
+anchors (31 in the observed document); scanning all `a[href]` would be
+ambiguous and must remain rejected. The current problem title is exposed by
+exactly one narrow first-party anchor matching:
+
+```text
+a.cursor-text[href^="/problems/"]
+```
+
+For the observed page that anchor resolved to
+`/problems/merge-two-sorted-lists/`. Only this narrow route-owned anchor may
+establish the top-level submission identity.
+
+### Frozen repair boundaries
+
+The repair is LeetCode.cn-only and may change only the minimum manifest,
+route-identity, exact-result, tests, plan/report/handoff, and candidate-gate
+owned files required by this revision.
+
+It must:
+
+1. replace the LeetCode.cn submission-detail-only content match with the
+   existing-host pattern `https://leetcode.cn/submissions/*`, so a fresh
+   top-level numeric result document receives the same `content.js` at
+   `document_start`;
+2. add an exact DOM-owned route for `/submissions/<digits>/` with HTTPS, exact
+   `leetcode.cn`, no credentials, default port, no query/hash, and no extra
+   segment;
+3. inspect only `a.cursor-text[href]` on that new route and require exactly one
+   valid first-party `/problems/<slug>/` identity with a non-empty trimmed
+   label;
+4. keep the existing `/submissions/detail/<digits>/` resolver and all other
+   platforms unchanged;
+5. treat the new exact route as an exact submission result only after the same
+   strict problem identity succeeds; and
+6. preserve an armed epoch across the existing in-document SPA location
+   observer only when strict post-navigation detection proves the same
+   platform and problem identity. The current unconditional
+   `locationObserved()` epoch clear is part of the defect. Cross-problem,
+   unsupported, ambiguous, or null detection must still clear the registry
+   immediately; no programmatic reinjection is added.
+
+It must not:
+
+* add a tab-only, frame-only, retry, broadcast, or another-document fallback;
+* weaken exact `tabId/frameId/documentId`, requestId, chronology, narrow
+  verdict `Element`, E1-before-E2, or persistence-before-confirmation rules;
+* use generic recommendation anchors, title text, editor content, problem
+  statement, request/response bodies, cookies, tokens, or browser storage;
+* add permissions, host permissions, storage keys, network endpoints, timers,
+  polling intervals, migrations, schemas, third-party calls, or a new adapter;
+* retry AtCoder, Codeforces, or Luogu; or
+* reuse either failed Task 16 waiting state as PASS evidence.
+
+### Task 17 — causal RED
+
+Before production changes, add tests that fail for both independent defects:
+
+1. manifest/runtime installation contract: the content-script match includes
+   `https://leetcode.cn/submissions/*`;
+2. identity/result contract: one valid narrow current-problem anchor resolves
+   the problem and makes the top-level route exact, while zero, multiple,
+   generic-only, spoofed-host, query/hash, credential, port, nonnumeric, extra
+   segment, empty-label, and `.com` variants all return `null`/`false`;
+3. SPA contract: the same runtime can observe a same-problem transition from
+   one numeric top-level submission URL to another without losing the active
+   problem or widening identity; and
+4. regression contract: all existing `/submissions/detail/<id>/`,
+   problem-scoped result, selected-tab, other-platform, manifest permission,
+   privacy, and submit-epoch suites remain green.
+
+The RED command must show only the newly specified assertions failing while
+the pre-existing adjacent suite remains green.
+
+### Task 18 — minimal implementation
+
+Implement only the frozen route, manifest, and same-identity runtime-lifecycle
+changes above. Reuse the existing first-party anchor normalization/origin/
+slug/title guards; route-specific selector choice may be additive in the
+domestic-route descriptor. If multiple descriptors share one platform,
+exact-result routing must evaluate all matching descriptors rather than
+selecting the first platform entry. `locationObserved()` must first reconcile
+the new strict detected identity, preserve epochs only for exact identity
+equality, and continue to clear them for every other navigation outcome. It
+must not preserve by URL shape, title, platform alone, or a prior cached
+identity.
+
+Run the focused RED suite, Task 13/14 causal suites, typecheck, targeted ESLint,
+privacy audit, readiness validation, and `git diff --check`.
+
+### Task 19 — independent review and repair gate
+
+One code reviewer, one privacy reviewer, and one plan/evidence reviewer must
+independently inspect the exact diff and return `APPROVE`. Any finding may be
+repaired only inside this revision. No browser submission occurs in Task 19.
+
+### Task 20 — re-freeze
+
+Because Task 18 changes runtime and manifest files, candidate
+`f18eddf4cb4d7dd24c439b2dea5917793839e6a2` becomes historical for later D4
+actions. After all focused/full gates and reviews pass, create a new immutable
+implementation candidate, run the exact candidate validator against that SHA,
+rebuild `extension/dist`, and record fresh hashes for every frozen artifact.
+Any subsequent runtime/manifest/protocol/build/migration/dist change repeats
+this step.
+
+### Task 21 — Task 16 clean re-execution
+
+Load exactly one new-candidate extension instance with clean extension and
+isolated database state. Recheck the candidate SHA and all dist hashes before
+the first action. Re-execute residual `Accepted` to new `Accepted` with one
+automation click and the original privacy boundary. PASS still requires exact
+E1, one E2 waiting increment, one matching E3, one four-event POST, ACK,
+waiting/outbox/quarantine zero, one SQLite session/attempt, no fixed diagnostic,
+and retained failed-attempt evidence. It remains an automated engineering
+observation, not natural-user evidence, acceptance, RC, or release.
+
+Tasks 18-21 remain unauthorized until Task 17 RED exists and an independent
+reviewer approves this revision. No additional platform submission is allowed
+before the new Task 20 immutable candidate is frozen.
+
+### Task 17 closeout
+
+Task 17 is complete. The focused RED command was:
+
+```text
+npx vitest run --config vitest.extension.config.ts tests/unit/extensionDomesticOjAuth.test.ts tests/unit/extensionContentRuntime.test.ts --no-file-parallelism
+```
+
+It produced `167` total tests: `163` passed and exactly four new causal
+assertions failed. The failures are the top-level numeric route identity, the
+same identity across two numeric SPA result URLs, the manifest content-script
+match, and same-problem armed-epoch preservation. The new active-epoch
+negative cases for null identity and a different LeetCode problem both pass,
+as do all pre-existing adjacent cases.
+
+The first independent review returned `REJECT` because the initial navigation
+negative case had no armed epoch. After adding explicit armed null-identity and
+cross-problem invalidation cases, the second review returned `APPROVE` with no
+remaining blockers. Task 18 is authorized within this frozen revision. No
+production file had been changed at the time of approval, and no additional
+browser submission was performed.

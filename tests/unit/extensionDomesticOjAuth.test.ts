@@ -159,6 +159,73 @@ describe("LeetCode authenticated-characterization detection", () => {
   });
 });
 
+describe("LeetCode top-level submission route", () => {
+  const CURRENT_ANCHOR = [
+    '<a class="no-underline cursor-text whitespace-normal"',
+    ' href="/problems/merge-two-sorted-lists/">',
+    '21. Merge Two Sorted Lists</a>',
+  ].join("");
+  const GENERIC_ANCHOR = '<a href="/problems/two-sum/">Two Sum</a>';
+  const resultDocument = (body: string) => asDocument([
+    "<!doctype html><html><head><title>LeetCode</title></head><body>",
+    body,
+    '<div data-e2e-locator="submission-result">Accepted</div>',
+    "</body></html>",
+  ].join(""));
+
+  it("resolves the exact numeric top-level route from one narrow current-problem anchor", () => {
+    const location = asLocation("https://leetcode.cn/submissions/741318477/");
+    const page = resultDocument(GENERIC_ANCHOR + CURRENT_ANCHOR);
+    const problem = detectProblemFromPage(location, page);
+
+    expect(problem).toEqual({
+      platform: "leetcode",
+      problemExternalId: "merge-two-sorted-lists",
+      problemTitle: "21. Merge Two Sorted Lists",
+      canonicalUrl: "https://leetcode.cn/problems/merge-two-sorted-lists/",
+    });
+    expect(isExactSubmissionResultPage(location, page, problem)).toBe(true);
+  });
+
+  it("resolves two numeric SPA result URLs to the same identity without URL-derived guessing", () => {
+    const page = resultDocument(CURRENT_ANCHOR);
+    const before = detectProblemFromPage(
+      asLocation("https://leetcode.cn/submissions/741314390/"),
+      page,
+    );
+    const after = detectProblemFromPage(
+      asLocation("https://leetcode.cn/submissions/741318477/"),
+      page,
+    );
+
+    expect(before).toEqual(after);
+    expect(after?.problemExternalId).toBe("merge-two-sorted-lists");
+  });
+
+  it.each([
+    ["zero narrow anchors", "https://leetcode.cn/submissions/741318477/", GENERIC_ANCHOR],
+    ["multiple narrow anchors", "https://leetcode.cn/submissions/741318477/", CURRENT_ANCHOR + '<a class="cursor-text" href="/problems/two-sum/">Two Sum</a>'],
+    ["empty narrow label", "https://leetcode.cn/submissions/741318477/", '<a class="cursor-text" href="/problems/merge-two-sorted-lists/"> </a>'],
+    ["spoofed narrow host", "https://leetcode.cn/submissions/741318477/", '<a class="cursor-text" href="https://leetcode.cn.evil.example/problems/merge-two-sorted-lists/">Merge</a>'],
+    ["query", "https://leetcode.cn/submissions/741318477/?lang=cn", CURRENT_ANCHOR],
+    ["hash", "https://leetcode.cn/submissions/741318477/#result", CURRENT_ANCHOR],
+    ["credentials", "https://user:pass@leetcode.cn/submissions/741318477/", CURRENT_ANCHOR],
+    ["port", "https://leetcode.cn:8443/submissions/741318477/", CURRENT_ANCHOR],
+    ["http", "http://leetcode.cn/submissions/741318477/", CURRENT_ANCHOR],
+    ["nonnumeric", "https://leetcode.cn/submissions/not-a-number/", CURRENT_ANCHOR],
+    ["extra segment", "https://leetcode.cn/submissions/741318477/extra", CURRENT_ANCHOR],
+    ["list route", "https://leetcode.cn/submissions/", CURRENT_ANCHOR],
+    ["dot-com host", "https://leetcode.com/submissions/741318477/", CURRENT_ANCHOR],
+  ] as const)("rejects %s", (_name, url, body) => {
+    const location = asLocation(url);
+    const page = resultDocument(body);
+    const problem = detectProblemFromPage(location, page);
+
+    expect(problem).toBeNull();
+    expect(isExactSubmissionResultPage(location, page, problem)).toBe(false);
+  });
+});
+
 describe("NowCoder authenticated-characterization detection", () => {
   const SUB_URL = "https://ac.nowcoder.com/acm/contest/view-submission?submissionId=84104369";
 
@@ -720,8 +787,8 @@ describe("manifest-to-runtime contract: domestic OJ routes", () => {
 
   const manifestPatterns: readonly string[] = (manifest as { content_scripts: readonly { matches: readonly string[] }[] }).content_scripts[0]?.matches ?? [];
 
-  it("manifest includes the LeetCode.cn submission detail route", () => {
-    const pattern = "https://leetcode.cn/submissions/detail/*";
+  it("manifest installs the runtime on LeetCode.cn top-level submission documents", () => {
+    const pattern = "https://leetcode.cn/submissions/*";
     expect(manifestPatterns.some((p) => p === pattern)).toBe(true);
   });
 
