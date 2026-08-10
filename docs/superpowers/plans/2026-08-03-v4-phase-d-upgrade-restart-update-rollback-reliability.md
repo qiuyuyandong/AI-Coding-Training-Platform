@@ -753,30 +753,40 @@ D3 completion requires exact counts, default database metadata preservation,
 independent code review `APPROVE`, and one explicitly authorized immutable
 implementation candidate SHA. This is not yet an RC, acceptance, or release.
 
-## 10. Task D4 - Same-SHA Real Observations
+## 10. Task D4 - Same-SHA Real-Platform Automated Engineering Observations
 
-**Dependencies:** D3 immutable implementation candidate SHA and explicit user
-authorization for each real platform action.
+**Dependencies:** D3 immutable implementation candidate SHA, the Task 12-15
+repair/re-freeze sequence, and explicit user authorization for each real
+platform automation scope. The 2026-08-10 Commander goal authorizes the minimum
+LeetCode and NowCoder automated actions described below; it does not authorize
+any broader platform action, acceptance, release, deployment, push, or PR.
 
 ### 10.1 Platform scope
 
-Real natural submissions are permitted only for the existing active V4 network
-policies:
+Real-platform automated engineering submissions are permitted only for the
+existing active V4 network policies:
 
 - LeetCode: current `experimental` policy and its characterized host scope.
 - NowCoder: current `experimental` policy and its characterized host scope.
 
 AtCoder, Codeforces, and Luogu remain `V4_BLOCKED`. D4 must not retry their
-natural submissions. D4 may only validate that their registry/readiness records,
+submissions. D4 may only validate that their registry/readiness records,
 blocker references, and fail-closed behavior have not drifted. Historical
 AtCoder DOM production certification is not re-certified by D4.
+
+These automated submissions are classified only as **real-platform automated
+engineering observations**. They are not natural user submissions, user
+acceptance, RC evidence, or release evidence. D4 engineering PASS and final
+user acceptance are separate sequential gates.
 
 ### 10.2 Required evidence
 
 For each allowed active policy, the report must contain:
 
 - browse-only negative flow;
-- a fresh natural submission performed by the authorized user;
+- a minimum fresh submission performed by the authorized Chrome automation,
+  using an already retained accepted solution without reading, copying,
+  exporting, or recording editor code;
 - E1 observation with waiting unchanged;
 - E2 confirmation with waiting incremented once;
 - matching E3 finalization exactly once;
@@ -788,7 +798,14 @@ For each allowed active policy, the report must contain:
 - the exact implementation SHA that built the loaded artifact;
 - hashes of every loaded dist file, at minimum `manifest.json`,
   `background.js`, `content.js`, `popup.js`, and `main-world-bridge.js` when
-  present.
+present.
+
+LeetCode must first cover the Task 16 residual `Accepted` to new `Accepted`
+same-problem regression. NowCoder then receives the minimum same-candidate
+regression observation needed to prove its existing experimental path did not
+drift; it does not certify the LeetCode-only submit-epoch mechanism. Login
+expiry, CAPTCHA, 2FA, profile lock, unavailable retained code, or an explicit
+platform automation block stops that platform action for user assistance.
 
 Every D4 report must record the actual build source, not a planned SHA or the
 current branch name. The SHA and hashes must be checked before the first
@@ -807,12 +824,13 @@ observation. It must not modify the implementation candidate or its artifact.
 
 ### 10.4 Completion
 
-D4 completes only when required LeetCode/NowCoder observations pass on the
-same immutable candidate SHA and all blocked-platform status checks pass. A
-user-dependent observation remains pending until it actually happens. No
-synthetic participant, date, submission, or browser result is valid evidence.
+D4 engineering evidence completes only when required LeetCode/NowCoder
+automated observations pass on the same immutable candidate SHA and all
+blocked-platform status checks pass. This permits D5 independent review to
+begin; it does not complete user acceptance. No synthetic participant, date,
+submission, or browser result is valid evidence.
 
-## 11. Task D5 - Same-SHA F1-F4 and Explicit Acceptance
+## 11. Task D5 - Same-SHA F1-F4, Then Explicit Acceptance
 
 **Dependency:** D4 complete.
 
@@ -827,9 +845,10 @@ the same D4 evidence set:
 - **F4:** scope, documentation, fixture provenance, registry/readiness status,
   blocked-platform honesty, and release-contract fidelity.
 
-All four lanes must independently `APPROVE`. Then present the complete
-evidence to the user and request explicit acceptance. Acceptance is not public
-release.
+All four lanes must independently `APPROVE`. Then stop at the final user gate,
+present the complete evidence, and request one explicit acceptance decision.
+Automated engineering observation PASS and F1-F4 APPROVE do not imply that
+decision. Acceptance is not public release.
 
 Final verification commands:
 
@@ -857,8 +876,8 @@ Phase D is complete only when all of the following are true:
 - D2 has zero forbidden findings and an independent privacy approval;
 - D3 created one immutable implementation candidate SHA with explicit user
   authorization;
-- D4 active-policy observations pass on that exact SHA and all blocked statuses
-  remain unchanged and honestly fail closed;
+- D4 active-policy automated engineering observations pass on that exact SHA
+  and all blocked statuses remain unchanged and honestly fail closed;
 - D5 F1-F4 all approve the same SHA;
 - any later commit is evidence-only and contains no implementation or artifact
   mutation;
@@ -901,10 +920,12 @@ not only this summary. The reviewer must check:
 - Every D4 report must record the actual implementation SHA and dist hashes,
   and the invalidation rule covers runtime, manifest, migration, and build
   script changes.
-- The real-observation scope excludes blocked-platform retries and does not
+- The real-platform automated-observation scope excludes blocked-platform
+  retries and does not
   claim Web Store/CRX/enterprise update support.
-- Automated PASS, real observation PASS, reviewer approval, user acceptance,
-  RC, and release remain separate labels.
+- Automated test PASS, real-platform automated engineering observation PASS,
+  reviewer APPROVE, natural user submission, user acceptance, RC, and release
+  remain separate labels.
 
 The reviewer must return one of:
 
@@ -1095,3 +1116,31 @@ and default-database preservation. The final independent D3 review returned
 is included in the current candidate HEAD; its exact self-referential SHA is
 reported by the final Git closeout rather than embedded here. D3 candidate
 engineering is complete. This is not RC, acceptance, or release.
+
+### 14.9 D4 Task 12 review and automated-observation authority (2026-08-10)
+
+The ninth LeetCode observation failed on the documentation-reconciled repair
+lineage because a residual historical `Accepted` candidate predated the real
+E1 while the later identical verdict was suppressed by text-only dedupe. Task
+12 now owns a causal RED and a frozen LeetCode-only submit-epoch repair
+contract in
+`docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`.
+
+The user-authorized Commander goal changes the remaining D4 evidence operation
+from an operator-performed natural submission to a minimum Chrome-performed
+real-platform automated engineering observation for LeetCode and NowCoder.
+This is a classification split, not an acceptance shortcut:
+
+```text
+automated engineering observation PASS
+!= natural user submission
+!= user acceptance
+!= RC
+!= release
+```
+
+Task 12 received one supplemental project-GPT `REJECT` and one authoritative
+local reviewer `REJECT`; only tests and plans were revised in response. Tasks
+13-16 remain unauthorized until both reviewers approve the revised contract.
+Production runtime, manifest, build scripts, protocol, and artifact remain
+unchanged at this stop state.

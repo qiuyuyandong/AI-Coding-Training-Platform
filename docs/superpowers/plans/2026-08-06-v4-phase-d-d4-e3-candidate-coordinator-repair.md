@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` to execute this plan task-by-task. Do not parallelize Tasks 2–7 because they modify shared data contracts and must remain sequentially reviewable.
 
-**Status:** `EXECUTION — Tasks 0-10 COMPLETE (2026-08-08); Task 11 9th observation FAILED (2026-08-09); RED test + plan revision required before further code changes`
+**Status:** `EXECUTION AUTHORIZED — Tasks 0-10 COMPLETE; Task 11 observation FAILED; Task 12 causal RED and frozen repair contract APPROVED; Tasks 13-16 may execute sequentially`
 
 **Date:** 2026-08-06
 
@@ -1511,17 +1511,24 @@ stays `pending` until the 5-minute `VERDICT_CANDIDATE_TTL_MS` expiry; the
 confirmed record is never finalized; waiting stays 1; no bundle, no outbox
 delta, no POST, no SQLite row.
 
-**Root-cause statements (both verified against code):**
+**Observed mechanisms (both verified against code):**
 1. Stale historical result panels can be misclassified as post-submit
    transitions (`contentRuntime.ts` null-phase + same-text dedupe interplay).
 2. A same-text repeat verdict (Accepted after Accepted) is deduped and never
    creates the correct candidate for the new submission.
 
-**Required next step (not yet authorized):** a new RED test covering
-"repeat submission of the same problem, previous result panel still on the
-page" must fail before any production change. Then a written plan revision
-(this file) must be updated and reviewed before code changes. One failed
-observation does not authorize an architectural change.
+**Authoritative root cause after Task 12:** the content runtime has no trusted
+submit epoch. A verdict string plus a generic DOM mutation cannot distinguish
+"the SPA restored an old panel" from "the exact new submission rendered the
+same verdict again." Removing the same-text dedupe would therefore replace a
+missed capture with false candidates. The repair must add a network-anchored
+E1/E2 control plane and a scoped result-surface transition while preserving
+the coordinator chronology invariant.
+
+**Required next step:** Task 12 has now reproduced the defect with one focused
+RED and frozen a written repair design below. Production changes remain
+unauthorized until this revision passes review. The failed ninth observation
+remains immutable historical evidence.
 
 ---
 
@@ -1664,7 +1671,8 @@ Engineering repair is complete only when:
 ```text
 E2 timestamps represent network evidence time
 candidate state is bounded and session-persistent
-matching uses the exact latest submit lifecycle
+new LeetCode candidates bind the exact armed submit requestId
+legacy candidates remain fail-closed under the existing compatibility path
 no polling or storage-key wake-up remains
 multiple tabs are independent
 stale same-problem records cannot consume new candidates
@@ -1690,3 +1698,350 @@ Not RC
 Not acceptance
 Not release
 ```
+
+---
+
+# Task 12: Same-verdict residual-panel RED and plan revision
+
+**Execution date:** 2026-08-09
+
+**Authority:** add one focused RED test and revise this plan only. Do not
+modify `extension/src/**`, build or reload the extension, start a real
+observation, change SQLite/browser/extension state, commit, or push.
+
+## Task 12.1 — Baseline and reproduced RED
+
+The clean starting point was
+`9cbac5919aafea130c34b248171d96eaadaf4596` on
+`feature/v1-followup`. Before adding the regression, the exact focused command
+passed `6/6`:
+
+```powershell
+npx vitest run --config vitest.extension.config.ts tests/unit/extensionContentRuntime.test.ts
+```
+
+The original symptom-level test was:
+
+```text
+RED: emits a new candidate when a same-problem repeat submission keeps the historical verdict text
+```
+
+It models the observation-9 first divergence:
+
+```text
+null phase
+→ residual Accepted panel emits one historical pre-E1 candidate
+→ real submit E1 occurs
+→ the real result surface renders Accepted again without a visible null verdict
+→ require one distinct post-E1 candidate
+```
+
+Its first focused result was:
+
+```text
+Test Files  1 failed (1)
+Tests       1 failed | 6 passed (7)
+Assertion   expected [] to have a length of 1 but got +0
+Location    tests/unit/extensionContentRuntime.test.ts:149
+```
+
+Two independent reviews rejected that symptom-only RED because deleting the
+same-text dedupe would have made it green without proving E1/E2 causality. The
+test was therefore revised before any production change. It now requires:
+
+```text
+historical Accepted on stable DOM node A
+→ exact STARTED(request-2), which alone captures node A as baseline
+→ duplicate STARTED is idempotent
+→ generic same-node mutation emits nothing
+→ CONFIRMED(unrelated-request) emits nothing
+→ same Accepted rendered on distinct stable DOM node B after E1
+→ pre-E2 DOM observation emits nothing but retains the transition proof
+→ exact CONFIRMED(request-2) emits one request-bound candidate whose fresh
+  observedAt is not earlier than confirmedAt
+→ duplicate CONFIRMED emits nothing
+```
+
+The revised focused command still reports `6 passed / 1 intentional RED`.
+The failure is now the absence of the reviewed submit-epoch control plane at
+`tests/unit/extensionContentRuntime.test.ts:41`, rather than a permissive
+expectation that every duplicate mutation emit a candidate. This RED cannot
+be satisfied by removing the legacy text dedupe alone.
+
+## Task 12.2 — Frozen repair contract for review
+
+### Trusted submit epoch control plane
+
+Add two closed internal messages for LeetCode only:
+
+```text
+LEETCODE_SUBMIT_EPOCH_STARTED
+  schemaVersion: 1
+  platform: leetcode
+  problemExternalId
+  submitRequestId
+  receivedAt
+
+LEETCODE_SUBMIT_EPOCH_CONFIRMED
+  schemaVersion: 1
+  platform: leetcode
+  problemExternalId
+  submitRequestId
+  confirmedAt
+```
+
+The production webRequest path sends `STARTED` only after the existing adapter
+has accepted a LeetCode submit E1 with lifecycle `before_request`. The exact E2
+path sends `CONFIRMED` using `matchedSubmitRequestId`. Both messages target the
+exact Chrome `tabId`, `frameId`, and `documentId` through
+`chrome.tabs.sendMessage`; those routing identities are not duplicated into
+the payload.
+
+The payload may contain only the scalars above. It must never contain a URL,
+request/response body, headers, code, cookies, tokens, account identity, or
+raw transcript material. No new manifest permission, persistent storage key,
+server/API field, SQLite column, timer, polling path, or click-derived intent
+is permitted.
+
+`STARTED` is the only event allowed to create an epoch or take a baseline.
+`CONFIRMED` may only mark an existing exact epoch and may never synthesize an
+epoch or baseline. Delivery order is not trusted:
+
+* `CONFIRMED` without the exact live `STARTED` epoch fails closed;
+* exact duplicate `STARTED` and `CONFIRMED` messages are idempotent;
+* the same `submitRequestId` with a different problem identity or timestamp is
+  a terminal control-message conflict and never replaces prior state;
+* `confirmedAt` must be greater than or equal to the epoch `receivedAt`;
+* malformed timestamps, unknown fields, and conflicting identities fail
+  closed before DOM observation;
+* target delivery failure never falls back to tab-only, frame-only, another
+  document, or broadcast delivery.
+
+### Content-runtime arming and DOM proof
+
+For each exact submit request, the content runtime keeps only bounded,
+ephemeral state. The per-document epoch registry has an explicit maximum of
+`32` entries and a TTL of `5 minutes` measured from the accepted E1
+`receivedAt`. Expired entries are removed lazily only while handling an
+existing control message, a current MutationObserver batch, or a page lifecycle
+event; no timer or polling is added. An unexpired full registry rejects a new
+epoch with the fixed `epoch_capacity_exceeded` diagnostic rather than evicting
+or guessing. Navigation/document invalidation clears the registry. Emitted
+epochs retain only their bounded emitted marker until TTL so replay cannot
+emit twice.
+
+```text
+submitRequestId
+problemExternalId
+E1 receivedAt
+optional E2 confirmedAt
+baseline normalized verdict
+baseline local DOM result-surface identity
+whether a null phase was observed
+whether one candidate was already emitted
+```
+
+DOM result-surface identity is only the stable in-memory reference of the
+actual `Element`/DOM node returned by the existing narrow LeetCode verdict
+locator or selected submission-detail result surface. It is never a parser
+DTO, snapshot/wrapper object, serialized value, generic body node, or a newly
+allocated object created on each observation. The node reference is never
+serialized, persisted, logged, or sent to the background.
+
+`STARTED` records the baseline but emits no candidate and creates no waiting
+state. `CONFIRMED` marks the same request and performs a fresh DOM observation.
+The runtime may emit exactly one candidate for that request only when E2 is
+confirmed and at least one of these is true:
+
+1. a meaningful null transition occurred after E1 (a non-null baseline/result
+   surface became null or disappeared; null-to-null is not evidence);
+2. the normalized verdict changed after E1;
+3. the stable narrow result-surface DOM node reference changed after E1.
+
+The candidate `observedAt` is the real time of that fresh DOM observation. It
+must not be copied from E1/E2, replaced with executor time, or calculated with
+`max(...)`. If E2 arrives after the DOM transition, the E2-triggered fresh
+observation may emit only when the saved post-E1 transition proof exists. If
+no legal transition exists, the epoch remains fail-closed until the existing
+TTL; arbitrary body mutations are never sufficient.
+
+Once an exact epoch is armed, legacy verdict-text-only or DOM-text-only dedupe
+must not run before the request-bound transition evaluation. The invariant is
+`same problem + same verdict + different submitRequestId != duplicate`. The
+legacy passive path may keep its existing dedupe, but it cannot suppress an
+armed request from constructing a request-bound candidate.
+
+Duplicate `STARTED`, duplicate `CONFIRMED`, repeated MutationObserver batches,
+and worker reconciliation may not emit a second candidate for the same
+request. A page/document change invalidates the local epoch instead of
+re-binding it.
+
+### Exact candidate/coordinator binding
+
+Add `submitRequestId` to new LeetCode verdict candidates and include it in the
+candidate identity and strict session parser. Existing session candidates
+without this additive field remain accepted only by the legacy fail-closed
+compatibility path until TTL; they may not be silently assigned a requestId.
+
+For a new armed candidate, the coordinator must select the lifecycle whose
+`requestId === candidate.submitRequestId`, then revalidate platform, problem,
+tab, frame, document, method, endpoint, lifecycle, status and stable submission
+identity. It must not fall back to latest-by-time or problem-only matching.
+The existing requirements that submit E1 precede the candidate and E2
+`confirmedAt <= candidate.observedAt` remain unchanged.
+
+A historical candidate followed by an otherwise matching later E1 is
+terminal `chronology_mismatch` as soon as that later lifecycle is visible; it
+must not remain pending for five minutes. That terminal cleanup cannot consume
+the later confirmed record or suppress a separately armed post-E1 candidate.
+
+### Restart and failure behavior
+
+Service-worker initialization replays `CONFIRMED` only for an unfinalized
+record that still has its exact matched E1 and exact live document. The
+content runtime may use its surviving E1 baseline; if the baseline was lost,
+it fails closed with a bounded `epoch_baseline_missing` diagnostic and never
+fabricates a baseline from the already-final DOM.
+
+An explicit internal sentinel distinguishes `baseline_not_captured` from a
+legitimately observed null verdict. A null baseline is data; a missing baseline
+is a terminal recovery failure.
+
+Closed diagnostics use no new storage key and carry no identity. The content
+handler returns a fixed enum response to the exact `chrome.tabs.sendMessage`
+caller; background maps it through the existing orchestrator-owned
+`lastCaptureError` lifecycle. The allowed fixed reasons are:
+
+```text
+epoch_control_malformed
+epoch_target_delivery_failed
+epoch_started_missing
+epoch_baseline_missing
+epoch_identity_conflict
+epoch_timestamp_conflict
+epoch_capacity_exceeded
+epoch_result_surface_unchanged
+verdict_candidate_adapter_rejected
+verdict_candidate_chronology_mismatch
+```
+
+No diagnostic value may contain or interpolate URL, `submitRequestId`, tab,
+frame, document, problem, verdict, payload, code, headers, cookies, token, or
+account data. Task 13/14 must update the strict parser/allowlist and tests for
+these fixed values only. Existing bounded `lastCaptureError` overwrite and
+clear behavior remains authoritative; the content epoch registry itself is
+never persisted or displayed. None of these diagnostics authorizes retry
+polling, timestamp rewriting, or a broader DOM selector.
+
+## Task 12.3 — Subsequent task boundaries
+
+* **Task 13:** implement the two control messages, exact Chrome targeting,
+  content-runtime arming, narrow DOM surface identity, and their unit tests.
+  Tests must cover exact and wrong request IDs, duplicate/conflicting control
+  messages, E2-before-E1, timestamp inversion, generic mutations, node versus
+  DTO identity, capacity/TTL cleanup, navigation invalidation, and background
+  delivery to the exact tab/frame/document with no fallback.
+* **Task 14:** implement additive `submitRequestId`, exact coordinator binding,
+  stale pre-E1 terminal cleanup, upgrade compatibility, flow and restart tests.
+* **Task 15:** run focused suites, full extension gates, privacy audit and one
+  independent code, privacy, and plan review; repair only findings inside this
+  approved design. Because Tasks 13/14 change runtime and protocol code, Task
+  15 must then re-enter the D3 freeze boundary under the already recorded user
+  authorization: create a new immutable implementation-candidate commit, run
+  `scripts/validate-v4-candidate.mjs --candidate <new-sha>`, build the exact
+  `extension/dist`, and record SHA-256 hashes for `manifest.json`,
+  `background.js`, `content.js`, `popup.js`, and `main-world-bridge.js` when
+  present. Any later runtime, manifest, permission, migration, build-script,
+  protocol, or dist change invalidates the candidate and returns to repair and
+  re-freeze before Task 16.
+* **Task 16:** execute one real LeetCode automated engineering observation for
+  residual `Accepted` → new `Accepted` delivery.
+
+Tasks 13–16 remain unauthorized until both the project-GPT supplemental review
+and the local authoritative reviewer approve this revised contract.
+
+## Task 12.4 — Task 16 browser and evidence contract
+
+Task 16 uses the existing Chrome profile named `yu`. Before it starts, the
+user only needs to close ordinary Chrome instances that hold that profile and
+confirm it is available; the agent performs the browser submission and all
+pre/post evidence checks. Login expiry, CAPTCHA/2FA, profile lock, or an
+unavailable submit control is a hard stop for user assistance—credentials may
+not be read, copied, exported, or bypassed.
+
+The automation uses the exact rebuilt `extension/dist`, verifies that exactly
+one capture extension instance is active, proves that the loaded dist was built
+from Task 15's new immutable candidate SHA, rechecks the recorded artifact
+hashes before the first submission, and prefers the retained accepted
+solution for `merge-two-sorted-lists`. It must not save a HAR, export browser
+state, inspect or record editor code, or capture cookies/tokens. The run is
+classified as a **real-platform automated engineering observation**. A PASS
+may close D4 engineering delivery evidence, but it is not a natural user
+submission, user acceptance, RC, or release.
+
+## Task 12 review gate and stop state
+
+Review must explicitly approve or reject:
+
+```text
+trusted E1/E2 causality
+exact requestId binding
+narrow local-only DOM surface identity
+candidate and restart bounds
+pre-E1 terminal cleanup
+privacy/permission boundary
+unchanged chronology invariant
+automated-observation evidence classification
+```
+
+The approved terminal Task 12 state is:
+
+```text
+Task 12 RED: REPRODUCED
+Task 12 plan revision: APPROVED
+Tasks 13-16: AUTHORIZED WITHIN THE FROZEN CONTRACT
+D4 end-to-end delivery: UNPROVEN
+Not RC / Not acceptance / Not release
+```
+
+### First review disposition (2026-08-10)
+
+The side-panel project GPT supplemental review returned `REJECT`. It approved
+exact request binding, chronology cleanup, restart fail-closed behavior,
+privacy/permission scope, and the automated-observation/final-acceptance split,
+but required three contract corrections: explicit E1/E2 ordering/duplicate/
+conflict rules, stable real DOM-node identity rather than generic object
+identity, and an invariant preventing legacy text dedupe from suppressing an
+armed request.
+
+The independent local repository reviewer also returned `REJECT`. It found the
+original RED could be satisfied unsafely, the master Phase D plan still
+conflicted with automated observation evidence, the content epoch registry had
+no executable bound, and closed diagnostics had no strict privacy-preserving
+channel. The revised RED and this contract address all four findings. No
+production file changed before or during these revisions. At that historical
+checkpoint, second review was required before Task 13 authorization; the final
+disposition below now controls.
+
+### Final review disposition (2026-08-10)
+
+The side-panel project GPT supplemental re-review returned `APPROVE` based on
+the supplied local contract and explicitly closed its three earlier blockers:
+E1/E2 ordering and conflict semantics, stable real DOM-node identity, and
+requestId evaluation before legacy text dedupe. It also approved the bounded
+epoch registry, fixed no-identity diagnostics, causal RED, and the separation
+between real-platform automated engineering observation and final user
+acceptance. This is supplemental evidence; it did not replace local repository
+inspection.
+
+The independent local reviewer then inspected the latest real diff and current
+production code. Its first re-review found two further HIGH gaps: the RED did
+not assert `observedAt >= confirmedAt`, and Task 15 did not explicitly re-enter
+the D3 immutable-candidate freeze before Task 16. Both were corrected without
+production changes. The final local re-review returned `APPROVE`, citing the
+new assertion, candidate validator/freeze/hash contract, and Task 16 loaded-
+artifact proof. It authorizes Tasks 13-16 only inside this frozen contract.
+
+Task 12 is therefore closed. Task 13 is the next sequential action. D4 real-
+platform engineering delivery, D5 F1-F4, final user acceptance, RC, and release
+remain unproven or pending as applicable.

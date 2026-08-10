@@ -18,17 +18,45 @@ type Harness = {
   readonly runtime: CaptureContentRuntime;
   readonly setDetected: (value: DetectedProblem | null) => void;
   readonly setVerdict: (value: string | null) => void;
+  readonly setVerdictSurface: (value: Element | null) => void;
   readonly markExactResultPage: (value: boolean) => void;
 };
+
+type LeetCodeSubmitEpochControlMessage = Readonly<{
+  type: "LEETCODE_SUBMIT_EPOCH_STARTED" | "LEETCODE_SUBMIT_EPOCH_CONFIRMED";
+  schemaVersion: 1;
+  platform: "leetcode";
+  problemExternalId: string;
+  submitRequestId: string;
+  receivedAt?: string;
+  confirmedAt?: string;
+}>;
+
+function deliverControlMessage(
+  runtime: CaptureContentRuntime,
+  message: LeetCodeSubmitEpochControlMessage,
+): unknown {
+  if (!("controlMessageReceived" in runtime)
+    || typeof runtime.controlMessageReceived !== "function") {
+    throw new Error("expected the reviewed submit-epoch control plane");
+  }
+  return runtime.controlMessageReceived(message);
+}
 
 function createHarness(): Harness {
   let detected: DetectedProblem | null = twoSum;
   let verdict: string | null = null;
+  let verdictSurface: Element | null = null;
   let exact = false;
   let tick = 0;
+  const detectVerdict = () => ({
+    verdict,
+    sourceDocumentId: "document_1",
+    verdictSurface,
+  });
   const runtime = createCaptureContentRuntime({
     detectProblem: () => detected,
-    detectVerdict: () => ({ verdict, sourceDocumentId: "document_1" }),
+    detectVerdict,
     exactResultPage: () => exact,
     now: () => {
       tick += 1;
@@ -40,6 +68,7 @@ function createHarness(): Harness {
     runtime,
     setDetected: (value) => { detected = value; },
     setVerdict: (value) => { verdict = value; },
+    setVerdictSurface: (value) => { verdictSurface = value; },
     markExactResultPage: (value) => { exact = value; },
   };
 }
@@ -116,6 +145,92 @@ describe("V4 Phase 0 capture content runtime", () => {
         transitionEvidence: "exact_result_document",
       },
     });
+  });
+
+  it("RED: emits a new candidate when a same-problem repeat submission keeps the historical verdict text", () => {
+    const harness = createHarness();
+    const historicalSurface = document.createElement("div");
+    const repeatedSubmissionSurface = document.createElement("div");
+    harness.runtime.start();
+
+    // Observation 9 first restored a residual Accepted panel after a null
+    // phase. That historical transition was observed before the real submit
+    // E1 and therefore cannot legally resolve the later submission.
+    harness.setVerdict("Accepted");
+    harness.setVerdictSurface(historicalSurface);
+    const historical = harness.runtime.documentMutated();
+    expect(historical).toHaveLength(1);
+    expect(historical[0]).toMatchObject({
+      type: "VERDICT_CANDIDATE_OBSERVED",
+      candidate: {
+        verdict: "Accepted",
+        observedAt: "2026-07-24T00:00:03.000Z",
+        transitionEvidence: "same_document_transition",
+      },
+    });
+
+    const started = {
+      type: "LEETCODE_SUBMIT_EPOCH_STARTED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "submit-request-2",
+      receivedAt: "2026-07-24T00:00:03.500Z",
+    } as const;
+    const confirmed = {
+      type: "LEETCODE_SUBMIT_EPOCH_CONFIRMED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "submit-request-2",
+      confirmedAt: "2026-07-24T00:00:04.500Z",
+    } as const;
+
+    // Only exact E1 STARTED may arm the epoch and take the stable DOM-node
+    // baseline. Duplicate STARTED is idempotent, a generic mutation on the
+    // same node is not evidence, and a different request's E2 fails closed.
+    expect(deliverControlMessage(harness.runtime, started)).toEqual([]);
+    expect(deliverControlMessage(harness.runtime, started)).toEqual([]);
+    expect(harness.runtime.documentMutated()).toEqual([]);
+    expect(deliverControlMessage(harness.runtime, {
+      ...confirmed,
+      submitRequestId: "unrelated-request",
+    })).toEqual([]);
+
+    // The real result surface then renders the same Accepted text on a
+    // distinct, stable DOM node. The post-E1 transition is remembered, but
+    // no candidate may exist until exact E2 confirmation arrives.
+    harness.setVerdictSurface(repeatedSubmissionSurface);
+    expect(harness.runtime.documentMutated()).toEqual([]);
+
+    const repeated = deliverControlMessage(harness.runtime, confirmed);
+    expect(Array.isArray(repeated)).toBe(true);
+    if (!Array.isArray(repeated)) {
+      throw new Error("expected an array of runtime messages");
+    }
+    expect(repeated).toHaveLength(1);
+    const repeatedCandidate = repeated[0];
+    if (repeatedCandidate === undefined) {
+      throw new Error("expected one post-E1 verdict candidate");
+    }
+    expect(repeatedCandidate).toMatchObject({
+      type: "VERDICT_CANDIDATE_OBSERVED",
+      candidate: {
+        verdict: "Accepted",
+        submitRequestId: "submit-request-2",
+        transitionEvidence: "same_document_transition",
+      },
+    });
+    if (repeatedCandidate.type !== "VERDICT_CANDIDATE_OBSERVED") {
+      throw new Error("expected a verdict candidate message");
+    }
+    expect(Date.parse(repeatedCandidate.candidate.observedAt)).toBeGreaterThan(
+      Date.parse(started.receivedAt),
+    );
+    expect(Date.parse(repeatedCandidate.candidate.observedAt)).toBeGreaterThanOrEqual(
+      Date.parse(confirmed.confirmedAt),
+    );
+    expect(deliverControlMessage(harness.runtime, confirmed)).toEqual([]);
   });
 
   it("navigation away prevents later verdict output", () => {

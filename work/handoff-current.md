@@ -1,5 +1,36 @@
 # Current Handoff
 
+## Status (2026-08-10 V4 Phase D D4 Task 12 plan gate APPROVED; Task 13 next)
+
+Task 12 is closed after the observation-9 same-verdict residual-panel defect
+was converted into a causal intentional RED and the repair contract passed two
+review layers. The side-panel project GPT supplemental re-review returned
+`APPROVE`; the independent local reviewer inspected the latest real diff and
+production code and returned the authoritative `APPROVE`. The final RED models
+exact E1 `STARTED`, exact E2 `CONFIRMED`, stable narrow DOM-node replacement,
+request-bound candidate identity, duplicate idempotency, unrelated-E2
+isolation, and `observedAt >= confirmedAt`. It remains intentionally RED at
+`6 passed / 1 failed` because production has no submit-epoch control plane yet.
+
+The approved Task 13-16 contract is in
+`docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`.
+Task 12 evidence is recorded in
+`work/reports/v4-phase-d-task12-plan-review-2026-08-10.md`.
+It freezes exact tab/frame/document delivery, exact `submitRequestId`, stable
+DOM node identity, a 32-entry/5-minute in-memory epoch bound, fixed no-identity
+diagnostics through existing `lastCaptureError`, strict chronology, legacy
+fail-closed compatibility, and no new permission/storage/API/SQLite/polling
+surface. Task 15 must create and validate a new immutable candidate SHA and
+exact dist hashes before Task 16.
+
+The Phase D master plan now classifies the authorized LeetCode/NowCoder browser
+actions as **real-platform automated engineering observations**. Their PASS is
+not a natural user submission, user acceptance, RC, or release. D4 engineering
+evidence must pass on one new candidate SHA before D5 F1-F4; after four
+independent APPROVE verdicts, the process stops at the user's final acceptance
+gate. No production code changed in Task 12. Task 13 is the next sequential
+action.
+
 ## Status (2026-08-09 V4 Phase D D4 coordinator repair Tasks 0-10 complete; 9th observation FAILED)
 
 The D4 E3 candidate/E2 coordinator repair (Tasks 0-10) is implemented,
@@ -824,7 +855,9 @@ observation, final verification, and acceptance pending.**
 
 ## Workspace
 
-- Branch: `feature/v1-followup`, working tree clean at `a1aeda0`.
+- Branch: `feature/v1-followup`; Task 12 base HEAD
+  `9cbac5919aafea130c34b248171d96eaadaf4596`. The commit containing this
+  handoff is the Task 12 closeout commit; use local Git for its exact SHA.
 - Phase C closeout: the commit containing this handoff is the engineering
   freeze point; it is not a replacement RC and has not been pushed.
 - Default database: preserved by the Phase C and D automated gates; the D1-C
@@ -833,10 +866,11 @@ observation, final verification, and acceptance pending.**
   the real-profile debug remains excluded from D1-C evidence.
 - Observation-9 environment (2026-08-09): disposable SQLite
   `.tmp/observation-9/training-platform.sqlite` (migrated, 462848 bytes,
-  all three capture tables empty) with local dev server on `localhost:3000`
-  (PID 48076, stdout `.tmp/observation-9/server.out.log`); no
+  all three capture tables empty). The verified observation service tree rooted
+  at PID 48076 was stopped on 2026-08-10 and port 3000 is no longer listening;
+  stdout remains `.tmp/observation-9/server.out.log`. No
   `POST /api/capture/attempts` ever reached it. Observation evidence retained
-  for the failure record; server still running until the user stops it.
+  for the failure record; no evidence file was deleted.
 - Operator-only browser profiles and temporary test state remain excluded from
   the commit.
 
@@ -847,14 +881,15 @@ observation, final verification, and acceptance pending.**
 - V4 Phase C: **C0-C5 engineering-complete.** LeetCode and NowCoder are
   network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
 - V4 Phase D: **D1 and D2 complete; D3 candidate engineering complete; D4
-  coordinator repair Tasks 0-10 complete; 9th observation FAILED
-  (2026-08-09).** The 9th real observation (merge-two-sorted-lists,
+  coordinator repair Tasks 0-10 complete; 9th observation FAILED; Task 12
+  plan gate APPROVED (2026-08-10).** The 9th real observation (merge-two-sorted-lists,
   `cn/741081653`) confirmed E2 and E3 but produced no bundle: a stale
   historical "Accepted" result panel misclassified as a transition created a
   candidate predating the submit, and the real result's identical verdict text
   was deduped away. Coordinator failed closed by design. RED test + written
-  plan revision required before further code changes; D4 end-to-end delivery
-  remains unproven. D5 F1-F4 and D4 acceptance remain blocked.
+  plan revision and causal RED are now approved. Task 13 is authorized within
+  the frozen contract; D4 end-to-end engineering delivery remains unproven.
+  D5 F1-F4 and final user acceptance remain blocked.
 - V0 manual learning loop vertical slice: **implemented but not accepted.**
   Formal observation and replacement-RC work remain gated.
 
@@ -895,15 +930,18 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- No D3 engineering task remains in flight. The current candidate is not RC,
-  accepted, released, pushed, or proposed through a PR.
+- No worker is in flight at the Task 12 closeout. Task 13 is next. The prior D3
+  candidate is superseded for future observation as soon as Task 13 changes
+  runtime; it remains historical evidence and is not RC, accepted, released,
+  pushed, or proposed through a PR.
 
 ## Next Commander Action
 
-1. Preserve the current candidate and do not push, create a PR, or label it RC,
-   accepted, or released without explicit authorization.
-2. Do not resume formal V0 observation, replacement-RC work, or V0.5 until the
-   applicable gate explicitly permits it.
+1. Execute Task 13 test-first: closed submit-epoch messages, exact routing,
+   bounded content-runtime arming, stable narrow DOM-node identity, and fixed
+   diagnostics; obtain independent review before the Task 13 local commit.
+2. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
+   formal V0 observation, or enter V0.5.
 
 ## Known Risks
 
