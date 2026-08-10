@@ -8,7 +8,7 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: ["node_modules/**", "tests/e2e/**", "tests/extension-e2e/**"],
+    exclude: ["node_modules/**", ".worktrees/**", "tests/e2e/**", "tests/extension-e2e/**"],
     environment: "jsdom",
     globals: true,
   },

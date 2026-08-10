@@ -43,6 +43,7 @@ export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "tests/unit/extensionV4UpgradeMatrix.test.ts",
   "tests/unit/v4CandidateValidator.test.ts",
   "tests/unit/v4ExtensionPrivacyAudit.test.ts",
+  "vitest.config.ts",
   "work/handoff-current.md",
   "work/reports/v4-phase-d-d1-c-chrome-debug-2026-08-03.md",
   "work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md",

@@ -1185,5 +1185,31 @@ and clean worktree before and after the gate, and preserve the default database
 metadata. Exact dist hashes are recorded only after that successful same-SHA
 gate. Any subsequent runtime/protocol/manifest/permission/build/migration/dist
 change invalidates the candidate before Task 16.
+
+#### First Task 15 candidate gate failure and isolation repair
+
+The first freeze commit `0c263ccf2459b2dda7897ad899e0c3fd439876ec`
+is **not a valid candidate**. Its exact validator invocation exited `1` at
+`npm test`, so the derived `extension-e2e.pass` and `quality-gate.pass` checks
+also failed. Vitest recursively discovered two ignored historical Git
+worktrees under `.worktrees/`, including their stale source tests and nested
+third-party `node_modules`; the failures were cross-version assertions and
+third-party Jest/callback tests, not failures in the current root test tree.
+
+Both historical worktrees contain pre-existing dirty report files and are
+therefore preserved without reset, removal, or modification. The test-first
+repair adds `.worktrees/**` to the root Vitest exclusion list and classifies
+`vitest.config.ts` as an owned D3 candidate path. The focused validator RED was
+13 passed / 2 failed; after the repair it is 15/15, with typecheck, targeted
+ESLint, and diff-check also passing. This test/gate configuration change
+invalidates `0c263cc...` and requires a new reviewed candidate commit followed
+by a fresh exact-SHA validator run. No runtime, protocol, manifest, permission,
+build artifact, migration, or database file changed.
+
+Focused code, privacy, and plan re-review all returned `APPROVE` with no
+findings. The reviewer additionally listed the effective root Vitest suite and
+confirmed it contains no `.worktrees` entry while retaining the real root
+tests. The isolation repair is therefore authorized for the new candidate
+commit; only a successful fresh exact-SHA validator may complete Task 15.
 Production runtime, manifest, build scripts, protocol, and artifact remain
 unchanged at this stop state.

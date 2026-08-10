@@ -1,6 +1,23 @@
 # Current Handoff
 
-## Status (2026-08-10 V4 Phase D Task 15 re-freeze gate ACTIVE)
+## Status (2026-08-10 V4 Phase D Task 15 gate-isolation repair ACTIVE)
+
+The first Task 15 freeze commit
+`0c263ccf2459b2dda7897ad899e0c3fd439876ec` is **invalid**: its exact
+candidate validator exited `1` because root `npm test` recursively discovered
+two ignored historical Git worktrees and their nested third-party tests. Those
+worktrees have pre-existing dirty reports and were not reset, removed, or
+modified. The causal RED passed 13 tests and failed 2; adding `.worktrees/**`
+to root Vitest isolation plus classifying `vitest.config.ts` as a D3-owned path
+now passes 15/15, typecheck, targeted ESLint, and diff-check. This is a test-
+gate repair only; runtime, protocol, manifest, permissions, build artifacts,
+migrations, and the default database are unchanged.
+
+Focused code/privacy/plan re-review returned `APPROVE` with no findings and
+confirmed the effective root test list contains no `.worktrees` entry without
+excluding real root tests. A new candidate commit/SHA and fresh exact validator
+run are now required. No dist hash from the failed candidate is valid evidence,
+and Task 16 browser work has not started.
 
 Tasks 13 and 14 are engineering-complete at `fe36f6b4770d3d929479464c03e8bea6dbb97ba9`
 and `0f695ddfad6989e407424feff457d28d081d657b`. Task 15 pre-freeze gates now
@@ -1000,17 +1017,19 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- Task 15 code/privacy/plan reviews are all `APPROVE`; the classified candidate
-  freeze commit and its exact-SHA validator gate are next. The prior D3
+- The original Task 15 reviews and focused gate-isolation re-review are all
+  `APPROVE`; a new classified candidate commit and fresh exact-SHA validator
+  gate are next. The prior D3
   candidate is superseded for future observation because Tasks 13-14 changed
   runtime; it remains historical evidence and is not RC, accepted, released,
   pushed, or proposed through a PR.
 
 ## Next Commander Action
 
-1. Obtain `APPROVE` for all three Task 15 review tracks, create the classified
-   candidate freeze commit, run `scripts/validate-v4-candidate.mjs --candidate
-   <new-sha>`, and record exact production-dist hashes only after it passes.
+1. Obtain focused review `APPROVE` for the test-isolation repair, create a new
+   classified candidate commit, run `scripts/validate-v4-candidate.mjs
+   --candidate <new-sha>`, and record exact production-dist hashes only after
+   it passes.
 2. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 

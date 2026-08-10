@@ -39,10 +39,16 @@ const goodState = {
 describe("V4 candidate validator", () => {
   it("classifies only explicit task paths as candidate-owned", () => {
     expect(classifyCandidatePath(CANDIDATE_ALLOWED_PATHS[0] ?? "").kind).toBe("candidate");
+    expect(classifyCandidatePath("vitest.config.ts").kind).toBe("candidate");
     expect(classifyCandidatePath("extension/dist/background.js").kind).toBe("forbidden");
     expect(classifyCandidatePath(".tmp/playwright-extension/profile/Default").kind).toBe("forbidden");
     expect(classifyCandidatePath("unrelated-not-owned.ts").kind).toBe("unknown");
     expect(classifyCandidatePath("training-platform.sqlite").kind).toBe("forbidden");
+  });
+
+  it("keeps the root quality gate isolated from ignored Git worktrees", () => {
+    const source = readFileSync(resolve(process.cwd(), "vitest.config.ts"), "utf8");
+    expect(source).toContain('".worktrees/**"');
   });
 
   it("rejects duplicate, generated, secret, raw-transcript, and unknown paths", () => {
