@@ -233,6 +233,55 @@ describe("transient verdict candidate storage", () => {
     expect(rehydrated.verdictCandidates).toEqual([candidate]);
   });
 
+  it("round-trips an armed candidate and preserves its exact submit request id", () => {
+    const submitRequestId = "840";
+    const armed = Object.freeze({
+      ...candidate,
+      candidateId: verdictCandidateIdentity({ ...candidate, submitRequestId }),
+      submitRequestId,
+    });
+    const parsed = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [armed],
+    });
+    expect(parsed.verdictCandidates).toEqual([armed]);
+    expect(parsed.verdictCandidates[0]?.submitRequestId).toBe("840");
+  });
+
+  it("rejects an armed candidate whose request id was tampered without its candidate id", () => {
+    const submitRequestId = "840";
+    const armed = {
+      ...candidate,
+      candidateId: verdictCandidateIdentity({ ...candidate, submitRequestId }),
+      submitRequestId,
+    };
+    const tampered = { ...armed, submitRequestId: "841" };
+    const parsed = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [tampered],
+    });
+    expect(parsed.verdictCandidates).toEqual([]);
+    expect(parsed.ambiguityDiagnostics.some((d) => d.reason === "unknown_field")).toBe(true);
+  });
+
+  it("keeps legacy candidates request-unbound instead of assigning a request id", () => {
+    const parsed = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [candidate],
+    });
+    expect(parsed.verdictCandidates).toHaveLength(1);
+    expect(parsed.verdictCandidates[0]).not.toHaveProperty("submitRequestId");
+  });
+
+  it("rejects malformed or control-character submit request ids", () => {
+    const parsed = readTransientSessionEvidenceState({
+      transientVerdictCandidates: [
+        Object.freeze({ ...candidate, submitRequestId: "" }),
+        Object.freeze({ ...candidate, submitRequestId: "84\u001f0" }),
+      ],
+    });
+    expect(parsed.verdictCandidates).toEqual([]);
+    expect(parsed.ambiguityDiagnostics.filter((d) => d.reason === "unknown_field").length).toBeGreaterThan(0);
+    expect(parsed.ambiguityDiagnostics.filter((d) => d.reason === "control_character_in_identity").length).toBeGreaterThan(0);
+  });
+
   it("rejects an unknown field on the candidate", () => {
     const parsed = readTransientSessionEvidenceState({
       transientVerdictCandidates: [Object.freeze({ ...candidate, url: "https://leetcode.cn" })],
@@ -325,5 +374,10 @@ describe("transient verdict candidate storage", () => {
         observedAt: "2026-07-24T00:00:01.000Z",
       }),
     );
+    const armed = { ...candidate, submitRequestId: "840" };
+    expect(verdictCandidateIdentity(armed)).not.toBe(verdictCandidateIdentity({
+      ...armed,
+      submitRequestId: "841",
+    }));
   });
 });

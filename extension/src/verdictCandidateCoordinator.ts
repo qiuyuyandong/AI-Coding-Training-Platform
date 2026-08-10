@@ -38,6 +38,77 @@ export type VerdictCandidateReconciliation = Readonly<{
 }>;
 
 /**
+ * Exact control-plane replay target used during service-worker initialization.
+ * This is deliberately smaller than E2 Safe Evidence: the background sends
+ * only these reviewed scalars to the surviving content document and never
+ * synthesizes a request lifecycle or a DOM baseline.
+ */
+export type LeetCodeConfirmedEpochReplay = Readonly<{
+  platform: "leetcode";
+  problemExternalId: string;
+  submitRequestId: string;
+  confirmedAt: string;
+  tabId: number;
+  frameId: number;
+  documentId: string;
+}>;
+
+/**
+ * Select restart-time CONFIRMED controls only when an unfinalized confirmed
+ * record has exactly one matched LeetCode submit lifecycle.  No lifecycle,
+ * no stable identity, chronology inversion, context mismatch or duplicate
+ * legal lifecycle is replayed.  The caller still delivers to Chrome's exact
+ * tab/frame/document target; a missing live document is reported by that
+ * existing fail-closed delivery path.
+ */
+export function selectLeetCodeConfirmedEpochReplays(input: Readonly<{
+  requestLifecycles: readonly TransientE1Lifecycle[];
+  confirmed: readonly ConfirmedSubmissionRecord[];
+  now: string;
+}>): readonly LeetCodeConfirmedEpochReplay[] {
+  const nowMs = Date.parse(input.now);
+  if (!Number.isFinite(nowMs)) return [];
+  const replays: LeetCodeConfirmedEpochReplay[] = [];
+  for (const record of input.confirmed) {
+    if (record.platform !== "leetcode" || record.finalizedAt !== undefined) continue;
+    const confirmedMs = Date.parse(record.confirmedAt);
+    if (!Number.isFinite(confirmedMs) || confirmedMs > nowMs) continue;
+    // The persisted storage key is the authoritative stable identity.  Do
+    // not reconstruct it from externalSubmissionId: legacy records may carry
+    // the historical colon namespace while current records use the exact
+    // platform-prefixed key produced at E2 recording.
+    const stableKey = record.storageKey;
+    const matches = input.requestLifecycles.filter((lifecycle) =>
+      lifecycle.outcome === "matched"
+      && lifecycle.stableSubmissionId === stableKey
+      && lifecycle.evidence.platform === "leetcode"
+      && lifecycle.evidence.method === "POST"
+      && lifecycle.evidence.resourceType === "xmlhttprequest"
+      && lifecycle.evidence.lifecycle === "completed"
+      && lifecycle.evidence.statusCode === 200
+      && lifecycle.evidence.documentId.length > 0
+      && isEndpointForCandidate(lifecycle.evidence.endpointKey, record.problemExternalId)
+      && lifecycle.evidence.receivedAt <= record.confirmedAt
+      && Date.parse(lifecycle.evidence.receivedAt) <= confirmedMs
+      && Date.parse(lifecycle.evidence.receivedAt) <= nowMs
+      && lifecycle.evidence.requestId.length > 0);
+    if (matches.length !== 1) continue;
+    const lifecycle = matches[0];
+    if (lifecycle === undefined) continue;
+    replays.push(Object.freeze({
+      platform: "leetcode",
+      problemExternalId: record.problemExternalId,
+      submitRequestId: lifecycle.evidence.requestId,
+      confirmedAt: record.confirmedAt,
+      tabId: lifecycle.evidence.tabId,
+      frameId: lifecycle.evidence.frameId,
+      documentId: lifecycle.evidence.documentId,
+    }));
+  }
+  return Object.freeze(replays);
+}
+
+/**
  * Pure verdict-candidate coordinator. Joins an observed final-verdict
  * candidate with the exact matched submit lifecycle and the confirmed
  * submission record, then emits either an exact resolution or a closed
@@ -95,6 +166,23 @@ function reconcileOne(
     return terminalResult(candidate, "expired");
   }
 
+  // New candidates emitted by an armed submit epoch are request-bound.  They
+  // must never fall back to the historical latest-by-time compatibility path:
+  // an executor restart or a same-problem repeat submit may otherwise pair a
+  // verdict with the wrong E1 lifecycle.
+  if (candidate.submitRequestId !== undefined) {
+    return reconcileArmedCandidate(candidate, input, nowMs);
+  }
+
+  // Legacy passive candidates have no request identity and remain accepted
+  // only by the bounded compatibility path until TTL.  Once a later matching
+  // submit lifecycle is visible, however, retaining the historical candidate
+  // would let it consume the old confirmed record after the later E1.  Close
+  // that chronology immediately without touching the confirmed slice.
+  if (hasLaterMatchingSubmitLifecycle(input.requestLifecycles, candidate, input.confirmed)) {
+    return terminalResult(candidate, "chronology_mismatch");
+  }
+
   const eligible = selectEligibleSubmitLifecycles(input.requestLifecycles, candidate);
   if (eligible.length === 0) {
     return { kind: "pending" };
@@ -118,7 +206,8 @@ function reconcileOne(
   }
   const record = join.record;
   if (record.platform !== candidate.platform
-    || record.problemExternalId !== candidate.problemExternalId) {
+    || record.problemExternalId !== candidate.problemExternalId
+    || latestLifecycle.stableSubmissionId !== record.storageKey) {
     return terminalResult(candidate, "identity_mismatch");
   }
 
@@ -140,6 +229,171 @@ function reconcileOne(
       documentId: candidate.documentId,
     }),
   };
+}
+
+/**
+ * Resolve a candidate carrying the additive submit request id.  Every field
+ * that can affect the E1/E2 join is revalidated at this boundary, including
+ * the request's context, endpoint and completion status.  A request that has
+ * not arrived yet remains pending; an arrived but contradictory request is a
+ * terminal identity failure rather than an invitation to guess another E1.
+ */
+function reconcileArmedCandidate(
+  candidate: TransientVerdictCandidate,
+  input: Readonly<{
+    requestLifecycles: readonly TransientE1Lifecycle[];
+    confirmed: readonly ConfirmedSubmissionRecord[];
+    now: string;
+  }>,
+  nowMs: number,
+): ReconciliationOutcome {
+  const observedMs = Date.parse(candidate.observedAt);
+  const exact = input.requestLifecycles.filter((lifecycle) =>
+    lifecycle.evidence.requestId === candidate.submitRequestId);
+  if (exact.length === 0) return { kind: "pending" };
+
+  // A duplicate request id with contradictory E1 context is ambiguous.  Do
+  // not select one based on processing order or receivedAt.
+  const first = exact[0];
+  if (first === undefined) return { kind: "pending" };
+  if (exact.some((lifecycle) => !sameSubmitIdentity(lifecycle, first))) {
+    return terminalResult(candidate, "identity_mismatch");
+  }
+  const lifecycle = first;
+  const evidence = lifecycle.evidence;
+  const receivedMs = Date.parse(evidence.receivedAt);
+  if (!Number.isFinite(receivedMs) || !Number.isFinite(observedMs) || receivedMs > observedMs) {
+    return terminalResult(candidate, "chronology_mismatch");
+  }
+  if (!sameCandidateContext(evidence, candidate)
+    || evidence.method !== "POST"
+    || evidence.resourceType !== "xmlhttprequest"
+    || !isEndpointForCandidate(evidence.endpointKey, candidate.problemExternalId)) {
+    return terminalResult(candidate, "identity_mismatch");
+  }
+  // The exact request may still be at its pre-request/response lifecycle
+  // while E3 is being persisted.  Keep it pending until the same requestId
+  // reaches the accepted completed/200 state; never select a different E1.
+  if (evidence.lifecycle !== "completed" || evidence.statusCode !== 200) {
+    return { kind: "pending" };
+  }
+  if (lifecycle.outcome !== "matched" || lifecycle.stableSubmissionId === null) {
+    return { kind: "pending" };
+  }
+
+  const join = joinConfirmedRecord(input.confirmed, lifecycle.stableSubmissionId);
+  if (join.kind === "pending") return { kind: "pending" };
+  if (join.kind === "ambiguous") return terminalResult(candidate, "ambiguous_latest_submit");
+  const record = join.record;
+  if (record.platform !== candidate.platform
+    || record.problemExternalId !== candidate.problemExternalId
+    || record.storageKey !== lifecycle.stableSubmissionId) {
+    return terminalResult(candidate, "identity_mismatch");
+  }
+  if (Date.parse(record.confirmedAt) > observedMs) {
+    return terminalResult(candidate, "chronology_mismatch");
+  }
+  // `nowMs` is already validated by the candidate TTL check. Keep the
+  // argument in the signature so this branch cannot accidentally reintroduce
+  // a wall-clock read or a processing-time timestamp.
+  void nowMs;
+  return {
+    kind: "resolution",
+    resolution: Object.freeze({
+      candidateId: candidate.candidateId,
+      platform: candidate.platform,
+      problemExternalId: candidate.problemExternalId,
+      externalSubmissionId: record.externalSubmissionId,
+      verdict: candidate.verdict,
+      observedAt: candidate.observedAt,
+      tabId: candidate.tabId,
+      frameId: candidate.frameId,
+      documentId: candidate.documentId,
+    }),
+  };
+}
+
+function sameSubmitIdentity(
+  left: TransientE1Lifecycle,
+  right: TransientE1Lifecycle,
+): boolean {
+  const a = left.evidence;
+  const b = right.evidence;
+  return a.requestId === b.requestId
+    && a.platform === b.platform
+    && a.tabId === b.tabId
+    && a.frameId === b.frameId
+    && a.documentId === b.documentId
+    && a.method === b.method
+    && a.endpointKey === b.endpointKey
+    && a.resourceType === b.resourceType
+    && a.lifecycle === b.lifecycle
+    && a.statusCode === b.statusCode
+    && a.receivedAt === b.receivedAt
+    && a.apiTimeStamp === b.apiTimeStamp
+    && left.stableSubmissionId === right.stableSubmissionId;
+}
+
+function sameCandidateContext(
+  evidence: TransientE1Lifecycle["evidence"],
+  candidate: TransientVerdictCandidate,
+): boolean {
+  return evidence.platform === candidate.platform
+    && evidence.tabId === candidate.tabId
+    && evidence.frameId === candidate.frameId
+    && evidence.documentId === candidate.documentId;
+}
+
+function isEndpointForCandidate(endpointKey: string, problemExternalId: string): boolean {
+  if (endpointKey === "graphql") return true;
+  const parsed = parseSubmitEndpointKey(endpointKey);
+  return parsed?.problemSlug === problemExternalId;
+}
+
+function hasLaterMatchingSubmitLifecycle(
+  requestLifecycles: readonly TransientE1Lifecycle[],
+  candidate: TransientVerdictCandidate,
+  confirmed: readonly ConfirmedSubmissionRecord[],
+): boolean {
+  const observedMs = Date.parse(candidate.observedAt);
+  if (!Number.isFinite(observedMs)) return false;
+  return requestLifecycles.some((lifecycle) => {
+    const evidence = lifecycle.evidence;
+    const receivedMs = Date.parse(evidence.receivedAt);
+    return Number.isFinite(receivedMs)
+      && receivedMs > observedMs
+      && sameCandidateContext(evidence, candidate)
+      && isSubmitLifecycleShape(evidence)
+      && isLaterLifecycleForCandidate(lifecycle, candidate, confirmed);
+  });
+}
+
+function isLaterLifecycleForCandidate(
+  lifecycle: TransientE1Lifecycle,
+  candidate: TransientVerdictCandidate,
+  confirmed: readonly ConfirmedSubmissionRecord[],
+): boolean {
+  const endpoint = lifecycle.evidence.endpointKey;
+  if (endpoint !== "graphql") {
+    const parsed = parseSubmitEndpointKey(endpoint);
+    return parsed?.problemSlug === candidate.problemExternalId;
+  }
+  // GraphQL carries no problem identity in the privacy-safe endpoint key. A
+  // later GraphQL lifecycle therefore qualifies as this candidate's successor
+  // only when its already-matched stable id points to the same confirmed
+  // problem. An unrelated GraphQL POST must not terminalize a legacy candidate
+  // merely because it shares a tab/document and arrived later.
+  if (lifecycle.outcome !== "matched" || lifecycle.stableSubmissionId === null) return false;
+  return confirmed.some((record) =>
+    record.platform === candidate.platform
+    && record.problemExternalId === candidate.problemExternalId
+    && record.storageKey === lifecycle.stableSubmissionId);
+}
+
+function isSubmitLifecycleShape(
+  evidence: TransientE1Lifecycle["evidence"],
+): boolean {
+  return evidence.method === "POST" && evidence.resourceType === "xmlhttprequest";
 }
 
 function terminalResult(

@@ -524,7 +524,7 @@ function handleEvent(
     case "user_action":
       return handleUserAction(event.action, local, now);
     case "e1_recorded":
-      return handleE1Recorded(event, session, now);
+      return handleE1Recorded(event, local, session, now);
     case "e0_recorded":
       return handleE0Recorded(event, session, now);
     case "main_bridge_correlated":
@@ -621,6 +621,7 @@ function handleUserAction(
 
 function handleE1Recorded(
   event: Extract<OrchestratorEvent, { readonly kind: "e1_recorded" }>,
+  local: Record<string, unknown>,
   session: Record<string, unknown>,
   now: string,
 ): EventOutcome {
@@ -714,10 +715,58 @@ function handleE1Recorded(
     ...transient.requestLifecycles.filter((entry) => entry.evidence.requestId !== event.evidence.requestId),
     lifecycle,
   ];
-  return makeSessionOnlyOutcome({
+  const legacyCandidates = transient.verdictCandidates.filter(
+    (candidate) => candidate.submitRequestId === undefined,
+  );
+  if (legacyCandidates.length === 0) {
+    return makeSessionOnlyOutcome({
+      ...transient,
+      requestLifecycles,
+    }, session, now);
+  }
+  // E1 visibility is the chronology wake-up for historical request-unbound
+  // candidates.  Reconcile only that legacy subset: armed candidates remain
+  // untouched (and any resolution they may already have is not discarded).
+  const reconciliation = reconcileVerdictCandidates({
+    candidates: legacyCandidates,
+    requestLifecycles,
+    confirmed: readConfirmedSubmissionState(local).confirmed,
+    now,
+  });
+  const terminalCandidateIds = new Set(
+    reconciliation.terminal.map((entry) => entry.candidateId),
+  );
+  const nextSession: TransientSessionEvidenceState = {
     ...transient,
     requestLifecycles,
-  }, session, now);
+    verdictCandidates: transient.verdictCandidates.filter(
+      (candidate) => !terminalCandidateIds.has(candidate.candidateId),
+    ),
+  };
+  const sessionOutcome = makeSessionOnlyOutcome(nextSession, session, now);
+  const terminalDiagnostic = terminalDiagnosticFor(reconciliation.terminal);
+  if (terminalDiagnostic === undefined) {
+    return {
+      ...sessionOutcome,
+      verdictCandidateResolutions: [],
+    };
+  }
+  const outbox = readOutbox(local.captureOutbox);
+  const quarantine = readQuarantine(local.captureQuarantine);
+  const localOutcome = makeLocalOutcome(
+    { ...local, lastCaptureError: terminalDiagnostic },
+    local,
+    now,
+    false,
+    outbox,
+    quarantine,
+  );
+  return {
+    ...localOutcome,
+    sessionWrites: sessionOutcome.sessionWrites,
+    sessionRemovals: sessionOutcome.sessionRemovals,
+    verdictCandidateResolutions: [],
+  };
 }
 
 /**
@@ -1029,8 +1078,7 @@ function terminalDiagnosticFor(
 ): string | undefined {
   const last = terminal[terminal.length - 1];
   if (last === undefined) return undefined;
-  const reason = reasonForTerminal(last.reason);
-  return `verdict candidate blocked: leetcode:${last.problemExternalId}:${reason}`;
+  return reasonForTerminal(last.reason);
 }
 
 function reasonForTerminal(
@@ -1038,15 +1086,15 @@ function reasonForTerminal(
 ): string {
   switch (reason) {
     case "ambiguous_latest_submit":
-      return "ambiguous";
+      return "epoch_identity_conflict";
     case "identity_mismatch":
-      return "identity";
+      return "epoch_identity_conflict";
     case "chronology_mismatch":
-      return "chronology";
+      return "verdict_candidate_chronology_mismatch";
     case "expired":
-      return "expired";
+      return "epoch_started_missing";
     case "adapter":
-      return "adapter";
+      return "verdict_candidate_adapter_rejected";
   }
 }
 

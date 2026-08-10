@@ -2603,7 +2603,7 @@ describe("verdict candidate orchestration (Task 5)", () => {
       problemExternalId: resolution.problemExternalId,
     });
     await applyEffectsToStorage(storage, effects);
-    const diagnostic = "verdict candidate blocked: leetcode:two-sum:adapter";
+    const diagnostic = "verdict_candidate_adapter_rejected";
     expect(effects.state.lastCaptureError).toBe(diagnostic);
     expect(effects.persistence.local.some((write) =>
       write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
@@ -2655,7 +2655,7 @@ describe("verdict candidate orchestration (Task 5)", () => {
     });
     const effects = await orchestrator.install();
     await applyEffectsToStorage(storage, effects);
-    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    const diagnostic = "epoch_started_missing";
     expect(effects.persistence.local.some((write) =>
       write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
     const local = await storage.local.get(["lastCaptureError"]);
@@ -2687,7 +2687,7 @@ describe("verdict candidate orchestration (Task 5)", () => {
       adapterVersion: candidateE1().adapterVersion,
     });
     await applyEffectsToStorage(storage, effects);
-    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    const diagnostic = "epoch_started_missing";
     expect(effects.persistence.local.some((write) =>
       write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
     const local = await storage.local.get(["lastCaptureError"]);
@@ -2710,7 +2710,7 @@ describe("verdict candidate orchestration (Task 5)", () => {
     });
     const effects = await orchestrator.pruneOrchestratorSession(candidateNow);
     await applyEffectsToStorage(storage, effects);
-    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    const diagnostic = "epoch_started_missing";
     expect(effects.persistence.local.some((write) =>
       write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
     // The returned state must already reflect the exact final persistence diff
@@ -2740,7 +2740,7 @@ describe("verdict candidate orchestration (Task 5)", () => {
     });
     const effects = await orchestrator.install();
     await applyEffectsToStorage(storage, effects);
-    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    const diagnostic = "epoch_started_missing";
     expect(effects.persistence.local.some((write) =>
       write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
     expect(effects.persistence.localRemovals).not.toContain("lastCaptureError");
@@ -2769,7 +2769,7 @@ describe("verdict candidate orchestration (Task 5)", () => {
       action: { type: "CLEAR_CAPTURE_QUARANTINE" },
     });
     await applyEffectsToStorage(storage, effects);
-    const diagnostic = "verdict candidate blocked: leetcode:two-sum:expired";
+    const diagnostic = "epoch_started_missing";
     expect(effects.persistence.local.some((write) =>
       write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
     expect(effects.persistence.localRemovals).not.toContain("lastCaptureError");
@@ -2818,14 +2818,20 @@ describe("verdict candidate orchestration (Task 5)", () => {
     expect(writeLog.some((write) => write.keys.includes("transientVerdictCandidates"))).toBe(true);
   });
 
-  it("each allowed verdict-blocked reason survives privacy sanitization", () => {
-    for (const reason of ["ambiguous", "chronology", "expired", "identity", "adapter"] as const) {
-      const diagnostic = `verdict candidate blocked: leetcode:two-sum:${reason}`;
+  it("each fixed verdict-candidate diagnostic survives privacy sanitization", () => {
+    for (const diagnostic of [
+      "epoch_identity_conflict",
+      "verdict_candidate_chronology_mismatch",
+      "epoch_started_missing",
+      "verdict_candidate_adapter_rejected",
+    ] as const) {
       expect(safeStoredCaptureError(diagnostic)).toBe(diagnostic);
     }
   });
 
   it("an unknown verdict-blocked reason is replaced with the safe fallback", () => {
+    expect(safeStoredCaptureError("verdict candidate unconfirmed: leetcode:two-sum"))
+      .toBe("Retained capture error");
     const diagnostic = "verdict candidate blocked: leetcode:two-sum:overflow";
     expect(safeStoredCaptureError(diagnostic)).toBe("Retained capture error");
   });
@@ -2879,11 +2885,11 @@ describe("verdict candidate orchestration (Task 5)", () => {
     });
     await applyEffectsToStorage(storage, effects);
     expect(effects.state.lastCaptureError).toBe(
-      "verdict candidate blocked: leetcode:two-sum:identity",
+      "epoch_identity_conflict",
     );
     const local = await storage.local.get(["lastCaptureError"]);
     expect(local.lastCaptureError).toBe(
-      "verdict candidate blocked: leetcode:two-sum:identity",
+      "epoch_identity_conflict",
     );
   });
 
@@ -2928,7 +2934,7 @@ describe("verdict candidate orchestration (Task 5)", () => {
 
     const second = await orchestrator.snapshot();
     expect(second.lastCaptureError).toBe(
-      "verdict candidate blocked: leetcode:two-sum:identity",
+      "epoch_identity_conflict",
     );
     expect(second.lastCaptureError).not.toBe(first.lastCaptureError);
   });

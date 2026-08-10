@@ -30,8 +30,6 @@ const SAFE_CAPTURE_ERROR_PATTERNS: readonly RegExp[] = [
   /^Pairing required: HTTP 401$/u,
   /^Origin rejected: HTTP 403$/u,
   /^Network unavailable: Network request failed$/u,
-  /^verdict candidate unconfirmed: leetcode:[a-z0-9-]{1,128}$/u,
-  /^verdict candidate blocked: leetcode:[a-z0-9-]{1,128}:(ambiguous|chronology|expired|identity|adapter)$/u,
 ];
 
 export function safeStoredCaptureError(value: unknown): string | undefined {

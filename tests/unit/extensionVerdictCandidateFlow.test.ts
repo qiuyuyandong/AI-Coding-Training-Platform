@@ -38,7 +38,10 @@ import {
   LEETCODE_SUBMIT_ENDPOINT_PREFIX,
   selectLeetCodeResultConfirmation,
 } from "@/extension/src/adapters/leetcode/network";
-import { readTransientSessionEvidenceState } from "@/extension/src/transientEvidenceStorage";
+import {
+  readTransientSessionEvidenceState,
+  verdictCandidateIdentity,
+} from "@/extension/src/transientEvidenceStorage";
 import type { VerdictCandidateResolution } from "@/extension/src/verdictCandidateCoordinator";
 import type {
   TransientVerdictCandidate,
@@ -114,6 +117,15 @@ function candidate(overrides: Partial<TransientVerdictCandidate> = {}): Transien
     transitionEvidence: "exact_result_document",
     receivedAt: CANDIDATE_TIME,
     ...overrides,
+  };
+}
+
+function armedCandidate(overrides: Partial<TransientVerdictCandidate> = {}): TransientVerdictCandidate {
+  const value = candidate(overrides);
+  if (value.submitRequestId === undefined) return value;
+  return {
+    ...value,
+    candidateId: verdictCandidateIdentity(value),
   };
 }
 
@@ -216,7 +228,211 @@ async function drainResolutions(
 // ---------------------------------------------------------------------------
 
 describe("verdict candidate flow", () => {
-  it("RED: candidate before E2 completes exactly one bundle", async () => {
+  it("armed candidate resolves only after the exact request-bound E2", async () => {
+    const storage = storageSpy();
+    const orchestrator = createBackgroundOrchestrator({
+      storage,
+      now: () => EXECUTOR_TIME,
+      flushOutbox: async (): Promise<void> => undefined,
+    });
+    for (const evidence of [
+      lifecycle(),
+      lifecycle({
+        evidenceId: "e1_leetcode_841",
+        requestId: "841",
+        method: "GET",
+        endpointKey: `${LEETCODE_CHECK_ENDPOINT_PREFIX}/cn/${SUBMISSION_ID}`,
+      }),
+    ]) {
+      const effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffects(storage, effects);
+    }
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: armedCandidate({ submitRequestId: "840" }),
+    });
+    expect(candidateEffects.verdictCandidateResolutions).toEqual([]);
+    await applyEffects(storage, candidateEffects);
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: confirmedE2(),
+      matchedSubmitRequestId: "840",
+    });
+    expect(e2Effects.verdictCandidateResolutions).toHaveLength(1);
+    expect(e2Effects.verdictCandidateResolutions[0]?.externalSubmissionId).toBe(SUBMISSION_ID);
+  });
+
+  it("restart replays an armed candidate only when its exact E1/E2 join survives", async () => {
+    const storage = storageSpy({
+      local: {
+        captureProtocolVersion: 4,
+        installationId: "installation_1",
+        captureCredential: "capture_paired_credential",
+      },
+    });
+    const orchestrator = createBackgroundOrchestrator({
+      storage,
+      now: () => EXECUTOR_TIME,
+      flushOutbox: async (): Promise<void> => undefined,
+    });
+    for (const evidence of [
+      lifecycle(),
+      lifecycle({
+        evidenceId: "e1_leetcode_841",
+        requestId: "841",
+        method: "GET",
+        endpointKey: `${LEETCODE_CHECK_ENDPOINT_PREFIX}/cn/${SUBMISSION_ID}`,
+      }),
+    ]) {
+      const effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffects(storage, effects);
+    }
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: armedCandidate({ submitRequestId: "840" }),
+    });
+    await applyEffects(storage, candidateEffects);
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: confirmedE2(),
+      matchedSubmitRequestId: "840",
+    });
+    expect(e2Effects.verdictCandidateResolutions).toHaveLength(1);
+    await applyEffects(storage, e2Effects);
+    expect((storage.sessionState().transientVerdictCandidates as readonly { readonly submitRequestId?: string }[])[0]?.submitRequestId)
+      .toBe("840");
+    const restarted = createBackgroundOrchestrator({
+      storage,
+      now: () => EXECUTOR_TIME,
+      flushOutbox: async (): Promise<void> => undefined,
+    });
+    const installEffects = await restarted.install();
+    expect(installEffects.verdictCandidateResolutions).toHaveLength(1);
+    expect(installEffects.verdictCandidateResolutions[0]?.candidateId)
+      .toBe(armedCandidate({ submitRequestId: "840" }).candidateId);
+  });
+
+  it("legacy pre-E1 cleanup preserves a later confirmed record and an armed candidate", async () => {
+    const storage = storageSpy();
+    const orchestrator = createBackgroundOrchestrator({
+      storage,
+      now: () => EXECUTOR_TIME,
+      flushOutbox: async (): Promise<void> => undefined,
+    });
+    const armed = armedCandidate({
+      candidateId: "armed_841",
+      submitRequestId: "841",
+      observedAt: CANDIDATE_TIME,
+      receivedAt: CANDIDATE_TIME,
+    });
+    for (const cand of [
+      candidate({
+        candidateId: "legacy_pre_e1",
+        observedAt: "2026-08-06T11:19:59.000Z",
+        receivedAt: "2026-08-06T11:19:59.000Z",
+      }),
+      armed,
+    ]) {
+      const effects = await orchestrator.apply({ kind: "verdict_candidate_recorded", candidate: cand });
+      if (cand.submitRequestId !== undefined) {
+        expect(effects.persistence.verdictCandidates.map((entry) => entry.candidateId)).toContain(cand.candidateId);
+      }
+      await applyEffects(storage, effects);
+    }
+    const parsedBefore = readTransientSessionEvidenceState(storage.sessionState());
+    expect({
+      ids: parsedBefore.verdictCandidates.map((entry) => entry.candidateId),
+      diagnostics: parsedBefore.ambiguityDiagnostics,
+    }).toEqual({
+      ids: ["legacy_pre_e1", armed.candidateId],
+      diagnostics: [],
+    });
+
+    const firstE1 = await orchestrator.apply({
+      kind: "e1_recorded",
+      evidence: lifecycle({ receivedAt: "2026-08-06T11:20:00.000Z" }),
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+      adapterVersion: "v4-leetcode-network-6",
+    });
+    await applyEffects(storage, firstE1);
+    const retainedAfterChronology = readTransientSessionEvidenceState(storage.sessionState());
+    expect(retainedAfterChronology.verdictCandidates.map((entry) => entry.candidateId)).toEqual([armed.candidateId]);
+
+    const oldE2 = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: confirmedE2({
+        receivedAt: "2026-08-06T11:20:02.000Z",
+        externalSubmissionId: "cn/920",
+        requestEvidenceId: "e1_leetcode_840",
+      }),
+      matchedSubmitRequestId: "840",
+    });
+    expect(oldE2.verdictCandidateResolutions).toEqual([]);
+    await applyEffects(storage, oldE2);
+
+    const laterE1 = await orchestrator.apply({
+      kind: "e1_recorded",
+      evidence: lifecycle({
+        evidenceId: "e1_leetcode_841",
+        requestId: "841",
+        receivedAt: "2026-08-06T11:20:02.300Z",
+        apiTimeStamp: 1002.3,
+      }),
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+      adapterVersion: "v4-leetcode-network-6",
+    });
+    await applyEffects(storage, laterE1);
+
+    const laterE2 = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: confirmedE2({
+        evidenceId: "e2_leetcode_cn_921",
+        requestEvidenceId: "e1_leetcode_841",
+        externalSubmissionId: "cn/921",
+        receivedAt: NETWORK_TIME,
+      }),
+      matchedSubmitRequestId: "841",
+    });
+    expect(laterE2.verdictCandidateResolutions.map((entry) => entry.candidateId)).toEqual([armed.candidateId]);
+    await applyEffects(storage, laterE2);
+    await drainResolutions(storage, laterE2);
+
+    const rawConfirmed = storage.localState().confirmedSubmissions;
+    const records = Array.isArray(rawConfirmed)
+      ? rawConfirmed.filter((value): value is Record<string, unknown> => typeof value === "object" && value !== null)
+      : [];
+    const oldRecord = records.find((entry) => entry.storageKey === "leetcode:cn/920");
+    const laterRecord = records.find((entry) => entry.storageKey === "leetcode:cn/921");
+    expect(oldRecord?.finalizedAt).toBeUndefined();
+    expect(laterRecord).toBeUndefined();
+    const rawTombstones = storage.localState().confirmedSubmissionTombstones;
+    const tombstones = Array.isArray(rawTombstones)
+      ? rawTombstones.filter(
+        (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null,
+      )
+      : [];
+    expect(tombstones.some((entry) => entry.submissionKey === "leetcode:cn/921")).toBe(true);
+  });
+
+  it("regression: candidate before E2 completes exactly one bundle", async () => {
     const storage = storageSpy();
     const orchestrator = createBackgroundOrchestrator({
       storage,
@@ -426,7 +642,7 @@ describe("verdict candidate flow", () => {
     expect(retained).toHaveLength(0);
   });
 
-  it("RED: E2 timestamp is the network evidence time, not the executor clock", async () => {
+  it("regression: E2 timestamp is the network evidence time, not the executor clock", async () => {
     const storage = storageSpy();
     const orchestrator = createBackgroundOrchestrator({
       storage,
@@ -788,7 +1004,7 @@ describe("verdict candidate flow", () => {
       problemExternalId: resolution.problemExternalId,
     });
     await applyEffects(storage, blocked);
-    const diagnostic = `verdict candidate blocked: leetcode:${PROBLEM}:adapter`;
+    const diagnostic = "verdict_candidate_adapter_rejected";
     expect(blocked.persistence.local.some((write) =>
       write.key === "lastCaptureError" && write.value === diagnostic)).toBe(true);
     const local = storage.localState();
@@ -893,7 +1109,19 @@ describe("verdict candidate flow", () => {
       "utf8",
     );
     expect(backgroundSource).toContain("createLeetCodeTransientVerdictCandidate");
+    expect(backgroundSource).toContain("submitRequestId: candidate.submitRequestId");
     expect(backgroundSource).not.toMatch(/candidateId: verdictCandidateIdentity/u);
+  });
+
+  it("initialization replays only exact persisted CONFIRMED epochs", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const backgroundSource = readFileSync(
+      resolve(process.cwd(), "extension/src/background.ts"),
+      "utf8",
+    );
+    expect(backgroundSource).toContain("replayLeetCodeConfirmedEpochs");
+    expect(backgroundSource).toContain("sendLeetCodeSubmitEpochConfirmedReplay");
   });
 
   it("adapter-produced candidate survives a session write/read round-trip", () => {
@@ -914,5 +1142,23 @@ describe("verdict candidate flow", () => {
     expect(roundTripped.verdictCandidates).toHaveLength(1);
     expect(roundTripped.verdictCandidates[0]?.candidateId).toBe(produced.candidateId);
     expect(roundTripped.ambiguityDiagnostics).toEqual([]);
+  });
+
+  it("adapter-produced armed candidate survives intake and preserves request binding", () => {
+    const produced = createLeetCodeTransientVerdictCandidate({
+      problemExternalId: PROBLEM,
+      verdictText: "Accepted",
+      observedAt: CANDIDATE_TIME,
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+      transitionEvidence: "same_document_transition",
+      submitRequestId: "840",
+    });
+    expect(produced?.submitRequestId).toBe("840");
+    const roundTripped = readTransientSessionEvidenceState({
+      transientVerdictCandidates: produced === null ? [] : [produced],
+    });
+    expect(roundTripped.verdictCandidates[0]?.submitRequestId).toBe("840");
   });
 });

@@ -411,7 +411,7 @@ describe("LeetCode E2 confirmation policy", () => {
           })).toMatchObject({ kind: "no_match", reason: "expired_submit" });
   });
 
-  it("RED: preserves the check evidence time as E2 receivedAt (executor clock must not leak in)", () => {
+  it("regression: preserves the check evidence time as E2 receivedAt (executor clock must not leak in)", () => {
     const result = selectLeetCodeConfirmation({
       checkEvidence: check({
         receivedAt: "2026-08-06T11:20:02.500Z",
@@ -512,7 +512,7 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
           })).toMatchObject({ kind: "no_match", reason: "invalid_result_evidence" });
   });
 
-  it("RED: preserves the result evidence time as E2 receivedAt (executor clock must not leak in)", () => {
+  it("regression: preserves the result evidence time as E2 receivedAt (executor clock must not leak in)", () => {
     const confirmationResult = selectLeetCodeResultConfirmation({
       resultEvidence: result({
         receivedAt: "2026-08-06T11:20:02.500Z",
@@ -718,6 +718,17 @@ describe("createLeetCodeTransientVerdictCandidate", () => {
       transitionEvidence: "exact_result_document",
     });
     expect(candidate?.candidateId.length).toBeGreaterThan(0);
+  });
+
+  it("persists the exact armed submit request id without changing legacy candidates", () => {
+    const armedInput = { ...baseInput, submitRequestId: "840" };
+    const armed = createLeetCodeTransientVerdictCandidate(armedInput);
+    expect(armed?.submitRequestId).toBe("840");
+    expect(armed?.candidateId).not.toBe(
+      createLeetCodeTransientVerdictCandidate({ ...baseInput, submitRequestId: "841" })?.candidateId,
+    );
+    const legacy = createLeetCodeTransientVerdictCandidate(baseInput);
+    expect(legacy).not.toHaveProperty("submitRequestId");
   });
 
   it("normalizes a trusted Chinese label through the shared taxonomy", () => {

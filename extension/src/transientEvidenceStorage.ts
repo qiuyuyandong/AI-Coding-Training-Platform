@@ -64,6 +64,12 @@ export type TransientVerdictCandidate = Readonly<{
     | "same_document_transition"
     | "exact_result_document";
   receivedAt: string;
+  /**
+   * Additive binding for candidates emitted by an armed LeetCode submit
+   * epoch.  Omitted on legacy passive candidates; the compatibility path is
+   * intentionally request-unbound and never fabricates this value.
+   */
+  submitRequestId?: string;
 }>;
 
 export type TransientAmbiguityDiagnosticReason =
@@ -150,16 +156,20 @@ export function verdictCandidateIdentity(
     | "documentId"
     | "problemExternalId"
     | "observedAt"
+    | "submitRequestId"
   >,
 ): string {
-  return JSON.stringify([
+  const fields = [
     candidate.platform,
     String(candidate.tabId),
     String(candidate.frameId),
     candidate.documentId,
     candidate.problemExternalId,
     candidate.observedAt,
-  ]);
+  ];
+  return candidate.submitRequestId === undefined
+    ? JSON.stringify(fields)
+    : JSON.stringify([...fields, candidate.submitRequestId]);
 }
 
 const ISO_DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{3})?Z$/;
@@ -295,6 +305,7 @@ const VERDICT_CANDIDATE_KEYS: readonly string[] = [
   "documentId",
   "transitionEvidence",
   "receivedAt",
+  "submitRequestId",
 ];
 
 const DIAGNOSTIC_KEYS: readonly string[] = [
@@ -436,14 +447,51 @@ function parseVerdictCandidate(
     v.problemExternalId,
     v.verdict,
     v.documentId,
+    v.submitRequestId,
   ];
   for (const value of identityStrings) {
     if (typeof value === "string" && CONTROL_CHAR_PATTERN.test(value)) {
       return { reason: "control_character_in_identity" };
     }
   }
-  return {
-    value: Object.freeze({
+  if (v.submitRequestId !== undefined
+    && (typeof v.submitRequestId !== "string"
+      || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/u.test(v.submitRequestId))) {
+    return { reason: CONTROL_CHAR_PATTERN.test(String(v.submitRequestId))
+      ? "control_character_in_identity"
+      : "unknown_field" };
+  }
+  if (v.submitRequestId !== undefined
+    && v.candidateId !== verdictCandidateIdentity({
+      platform: "leetcode",
+      tabId: v.tabId,
+      frameId: v.frameId,
+      documentId: v.documentId,
+      problemExternalId: v.problemExternalId,
+      observedAt: v.observedAt,
+      submitRequestId: v.submitRequestId,
+    })) {
+    // Armed candidates are accepted only with the identity generated from
+    // their complete request-bound tuple.  A legacy candidate without the
+    // additive field remains compatible and is intentionally not recomputed.
+    return { reason: "unknown_field" };
+  }
+  const parsed: {
+    schemaVersion: 1;
+    tier: "E3";
+    kind: "verdict_candidate";
+    candidateId: string;
+    platform: "leetcode";
+    problemExternalId: string;
+    verdict: string;
+    observedAt: string;
+    tabId: number;
+    frameId: number;
+    documentId: string;
+    transitionEvidence: TransientVerdictCandidate["transitionEvidence"];
+    receivedAt: string;
+    submitRequestId?: string;
+  } = {
       schemaVersion: 1,
       tier: "E3",
       kind: "verdict_candidate",
@@ -457,7 +505,10 @@ function parseVerdictCandidate(
       documentId: v.documentId,
       transitionEvidence: v.transitionEvidence,
       receivedAt: v.receivedAt,
-    }),
+  };
+  if (v.submitRequestId !== undefined) parsed.submitRequestId = v.submitRequestId;
+  return {
+    value: Object.freeze(parsed),
     reason: "corrupt_record",
   };
 }

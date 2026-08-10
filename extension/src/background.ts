@@ -74,6 +74,8 @@ import {
   type MainBridgeSummary,
 } from "./submissionCorrelator";
 import { readTransientSessionEvidenceState } from "./transientEvidenceStorage";
+import type { LeetCodeConfirmedEpochReplay } from "./verdictCandidateCoordinator";
+import { replayLeetCodeConfirmedEpochs } from "./submitEpochReplay";
 import { parseSafeEvidence, type E3FinalVerdictConfirmed } from "./evidence";
 import {
   appendLeetCodeEndpointDiagnostic,
@@ -95,9 +97,8 @@ import {
   NOWCODER_SUBMIT_ENDPOINT_KEY,
   selectNowCoderConfirmation,
 } from "./adapters/nowcoder/network";
-// readConfirmedSubmissionState lives in confirmedSubmissionStorage and is
-// only read by the orchestrator; the background never inspects confirmed
-// submissions directly (plan Task 7).
+// Restart replay storage reads stay in the dependency-injected seam below;
+// all confirmed-submission mutations remain orchestrator-owned.
 import {
   applyOrchestratorPersistence,
   createBackgroundOrchestrator,
@@ -429,6 +430,20 @@ const initialization = (async (): Promise<void> => {
   // confirmed E2 records: a worker that stopped after E2 persistence but
   // before E3 handling resumes exactly where the previous worker stopped.
   await processVerdictCandidateResolutions(effects.verdictCandidateResolutions);
+  if (effects.state.captureEnabled) {
+    // Candidate E3 replay may have finalized a confirmed record after
+    // `orchestrator.install()` returned its effects.  The replay seam reads
+    // authoritative local/session state afresh so a stale effects object can
+    // never revive an already-finalized submission.
+    await replayLeetCodeConfirmedEpochs({
+      storage: {
+        local: trustedLocalStorage,
+        session: trustedSessionStorage,
+      },
+      now: () => new Date().toISOString(),
+      deliver: sendLeetCodeSubmitEpochConfirmedReplay,
+    });
+  }
   await reconcileOpenNowCoderResultTabs();
 })();
 
@@ -1172,6 +1187,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
           frameId: senderFrameId,
           documentId: senderDocumentId,
           transitionEvidence: candidate.transitionEvidence,
+          submitRequestId: candidate.submitRequestId,
         });
         // The shared taxonomy rejects pending labels, placeholders and the
         // `Other Failure` fallback before any session write, so a bogus
@@ -1417,6 +1433,32 @@ async function sendLeetCodeSubmitEpochConfirmed(
       confirmedAt: evidence.receivedAt,
     },
     persistenceComplete,
+  );
+}
+
+/**
+ * Restart recovery uses the exact persisted E1/E2 join without fabricating a
+ * Safe-Evidence record.  The payload stays identical to the normal CONFIRMED
+ * path; only the source of its reviewed scalars differs.
+ */
+async function sendLeetCodeSubmitEpochConfirmedReplay(
+  replay: LeetCodeConfirmedEpochReplay,
+): Promise<void> {
+  await sendLeetCodeSubmitEpochControl(
+    {
+      tabId: replay.tabId,
+      frameId: replay.frameId,
+      documentId: replay.documentId,
+    },
+    {
+      type: LEETCODE_SUBMIT_EPOCH_CONFIRMED,
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: replay.problemExternalId,
+      submitRequestId: replay.submitRequestId,
+      confirmedAt: replay.confirmedAt,
+    },
+    true,
   );
 }
 

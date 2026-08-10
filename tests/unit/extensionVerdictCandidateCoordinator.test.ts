@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   reconcileVerdictCandidates,
+  selectLeetCodeConfirmedEpochReplays,
   type VerdictCandidateResolution,
 } from "@/extension/src/verdictCandidateCoordinator";
 import type {
@@ -73,6 +74,128 @@ const confirmedRecord = (overrides: Partial<ConfirmedSubmissionRecord> = {}): Co
 });
 
 describe("verdictCandidateCoordinator", () => {
+  it("restart replay selects only an exact matched lifecycle for an unfinalized E2", () => {
+    const result = selectLeetCodeConfirmedEpochReplays({
+      requestLifecycles: [lifecycle()],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result).toEqual([{
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "840",
+      confirmedAt: "2026-08-06T11:20:02.000Z",
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+    }]);
+  });
+
+  it("restart replay fails closed when the exact E1 document identity is malformed", () => {
+    const result = selectLeetCodeConfirmedEpochReplays({
+      requestLifecycles: [lifecycle({ evidence: { ...lifecycle().evidence, documentId: "" } })],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("restart replay does not synthesize a request when the E1 lifecycle is absent", () => {
+    const result = selectLeetCodeConfirmedEpochReplays({
+      requestLifecycles: [],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("restart replay omits a confirmed record finalized by candidate E3 recovery", () => {
+    const result = selectLeetCodeConfirmedEpochReplays({
+      requestLifecycles: [lifecycle()],
+      confirmed: [confirmedRecord({ finalizedAt: "2026-08-06T11:22:00.000Z" })],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+  it("new armed candidate binds only the exact submit request id", () => {
+    const armed = Object.assign(candidate(), { submitRequestId: "840" });
+    const unrelatedNewer = lifecycle({
+      evidence: {
+        ...lifecycle().evidence,
+        evidenceId: "e1_leetcode_841",
+        requestId: "841",
+        receivedAt: "2026-08-06T11:20:30.000Z",
+        apiTimeStamp: 1030,
+      },
+      receivedAt: "2026-08-06T11:20:30.000Z",
+      stableSubmissionId: "leetcode:cn/921",
+    });
+    const result = reconcileVerdictCandidates({
+      candidates: [armed],
+      requestLifecycles: [unrelatedNewer, lifecycle()],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result.resolutions).toHaveLength(1);
+    expect(result.resolutions[0]?.externalSubmissionId).toBe("cn/920");
+    expect(result.terminal).toEqual([]);
+  });
+
+  it("armed duplicate request ids with conflicting timestamps fail closed", () => {
+    const conflicting = lifecycle({
+      evidence: {
+        ...lifecycle().evidence,
+        receivedAt: "2026-08-06T11:20:01.100Z",
+        apiTimeStamp: 1001.5,
+      },
+    });
+    const result = reconcileVerdictCandidates({
+      candidates: [Object.assign(candidate(), { submitRequestId: "840" })],
+      requestLifecycles: [lifecycle(), conflicting],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result.resolutions).toEqual([]);
+    expect(result.pending).toEqual([]);
+    expect(result.terminal[0]?.reason).toBe("identity_mismatch");
+  });
+
+  it("armed candidate does not fall back to a latest lifecycle when its request id is absent", () => {
+    const armed = Object.assign(candidate(), { submitRequestId: "missing-request" });
+    const result = reconcileVerdictCandidates({
+      candidates: [armed],
+      requestLifecycles: [lifecycle()],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result.resolutions).toEqual([]);
+    expect(result.terminal).toEqual([]);
+    expect(result.pending).toHaveLength(1);
+  });
+
+  it("historical legacy candidate terminalizes when a later lifecycle is visible", () => {
+    const later = lifecycle({
+      evidence: {
+        ...lifecycle().evidence,
+        evidenceId: "e1_leetcode_841",
+        requestId: "841",
+        receivedAt: "2026-08-06T11:20:30.000Z",
+        apiTimeStamp: 1030,
+      },
+      receivedAt: "2026-08-06T11:20:30.000Z",
+      stableSubmissionId: "leetcode:cn/921",
+    });
+    const armed = Object.assign(candidate({ candidateId: "armed" }), { submitRequestId: "840" });
+    const result = reconcileVerdictCandidates({
+      candidates: [candidate({ candidateId: "legacy", observedAt: "2026-08-06T11:20:20.000Z", receivedAt: "2026-08-06T11:20:20.000Z" }), armed],
+      requestLifecycles: [lifecycle(), later],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    const legacyTerminal = result.terminal.find((entry) => entry.candidateId === "legacy");
+    expect(legacyTerminal?.reason).toBe("chronology_mismatch");
+    expect(result.resolutions.map((entry) => entry.candidateId)).toEqual(["armed"]);
+  });
   it("latest pending submit prevents stale older confirmed record from resolving", () => {
     const stale = lifecycle({ receivedAt: "2026-08-06T11:20:01.500Z" });
     const newerPending = lifecycle({

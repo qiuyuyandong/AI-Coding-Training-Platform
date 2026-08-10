@@ -249,6 +249,7 @@ export function createLeetCodeTransientVerdictCandidate(
     frameId: number;
     documentId: string;
     transitionEvidence: TransientVerdictCandidate["transitionEvidence"];
+    submitRequestId?: string;
   }>,
 ): TransientVerdictCandidate | null {
   const verdict = normalizeTrustedVerdictText(input.verdictText);
@@ -261,10 +262,28 @@ export function createLeetCodeTransientVerdictCandidate(
     || input.frameId < 0
     || input.documentId.length === 0
     || /[\u0000-\u001f\u007f]/u.test(input.problemExternalId)
-    || /[\u0000-\u001f\u007f]/u.test(input.documentId)) {
+    || /[\u0000-\u001f\u007f]/u.test(input.documentId)
+    || (input.submitRequestId !== undefined
+      && (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/u.test(input.submitRequestId)
+        || /[\u0000-\u001f\u007f]/u.test(input.submitRequestId)))) {
     return null;
   }
-  return Object.freeze({
+  const candidate: {
+    schemaVersion: 1;
+    tier: "E3";
+    kind: "verdict_candidate";
+    candidateId: string;
+    platform: "leetcode";
+    problemExternalId: string;
+    verdict: string;
+    observedAt: string;
+    tabId: number;
+    frameId: number;
+    documentId: string;
+    transitionEvidence: TransientVerdictCandidate["transitionEvidence"];
+    receivedAt: string;
+    submitRequestId?: string;
+  } = {
     schemaVersion: 1,
     tier: "E3",
     kind: "verdict_candidate",
@@ -275,6 +294,7 @@ export function createLeetCodeTransientVerdictCandidate(
       documentId: input.documentId,
       problemExternalId: input.problemExternalId,
       observedAt: input.observedAt,
+      submitRequestId: input.submitRequestId,
     }),
     platform: "leetcode",
     problemExternalId: input.problemExternalId,
@@ -285,7 +305,9 @@ export function createLeetCodeTransientVerdictCandidate(
     documentId: input.documentId,
     transitionEvidence: input.transitionEvidence,
     receivedAt: input.observedAt,
-  });
+  };
+  if (input.submitRequestId !== undefined) candidate.submitRequestId = input.submitRequestId;
+  return Object.freeze(candidate);
 }
 
 export function selectLeetCodeConfirmation(
