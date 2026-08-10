@@ -69,6 +69,10 @@ import type {
 } from "./captureStateMachine";
 import type { MainBridgeSummary } from "./submissionCorrelator";
 import {
+  isSubmitEpochDiagnostic,
+  type SubmitEpochDiagnostic,
+} from "./submitEpochControl";
+import {
   retryAllCaptureStorageUpdate,
 } from "./outboxDrain";
 import {
@@ -155,6 +159,10 @@ export type OrchestratorUserAction =
     };
 
 export type OrchestratorEvent =
+  | {
+      readonly kind: "submit_epoch_diagnostic";
+      readonly reason: SubmitEpochDiagnostic;
+    }
   | {
       readonly kind: "e1_recorded";
       readonly evidence: E1RequestObserved;
@@ -511,6 +519,8 @@ function handleEvent(
   now: string,
 ): EventOutcome {
   switch (event.kind) {
+    case "submit_epoch_diagnostic":
+      return handleSubmitEpochDiagnostic(event, local, now);
     case "user_action":
       return handleUserAction(event.action, local, now);
     case "e1_recorded":
@@ -557,6 +567,28 @@ function handleEvent(
         now,
       );
   }
+}
+
+function handleSubmitEpochDiagnostic(
+  event: Extract<OrchestratorEvent, { readonly kind: "submit_epoch_diagnostic" }>,
+  local: Record<string, unknown>,
+  now: string,
+): EventOutcome {
+  // Keep this boundary defensive even though the TypeScript event is closed:
+  // a future caller must not be able to persist arbitrary page-derived text.
+  const diagnostic = isSubmitEpochDiagnostic(event.reason)
+    ? event.reason
+    : "epoch_control_malformed";
+  const outbox = readOutbox(local.captureOutbox);
+  const quarantine = readQuarantine(local.captureQuarantine);
+  return makeLocalOutcome(
+    { ...local, lastCaptureError: diagnostic },
+    local,
+    now,
+    false,
+    outbox,
+    quarantine,
+  );
 }
 
 function handleUserAction(

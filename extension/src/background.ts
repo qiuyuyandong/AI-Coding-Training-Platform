@@ -125,6 +125,15 @@ import {
   type IngressCoordinatorState,
   type IngressInput,
 } from "./contentIngress";
+import {
+  deliverLeetCodeSubmitEpochControl,
+  LEETCODE_SUBMIT_EPOCH_CONFIRMED,
+  LEETCODE_SUBMIT_EPOCH_STARTED,
+  type LeetCodeSubmitEpochConfirmedMessage,
+  type LeetCodeSubmitEpochStartedMessage,
+  type SubmitEpochDeliveryTarget,
+  type SubmitEpochDiagnostic,
+} from "./submitEpochControl";
 
 const FLUSH_ALARM_NAME = "flushCaptureOutbox";
 const UI_HINT_CLEANUP_ALARM_NAME = "expireCaptureUiHints";
@@ -739,11 +748,19 @@ async function applyLeetCodeCheckConfirmation(details: WebRequestDetails): Promi
     submitCandidates,
   });
   if (confirmation.kind !== "confirmed") return;
-  await applyOrchestratorEvent({
+  const effects = await applyOrchestratorEvent({
     kind: "e2_recorded",
     evidence: confirmation.evidence,
     matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
   });
+  const persistenceComplete = effects.persistence.confirmed.some((record) =>
+    record.externalSubmissionId === confirmation.evidence.externalSubmissionId
+    && record.platform === "leetcode");
+  await sendLeetCodeSubmitEpochConfirmed(
+    confirmation.evidence,
+    confirmation.matchedSubmitRequestId,
+    persistenceComplete,
+  );
 }
 
 async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Promise<void> {
@@ -780,11 +797,19 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
     problemCandidates,
   });
   if (confirmation.kind !== "confirmed") return;
-  await applyOrchestratorEvent({
+  const effects = await applyOrchestratorEvent({
     kind: "e2_recorded",
     evidence: confirmation.evidence,
     matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
   });
+  const persistenceComplete = effects.persistence.confirmed.some((record) =>
+    record.externalSubmissionId === confirmation.evidence.externalSubmissionId
+    && record.platform === "leetcode");
+  await sendLeetCodeSubmitEpochConfirmed(
+    confirmation.evidence,
+    confirmation.matchedSubmitRequestId,
+    persistenceComplete,
+  );
 }
 
 async function persistLeetCodeEndpointDiagnostic(
@@ -895,6 +920,7 @@ registerNetworkObserverListeners(
       documentId: evidence.documentId,
       adapterVersion: evidence.adapterVersion,
     });
+    await sendLeetCodeSubmitEpochStarted(evidence);
   },
   (work: () => Promise<void>) => { executor.schedule(work); },
 );
@@ -1318,6 +1344,80 @@ async function applyOrchestratorEvent(event: OrchestratorEvent): Promise<Orchest
   await applyPersistence(effects);
   await processVerdictCandidateResolutions(effects.verdictCandidateResolutions);
   return effects;
+}
+
+async function recordSubmitEpochDiagnostic(reason: SubmitEpochDiagnostic): Promise<void> {
+  await applyOrchestratorEvent({ kind: "submit_epoch_diagnostic", reason });
+}
+
+/**
+ * Deliver one LeetCode submit-epoch control message to exactly one browser
+ * document.  The payload intentionally contains no routing identities; the
+ * tab/frame/document target lives only in the Chrome API options.  A failed
+ * target is terminal for this delivery and never falls back to tab-only,
+ * another frame/document, or broadcast delivery.
+ */
+async function sendLeetCodeSubmitEpochControl(
+  target: SubmitEpochDeliveryTarget,
+  message: LeetCodeSubmitEpochStartedMessage | LeetCodeSubmitEpochConfirmedMessage,
+  persistenceComplete = true,
+): Promise<void> {
+  await deliverLeetCodeSubmitEpochControl(
+    target,
+    message,
+    {
+      sendMessage: (tabId, payload, options) => chrome.tabs.sendMessage(tabId, payload, options),
+      recordDiagnostic: recordSubmitEpochDiagnostic,
+    },
+    persistenceComplete,
+  );
+}
+
+async function sendLeetCodeSubmitEpochStarted(evidence: import("./evidence").E1RequestObserved): Promise<void> {
+  if (evidence.platform !== "leetcode"
+    || evidence.lifecycle !== "before_request"
+    || !evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`)) return;
+  const problemExternalId = evidence.endpointKey.split("/").at(-1);
+  if (problemExternalId === undefined) return;
+  await sendLeetCodeSubmitEpochControl(
+    {
+      tabId: evidence.tabId,
+      frameId: evidence.frameId,
+      documentId: evidence.documentId,
+    },
+    {
+      type: LEETCODE_SUBMIT_EPOCH_STARTED,
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId,
+      submitRequestId: evidence.requestId,
+      receivedAt: evidence.receivedAt,
+    },
+  );
+}
+
+async function sendLeetCodeSubmitEpochConfirmed(
+  evidence: import("./evidence").E2SubmissionConfirmed,
+  matchedSubmitRequestId: string,
+  persistenceComplete: boolean,
+): Promise<void> {
+  if (evidence.platform !== "leetcode") return;
+  await sendLeetCodeSubmitEpochControl(
+    {
+      tabId: evidence.tabId,
+      frameId: evidence.frameId,
+      documentId: evidence.documentId,
+    },
+    {
+      type: LEETCODE_SUBMIT_EPOCH_CONFIRMED,
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: evidence.problemExternalId,
+      submitRequestId: matchedSubmitRequestId,
+      confirmedAt: evidence.receivedAt,
+    },
+    persistenceComplete,
+  );
 }
 
 async function processVerdictCandidateResolutions(

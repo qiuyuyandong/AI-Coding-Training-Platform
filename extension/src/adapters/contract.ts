@@ -71,6 +71,11 @@ export type DetectedProblem = {
 
 export type DetectedVerdict = {
   readonly verdict: string;
+  /**
+   * Optional narrow, first-party DOM surface.  Legacy callers may omit it;
+   * the submit-epoch runtime requires it only for an armed LeetCode epoch.
+   */
+  readonly verdictSurface?: Element;
 };
 
 /**

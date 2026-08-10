@@ -34,6 +34,12 @@ export type VerdictCandidateMessage = {
     readonly observedAt: string;
     readonly transitionEvidence: VerdictTransitionEvidence;
     readonly sourceDocumentId?: string;
+    /**
+     * Runtime-only submit binding.  It is intentionally not part of the
+     * transientVerdictCandidates storage shape; Task 14 owns persistence and
+     * coordinator binding.  Legacy passive candidates omit this field.
+     */
+    readonly submitRequestId?: string;
   };
 };
 
@@ -44,7 +50,15 @@ export function isVerdictCandidateMessage(value: unknown): value is VerdictCandi
     return false;
   }
   const candidate = value.candidate;
-  return hasString(candidate, "installationId")
+  const submitRequestId = Reflect.get(candidate, "submitRequestId");
+  const requestBindingValid = submitRequestId === undefined
+    ? true
+    : Reflect.get(candidate, "platform") === "leetcode"
+      && typeof submitRequestId === "string"
+      && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/u.test(submitRequestId)
+      && !/[\u0000-\u001f\u007f]/u.test(submitRequestId);
+  return requestBindingValid
+    && hasString(candidate, "installationId")
     && hasPlatform(candidate, "platform")
     && hasString(candidate, "problemExternalId")
     && hasString(candidate, "verdict")

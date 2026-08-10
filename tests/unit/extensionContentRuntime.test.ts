@@ -147,7 +147,7 @@ describe("V4 Phase 0 capture content runtime", () => {
     });
   });
 
-  it("RED: emits a new candidate when a same-problem repeat submission keeps the historical verdict text", () => {
+  it("regression: emits a new candidate when a same-problem repeat submission keeps the historical verdict text", () => {
     const harness = createHarness();
     const historicalSurface = document.createElement("div");
     const repeatedSubmissionSurface = document.createElement("div");

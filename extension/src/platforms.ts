@@ -7,7 +7,10 @@ import {
   type PlatformAdapterStatus,
 } from "@/extension/src/adapters/contract";
 import { PLATFORM_ADAPTERS } from "@/extension/src/adapters/registry";
-import { extractLeetCodeDetailVerdictText } from "@/extension/src/adapters/leetcode/verdict";
+import {
+  extractLeetCodeDetailVerdictText,
+  extractLeetCodeVerdictObservation,
+} from "@/extension/src/adapters/leetcode/verdict";
 import { isElementHidden } from "@/extension/src/adapters/dom";
 import {
   CanonicalProblemUrlError,
@@ -740,6 +743,25 @@ export function detectVerdictFromDocument(platform: Platform, pageDocument: Docu
   const text = candidateTextForPlatform(platform, pageDocument);
   const verdict = normalizeTrustedVerdictText(text);
   return verdict === null ? null : { verdict };
+}
+
+/**
+ * LeetCode-only enriched observation for submit-epoch causality.  The
+ * existing `detectVerdictFromDocument` contract remains unchanged for the
+ * passive legacy path; this helper exposes the actual first-party Element
+ * only to the content runtime and never to background/storage code.
+ */
+export function detectVerdictObservationFromDocument(
+  platform: Platform,
+  pageDocument: Document,
+): DetectedVerdict | null {
+  if (platform !== "leetcode") return detectVerdictFromDocument(platform, pageDocument);
+  const observation = extractLeetCodeVerdictObservation(pageDocument);
+  if (observation === null) return null;
+  const verdict = normalizeTrustedVerdictText(observation.verdictText);
+  return verdict === null
+    ? null
+    : { verdict, verdictSurface: observation.surface };
 }
 
 function candidateTextForPlatform(platform: Platform, pageDocument: Document): string {

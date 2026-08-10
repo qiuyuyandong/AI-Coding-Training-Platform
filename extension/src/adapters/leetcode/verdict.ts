@@ -15,6 +15,14 @@ const LEETCODE_VERDICT_SELECTORS = [
   '[data-e2e-locator="console-result"]',
 ] as const;
 
+/** A verdict plus the real narrow DOM node that produced it. */
+export type LeetCodeVerdictObservation = Readonly<{
+  readonly verdictText: string;
+  readonly surface: Element;
+}>;
+
+type LeetCodeLocatorResult = LeetCodeVerdictObservation | "conflict" | null;
+
 /**
  * Extract a LeetCode verdict from its two observed first-party locators.
  *
@@ -25,15 +33,9 @@ const LEETCODE_VERDICT_SELECTORS = [
  * authoritative.
  */
 export function extractLeetCodeVerdictText(pageDocument: Document): string {
-  const locatorTexts = new Set<string>();
-  for (const selector of LEETCODE_VERDICT_SELECTORS) {
-    for (const element of Array.from(pageDocument.querySelectorAll(selector))) {
-      if (isElementHidden(element)) continue;
-      const text = (element.textContent ?? "").trim();
-      if (text !== "") locatorTexts.add(text);
-    }
-  }
-  if (locatorTexts.size > 0) return singleUniqueText(locatorTexts);
+  const located = extractLeetCodeLocatorObservation(pageDocument);
+  if (located === "conflict") return "";
+  if (located !== null) return located.verdictText;
 
   // The restored problem URL has no verdict locator; its selected
   // submission-detail tab is the fallback evidence surface. That tab
@@ -45,6 +47,20 @@ export function extractLeetCodeVerdictText(pageDocument: Document): string {
 }
 
 /**
+ * Extract the same first-party LeetCode verdict while retaining the stable
+ * Element reference used by submit-epoch causality.  The node is never
+ * serialized or sent outside the content runtime.
+ */
+export function extractLeetCodeVerdictObservation(
+  pageDocument: Document,
+): LeetCodeVerdictObservation | null {
+  const located = extractLeetCodeLocatorObservation(pageDocument);
+  if (located !== null && located !== "conflict") return located;
+  if (located === "conflict") return null;
+  return extractLeetCodeDetailObservation(pageDocument);
+}
+
+/**
  * Extract a LeetCode verdict from the selected submission-detail tab.
  * Returns "" when the tab structure is not the active submission-detail
  * surface, or when the trimmed tab text is not a recognized final
@@ -52,20 +68,48 @@ export function extractLeetCodeVerdictText(pageDocument: Document): string {
  * never satisfy the final-verdict gate.
  */
 export function extractLeetCodeDetailVerdictText(pageDocument: Document): string {
+  return extractLeetCodeDetailObservation(pageDocument)?.verdictText ?? "";
+}
+
+function extractLeetCodeLocatorObservation(
+  pageDocument: Document,
+): LeetCodeLocatorResult {
+  const locatorTexts = new Set<string>();
+  const matches: Array<{ readonly text: string; readonly element: Element }> = [];
+  for (const selector of LEETCODE_VERDICT_SELECTORS) {
+    for (const element of Array.from(pageDocument.querySelectorAll(selector))) {
+      if (isElementHidden(element)) continue;
+      const text = (element.textContent ?? "").trim();
+      if (text === "") continue;
+      locatorTexts.add(text);
+      matches.push({ text, element });
+    }
+  }
+  const text = singleUniqueText(locatorTexts);
+  if (text === "") return locatorTexts.size > 0 ? "conflict" : null;
+  const match = matches.find((candidate) => candidate.text === text);
+  return match === undefined ? null : Object.freeze({ verdictText: text, surface: match.element });
+}
+
+function extractLeetCodeDetailObservation(
+  pageDocument: Document,
+): LeetCodeVerdictObservation | null {
   const detailTabs = pageDocument.querySelectorAll("#submission-detail_tab");
-  if (detailTabs.length !== 1) return "";
+  if (detailTabs.length !== 1) return null;
   const detailTab = detailTabs.item(0);
-  if (isElementHidden(detailTab)) return "";
+  if (isElementHidden(detailTab)) return null;
   const selectedTab = detailTab.closest(".flexlayout__tab_button--selected");
-  if (selectedTab === null || isElementHidden(selectedTab)) return "";
-  if (detailTab.closest("#submission-detail_tabbar_outer") === null) return "";
+  if (selectedTab === null || isElementHidden(selectedTab)) return null;
+  if (detailTab.closest("#submission-detail_tabbar_outer") === null) return null;
 
   const detailTexts = new Set<string>();
   collectVisibleLeafTexts(detailTab, detailTexts);
   const detailText = singleUniqueText(detailTexts);
-  if (detailText === "") return "";
+  if (detailText === "") return null;
   const normalized = normalizeTrustedVerdictText(detailText);
-  return normalized === null || normalized === "Other Failure" ? "" : detailText;
+  return normalized === null || normalized === "Other Failure"
+    ? null
+    : Object.freeze({ verdictText: detailText, surface: detailTab });
 }
 
 function singleUniqueText(texts: ReadonlySet<string>): string {

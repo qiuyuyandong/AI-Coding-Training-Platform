@@ -5,7 +5,7 @@ import {
 } from "@/extension/src/contentRuntime";
 import {
   detectProblemFromPage,
-  detectVerdictFromDocument,
+  detectVerdictObservationFromDocument,
   isExactSubmissionResultPage,
 } from "@/extension/src/platforms";
 import { isVerdictCandidateMessage } from "@/extension/src/attemptCapture";
@@ -43,10 +43,10 @@ async function run(announceReady: () => void): Promise<boolean> {
     detectVerdict: () => {
       const detected = detectProblemFromPage(window.location, document);
       if (detected === null) return null;
-      const verdict = detectVerdictFromDocument(detected.platform, document);
+      const verdict = detectVerdictObservationFromDocument(detected.platform, document);
       return verdict === null
         ? { verdict: null }
-        : { verdict: verdict.verdict };
+        : { verdict: verdict.verdict, verdictSurface: verdict.verdictSurface };
     },
     exactResultPage: (detected) =>
       isExactSubmissionResultPage(window.location, document, detected),
@@ -61,6 +61,27 @@ async function run(announceReady: () => void): Promise<boolean> {
     void error;
     console.error("[capture-v4] content callback failed");
   });
+
+  // Background control messages are admitted only for the two exact
+  // LeetCode epoch types.  The runtime parser performs the strict key,
+  // identity, and timestamp checks; the response is a closed, identity-free
+  // diagnostic enum and never includes page data.
+  const controlMessageListener = (
+    message: unknown,
+    _sender: chrome.runtime.MessageSender,
+    sendResponse: (response: unknown) => void,
+  ): boolean => {
+    const type = typeof message === "object" && message !== null
+      ? Reflect.get(message, "type")
+      : undefined;
+    if (type !== "LEETCODE_SUBMIT_EPOCH_STARTED"
+      && type !== "LEETCODE_SUBMIT_EPOCH_CONFIRMED") return false;
+    const messages = runtime.controlMessageReceived(message);
+    forwardMessages(messages);
+    sendResponse(runtime.controlMessageResponse());
+    return false;
+  };
+  chrome.runtime.onMessage.addListener(controlMessageListener);
 
   function observeLocation(): boolean {
     if (window.location.href === lastHref) return false;

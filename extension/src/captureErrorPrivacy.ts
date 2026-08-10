@@ -12,6 +12,16 @@ const SAFE_CAPTURE_ERRORS = new Set([
   "Network request failed",
   "malformed retained bundle",
   "Storage capacity reached: completed result was not persisted",
+  "epoch_control_malformed",
+  "epoch_target_delivery_failed",
+  "epoch_started_missing",
+  "epoch_baseline_missing",
+  "epoch_identity_conflict",
+  "epoch_timestamp_conflict",
+  "epoch_capacity_exceeded",
+  "epoch_result_surface_unchanged",
+  "verdict_candidate_adapter_rejected",
+  "verdict_candidate_chronology_mismatch",
 ]);
 
 const SAFE_CAPTURE_ERROR_PATTERNS: readonly RegExp[] = [
