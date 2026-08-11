@@ -1,6 +1,6 @@
 # V4 Phase D D4 NowCoder E3 First-Divergence Investigation and Conditional Repair Plan
 
-**Status:** `IMPLEMENTATION APPROVED — focused gates PASS; post-implementation code/privacy APPROVE; commit and D3 refreeze authorized on 2026-08-11`
+**Status:** `REPAIR COMMITTED — D3 REFREEZE BLOCKED by repeated Chromium context-close infrastructure failure; no new candidate`
 
 **Date:** 2026-08-10
 
@@ -336,6 +336,31 @@ not authorize a push, D4 retry before the new freeze, or any broader repair.
   metadata preservation.
 * Load only the new exact dist in a fresh extension instance and fresh isolated
   database state.
+
+#### Task 5 execution stop — 2026-08-11
+
+The reviewed repair was committed locally as
+`6aa750c0ad5db6e90d9681bcef08111fc1cb3929`. The first full
+`npm run quality:gate` reached extension E2E after root unit `2387/1` and
+extension unit `1582/1582`, then failed with `46 passed / 7 failed / 1 skipped`.
+All seven failures were the same Playwright fixture error at
+`fixtures.ts:87`: `Target page, context or browser has been closed`; no
+capture, protocol, NowCoder, or database assertion failed.
+
+An independent failure-contract review authorized one controlled isolated
+`npm run extension:e2e` diagnostic and required a stop if the same context
+close recurred. The diagnostic passed both modified NowCoder Task 5/6 chains
+and finished `52 passed / 1 failed / 1 skipped`; the only failure was the same
+fixture error in B3 lifecycle A. Therefore no third retry, candidate ownership
+commit, exact candidate validator, or dist freeze is authorized under this
+revision. Default database metadata remained exactly `479232` bytes and
+`2026-07-23T15:56:38.8411343Z`; port 3000 and repository browser processes were
+clean after teardown.
+
+Task 5 now requires a separately reviewed fixture/Chromium lifecycle diagnosis
+and plan revision with a RED before any test-infrastructure change. Candidate
+`4e7a47b...` remains invalidated by the runtime repair, while `6aa750c...` is a
+reviewed repair commit but is not an immutable D3 candidate.
 
 ### Task 6 — fresh D4 observations
 

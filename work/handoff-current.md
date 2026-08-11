@@ -1104,19 +1104,23 @@ observation, final verification, and acceptance pending.**
 ## In Flight
 
 - Task21 failure evidence, implementation, tests, and the approved revised plan
-  are in the uncommitted worktree. The Worker is complete. Post-implementation
-  code/privacy reviews are both `APPROVE`. Root retains docs, review
-  acceptance, Git, candidate freeze, and browser scope. The user authorized
-  the reviewed local commit and D3 refreeze on 2026-08-11. Nothing is RC,
+  are committed at `6aa750c0ad5db6e90d9681bcef08111fc1cb3929`.
+  Post-implementation code/privacy reviews are both `APPROVE`. The attempted
+  D3 refreeze stopped after a full-gate extension E2E run failed `46/7/1` and
+  its one authorized isolated diagnostic failed `52/1/1`; every failure was
+  the same Playwright `fixtures.ts:87` context-close before business
+  assertions. No replacement candidate or dist freeze exists. Nothing is RC,
   accepted, released, pushed, or proposed through a PR.
 
 ## Next Commander Action
 
-1. Commit the reviewed implementation/evidence, run the full D3 candidate
-   path, and freeze a new exact dist before any D4 retry.
-2. After D3 PASS, reconcile the immutable SHA, exact dist hashes, and default
+1. Write and independently review a fixture/Chromium lifecycle diagnosis and
+   plan revision with a RED; do not rerun the gate a third time or weaken it.
+2. After that infrastructure repair, rerun the full D3 candidate path and
+   freeze a new exact dist before any D4 retry.
+3. After D3 PASS, reconcile the immutable SHA, exact dist hashes, and default
    database metadata before requesting fresh same-SHA D4 observations.
-3. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
+4. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 
 ## Known Risks

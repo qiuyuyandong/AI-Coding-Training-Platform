@@ -306,10 +306,40 @@ HIGH or MEDIUM findings. The user authorized the reviewed local commit and D3
 refreeze on 2026-08-11; that authorization does not extend to push or D4 retry
 before the new immutable candidate is frozen.
 
+## D3 refreeze attempt — stopped on repeated browser infrastructure failure
+
+The reviewed repair is locally committed as
+`6aa750c0ad5db6e90d9681bcef08111fc1cb3929`. It is not a D3 candidate.
+
+The first post-commit `npm run quality:gate` failed in extension E2E after its
+earlier root and extension unit stages passed:
+
+* root unit: `2387 passed / 1 skipped`;
+* extension unit: `1582/1582`;
+* extension E2E: `46 passed / 7 failed / 1 skipped`;
+* all seven failures: `fixtures.ts:87`, `Target page, context or browser has
+  been closed`, before any business assertion;
+* production build and the final full-gate PASS were not reached.
+
+An independent failure-contract review classified this as browser/Playwright
+infrastructure and allowed exactly one controlled isolated diagnostic. That
+`npm run extension:e2e` run passed the modified NowCoder Task 5 and Task 6
+tests but finished `52 passed / 1 failed / 1 skipped`; the sole failure was the
+same `fixtures.ts:87` context-close error, now in B3 lifecycle A. The review's
+stop condition therefore fired. No further retry, test masking, candidate
+ownership commit, exact candidate validator, or dist hash freeze occurred.
+
+Default database metadata stayed `479232` bytes and
+`2026-07-23T15:56:38.8411343Z`. Port 3000 and repository Playwright/browser
+processes were absent after teardown. The existing candidate `4e7a47b...` is
+invalidated by the runtime change, and no replacement immutable candidate
+exists.
+
 Remaining D4 work:
 
-1. Commit the reviewed runtime repair and return to D3 candidate
-   validation/dist freeze; both current LeetCode and NowCoder D4 observations
-   are invalid for the new candidate.
-2. Re-run fresh LeetCode and approved-pilot NowCoder observations on one new
-   immutable SHA; D5 remains blocked until both pass.
+1. Produce a reviewed fixture/Chromium lifecycle diagnosis and plan revision
+   with a RED; do not blindly rerun the same gate.
+2. Only after that repair passes the full D3 validator may a replacement
+   immutable SHA and exact dist be frozen.
+3. Re-run fresh LeetCode and approved-pilot NowCoder observations on that one
+   new immutable SHA; D5 remains blocked until both pass.
