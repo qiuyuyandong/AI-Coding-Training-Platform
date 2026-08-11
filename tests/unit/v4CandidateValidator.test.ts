@@ -63,6 +63,27 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("work/reports/raw-task16-transcript.json").kind).toBe("forbidden");
   });
 
+  it("owns the reviewed NowCoder identity and extension-worker lifecycle repair paths", () => {
+    const repairPaths = [
+      "docs/superpowers/plans/2026-08-10-v4-phase-d-d4-nowcoder-e3-identity-repair.md",
+      "extension/src/platforms.ts",
+      "tests/extension-e2e/capture-v4-nowcoder-task5-real-observation.spec.ts",
+      "tests/extension-e2e/capture-v4-nowcoder-task6-real-retest.spec.ts",
+      "tests/extension-e2e/extensionWorkerLifecycle.ts",
+      "tests/extension-e2e/fixtures.ts",
+      "tests/unit/extensionDomesticOjAuth.test.ts",
+      "tests/unit/extensionNowCoderNetwork.test.ts",
+      "tests/unit/extensionPlatforms.test.ts",
+      "tests/unit/extensionWorkerLifecycle.test.ts",
+      "work/handoff-current.md",
+      "work/reports/v4-phase-d-task21-same-sha-automated-observations-2026-08-10.md",
+    ] as const;
+
+    expect(validateCandidatePaths([...repairPaths]).failedChecks).toEqual([]);
+    expect(classifyCandidatePath("tests/extension-e2e/unreviewed-retry.ts").kind).toBe("unknown");
+    expect(classifyCandidatePath("work/reports/raw-nowcoder-transcript.json").kind).toBe("forbidden");
+  });
+
   it("keeps the root quality gate isolated from ignored Git worktrees", () => {
     const source = readFileSync(resolve(process.cwd(), "vitest.config.ts"), "utf8");
     expect(source).toContain('".worktrees/**"');
