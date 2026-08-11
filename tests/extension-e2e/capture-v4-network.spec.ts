@@ -79,6 +79,7 @@ import {
   LEETCODE_GRAPHQL_URL,
   LEETCODE_MEMORY_DISTRIBUTION_URL,
   LEETCODE_RUNTIME_DISTRIBUTION_URL,
+  LEETCODE_SUBMIT_URL,
   LEETCODE_UNMATCHED_SUBMIT_URL,
   NOWCODER_RESULT_URL,
   NOWCODER_SUBMIT_URL,
@@ -1095,7 +1096,7 @@ test.describe.parallel("Phase A Task A9 v2 — Fake OJ matrix", () => {
       bridgeDocumentId: documentIdFor("leetcode-graphql-result"),
       bridgeForwarder: async (): Promise<void> => undefined,
       navigationUrl: "https://leetcode.com/problems/example-fake-oj/",
-      submitUrl: LEETCODE_GRAPHQL_URL,
+      submitUrl: LEETCODE_SUBMIT_URL,
       submitMethod: "POST",
       resultUrl: null,
       routePlans: scenario.routePlans,
@@ -1107,8 +1108,20 @@ test.describe.parallel("Phase A Task A9 v2 — Fake OJ matrix", () => {
         button.textContent = "Submit";
       });
       await bridge.triggerSubmit();
+      await page.evaluate(async (url) => {
+        const response = await fetch(url, { method: "POST" });
+        if (!response.ok) throw new Error(`Fake LeetCode GraphQL failed: ${response.status}`);
+      }, LEETCODE_GRAPHQL_URL);
       const submitted = await pollUntilStorageMatches(liveWorker, (storage) =>
         storage.uiHints.length > before.uiHints.length
+        && storage.transientE1.some((entry) => {
+          const evidence = lifecycleEvidence(entry);
+          return evidence.platform === "leetcode"
+            && evidence.endpointKey === "leetcode/submit/com/example-fake-oj"
+            && evidence.method === "POST"
+            && evidence.lifecycle === "completed"
+            && evidence.statusCode === 200;
+        })
         && storage.transientE1.some((entry) => {
           const evidence = lifecycleEvidence(entry);
           return evidence.platform === "leetcode"

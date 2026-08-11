@@ -54,6 +54,7 @@ describe("V4 candidate validator", () => {
       "tests/unit/extensionLeetCodeNetworkAdapter.test.ts",
       "tests/unit/extensionSubmitEpochControl.test.ts",
       "tests/unit/extensionVerdictCandidateFlow.test.ts",
+      "tests/extension-e2e/capture-v4-network.spec.ts",
     ]) {
       expect(CANDIDATE_ALLOWED_PATHS).toContain(path);
       expect(classifyCandidatePath(path)).toEqual({

@@ -39,6 +39,7 @@ export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "tests/extension-e2e/capture-v4-nowcoder-task5-real-observation.spec.ts",
   "tests/extension-e2e/capture-v4-nowcoder-task6-real-retest.spec.ts",
   "tests/extension-e2e/capture-v4-nowcoder.spec.ts",
+  "tests/extension-e2e/capture-v4-network.spec.ts",
   "tests/extension-e2e/capture-v4-upgrade.spec.ts",
   "tests/extension-e2e/extensionWorkerLifecycle.ts",
   "tests/extension-e2e/fakeOj.ts",
