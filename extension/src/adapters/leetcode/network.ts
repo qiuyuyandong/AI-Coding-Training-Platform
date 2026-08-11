@@ -100,6 +100,7 @@ export type LeetCodeProblemCandidate = Readonly<{
 export type LeetCodeResultConfirmationInput = Readonly<{
   resultEvidence: E1RequestObserved;
   graphqlCandidates: readonly E1RequestObserved[];
+  submitCandidates: readonly E1RequestObserved[];
   problemCandidates: readonly LeetCodeProblemCandidate[];
 }>;
 
@@ -134,11 +135,14 @@ export type LeetCodeResultConfirmationResult =
       | "invalid_result_evidence"
       | "missing_problem_hint"
       | "expired_problem_hint"
-      | "missing_graphql";
+      | "missing_graphql"
+      | "missing_submit"
+      | "expired_submit"
+      | "crossed_identity";
   }
   | {
     readonly kind: "ambiguous";
-    readonly reason: "multiple_problem_hints";
+    readonly reason: "multiple_problem_hints" | "multiple_submit_candidates";
   };
 
 export function normalizeLeetCodeNetworkEndpoint(rawUrl: string): string | null {
@@ -387,11 +391,12 @@ export function selectLeetCodeConfirmation(
 }
 
 /**
- * Confirms the current LeetCode GraphQL UI without inspecting its request
- * body. A trusted recent E0 supplies the problem identity, a completed
- * same-document GraphQL POST supplies the submission network witness, and
- * the exact result-distribution path supplies the stable submission ID.
- * Opening a historical result page has no E0 and therefore fails closed.
+ * Confirms the current LeetCode GraphQL result flow without inspecting any
+ * request body. A trusted recent E0 supplies the problem identity, one exact
+ * completed submit E1 remains the sole epoch identity, a same-document
+ * GraphQL POST corroborates the result transition, and the exact
+ * result-distribution path supplies the stable submission ID. Opening a
+ * historical result page or observing no unique exact submit fails closed.
  */
 export function selectLeetCodeResultConfirmation(
   input: LeetCodeResultConfirmationInput,
@@ -436,6 +441,46 @@ export function selectLeetCodeResultConfirmation(
   }
 
   const hintTime = Date.parse(problem.observedAt);
+  if (input.submitCandidates.length === 0) {
+    return { kind: "no_match", reason: "missing_submit" };
+  }
+  const sameIdentitySubmits = input.submitCandidates.filter((candidate) => {
+    const endpoint = parseEndpointKey(candidate.endpointKey);
+    return candidate.platform === "leetcode"
+      && endpoint?.kind === "submit"
+      && endpoint.scope === resultEndpoint.scope
+      && endpoint.problemSlug === problem.problemExternalId
+      && candidate.method === "POST"
+      && candidate.resourceType === "xmlhttprequest"
+      && candidate.lifecycle === "completed"
+      && candidate.statusCode === 200
+      && candidate.tabId === result.tabId
+      && candidate.frameId === result.frameId
+      && candidate.documentId === result.documentId;
+  });
+  if (sameIdentitySubmits.length === 0) {
+    return { kind: "no_match", reason: "crossed_identity" };
+  }
+  const eligibleSubmits = sameIdentitySubmits.filter((candidate) => {
+    const submitTime = Date.parse(candidate.receivedAt);
+    return Number.isFinite(resultTime)
+      && Number.isFinite(hintTime)
+      && Number.isFinite(submitTime)
+      && hintTime <= submitTime
+      && submitTime <= resultTime
+      && resultTime - submitTime <= LEETCODE_CONFIRMATION_WINDOW_MS;
+  });
+  if (eligibleSubmits.length === 0) {
+    return { kind: "no_match", reason: "expired_submit" };
+  }
+  if (eligibleSubmits.length > 1) {
+    return { kind: "ambiguous", reason: "multiple_submit_candidates" };
+  }
+  const matchedSubmit = eligibleSubmits[0];
+  if (matchedSubmit === undefined) {
+    return { kind: "no_match", reason: "missing_submit" };
+  }
+  const submitTime = Date.parse(matchedSubmit.receivedAt);
   const graphql = input.graphqlCandidates
     .filter((candidate) => {
       const candidateTime = Date.parse(candidate.receivedAt);
@@ -450,8 +495,10 @@ export function selectLeetCodeResultConfirmation(
         && candidate.documentId === result.documentId
         && Number.isFinite(candidateTime)
         && Number.isFinite(hintTime)
+        && Number.isFinite(submitTime)
         && Number.isFinite(resultTime)
         && hintTime <= candidateTime
+        && submitTime <= candidateTime
         && candidateTime <= resultTime
         && resultTime - candidateTime <= LEETCODE_CONFIRMATION_WINDOW_MS;
     })
@@ -480,7 +527,7 @@ export function selectLeetCodeResultConfirmation(
   return {
     kind: "confirmed",
     evidence,
-    matchedSubmitRequestId: graphql.requestId,
+    matchedSubmitRequestId: matchedSubmit.requestId,
   };
 }
 
@@ -587,15 +634,19 @@ function submissionEvidence(input: unknown): unknown {
   if (Reflect.get(input, "kind") === "result_confirmation") {
     const resultEvidence = Reflect.get(input, "resultEvidence");
     const graphqlCandidates = Reflect.get(input, "graphqlCandidates");
+    const submitCandidates = Reflect.get(input, "submitCandidates");
     const problemCandidates = Reflect.get(input, "problemCandidates");
     if (!isLeetCodeE1(resultEvidence)
       || !Array.isArray(graphqlCandidates)
       || !graphqlCandidates.every(isLeetCodeE1)
+      || !Array.isArray(submitCandidates)
+      || !submitCandidates.every(isLeetCodeE1)
       || !Array.isArray(problemCandidates)
       || !problemCandidates.every(isLeetCodeProblemCandidate)) return null;
     const result = selectLeetCodeResultConfirmation({
       resultEvidence,
       graphqlCandidates,
+      submitCandidates,
       problemCandidates,
     });
     return result.kind === "confirmed" ? result.evidence : null;

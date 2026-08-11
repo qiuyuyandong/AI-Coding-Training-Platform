@@ -5,6 +5,7 @@ import {
   deliverLeetCodeSubmitEpochControl,
   isSubmitEpochControlResponse,
   parseLeetCodeSubmitEpochControlMessage,
+  persistThenDeliverSubmitEpochConfirmed,
   type LeetCodeSubmitEpochControlMessage,
   type SubmitEpochDiagnostic,
 } from "@/extension/src/submitEpochControl";
@@ -315,21 +316,13 @@ describe("LeetCode submit epoch control plane", () => {
 
   it("does not send CONFIRMED before the persistence effect is complete", async () => {
     let calls = 0;
-    const diagnostics: SubmitEpochDiagnostic[] = [];
-    const result = await deliverLeetCodeSubmitEpochControl(
-      { tabId: 7, frameId: 0, documentId: "document-7" },
-      confirmed("request-7"),
-      {
-        sendMessage: async () => {
-          calls += 1;
-          return { ok: true };
-        },
-        recordDiagnostic: (reason) => { diagnostics.push(reason); },
+    const result = await persistThenDeliverSubmitEpochConfirmed({
+      persist: async () => false,
+      deliver: async () => {
+        calls += 1;
       },
-      false,
-    );
+    });
     expect(result).toBe("skipped_persistence");
     expect(calls).toBe(0);
-    expect(diagnostics).toEqual([]);
   });
 });

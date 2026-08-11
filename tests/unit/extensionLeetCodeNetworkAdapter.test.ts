@@ -17,6 +17,12 @@ import {
 } from "@/extension/src/adapters/leetcode/network";
 import type { E1RequestObserved } from "@/extension/src/evidence";
 import { parseSafeEvidence } from "@/extension/src/evidence";
+import { createCaptureContentRuntime } from "@/extension/src/contentRuntime";
+import {
+  deliverLeetCodeSubmitEpochControl,
+  persistThenDeliverSubmitEpochConfirmed,
+  type LeetCodeSubmitEpochControlMessage,
+} from "@/extension/src/submitEpochControl";
 
 const NOW = "2026-07-30T08:40:11.300Z";
 const DOCUMENT_ID = "8C588C1A68D0E6D2F798877E4292FB05";
@@ -433,14 +439,156 @@ describe("LeetCode E2 confirmation policy", () => {
 });
 
 describe("LeetCode GraphQL result E2 confirmation policy", () => {
+  it("RED: binds GraphQL-result E2 to the exact submit epoch through the exact delivery seam", async () => {
+    let verdict: string | null = null;
+    let surface: Element | null = null;
+    const runtime = createCaptureContentRuntime({
+      detectProblem: () => ({
+        platform: "leetcode",
+        problemExternalId: "add-two-numbers",
+        problemTitle: "Add Two Numbers",
+        canonicalUrl: "https://leetcode.cn/problems/add-two-numbers/",
+      }),
+      detectVerdict: () => ({ verdict, verdictSurface: surface }),
+      exactResultPage: () => false,
+      now: () => NOW,
+    });
+    runtime.start();
+    const deliveredMessages: LeetCodeSubmitEpochControlMessage[] = [];
+    let emittedMessages: readonly unknown[] = [];
+    const deliveryDiagnostics: string[] = [];
+    const delivery = {
+      sendMessage: async (
+        tabId: number,
+        message: LeetCodeSubmitEpochControlMessage,
+        options: Readonly<{ frameId: number; documentId: string }>,
+      ) => {
+        expect({ tabId, options }).toEqual({
+          tabId: 7,
+          options: { frameId: 0, documentId: DOCUMENT_ID },
+        });
+        deliveredMessages.push(message);
+        emittedMessages = runtime.controlMessageReceived(message);
+        return runtime.controlMessageResponse();
+      },
+      recordDiagnostic: (reason: string) => { deliveryDiagnostics.push(reason); },
+    };
+    const target = { tabId: 7, frameId: 0, documentId: DOCUMENT_ID };
+    const started = {
+      type: "LEETCODE_SUBMIT_EPOCH_STARTED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "add-two-numbers",
+      submitRequestId: "840",
+      receivedAt: "2026-07-30T08:40:11.020Z",
+    } as const;
+    expect(await deliverLeetCodeSubmitEpochControl(target, started, delivery)).toBe("delivered");
+    verdict = "Compile Error";
+    surface = document.createElement("div");
+    expect(runtime.documentMutated()).toEqual([]);
+
+    const confirmation = selectLeetCodeResultConfirmation({
+      resultEvidence: result(),
+      graphqlCandidates: [graphql()],
+      submitCandidates: [submit({ lifecycle: "completed" })],
+      problemCandidates: [problemHint()],
+    });
+    expect(confirmation).toMatchObject({
+      kind: "confirmed",
+      matchedSubmitRequestId: "840",
+    });
+    if (confirmation.kind !== "confirmed") return;
+    const confirmed = {
+      type: "LEETCODE_SUBMIT_EPOCH_CONFIRMED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: confirmation.evidence.problemExternalId,
+      submitRequestId: confirmation.matchedSubmitRequestId,
+      confirmedAt: confirmation.evidence.receivedAt,
+    } as const;
+    const persistenceOrder: string[] = [];
+    expect(await persistThenDeliverSubmitEpochConfirmed({
+      persist: async () => {
+        persistenceOrder.push("persist");
+        return true;
+      },
+      deliver: async () => {
+        persistenceOrder.push("deliver");
+        expect(await deliverLeetCodeSubmitEpochControl(target, confirmed, delivery)).toBe("delivered");
+      },
+    })).toBe("delivered");
+    expect(persistenceOrder).toEqual(["persist", "deliver"]);
+    expect(deliveryDiagnostics).toEqual([]);
+    expect(deliveredMessages.map((message) => [message.type, message.submitRequestId])).toEqual([
+      ["LEETCODE_SUBMIT_EPOCH_STARTED", "840"],
+      ["LEETCODE_SUBMIT_EPOCH_CONFIRMED", "840"],
+    ]);
+    expect(emittedMessages).toHaveLength(1);
+    expect(emittedMessages[0]).toMatchObject({
+      type: "VERDICT_CANDIDATE_OBSERVED",
+      candidate: {
+        submitRequestId: "840",
+        verdict: "Compile Error",
+      },
+    });
+  });
+
+  it("RED: keeps one exact submit eligible across lifecycle update and rejects zero or two submit identities", () => {
+    const base = {
+      resultEvidence: result(),
+      graphqlCandidates: [
+        graphql(),
+        graphql({ requestId: "graphql-843", evidenceId: "e1_leetcode_graphql_843", receivedAt: "2026-07-30T08:40:11.180Z" }),
+      ],
+      problemCandidates: [problemHint()],
+    };
+    expect(selectLeetCodeResultConfirmation({
+      ...base,
+      submitCandidates: [submit({ lifecycle: "completed" })],
+    })).toMatchObject({ kind: "confirmed", matchedSubmitRequestId: "840" });
+    expect(selectLeetCodeResultConfirmation({
+      ...base,
+      submitCandidates: [],
+    })).toMatchObject({ kind: "no_match", reason: "missing_submit" });
+    expect(selectLeetCodeResultConfirmation({
+      ...base,
+      submitCandidates: [
+        submit(),
+        submit({ requestId: "submit-841", evidenceId: "e1_leetcode_submit_841" }),
+      ],
+    })).toMatchObject({ kind: "ambiguous", reason: "multiple_submit_candidates" });
+  });
+
+  it("RED: rejects crossed or inverted exact submit candidates without falling back to GraphQL", () => {
+    const base = {
+      resultEvidence: result(),
+      graphqlCandidates: [graphql()],
+      problemCandidates: [problemHint()],
+    };
+    for (const invalidSubmit of [
+      submit({ documentId: "other-document" }),
+      submit({ endpointKey: `${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/cn/two-sum` }),
+      submit({ receivedAt: "2026-07-30T08:40:11.121Z" }),
+      submit({ receivedAt: "2026-07-30T08:40:11.265Z" }),
+      submit({ receivedAt: "2026-07-30T08:40:05.000Z" }),
+      submit({ lifecycle: "error_occurred", statusCode: undefined }),
+    ]) {
+      expect(selectLeetCodeResultConfirmation({
+        ...base,
+        submitCandidates: [invalidSubmit],
+      })).not.toMatchObject({ kind: "confirmed" });
+    }
+  });
+
   it("confirms a recent trusted problem hint plus GraphQL and exact result path", () => {
     expect(selectLeetCodeResultConfirmation({
       resultEvidence: result(),
       graphqlCandidates: [graphql()],
+      submitCandidates: [submit()],
       problemCandidates: [problemHint()],
           })).toMatchObject({
       kind: "confirmed",
-      matchedSubmitRequestId: "graphql-841",
+      matchedSubmitRequestId: "840",
       evidence: {
         externalSubmissionId: "cn/739040551",
         problemExternalId: "add-two-numbers",
@@ -458,10 +606,11 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
     expect(selectLeetCodeResultConfirmation({
       resultEvidence: result(),
       graphqlCandidates: [latest, graphql()],
+      submitCandidates: [submit()],
       problemCandidates: [problemHint()],
           })).toMatchObject({
       kind: "confirmed",
-      matchedSubmitRequestId: "graphql-843",
+      matchedSubmitRequestId: "840",
     });
   });
 
@@ -492,6 +641,7 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
     expect(selectLeetCodeResultConfirmation({
       resultEvidence: result(),
       graphqlCandidates,
+      submitCandidates: [submit()],
       problemCandidates: hints,
           })).toMatchObject({ kind: "no_match", reason });
   });
@@ -500,6 +650,7 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
     expect(selectLeetCodeResultConfirmation({
       resultEvidence: result(),
       graphqlCandidates: [graphql()],
+      submitCandidates: [submit()],
       problemCandidates: [
         problemHint(),
         problemHint({ observedAt: "2026-07-30T08:40:11.001Z" }),
@@ -508,6 +659,7 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
     expect(selectLeetCodeResultConfirmation({
       resultEvidence: result({ statusCode: 500 }),
       graphqlCandidates: [graphql()],
+      submitCandidates: [submit()],
       problemCandidates: [problemHint()],
           })).toMatchObject({ kind: "no_match", reason: "invalid_result_evidence" });
   });
@@ -520,6 +672,9 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
       graphqlCandidates: [graphql({
         receivedAt: "2026-08-06T11:20:02.200Z",
         requestId: "graphql-841",
+      })],
+      submitCandidates: [submit({
+        receivedAt: "2026-08-06T11:20:02.100Z",
       })],
       problemCandidates: [problemHint({
         observedAt: "2026-08-06T11:20:02.000Z",
@@ -537,6 +692,7 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
       kind: "result_confirmation",
       resultEvidence: result(),
       graphqlCandidates: [graphql()],
+      submitCandidates: [submit()],
       problemCandidates: [problemHint()],
           })).toMatchObject({
       externalSubmissionId: "cn/739040551",
@@ -546,6 +702,13 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
       kind: "result_confirmation",
       resultEvidence: result(),
       graphqlCandidates: [graphql()],
+      problemCandidates: [problemHint()],
+    })).toBeNull();
+    expect(LEETCODE_NETWORK_POLICY.submissionEvidence({
+      kind: "result_confirmation",
+      resultEvidence: result(),
+      graphqlCandidates: [graphql()],
+      submitCandidates: [submit()],
       problemCandidates: [problemHint()],
             body: "forbidden",
     })).toBeNull();

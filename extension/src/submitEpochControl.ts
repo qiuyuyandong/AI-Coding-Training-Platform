@@ -80,6 +80,20 @@ export type SubmitEpochDeliveryResult =
   | "diagnostic"
   | "skipped_persistence";
 
+export type SubmitEpochPersistenceDeliveryDependencies = Readonly<{
+  readonly persist: () => Promise<boolean>;
+  readonly deliver: () => Promise<void>;
+}>;
+
+/** Persists E2 before allowing the exact CONFIRMED control delivery. */
+export async function persistThenDeliverSubmitEpochConfirmed(
+  dependencies: SubmitEpochPersistenceDeliveryDependencies,
+): Promise<"delivered" | "skipped_persistence"> {
+  if (!await dependencies.persist()) return "skipped_persistence";
+  await dependencies.deliver();
+  return "delivered";
+}
+
 export type ParsedSubmitEpochControlMessage =
   | { readonly ok: true; readonly value: LeetCodeSubmitEpochControlMessage }
   | { readonly ok: false; readonly reason: "epoch_control_malformed" };

@@ -130,6 +130,7 @@ import {
   deliverLeetCodeSubmitEpochControl,
   LEETCODE_SUBMIT_EPOCH_CONFIRMED,
   LEETCODE_SUBMIT_EPOCH_STARTED,
+  persistThenDeliverSubmitEpochConfirmed,
   type LeetCodeSubmitEpochConfirmedMessage,
   type LeetCodeSubmitEpochStartedMessage,
   type SubmitEpochDeliveryTarget,
@@ -749,13 +750,17 @@ async function applyLeetCodeCheckConfirmation(details: WebRequestDetails): Promi
   const stored = await trustedSessionStorage.get(["transientE1"]);
   const transient = readTransientSessionEvidenceState(stored);
   const checkLifecycle = transient.requestLifecycles.find((entry) =>
-    entry.evidence.platform === "leetcode"
+    entry.outcome === "pending"
+    && entry.rejectionReason === null
+    && entry.evidence.platform === "leetcode"
     && entry.evidence.requestId === details.requestId
     && entry.evidence.endpointKey.startsWith(`${LEETCODE_CHECK_ENDPOINT_PREFIX}/`));
   if (checkLifecycle === undefined) return;
   const submitCandidates = transient.requestLifecycles
     .filter((entry) =>
-      entry.evidence.platform === "leetcode"
+      entry.outcome === "pending"
+      && entry.rejectionReason === null
+      && entry.evidence.platform === "leetcode"
       && entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
     .map((entry) => entry.evidence);
   const confirmation = selectLeetCodeConfirmation({
@@ -763,19 +768,23 @@ async function applyLeetCodeCheckConfirmation(details: WebRequestDetails): Promi
     submitCandidates,
   });
   if (confirmation.kind !== "confirmed") return;
-  const effects = await applyOrchestratorEvent({
-    kind: "e2_recorded",
-    evidence: confirmation.evidence,
-    matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
+  await persistThenDeliverSubmitEpochConfirmed({
+    persist: async () => {
+      const effects = await applyOrchestratorEvent({
+        kind: "e2_recorded",
+        evidence: confirmation.evidence,
+        matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
+      });
+      return effects.persistence.confirmed.some((record) =>
+        record.externalSubmissionId === confirmation.evidence.externalSubmissionId
+        && record.platform === "leetcode");
+    },
+    deliver: async () => sendLeetCodeSubmitEpochConfirmed(
+      confirmation.evidence,
+      confirmation.matchedSubmitRequestId,
+      true,
+    ),
   });
-  const persistenceComplete = effects.persistence.confirmed.some((record) =>
-    record.externalSubmissionId === confirmation.evidence.externalSubmissionId
-    && record.platform === "leetcode");
-  await sendLeetCodeSubmitEpochConfirmed(
-    confirmation.evidence,
-    confirmation.matchedSubmitRequestId,
-    persistenceComplete,
-  );
 }
 
 async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Promise<void> {
@@ -785,14 +794,25 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
   const stored = await trustedSessionStorage.get(["uiHints", "transientE1"]);
   const transient = readTransientSessionEvidenceState(stored);
   const resultLifecycle = transient.requestLifecycles.find((entry) =>
-    entry.evidence.platform === "leetcode"
+    entry.outcome === "pending"
+    && entry.rejectionReason === null
+    && entry.evidence.platform === "leetcode"
     && entry.evidence.requestId === details.requestId
     && entry.evidence.endpointKey.startsWith(`${LEETCODE_RESULT_ENDPOINT_PREFIX}/`));
   if (resultLifecycle === undefined) return;
   const graphqlCandidates = transient.requestLifecycles
     .filter((entry) =>
-      entry.evidence.platform === "leetcode"
+      entry.outcome === "pending"
+      && entry.rejectionReason === null
+      && entry.evidence.platform === "leetcode"
       && entry.evidence.endpointKey === "graphql")
+    .map((entry) => entry.evidence);
+  const submitCandidates = transient.requestLifecycles
+    .filter((entry) =>
+      entry.outcome === "pending"
+      && entry.rejectionReason === null
+      && entry.evidence.platform === "leetcode"
+      && entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
     .map((entry) => entry.evidence);
   const problemCandidates = transient.uiHints
     .filter((hint) =>
@@ -809,22 +829,27 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
   const confirmation = selectLeetCodeResultConfirmation({
     resultEvidence: resultLifecycle.evidence,
     graphqlCandidates,
+    submitCandidates,
     problemCandidates,
   });
   if (confirmation.kind !== "confirmed") return;
-  const effects = await applyOrchestratorEvent({
-    kind: "e2_recorded",
-    evidence: confirmation.evidence,
-    matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
+  await persistThenDeliverSubmitEpochConfirmed({
+    persist: async () => {
+      const effects = await applyOrchestratorEvent({
+        kind: "e2_recorded",
+        evidence: confirmation.evidence,
+        matchedSubmitRequestId: confirmation.matchedSubmitRequestId,
+      });
+      return effects.persistence.confirmed.some((record) =>
+        record.externalSubmissionId === confirmation.evidence.externalSubmissionId
+        && record.platform === "leetcode");
+    },
+    deliver: async () => sendLeetCodeSubmitEpochConfirmed(
+      confirmation.evidence,
+      confirmation.matchedSubmitRequestId,
+      true,
+    ),
   });
-  const persistenceComplete = effects.persistence.confirmed.some((record) =>
-    record.externalSubmissionId === confirmation.evidence.externalSubmissionId
-    && record.platform === "leetcode");
-  await sendLeetCodeSubmitEpochConfirmed(
-    confirmation.evidence,
-    confirmation.matchedSubmitRequestId,
-    persistenceComplete,
-  );
 }
 
 async function persistLeetCodeEndpointDiagnostic(

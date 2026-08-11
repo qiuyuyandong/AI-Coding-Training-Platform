@@ -46,6 +46,25 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("training-platform.sqlite").kind).toBe("forbidden");
   });
 
+  it("owns the reviewed Revision 5 exact-submit repair without widening to the live harness", () => {
+    for (const path of [
+      "extension/src/adapters/leetcode/network.ts",
+      "extension/src/background.ts",
+      "extension/src/submitEpochControl.ts",
+      "tests/unit/extensionLeetCodeNetworkAdapter.test.ts",
+      "tests/unit/extensionSubmitEpochControl.test.ts",
+      "tests/unit/extensionVerdictCandidateFlow.test.ts",
+    ]) {
+      expect(CANDIDATE_ALLOWED_PATHS).toContain(path);
+      expect(classifyCandidatePath(path)).toEqual({
+        kind: "candidate",
+        reason: "explicit-task-path",
+      });
+    }
+    expect(classifyCandidatePath("scripts/v4-live-observation.mjs").kind).toBe("unknown");
+    expect(classifyCandidatePath("scripts/v4-live-observation-observer.mjs").kind).toBe("unknown");
+  });
+
   it("owns only the reviewed revision-4 plan, runtime, tests, and evidence paths", () => {
     const revisionFourPaths = [
       "docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md",

@@ -36,6 +36,7 @@ import {
   LEETCODE_CHECK_ENDPOINT_PREFIX,
   LEETCODE_RESULT_ENDPOINT_PREFIX,
   LEETCODE_SUBMIT_ENDPOINT_PREFIX,
+  selectLeetCodeConfirmation,
   selectLeetCodeResultConfirmation,
 } from "@/extension/src/adapters/leetcode/network";
 import {
@@ -441,9 +442,10 @@ describe("verdict candidate flow", () => {
     });
 
     // Candidate arrives first: no E2 yet, so no resolution.
+    const resultCandidate = armedCandidate({ submitRequestId: "submit-840" });
     const first = await orchestrator.apply({
       kind: "verdict_candidate_recorded",
-      candidate: candidate(),
+      candidate: resultCandidate,
     });
     expect(first.verdictCandidateResolutions).toEqual([]);
     expect(first.persistence.session.some((write) => write.key === "transientVerdictCandidates")).toBe(true);
@@ -452,7 +454,7 @@ describe("verdict candidate flow", () => {
     // The E1 lifecycle for the exact submit is retained in session state.
     const second = await orchestrator.apply({
       kind: "e1_recorded",
-      evidence: lifecycle(),
+      evidence: lifecycle({ requestId: "submit-840" }),
       tabId: 7,
       frameId: 0,
       documentId: DOCUMENT_ID,
@@ -480,7 +482,7 @@ describe("verdict candidate flow", () => {
     const third = await orchestrator.apply({
       kind: "e2_recorded",
       evidence: confirmedE2(),
-      matchedSubmitRequestId: "840",
+      matchedSubmitRequestId: "submit-840",
     });
     expect(third.verdictCandidateResolutions).toHaveLength(1);
     await applyEffects(storage, third);
@@ -489,7 +491,7 @@ describe("verdict candidate flow", () => {
     const resolutions: readonly VerdictCandidateResolution[] =
       third.verdictCandidateResolutions;
     expect(resolutions[0]).toMatchObject({
-      candidateId: candidate().candidateId,
+      candidateId: resultCandidate.candidateId,
       externalSubmissionId: SUBMISSION_ID,
       problemExternalId: PROBLEM,
       verdict: "Accepted",
@@ -516,9 +518,38 @@ describe("verdict candidate flow", () => {
       flushOutbox: async (): Promise<void> => undefined,
     });
 
-    // WebRequest E1s: a GraphQL POST submit and the exact result-distribution
-    // path that carries the stable numeric submission id. Both are retained by
-    // the normal E1 pipeline (what `applyLeetCodeResultConfirmation` reads).
+    // The trusted visible click precedes the exact submit STARTED identity.
+    const hintEffects = await orchestrator.apply({
+      kind: "e0_recorded",
+      hint: {
+        schemaVersion: 1,
+        tier: "E0",
+        kind: "ui_hint",
+        platform: "leetcode",
+        problemExternalId: PROBLEM,
+        observedAt: "2026-08-06T11:20:01.200Z",
+      },
+      sourceDocumentId: DOCUMENT_ID,
+    });
+    await applyEffects(storage, hintEffects);
+
+    // WebRequest E1s: the exact submit identity (updated in place to
+    // completed), a GraphQL result witness, and the exact result-distribution
+    // path carrying the stable numeric submission id.
+    const exactSubmitStartedE1 = lifecycle({
+      evidenceId: "e1_leetcode_submit_840",
+      requestId: "submit-840",
+      receivedAt: "2026-08-06T11:20:01.300Z",
+      lifecycle: "before_request",
+      statusCode: undefined,
+    });
+    const exactSubmitE1 = lifecycle({
+      evidenceId: "e1_leetcode_submit_840",
+      requestId: "submit-840",
+      receivedAt: "2026-08-06T11:20:01.300Z",
+      lifecycle: "completed",
+      statusCode: 200,
+    });
     const graphqlE1: E1RequestObserved = {
       schemaVersion: 1,
       evidenceId: "e1_leetcode_graphql_841",
@@ -545,7 +576,7 @@ describe("verdict candidate flow", () => {
       endpointKey: `${LEETCODE_RESULT_ENDPOINT_PREFIX}/cn/740553045`,
       apiTimeStamp: 2000.5,
     };
-    for (const evidence of [graphqlE1, resultE1]) {
+    for (const evidence of [exactSubmitStartedE1, exactSubmitE1, graphqlE1, resultE1]) {
       const effects = await orchestrator.apply({
         kind: "e1_recorded",
         evidence,
@@ -559,32 +590,17 @@ describe("verdict candidate flow", () => {
 
     // Candidate (from the visible verdict on the final page) arrives before
     // the adapter-driven confirmation.
+    const resultCandidate = armedCandidate({ submitRequestId: "submit-840" });
     const first = await orchestrator.apply({
       kind: "verdict_candidate_recorded",
-      candidate: candidate(),
+      candidate: resultCandidate,
     });
     expect(first.verdictCandidateResolutions).toEqual([]);
     await applyEffects(storage, first);
 
-    // A trusted visible click discovered the problem before the GraphQL POST
-    // (`applyLeetCodeResultConfirmation` filters hints by source documentId).
-    const hintEffects = await orchestrator.apply({
-      kind: "e0_recorded",
-      hint: {
-        schemaVersion: 1,
-        tier: "E0",
-        kind: "ui_hint",
-        platform: "leetcode",
-        problemExternalId: PROBLEM,
-        observedAt: "2026-08-06T11:20:01.200Z",
-      },
-      sourceDocumentId: DOCUMENT_ID,
-    });
-    await applyEffects(storage, hintEffects);
-
     // Reproduce `applyLeetCodeResultConfirmation` exactly: read the transient
-    // session, find the result lifecycle, gather the GraphQL and problem
-    // candidates, then confirm through the adapter-owned constructor.
+    // session, find the result lifecycle, gather exact submit, GraphQL, and
+    // problem candidates, then confirm through the adapter-owned constructor.
     const transient = readTransientSessionEvidenceState(storage.sessionState());
     const resultLifecycle = transient.requestLifecycles.find((entry) =>
       entry.evidence.platform === "leetcode"
@@ -594,6 +610,15 @@ describe("verdict candidate flow", () => {
     const graphqlCandidates = transient.requestLifecycles
       .filter((entry) => entry.evidence.platform === "leetcode" && entry.evidence.endpointKey === "graphql")
       .map((entry) => entry.evidence);
+    const submitCandidates = transient.requestLifecycles
+      .filter((entry) => entry.evidence.platform === "leetcode"
+        && entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
+      .map((entry) => entry.evidence);
+    expect(submitCandidates).toHaveLength(1);
+    expect(submitCandidates[0]).toMatchObject({
+      requestId: "submit-840",
+      lifecycle: "completed",
+    });
     const problemCandidates = transient.uiHints
       .filter((hint) => hint.platform === "leetcode" && hint.sourceDocumentId === resultLifecycle.evidence.documentId)
       .map((hint) => ({
@@ -607,6 +632,7 @@ describe("verdict candidate flow", () => {
     const confirmation = selectLeetCodeResultConfirmation({
       resultEvidence: resultLifecycle.evidence,
       graphqlCandidates,
+      submitCandidates,
       problemCandidates,
     });
     expect(confirmation.kind).toBe("confirmed");
@@ -616,7 +642,7 @@ describe("verdict candidate flow", () => {
     const confirmedE2 = confirmation.evidence;
     expect(confirmedE2.receivedAt).toBe(NETWORK_TIME);
     expect(confirmedE2.externalSubmissionId).toBe(SUBMISSION_ID);
-    expect(confirmation.matchedSubmitRequestId).toBe("graphql-841");
+    expect(confirmation.matchedSubmitRequestId).toBe("submit-840");
 
     const third = await orchestrator.apply({
       kind: "e2_recorded",
@@ -625,7 +651,7 @@ describe("verdict candidate flow", () => {
     });
     expect(third.verdictCandidateResolutions).toHaveLength(1);
     expect(third.verdictCandidateResolutions[0]).toMatchObject({
-      candidateId: candidate().candidateId,
+      candidateId: resultCandidate.candidateId,
       externalSubmissionId: SUBMISSION_ID,
       problemExternalId: PROBLEM,
       verdict: "Accepted",
@@ -640,6 +666,105 @@ describe("verdict candidate flow", () => {
     const session = storage.sessionState();
     const retained = session.transientVerdictCandidates as readonly unknown[];
     expect(retained).toHaveLength(0);
+  });
+
+  it("rejects a submit requestId after an identity-conflicting lifecycle update", async () => {
+    const storage = storageSpy();
+    const orchestrator = createBackgroundOrchestrator({
+      storage,
+      now: () => EXECUTOR_TIME,
+      flushOutbox: async (): Promise<void> => undefined,
+    });
+    const hint = await orchestrator.apply({
+      kind: "e0_recorded",
+      hint: {
+        schemaVersion: 1,
+        tier: "E0",
+        kind: "ui_hint",
+        platform: "leetcode",
+        problemExternalId: PROBLEM,
+        observedAt: "2026-08-06T11:20:01.200Z",
+      },
+      sourceDocumentId: DOCUMENT_ID,
+    });
+    await applyEffects(storage, hint);
+    for (const evidence of [
+      lifecycle({ requestId: "submit-840", lifecycle: "before_request", statusCode: undefined }),
+      lifecycle({
+        requestId: "submit-840",
+        lifecycle: "completed",
+        statusCode: 200,
+        endpointKey: `${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/cn/three-sum`,
+      }),
+      {
+        ...lifecycle({ requestId: "graphql-841", lifecycle: "completed", statusCode: 200 }),
+        endpointKey: "graphql",
+      },
+      lifecycle({
+        requestId: "check-841",
+        method: "GET",
+        lifecycle: "completed",
+        statusCode: 200,
+        endpointKey: `${LEETCODE_CHECK_ENDPOINT_PREFIX}/${SUBMISSION_ID}`,
+        receivedAt: NETWORK_TIME,
+      }),
+      lifecycle({
+        requestId: "result-842",
+        method: "GET",
+        lifecycle: "completed",
+        statusCode: 200,
+        endpointKey: `${LEETCODE_RESULT_ENDPOINT_PREFIX}/${SUBMISSION_ID}`,
+        receivedAt: NETWORK_TIME,
+      }),
+    ]) {
+      const effects = await orchestrator.apply({
+        kind: "e1_recorded",
+        evidence,
+        tabId: evidence.tabId,
+        frameId: evidence.frameId,
+        documentId: evidence.documentId,
+        adapterVersion: evidence.adapterVersion,
+      });
+      await applyEffects(storage, effects);
+    }
+
+    const transient = readTransientSessionEvidenceState(storage.sessionState());
+    const clean = transient.requestLifecycles.filter((entry) =>
+      entry.outcome === "pending" && entry.rejectionReason === null);
+    const resultLifecycle = clean.find((entry) =>
+      entry.evidence.endpointKey.startsWith(`${LEETCODE_RESULT_ENDPOINT_PREFIX}/`));
+    const checkLifecycle = clean.find((entry) =>
+      entry.evidence.endpointKey.startsWith(`${LEETCODE_CHECK_ENDPOINT_PREFIX}/`));
+    expect(checkLifecycle).toBeDefined();
+    if (checkLifecycle === undefined) return;
+    expect(selectLeetCodeConfirmation({
+      checkEvidence: checkLifecycle.evidence,
+      submitCandidates: clean
+        .filter((entry) => entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
+        .map((entry) => entry.evidence),
+    })).not.toMatchObject({ kind: "confirmed" });
+    expect(resultLifecycle).toBeDefined();
+    if (resultLifecycle === undefined) return;
+    const confirmation = selectLeetCodeResultConfirmation({
+      resultEvidence: resultLifecycle.evidence,
+      graphqlCandidates: clean
+        .filter((entry) => entry.evidence.endpointKey === "graphql")
+        .map((entry) => entry.evidence),
+      submitCandidates: clean
+        .filter((entry) => entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
+        .map((entry) => entry.evidence),
+      problemCandidates: transient.uiHints.map((entry) => ({
+        platform: "leetcode" as const,
+        problemExternalId: entry.problemExternalId,
+        observedAt: entry.observedAt,
+        tabId: resultLifecycle.evidence.tabId,
+        frameId: resultLifecycle.evidence.frameId,
+        documentId: entry.sourceDocumentId,
+      })),
+    });
+    expect(confirmation).toEqual({ kind: "no_match", reason: "missing_submit" });
+    expect(storage.localState().confirmedSubmissions).toBeUndefined();
+    expect(storage.sessionState().transientVerdictCandidates).toEqual([]);
   });
 
   it("regression: E2 timestamp is the network evidence time, not the executor clock", async () => {
