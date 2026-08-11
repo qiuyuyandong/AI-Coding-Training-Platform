@@ -1,6 +1,23 @@
 # Current Handoff
 
-## Status (2026-08-10 V4 Phase D Task 21 NowCoder FAIL; first divergence proven)
+## Status (2026-08-11 V4 Phase D D3 refreeze PASS; fresh D4 next)
+
+The new immutable candidate is
+`a911425a415db2ee374430ced62edcaa7b786866`. Its exact validator exited `0`:
+root unit `2393/1`, app E2E `25/25`, extension unit `1587/1587`, extension E2E
+`53/1`, production build `20/20`, privacy `0 findings`, readiness `PASS`, clean
+pre/post identity, and preserved default-database metadata. The exact dist and
+five hashes are frozen in
+`work/reports/v4-phase-d-task22-nowcoder-repair-refreeze-2026-08-11.md`.
+
+The candidate contains the reviewed exact `/acm/problem/list` reserved-route
+repair and the test-only composite service-worker waiter repair. The latter
+adds no retry or timeout and passed independent code review with no HIGH or
+MEDIUM findings. D3 is complete. Fresh same-SHA D4 has not started; earlier
+Task21 observations on `4e7a47b...` are historical only. Nothing here is RC,
+acceptance, release, push, PR, or deployment.
+
+### Superseded Task21 failure context
 
 The immutable repaired candidate is
 `4e7a47bfc22fece4aa60e4bab2f4223668be480b`. It adds strict content-runtime
@@ -41,8 +58,8 @@ problem. Revised plan, code-boundary, and privacy reviews all returned
 `APPROVE`; test-first implementation of exact reserved-route rejection is
 complete. Focused tests pass 406/406 with typecheck, targeted lint, and privacy
 audit `0 findings`. Post-implementation code and privacy reviews are both
-`APPROVE`, with no HIGH or MEDIUM findings. Commit, candidate refreeze, D4
-retry, and D5 remain unauthorized.
+`APPROVE`, with no HIGH or MEDIUM findings. This failure context does not
+certify the new candidate.
 Plan:
 `docs/superpowers/plans/2026-08-10-v4-phase-d-d4-nowcoder-e3-identity-repair.md`.
 
@@ -1103,30 +1120,19 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- Task21 failure evidence, implementation, tests, and the approved revised plan
-  are committed at `6aa750c0ad5db6e90d9681bcef08111fc1cb3929`.
-  Post-implementation code/privacy reviews are both `APPROVE`. The attempted
-  D3 refreeze stopped after a full-gate extension E2E run failed `46/7/1` and
-  its one authorized isolated diagnostic failed `52/1/1`; every failure was
-  the same Playwright `fixtures.ts:87` context-close before business
-  assertions. No replacement candidate or dist freeze exists. Nothing is RC,
-  accepted, released, pushed, or proposed through a PR.
-- Read-only diagnosis identified an orphan `serviceworker` waiter in the
-  extension E2E fixture: discovery may start the worker before the waiter is
-  installed, then a nullish short-circuit leaves it pending until teardown.
-  Plan Revision 2 is independently `APPROVE` with no HIGH/MEDIUM findings and
-  forbids retries/timeouts or production changes. Fixture implementation is
-  separately user-gated and has not started.
+- D3 candidate `a911425a415db2ee374430ced62edcaa7b786866` and exact dist are
+  frozen. Root retains documentation, fresh D4 observation orchestration, D5,
+  and final acceptance-gate scope. No platform submission has run against this
+  candidate yet.
 
 ## Next Commander Action
 
-1. Obtain explicit user authorization for approved Plan Revision 2, then write
-   the fixture-lifecycle RED and implement only the composite waiter repair.
-2. After that infrastructure repair passes its one allowed extension E2E run,
-   rerun the full D3 candidate path and
-   freeze a new exact dist before any D4 retry.
-3. After D3 PASS, reconcile the immutable SHA, exact dist hashes, and default
-   database metadata before requesting fresh same-SHA D4 observations.
+1. Load only `.tmp/task22-exact-dist-a911425` in a fresh extension instance and
+   use a fresh isolated observation database.
+2. Run fresh LeetCode and approved-pilot NowCoder observations on the same SHA,
+   plus blocked-platform readiness/drift checks without submissions.
+3. Enter D5 F1-F4 only if both active-platform observations pass exactly once
+   and all residual queues are zero.
 4. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 

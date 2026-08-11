@@ -1,6 +1,6 @@
 # V4 Phase D D4 NowCoder E3 First-Divergence Investigation and Conditional Repair Plan
 
-**Status:** `REPAIR COMMITTED — D3 REFREEZE BLOCKED by repeated Chromium context-close infrastructure failure; no new candidate`
+**Status:** `D3 REFREEZE COMPLETE — immutable candidate a911425a415db2ee374430ced62edcaa7b786866; fresh D4 not started`
 
 **Date:** 2026-08-10
 
@@ -505,3 +505,27 @@ Independent plan review on 2026-08-11 returned `APPROVE` with no HIGH or
 MEDIUM findings. The review confirmed the orphan-waiter causal chain, RED
 boundary, no-retry rule, and D3 stop contract. This approval does not replace
 explicit authorization for the new fixture/test-infrastructure scope.
+
+### 10.5 Revision 2 execution and D3 close — 2026-08-11
+
+The standing Commander authorization to enter D3 was applied only to this
+approved fixture scope. The pure lifecycle RED failed `2/5` as specified, then
+passed `5/5`; typecheck, targeted ESLint, privacy `0 findings`, and diff-check
+passed. Independent final code review returned `APPROVE` with no HIGH or
+MEDIUM findings.
+
+The one permitted standalone extension E2E run passed `53/1`. The following
+full quality gate passed root `2392/1`, app E2E `25/25`, extension unit
+`1587/1587`, extension E2E `53/1`, and build `20/20`. The fixture repair is
+commit `d8363035700241dc41217238a7583f3b89697881`.
+
+Candidate ownership commit
+`a911425a415db2ee374430ced62edcaa7b786866` passed the exact validator with
+root `2393/1`, app E2E `25/25`, extension unit `1587/1587`, extension E2E
+`53/1`, build `20/20`, privacy `0 findings`, readiness `PASS`, clean pre/post
+identity, and preserved default database metadata. Exact dist hashes and the
+receipt are in
+`work/reports/v4-phase-d-task22-nowcoder-repair-refreeze-2026-08-11.md`.
+
+D3 is complete for this candidate. Task 6 fresh same-SHA D4 observations are
+the only next phase; no D4 observation from `4e7a47b...` transfers forward.
