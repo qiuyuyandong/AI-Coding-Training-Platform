@@ -410,3 +410,98 @@ Stop and return to evidence/plan review if:
   boundary would change;
 * a new candidate cannot reproduce both active-policy observations exactly
   once.
+
+## 10. Revision 2 — extension-worker waiter lifecycle repair (review required)
+
+### 10.1 Evidence-backed cause
+
+The repeated D3 failures are consistent with an orphaned Playwright event
+waiter, not a production-extension assertion failure. In
+`tests/extension-e2e/fixtures.ts`, `extensionWorker` checks
+`context.serviceWorkers()[0]` before `wakeExtensionServiceWorker` opens
+`chrome://extensions/`. That page can start the unpacked extension worker while
+the extension id is being discovered. The helper then creates
+`context.waitForEvent("serviceworker")`, opens the popup, and returns through
+`context.serviceWorkers()[0] ?? await started`. When the worker already exists,
+the nullish branch bypasses `await started`; the pending waiter remains attached
+until context teardown, where it rejects with the exact observed
+`Target page, context or browser has been closed` error.
+
+This explains all observed boundaries:
+
+* the failure always points to the waiter creation line rather than a capture
+  assertion;
+* the failing test moves between runs because the orphan rejection is tied to
+  worker-start timing;
+* later tests and both modified NowCoder chains can still pass;
+* Windows Application/WER logs contain no Chromium crash for the two runs;
+* Playwright uses one worker and zero configured retries, so no hidden retry
+  generated this result.
+
+### 10.2 Narrow repair boundary
+
+This revision may change only the extension E2E worker-start fixture, its pure
+unit proof, the candidate ownership list/test, and the current plan/report/
+handoff evidence. It must not change production extension code, platform
+identity policy, Playwright retry count, timeouts, permissions, storage,
+network policy, API, database schema, or any D4 chronology rule.
+
+Refactor worker startup behind a small injected helper that follows one closed
+sequence:
+
+1. after extension-id discovery, synchronously re-read the current worker;
+2. if it exists, return it without creating an event waiter;
+3. otherwise register exactly one waiter before opening the popup;
+4. save the waiter first, then use the semantic equivalent of
+   `await Promise.all([waiter, openPopup()])` so popup failure cannot leave an
+   unhandled pending rejection;
+5. return the exact worker delivered by the event.
+
+Do not add an automatic test retry. A business assertion failure must remain a
+hard failure, and an infrastructure failure must still be visible. Do not use
+`Promise.race`, do not re-read `serviceWorkers()` after popup navigation to
+short-circuit the waiter, and do not leave either branch unattached to the
+handled composite.
+
+### 10.3 Required RED before implementation
+
+Add a pure test with injected `readExisting`, `waitForStarted`, and `openPopup`
+effects. It must initially fail against the current helper and prove:
+
+* a worker that appears during id discovery is returned without calling
+  `waitForStarted` or leaving a rejectable waiter;
+* when no worker exists, the waiter is registered before `openPopup` and is
+  awaited exactly once;
+* popup rejection and waiter rejection are both handled by the returned
+  composite Promise, with no unhandled rejection after simulated teardown;
+* the helper cannot return a different/stale worker and has no timer, retry,
+  Chrome storage, DOM, network, or wall-clock dependency.
+
+The RED command and exact failing assertions must be recorded before editing
+the fixture.
+
+### 10.4 Validation and stop rule
+
+After independent plan approval and explicit authorization for this new test-
+infrastructure scope:
+
+1. implement only the helper/fixture change;
+2. run its focused RED-to-GREEN test, typecheck, targeted ESLint,
+   `git diff --check`, and the privacy audit;
+3. obtain independent code review;
+4. run one `npm run extension:e2e`; any context-close or business failure stops
+   the revision without another retry;
+5. if green, run one full `npm run quality:gate`;
+6. add only the reviewed paths to the candidate ownership validator and its
+   unit proof, commit the candidate, then run the exact candidate validator;
+7. freeze hashes and resume Task 6 only after the validator exits `0` on a
+   clean immutable HEAD.
+
+Revision 2 is a proposal until independently reviewed and explicitly
+authorized. Its presence does not authorize implementation or convert
+`6aa750c...` into a candidate.
+
+Independent plan review on 2026-08-11 returned `APPROVE` with no HIGH or
+MEDIUM findings. The review confirmed the orphan-waiter causal chain, RED
+boundary, no-retry rule, and D3 stop contract. This approval does not replace
+explicit authorization for the new fixture/test-infrastructure scope.

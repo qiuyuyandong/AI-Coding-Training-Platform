@@ -335,6 +335,15 @@ processes were absent after teardown. The existing candidate `4e7a47b...` is
 invalidated by the runtime change, and no replacement immutable candidate
 exists.
 
+Read-only follow-up isolated the fixture race: worker discovery can start the
+service worker before `waitForEvent("serviceworker")` is installed; the later
+`serviceWorkers()[0] ?? await started` then short-circuits and leaves `started`
+pending until context teardown. Windows Application/WER logs contained no
+Chromium crash entry for the two runs. Plan Revision 2 specifies a pure RED and
+a no-retry composite-wait repair. Independent plan review returned `APPROVE`
+with no HIGH or MEDIUM findings. Fixture implementation remains separately
+user-gated and has not started.
+
 Remaining D4 work:
 
 1. Produce a reviewed fixture/Chromium lifecycle diagnosis and plan revision

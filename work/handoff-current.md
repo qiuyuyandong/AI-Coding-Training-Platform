@@ -1111,12 +1111,19 @@ observation, final verification, and acceptance pending.**
   the same Playwright `fixtures.ts:87` context-close before business
   assertions. No replacement candidate or dist freeze exists. Nothing is RC,
   accepted, released, pushed, or proposed through a PR.
+- Read-only diagnosis identified an orphan `serviceworker` waiter in the
+  extension E2E fixture: discovery may start the worker before the waiter is
+  installed, then a nullish short-circuit leaves it pending until teardown.
+  Plan Revision 2 is independently `APPROVE` with no HIGH/MEDIUM findings and
+  forbids retries/timeouts or production changes. Fixture implementation is
+  separately user-gated and has not started.
 
 ## Next Commander Action
 
-1. Write and independently review a fixture/Chromium lifecycle diagnosis and
-   plan revision with a RED; do not rerun the gate a third time or weaken it.
-2. After that infrastructure repair, rerun the full D3 candidate path and
+1. Obtain explicit user authorization for approved Plan Revision 2, then write
+   the fixture-lifecycle RED and implement only the composite waiter repair.
+2. After that infrastructure repair passes its one allowed extension E2E run,
+   rerun the full D3 candidate path and
    freeze a new exact dist before any D4 retry.
 3. After D3 PASS, reconcile the immutable SHA, exact dist hashes, and default
    database metadata before requesting fresh same-SHA D4 observations.
