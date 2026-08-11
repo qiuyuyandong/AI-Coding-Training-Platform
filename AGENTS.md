@@ -112,17 +112,20 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-11):** **V4 Phase D D1-D4 engineering evidence
-> is complete; D5 F1-F4 is next** on `feature/v1-followup`. Immutable candidate
+> **Current status (2026-08-11):** **V4 Phase D D1-D3 are complete; D4 final
+> delivery was observed but required stage evidence is incomplete; D5 is stopped** on `feature/v1-followup`. Immutable candidate
 > `a911425a415db2ee374430ced62edcaa7b786866` passed the exact D3 validator
 > with root `2393/1`, app E2E `25/25`, extension unit `1587/1587`, extension
 > E2E `53/1`, build `20/20`, privacy `0 findings`, readiness `PASS`, and
-> default-database preservation. Same-SHA D4 then passed: LeetCode
+> default-database preservation. Same-SHA final delivery was then observed: LeetCode
 > `cn/741526004` and approved-pilot NowCoder `84444687` each produced one
 > POST, four events, one session, one attempt, ACK, and zero final queues;
-> blocked-platform drift passed 292/292 without submissions. Evidence:
+> blocked-platform drift passed 292/292 without submissions. Independent F1
+> review rejected D4 completeness because contemporaneous browse-only, E1,
+> and E2 stage states were not retained; Revision 3 governs the bounded
+> evidence-only remediation. Evidence:
 > `work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`.
-> D5 F1-F4 must independently approve before the final explicit user gate.
+> D5 must not restart until D4 closes, then F1-F4 must all rerun independently.
 > This is not final user acceptance, an RC, or a release; do not push, create
 > a PR, deploy, publish, or enter V0.5.
 >

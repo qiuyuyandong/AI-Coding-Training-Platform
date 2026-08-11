@@ -4,11 +4,12 @@ Date: 2026-08-11
 Branch: `feature/v1-followup`  
 Immutable implementation candidate: `a911425a415db2ee374430ced62edcaa7b786866`  
 Documentation HEAD at entry: `c17e9eb2db737f08bc7fd14905be6fb29e9ee1a3`  
-Status: `D4 ENGINEERING OBSERVATION PASS`
+Status: `FINAL DELIVERY OBSERVED; D4 INCOMPLETE — contemporaneous browse/E1/E2 stage evidence missing`
 
 This report records automated engineering observations against one immutable
 candidate and its exact production build. It is not user acceptance, an RC,
-or a release. It permits D5 independent review to begin.
+or a release. Independent F1 review later rejected D4 completeness; it does
+not permit D5 to proceed.
 
 ## Exact artifact and isolated environment
 
@@ -158,9 +159,99 @@ unchanged. No blocked-platform retry or submission occurred.
 
 ## Gate conclusion
 
-The API, SQLite, platform, and popup evidence proves exact one-delivery
+The API, SQLite, platform, and popup evidence proves exact final one-delivery
 behavior for both active platforms on immutable candidate `a911425...`; the
-blocked-platform drift gate also passes. D4 engineering observation is
-complete and D5 F1-F4 independent review may begin. This result remains
-engineering evidence only: it is not final user acceptance, an RC, or a
-release.
+blocked-platform drift gate also passes. However, this run did not preserve
+the master plan's required contemporaneous browse-only negative state, E1
+state with waiting unchanged, or E2 state with waiting incremented exactly
+once for each platform. Final state cannot reconstruct those observations.
+Independent F1 review therefore returned `REJECT`; D4 remains incomplete and
+D5 is stopped. Revision 3 in the active repair plan is the only authorized
+remediation. This result is not final user acceptance, an RC, or a release.
+
+## Task 24 Revision 3.2 pre-action observation failure
+
+The reviewed event-driven observer implementation passed 23/23 focused tests,
+typecheck, targeted ESLint, privacy audit with `0 findings`, candidate-runtime
+isolation, and independent code/privacy review. Its first fresh LeetCode run
+used a fresh disposable profile and a fresh isolated database with zero
+capture events, sessions, and attempts.
+
+No submission occurred. Navigation alone changed raw session
+`transientE1` cardinality from zero to one, so the browse-only gate failed
+closed before action-time confirmation. The browser closed, the isolated
+database remained `0/0/0`, and the exact five artifact hashes were identical
+before and after the attempt. Safe evidence:
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786441821102.json`.
+
+This does not invalidate candidate `a911425...`: source inspection shows the
+frozen observer intentionally retains coarse owned E1 records, while the
+Task 24 harness observed only total array cardinality. Revision 4 in the
+active plan must distinguish an explicit target submit E1 from valid unrelated
+browse E1 without reading or exporting request, document, URL, or account
+identity. D4 remains incomplete and D5 remains stopped.
+
+## Task 24 Revision 4 pre-live closeout
+
+Revision 4 now implements the reviewed target-only E0/E1 projection without
+changing extension runtime, manifest, validator, candidate, or exact dist.
+GraphQL browse activity is ignored and never serialized; submit/status-like
+near misses fail closed. Required E0/E1 record keys are presence-checked without
+reading forbidden identity/timestamp fields. The report projection contains no
+raw session cardinalities.
+
+Final local evidence is: observer unit `31/31`, typecheck exit `0`, targeted
+ESLint exit `0`, privacy audit `PASS` with `0 findings`, `git diff --check` exit
+`0` (CRLF warnings only), and candidate isolation diff exit `0`. Two independent
+code/privacy reviewers returned `APPROVE` with no HIGH or MEDIUM findings.
+
+No new live run or submission occurred during this implementation/review
+closeout. D4 remains incomplete and D5 remains stopped. The next action is a
+fresh isolated LeetCode observation with an action-time submission confirmation;
+the first failure terminates the observation without silent retry.
+
+## Task 24 Revision 4 live LeetCode failure
+
+After the reviewed harness armed on a fresh disposable profile/database and
+the user gave action-time authorization, the user logged in and submitted
+`merge-two-sorted-lists` once. Public submission `cn/741573842` returned
+`Compile Error` because the intentionally empty solution was submitted. This
+is still a valid final verdict and the capture failure is not excluded.
+
+The popup showed waiting `1`, outbox/quarantine `0/0`, no successful sync, and
+`epoch_started_missing`. The observer stopped with
+`observer_stage_rejected`; the isolated database remained capture events /
+sessions / attempts `0/0/0`. Safe failure receipt:
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786444988036.json`.
+All five exact-dist hashes matched before and after. The context was closed and
+there was no retry or second submission.
+
+Source inspection proves a sufficient production contradiction: STARTED is
+keyed only by an exact submit request ID, while the GraphQL-result E2 branch
+uses a GraphQL request ID for CONFIRMED. Content performs an exact lookup and
+therefore cannot find a STARTED epoch for that GraphQL identity. Existing unit
+tests currently encode the contradictory identity. A separate observer
+failure-receipt gap prevented the live receipt from retaining the triggering
+closed error/target projection, but did not cause the runtime failure.
+
+D4 remains incomplete and D5 remains stopped. Revision 5 in the active plan is
+review-required before test or production work. Any production repair will
+invalidate candidate `a911425...` and require D3 re-freeze plus fresh same-SHA
+LeetCode and approved-pilot NowCoder observations.
+
+## Revision 5 local repair checkpoint
+
+Revision 5 has now completed RED-to-GREEN and independent code/privacy review,
+without another live run. The exact submit request ID is the sole epoch
+identity in both LeetCode confirmation paths; GraphQL is corroboration only.
+Terminal or identity-conflicting lifecycle wrappers are excluded before check,
+result, GraphQL, or submit selection, and persistence must complete before the
+single exact CONFIRMED delivery. The observer failure receipt is separately
+bounded to fixed error, target/queue cardinalities, and isolated DB counts.
+
+Evidence: initial production RED `118 passed / 6 failed`; observer RED `31/32`;
+latest focused regression `261/261`; observer `32/32`; typecheck and targeted
+ESLint exit `0`; privacy audit `0 findings`; independent code and privacy
+reviews `APPROVE` with no HIGH/MEDIUM findings. The old candidate remains
+invalid. D3 candidate ownership, full validation, new exact dist, and five new
+hashes are still pending; no live retry is authorized yet.

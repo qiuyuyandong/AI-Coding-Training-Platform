@@ -1,15 +1,18 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-11):** **V4 Phase D D1-D4 engineering evidence is
-> complete; D5 F1-F4 is next** on `feature/v1-followup`. Immutable candidate
+> **Status (2026-08-11):** **V4 Phase D D3 is complete; D4 final delivery was
+> observed but D4 remains incomplete, and D5 is stopped** on `feature/v1-followup`. Immutable candidate
 > `a911425a415db2ee374430ced62edcaa7b786866` passed the exact D3 validator
 > with root `2393/1`, app E2E `25/25`, extension unit `1587/1587`, extension
 > E2E `53/1`, production build `20/20`, privacy `0 findings`, readiness
-> `PASS`, and default-database preservation. Its exact dist then completed
-> same-SHA D4: LeetCode `cn/741526004` and approved-pilot NowCoder `84444687`
+> `PASS`, and default-database preservation. Its exact dist then produced real
+> final deliveries for LeetCode `cn/741526004` and approved-pilot NowCoder `84444687`:
 > each produced one POST, four events, one session, one attempt, ACK, and zero
 > final waiting/outbox/quarantine; blocked-platform drift passed 292/292
-> without submissions. Evidence is in
+> without submissions. Independent F1 review found that the report did not
+> preserve the required contemporaneous browse-only, E1, and E2 stage states,
+> so these deliveries are not yet D4 PASS evidence and D5 must not proceed.
+> Evidence and the superseding Revision 3 are in
 > `work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. This
 > is engineering evidence only, not final user acceptance, an RC, or a
 > release. LeetCode and NowCoder remain network-`experimental`; AtCoder,
@@ -48,7 +51,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; V4 Phase D D1-D4 engineering evidence is complete and D5 F1-F4 remains. Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; V4 Phase D D1-D3 are complete, while D4 still requires contemporaneous active-policy stage evidence and D5 has not started. Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 

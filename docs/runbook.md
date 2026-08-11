@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-08-11 (V4 Phase D D1-D4 engineering evidence complete on immutable candidate `a911425a415db2ee374430ced62edcaa7b786866`; D5 F1-F4 next; no final user acceptance, RC, or release; the earlier Phase C C0-C5 and Phase C-D readiness contract remain authoritative)
+Last updated: 2026-08-11 (V4 Phase D D1-D3 complete on immutable candidate `a911425a415db2ee374430ced62edcaa7b786866`; D4 final delivery observed but contemporaneous stage evidence incomplete; D5 stopped; no final user acceptance, RC, or release; the earlier Phase C C0-C5 and Phase C-D readiness contract remain authoritative)
 
 ## Setup
 

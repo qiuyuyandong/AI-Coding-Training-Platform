@@ -1,12 +1,14 @@
 # Superpowers Documentation Index
 
-> **Current status (2026-08-11):** **V4 Phase D D1-D4 engineering evidence
-> is complete; D5 F1-F4 is next.** Immutable candidate
+> **Current status (2026-08-11):** **V4 Phase D D1-D3 are complete; D4 final
+> delivery was observed but required stage evidence is incomplete; D5 is stopped.** Immutable candidate
 > `a911425a415db2ee374430ced62edcaa7b786866` passed the exact D3 validator,
-> and its exact dist passed same-SHA D4 for LeetCode `cn/741526004`, approved
+> and its exact dist produced final deliveries for LeetCode `cn/741526004`, approved
 > NowCoder pilot `84444687`, and the 292-case blocked-platform drift lane.
 > Each active platform produced exactly one POST, four events, one session,
-> one attempt, ACK, and zero final queues. Evidence:
+> one attempt, ACK, and zero final queues. Independent F1 review found the
+> required contemporaneous browse-only, E1, and E2 states missing, so this is
+> not yet D4 PASS evidence. Evidence and the superseding Revision 3:
 > [`../../work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`](../../work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md).
 > This is not final user acceptance, an RC, or a release.
 >

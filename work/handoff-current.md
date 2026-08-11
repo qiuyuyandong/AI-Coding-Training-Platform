@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-11 V4 Phase D D4 engineering observation PASS; D5 F1-F4 next)
+## Status (2026-08-11 V4 Phase D D4 Revision 5 implemented; D3 re-freeze pending; D5 stopped)
 
 The new immutable candidate is
 `a911425a415db2ee374430ced62edcaa7b786866`. Its exact validator exited `0`:
@@ -13,14 +13,54 @@ five hashes are frozen in
 The candidate contains the reviewed exact `/acm/problem/list` reserved-route
 repair and the test-only composite service-worker waiter repair. The latter
 adds no retry or timeout and passed independent code review with no HIGH or
-MEDIUM findings. D3 is complete. Fresh same-SHA D4 then passed on this exact
+MEDIUM findings. D3 is complete. Fresh same-SHA final delivery was observed on this exact
 candidate/dist: LeetCode `cn/741526004` and approved-pilot NowCoder
 `84444687` each produced exactly one POST, four events, one session, one
 attempt, ACK, and zero final waiting/outbox/quarantine. The blocked-platform
-readiness/drift lane passed 292/292 without submissions. Evidence:
-`work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. D5
-F1-F4 is the only next phase. Nothing here is RC, acceptance, release, push,
+readiness/drift lane passed 292/292 without submissions. Independent F1 review
+then rejected D4 completeness because contemporaneous browse-only, E1, and E2
+stage states were not retained. Revision 3 is independently approved for a
+bounded observation-harness remediation; D5 is stopped. Evidence:
+`work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. Nothing here is RC, acceptance, release, push,
 PR, or deployment.
+
+Task 24 Revision 3.2 first failed closed before submission when normal browse
+activity changed raw `transientE1`. Revision 4 now counts only exact target E0
+and submit/status E1 entries, keeps GraphQL noise and raw session cardinalities
+out of evidence, and makes submit-like target mismatch terminal. Its final
+observer suite passes 31/31 with typecheck, targeted ESLint, privacy audit `0
+findings`, diff-check, and candidate isolation all green. Two independent
+code/privacy reviews returned `APPROVE` with no HIGH or MEDIUM findings.
+Candidate/runtime/dist remain unchanged. A fresh isolated LeetCode observation
+is now the only next action; D4 and D5 are still incomplete.
+
+That live action has now occurred once and failed. After explicit action-time
+authorization, the user submitted intentionally empty code for
+`merge-two-sorted-lists`; public submission `cn/741573842` returned Compile
+Error. Popup state was waiting `1`, outbox/quarantine `0/0`, no successful
+sync, and `epoch_started_missing`. The observer stopped with
+`observer_stage_rejected`, SQLite remained `0/0/0`, and all five dist hashes
+were unchanged. No retry or second submission occurred.
+
+Static inspection proves the sufficient control-plane contradiction: STARTED
+uses the exact submit request ID, while GraphQL-result E2 sends CONFIRMED using
+the GraphQL request ID. Revision 5 is now review-required for a causal RED,
+exact submit-ID binding, and a bounded failure-receipt correction. Production
+implementation and further live runs are unauthorized. Any production repair
+invalidates candidate `a911425...` and returns the work to D3 re-freeze before
+both platform observations restart.
+
+Revision 5 has since reached local GREEN without a live retry. The exact submit
+request is now the sole epoch identity; check/result/GraphQL/submit wrappers
+with terminal or conflicting state are excluded, GraphQL is corroboration
+only, and both production confirmation branches use one persistence-before-
+exact-delivery seam. The observer writes a bounded safe failure receipt.
+Focused production/observer tests pass `261/261`, the observer suite passes
+`32/32`, typecheck and targeted lint pass, and privacy audit reports `0
+findings`. Independent code and privacy reviews are both `APPROVE` with no
+HIGH/MEDIUM findings. Candidate `a911425...` remains historical and invalid
+for further D4 observations. No platform retry is authorized before a new
+immutable candidate and exact dist are frozen.
 
 ### Superseded Task21 failure context
 
@@ -1126,18 +1166,25 @@ observation, final verification, and acceptance pending.**
 ## In Flight
 
 - D3 candidate `a911425a415db2ee374430ced62edcaa7b786866` and exact dist are
-  frozen, and D4 same-SHA engineering observations are complete. Root retains
-  D5 F1-F4, evidence/status reconciliation, and the final explicit user gate.
+  frozen only as the failed Task 24 observation anchor. D4 retains historical
+  final-delivery evidence but lacks authoritative contemporaneous stages, and
+  the new LeetCode run failed on submit/GraphQL epoch identity. Revision 5
+  review is required; no repair or retry is authorized. D5 has not started.
 
 ## Next Commander Action
 
-1. Run D5 F1-F4 independently against candidate `a911425...` and the Task 23
-   evidence set.
-2. Run final readiness, privacy, and full quality commands; reconcile required
-   status documents without changing runtime or dist.
-3. Require all four lanes to return `APPROVE`, commit evidence-only status, and
-   stop at the explicit final user acceptance gate.
-4. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
+1. Independently review Revision 5. Do not implement production changes or
+   perform another platform submission before approval.
+2. After approval, write the causal REDs first, repair only exact submit-ID
+   binding plus the bounded harness failure receipt, and complete independent
+   code/privacy review.
+3. Because production repair invalidates `a911425...`, return to D3: create and
+   validate a new immutable candidate, freeze exact dist/hashes, then restart
+   LeetCode and approved-pilot NowCoder observations with separate fresh
+   profiles/databases and action-time confirmations.
+4. Run final readiness, privacy, and full quality commands; then rerun all four
+   F1-F4 lanes from scratch and stop at the explicit final user acceptance gate.
+5. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 
 ## Known Risks
@@ -1148,7 +1195,8 @@ observation, final verification, and acceptance pending.**
   AtCoder is still the sole production DOM adapter; LeetCode, Codeforces,
   NowCoder, and Luogu remain DOM-experimental.
 - NowCoder remains experimental even though the exact approved pilot now has
-  one same-SHA D4 PASS. Generic `acm/problem/<id>` network support remains out
+  one same-SHA final delivery; required stage evidence is still incomplete.
+  Generic `acm/problem/<id>` network support remains out
   of scope; global pilot-link precedence remains explicitly unsafe.
 - Luogu production-adapter certification remains BLOCKED on missing public
   verdict DOM (historical record preserved in

@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-08-11 (V4 Phase D D1-D4 engineering evidence complete on immutable candidate `a911425a415db2ee374430ced62edcaa7b786866`; D5 F1-F4 next; no final user acceptance, RC, or release; the earlier Phase C C0-C5 evidence and Phase C-D readiness contract remain authoritative)
+Last updated: 2026-08-11 (V4 Phase D D1-D3 complete on immutable candidate `a911425a415db2ee374430ced62edcaa7b786866`; D4 final delivery observed but contemporaneous stage evidence incomplete; D5 stopped; no final user acceptance, RC, or release; the earlier Phase C C0-C5 evidence and Phase C-D readiness contract remain authoritative)
 
 ## Overview
 
@@ -8,10 +8,11 @@ The app is a local-first unified OJ training memory system. It opens original pr
 
 This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. Accounts, cloud sync, hosted AI, editor-agnostic project evidence, and multi-tenant storage are not implemented today. The product does not plan editor activity or workspace-footprint monitoring.
 
-Phase D D4 now has same-SHA engineering observations for the existing active
+Phase D has same-SHA final-delivery observations for the existing active
 policies: LeetCode `cn/741526004` and the narrow approved NowCoder pilot
-`84444687` each completed one E0/E1/E2/E3-to-ACK projection with four events,
-one session, one attempt, and zero final queues. This does not promote either
+`84444687` each produced four events, one session, one attempt, and zero final
+queues. The evidence did not preserve the required contemporaneous browse-only,
+E1, and E2 stage states, so D4 remains incomplete. This does not promote either
 network policy beyond `experimental`; AtCoder, Codeforces, and Luogu remain
 network-`blocked`. See
 `work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`.

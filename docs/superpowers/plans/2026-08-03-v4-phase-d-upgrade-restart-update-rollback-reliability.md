@@ -8,10 +8,12 @@
 master plan and the Phase C-D orchestration plan may summarize Phase D and link
 here, but they must not contain a second detailed D1-D5 specification.
 
-**Implementation state:** D1-D4 engineering evidence is complete on immutable
-candidate `a911425a415db2ee374430ced62edcaa7b786866`. D5 F1-F4 independent
-review is the only active phase; final user acceptance remains a separate
-explicit gate.
+**Implementation state:** D1-D3 are complete on immutable candidate
+`a911425a415db2ee374430ced62edcaa7b786866`. Same-SHA final deliveries were
+observed for both active policies, but independent F1 review found the required
+contemporaneous browse-only, E1, and E2 state evidence missing. D4 therefore
+remains incomplete under the approved Revision 3 evidence-remediation plan;
+D5 is stopped. Final user acceptance remains a separate explicit gate.
 
 **Independent review (2026-08-03):** `APPROVE`. The independent plan reviewer
 found no HIGH or MEDIUM blocker and confirmed that this file is the sole
@@ -1249,7 +1251,7 @@ RC, acceptance, or release.
 Production runtime, manifest, build scripts, protocol, and artifact remain
 unchanged at this stop state.
 
-### 14.11 Final D3 refreeze and same-SHA D4 close (2026-08-11)
+### 14.11 Final D3 refreeze and same-SHA final deliveries (2026-08-11; D4 close superseded)
 
 The later Task 17-22 repair sequence supersedes candidate `f18eddf...` for D4
 observation purposes. It closes the real LeetCode result-route regression,
@@ -1264,7 +1266,7 @@ extension unit `1587/1587`, extension E2E `53/1`, build `20/20`, privacy
 database metadata. Its frozen dist hashes are recorded in
 `work/reports/v4-phase-d-task22-nowcoder-repair-refreeze-2026-08-11.md`.
 
-Fresh D4 same-SHA observations then passed. LeetCode `cn/741526004` and the
+Fresh same-SHA final deliveries were then observed. LeetCode `cn/741526004` and the
 approved NowCoder pilot `84444687` each produced exactly one POST, four
 events, one session, one attempt, ACK, and zero final
 waiting/outbox/quarantine. The blocked-platform readiness/drift lane passed
@@ -1273,8 +1275,10 @@ explicitly excluded because its tab predated extension installation and had no
 E0 click listener; it produced no E2, POST, or SQLite row and caused no runtime
 change.
 
-The authoritative D4 evidence is
-`work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. D4
-engineering observation is complete. D5 F1-F4 may now run against this exact
-candidate and evidence set. This is not final user acceptance, an RC, or a
-release.
+The evidence is
+`work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`.
+Independent F1 review later found that it did not preserve the required
+contemporaneous browse-only, E1, and E2 states for each active policy. Final
+delivery cannot reconstruct those stages. D4 therefore remains incomplete,
+Revision 3 of the 2026-08-10 repair plan is the only authorized remediation,
+and D5 is stopped. This is not final user acceptance, an RC, or a release.
