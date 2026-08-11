@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-08-04 (V4 Phase D D1/D2/D3 candidate engineering complete; final candidate gate `V4 candidate commit PASS`; D4/D5 still gated; the earlier Phase C C0-C5 and Phase C-D readiness contract remain authoritative)
+Last updated: 2026-08-11 (V4 Phase D D1-D4 engineering evidence complete on immutable candidate `a911425a415db2ee374430ced62edcaa7b786866`; D5 F1-F4 next; no final user acceptance, RC, or release; the earlier Phase C C0-C5 and Phase C-D readiness contract remain authoritative)
 
 ## Setup
 

@@ -4,6 +4,14 @@ This file describes the **current local V0 implementation under validation**. It
 
 The product uses this rule: use browser session, do not extract browser session.
 
+The Phase D D4 same-SHA observations on candidate `a911425...` preserved this
+boundary: evidence retained only platform/problem/submission/verdict/timestamp
+scalars, exact dist hashes, queue counts, and local projection counts. No raw
+source code, problem body, request/response body, headers, cookies, tokens, or
+browser storage was copied into project evidence. LeetCode and NowCoder remain
+network-`experimental`; the observation does not authorize broader platform
+coverage or cloud transmission.
+
 The V3 click-created waiting model is blocked from V0 acceptance because a UI
 action does not prove server acceptance. The completed V4 Phase 0 stopgap retains
 only a bounded, session-only UI hint; it cannot turn that hint into waiting,

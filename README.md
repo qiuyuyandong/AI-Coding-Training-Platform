@@ -1,22 +1,20 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-04):** **V4 Phase D D1/D2/D3 candidate engineering work is
-> complete** on `feature/v1-followup`. The implementation candidate is
-> `509faf0e60532cf565a6a57aa796b96bc1053f38`
-> (`feat(v4): harden Phase D capture reliability`); the documentation-reconciled
-> HEAD is `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`. The final candidate gate
-> passed `2217/1` unit, `25` app E2E, `1414` extension tests, `53/1` extension
-> E2E, production build `20/20`, zero privacy findings, and default-database
-> preservation. D1 closes upgrade/restart/pause/recovery reliability with
-> `lastCaptureError` lifecycle, D2 closes privacy/permission audit with
-> `0 findings`, and D3 freezes one immutable implementation candidate under
-> `scripts/validate-v4-candidate.mjs` with a 14-case unit suite. This is not
-> RC, acceptance, or release; D4 real same-SHA natural observations and D5
-> F1-F4 still require separate authorization. The earlier Phase C C0-C5
-> verdict remains authoritative: C1 LeetCode is network-`V4_EXPERIMENTAL`;
-> C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED`; NowCoder
-> remains network-`experimental`. Historical AtCoder DOM production
-> certification is unchanged.
+> **Status (2026-08-11):** **V4 Phase D D1-D4 engineering evidence is
+> complete; D5 F1-F4 is next** on `feature/v1-followup`. Immutable candidate
+> `a911425a415db2ee374430ced62edcaa7b786866` passed the exact D3 validator
+> with root `2393/1`, app E2E `25/25`, extension unit `1587/1587`, extension
+> E2E `53/1`, production build `20/20`, privacy `0 findings`, readiness
+> `PASS`, and default-database preservation. Its exact dist then completed
+> same-SHA D4: LeetCode `cn/741526004` and approved-pilot NowCoder `84444687`
+> each produced one POST, four events, one session, one attempt, ACK, and zero
+> final waiting/outbox/quarantine; blocked-platform drift passed 292/292
+> without submissions. Evidence is in
+> `work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. This
+> is engineering evidence only, not final user acceptance, an RC, or a
+> release. LeetCode and NowCoder remain network-`experimental`; AtCoder,
+> Codeforces, and Luogu remain network-`blocked`; historical AtCoder DOM
+> production certification is unchanged.
 >
 > **Earlier V4 evidence (still authoritative for their own scope):**
 > V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12.
@@ -50,7 +48,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; V4 Phase D D1, D2, and D3 candidate engineering are complete (D3 freezes one immutable implementation candidate; D4/D5 remain gated). Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; V4 Phase D D1-D4 engineering evidence is complete and D5 F1-F4 remains. Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 

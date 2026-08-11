@@ -1,6 +1,16 @@
 # Superpowers Documentation Index
 
-> **Status (2026-08-09):** **V4 Phase D D1, D2, and D3 candidate engineering
+> **Current status (2026-08-11):** **V4 Phase D D1-D4 engineering evidence
+> is complete; D5 F1-F4 is next.** Immutable candidate
+> `a911425a415db2ee374430ced62edcaa7b786866` passed the exact D3 validator,
+> and its exact dist passed same-SHA D4 for LeetCode `cn/741526004`, approved
+> NowCoder pilot `84444687`, and the 292-case blocked-platform drift lane.
+> Each active platform produced exactly one POST, four events, one session,
+> one attempt, ACK, and zero final queues. Evidence:
+> [`../../work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`](../../work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md).
+> This is not final user acceptance, an RC, or a release.
+>
+> **Historical status (2026-08-09):** **V4 Phase D D1, D2, and D3 candidate engineering
 > work is complete** on `feature/v1-followup` (candidate `509faf0e60532cf565a6a57aa796b96bc1053f38`;
 > doc-reconciled HEAD `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`; final
 > candidate gate `2217/1` unit, `25` app E2E, `1414` extension tests,

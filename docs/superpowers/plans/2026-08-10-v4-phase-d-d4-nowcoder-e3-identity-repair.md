@@ -1,6 +1,6 @@
 # V4 Phase D D4 NowCoder E3 First-Divergence Investigation and Conditional Repair Plan
 
-**Status:** `D3 REFREEZE COMPLETE — immutable candidate a911425a415db2ee374430ced62edcaa7b786866; fresh D4 not started`
+**Status:** `D4 ENGINEERING OBSERVATION PASS — immutable candidate a911425a415db2ee374430ced62edcaa7b786866; D5 F1-F4 next`
 
 **Date:** 2026-08-10
 
@@ -529,3 +529,37 @@ receipt are in
 
 D3 is complete for this candidate. Task 6 fresh same-SHA D4 observations are
 the only next phase; no D4 observation from `4e7a47b...` transfers forward.
+
+### 10.6 Task 6 same-SHA D4 close — 2026-08-11
+
+The exact build from immutable candidate
+`a911425a415db2ee374430ced62edcaa7b786866` was loaded once as unpacked
+extension `ajomjghlnpajbhbemihagpcehgffkihf` and paired to a fresh isolated
+database. Three older extension installations were visibly disabled.
+
+LeetCode fresh submission `cn/741526004` closed the same-problem / same-verdict
+regression with one POST, four events, one session, one attempt, and zero
+post-ACK queues. The approved NowCoder pilot then closed with fresh accepted
+submission `84444687`, one additional POST, four additional events, one
+additional session, one additional attempt, and zero post-ACK queues. The
+user-visible popup recorded final last sync
+`2026-08-11T08:12:10.578Z`, waiting `0`, outbox `0`, quarantine `0`, and no
+blocking diagnostic.
+
+An earlier NowCoder submission `84444621` is explicitly excluded because the
+problem tab predated extension installation and therefore had no E0 click
+listener; its popup remained at waiting `0` and produced no local POST or
+SQLite row. No runtime repair, extension reload, or candidate change resulted.
+The same page was then freshly loaded under the existing extension before the
+valid observation.
+
+Blocked-platform readiness passed and the focused drift suite passed 292/292
+without AtCoder, Codeforces, or Luogu submissions. Candidate-to-HEAD runtime
+diffs remained empty, all five exact-dist hashes matched the D3 receipt, and
+the default database remained 479232 bytes with LastWriteTimeUtc
+`2026-07-23T15:56:38.8411343Z`.
+
+The authoritative evidence is
+`work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. D4
+engineering observation is complete. D5 F1-F4 independent review is the only
+next phase. This is not user acceptance, an RC, or a release.

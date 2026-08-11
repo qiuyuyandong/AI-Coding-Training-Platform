@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-11 V4 Phase D D3 refreeze PASS; fresh D4 next)
+## Status (2026-08-11 V4 Phase D D4 engineering observation PASS; D5 F1-F4 next)
 
 The new immutable candidate is
 `a911425a415db2ee374430ced62edcaa7b786866`. Its exact validator exited `0`:
@@ -13,9 +13,14 @@ five hashes are frozen in
 The candidate contains the reviewed exact `/acm/problem/list` reserved-route
 repair and the test-only composite service-worker waiter repair. The latter
 adds no retry or timeout and passed independent code review with no HIGH or
-MEDIUM findings. D3 is complete. Fresh same-SHA D4 has not started; earlier
-Task21 observations on `4e7a47b...` are historical only. Nothing here is RC,
-acceptance, release, push, PR, or deployment.
+MEDIUM findings. D3 is complete. Fresh same-SHA D4 then passed on this exact
+candidate/dist: LeetCode `cn/741526004` and approved-pilot NowCoder
+`84444687` each produced exactly one POST, four events, one session, one
+attempt, ACK, and zero final waiting/outbox/quarantine. The blocked-platform
+readiness/drift lane passed 292/292 without submissions. Evidence:
+`work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. D5
+F1-F4 is the only next phase. Nothing here is RC, acceptance, release, push,
+PR, or deployment.
 
 ### Superseded Task21 failure context
 
@@ -1121,18 +1126,17 @@ observation, final verification, and acceptance pending.**
 ## In Flight
 
 - D3 candidate `a911425a415db2ee374430ced62edcaa7b786866` and exact dist are
-  frozen. Root retains documentation, fresh D4 observation orchestration, D5,
-  and final acceptance-gate scope. No platform submission has run against this
-  candidate yet.
+  frozen, and D4 same-SHA engineering observations are complete. Root retains
+  D5 F1-F4, evidence/status reconciliation, and the final explicit user gate.
 
 ## Next Commander Action
 
-1. Load only `.tmp/task22-exact-dist-a911425` in a fresh extension instance and
-   use a fresh isolated observation database.
-2. Run fresh LeetCode and approved-pilot NowCoder observations on the same SHA,
-   plus blocked-platform readiness/drift checks without submissions.
-3. Enter D5 F1-F4 only if both active-platform observations pass exactly once
-   and all residual queues are zero.
+1. Run D5 F1-F4 independently against candidate `a911425...` and the Task 23
+   evidence set.
+2. Run final readiness, privacy, and full quality commands; reconcile required
+   status documents without changing runtime or dist.
+3. Require all four lanes to return `APPROVE`, commit evidence-only status, and
+   stop at the explicit final user acceptance gate.
 4. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 
@@ -1143,11 +1147,9 @@ observation, final verification, and acceptance pending.**
   network-`blocked` under their platform-specific identity constraints.
   AtCoder is still the sole production DOM adapter; LeetCode, Codeforces,
   NowCoder, and Luogu remain DOM-experimental.
-- NowCoder's exact approved pilot currently has a real E3 false negative after
-  durable E2. The proven cause is reserved navigation route
-  `/acm/problem/list` being fabricated as a problem identity. Global pilot-link
-  precedence remains explicitly unsafe because a stray link could consume the
-  wrong E2; the repair must reject only the reserved non-problem route.
+- NowCoder remains experimental even though the exact approved pilot now has
+  one same-SHA D4 PASS. Generic `acm/problem/<id>` network support remains out
+  of scope; global pilot-link precedence remains explicitly unsafe.
 - Luogu production-adapter certification remains BLOCKED on missing public
   verdict DOM (historical record preserved in
   `work/reports/luogu-adapter-blocker.json`).

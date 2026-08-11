@@ -8,10 +8,10 @@
 master plan and the Phase C-D orchestration plan may summarize Phase D and link
 here, but they must not contain a second detailed D1-D5 specification.
 
-**Implementation state:** Phase D implementation is authorized only within this
-plan's dependency order and stated boundaries. D1 may begin after the recorded
-independent approval below; D2 and D3 remain gated by their explicit
-completion and review requirements.
+**Implementation state:** D1-D4 engineering evidence is complete on immutable
+candidate `a911425a415db2ee374430ced62edcaa7b786866`. D5 F1-F4 independent
+review is the only active phase; final user acceptance remains a separate
+explicit gate.
 
 **Independent review (2026-08-03):** `APPROVE`. The independent plan reviewer
 found no HIGH or MEDIUM blocker and confirmed that this file is the sole
@@ -1248,3 +1248,33 @@ This is D3/Task 15 engineering evidence only, not D4 delivery, D5 approval,
 RC, acceptance, or release.
 Production runtime, manifest, build scripts, protocol, and artifact remain
 unchanged at this stop state.
+
+### 14.11 Final D3 refreeze and same-SHA D4 close (2026-08-11)
+
+The later Task 17-22 repair sequence supersedes candidate `f18eddf...` for D4
+observation purposes. It closes the real LeetCode result-route regression,
+rejects exact reserved NowCoder `/acm/problem/list` identity without widening
+the pilot, and repairs the test-only extension-worker waiter lifecycle without
+retry or timeout changes. The final immutable candidate is
+`a911425a415db2ee374430ced62edcaa7b786866`.
+
+The exact candidate validator exited `0` with root `2393/1`, app E2E `25/25`,
+extension unit `1587/1587`, extension E2E `53/1`, build `20/20`, privacy
+`0 findings`, readiness `PASS`, clean pre/post identity, and preserved default
+database metadata. Its frozen dist hashes are recorded in
+`work/reports/v4-phase-d-task22-nowcoder-repair-refreeze-2026-08-11.md`.
+
+Fresh D4 same-SHA observations then passed. LeetCode `cn/741526004` and the
+approved NowCoder pilot `84444687` each produced exactly one POST, four
+events, one session, one attempt, ACK, and zero final
+waiting/outbox/quarantine. The blocked-platform readiness/drift lane passed
+292/292 without submissions. One earlier NowCoder submission `84444621` is
+explicitly excluded because its tab predated extension installation and had no
+E0 click listener; it produced no E2, POST, or SQLite row and caused no runtime
+change.
+
+The authoritative D4 evidence is
+`work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. D4
+engineering observation is complete. D5 F1-F4 may now run against this exact
+candidate and evidence set. This is not final user acceptance, an RC, or a
+release.
