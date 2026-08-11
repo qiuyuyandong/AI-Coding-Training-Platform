@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-11 V4 Phase D D4 Revision 5 implemented; D3 re-freeze pending; D5 stopped)
+## Status (2026-08-11 V4 Phase D D3 re-frozen at aa1a572; D4 fresh observations next; D5 stopped)
 
 The new immutable candidate is
 `a911425a415db2ee374430ced62edcaa7b786866`. Its exact validator exited `0`:
@@ -61,6 +61,17 @@ findings`. Independent code and privacy reviews are both `APPROVE` with no
 HIGH/MEDIUM findings. Candidate `a911425...` remains historical and invalid
 for further D4 observations. No platform retry is authorized before a new
 immutable candidate and exact dist are frozen.
+
+Task 26 has now re-frozen immutable candidate
+`aa1a572c3913b35dd3f0391f849dab66e79c56a2`. Its exact validator exited `0`:
+root `2430/1`, app E2E `25/25`, extension unit `1591/1591`, extension E2E
+`53/1`, build `20/20`, privacy `0 findings`, readiness `PASS`, clean candidate
+identity, and preserved default DB metadata. The exact dist is
+`.tmp/task26-exact-dist-aa1a572`; hashes are recorded in
+`work/reports/v4-phase-d-task26-exact-submit-refreeze-2026-08-11.md`.
+No platform submission occurred during re-freeze. The only next action is a
+fresh LeetCode observation against that exact dist; action-time confirmation
+is still required after observer READY. D4 and D5 remain incomplete.
 
 ### Superseded Task21 failure context
 

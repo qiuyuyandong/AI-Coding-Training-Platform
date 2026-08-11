@@ -1062,3 +1062,15 @@ The prior candidate `a911425...` is invalid for any post-repair observation.
 No live retry is authorized yet. The next gate is candidate ownership proof, a
 local implementation commit, full quality gate, exact candidate validation,
 and five new frozen dist hashes.
+
+Task 26 completed that re-freeze. The first candidate attempt `9e049ea` was
+rejected when the full gate exposed one stale synthetic GraphQL E2E that had no
+exact submit A. After the fixture was corrected test-only, immutable candidate
+`aa1a572c3913b35dd3f0391f849dab66e79c56a2` passed the complete validator:
+root `2430/1`, app E2E `25/25`, extension unit `1591/1591`, extension E2E
+`53/1`, build `20/20`, privacy `0 findings`, readiness `PASS`, clean identity,
+and preserved default-database metadata. The five hashes and exact dist path
+are frozen in
+`work/reports/v4-phase-d-task26-exact-submit-refreeze-2026-08-11.md`.
+No real submission occurred. The next gate is a fresh LeetCode observation on
+that exact dist, with action-time user confirmation only after READY.

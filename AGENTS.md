@@ -112,20 +112,27 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-11):** **V4 Phase D D1-D3 are complete; D4 final
-> delivery was observed but required stage evidence is incomplete; D5 is stopped** on `feature/v1-followup`. Immutable candidate
-> `a911425a415db2ee374430ced62edcaa7b786866` passed the exact D3 validator
-> with root `2393/1`, app E2E `25/25`, extension unit `1587/1587`, extension
+> **Current status (2026-08-11):** **V4 Phase D D1-D3 are complete on a new
+> Revision 5 candidate; fresh D4 observations are next; D5 is stopped** on
+> `feature/v1-followup`. Immutable candidate
+> `aa1a572c3913b35dd3f0391f849dab66e79c56a2` passed the exact D3 validator
+> with root `2430/1`, app E2E `25/25`, extension unit `1591/1591`, extension
 > E2E `53/1`, build `20/20`, privacy `0 findings`, readiness `PASS`, and
-> default-database preservation. Same-SHA final delivery was then observed: LeetCode
+> default-database preservation. The exact dist and hashes are frozen in
+> `work/reports/v4-phase-d-task26-exact-submit-refreeze-2026-08-11.md`.
+> Historical same-SHA final delivery on the superseded candidate observed LeetCode
 > `cn/741526004` and approved-pilot NowCoder `84444687` each produced one
 > POST, four events, one session, one attempt, ACK, and zero final queues;
 > blocked-platform drift passed 292/292 without submissions. Independent F1
 > review rejected D4 completeness because contemporaneous browse-only, E1,
-> and E2 stage states were not retained; Revision 3 governs the bounded
-> evidence-only remediation. Evidence:
+> and E2 stage states were not retained. A later fresh LeetCode run exposed
+> `epoch_started_missing`; Revision 5 now binds CONFIRMED to the exact submit
+> request rather than GraphQL. All prior live observations are historical and
+> do not certify the new candidate. Evidence:
 > `work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`.
-> D5 must not restart until D4 closes, then F1-F4 must all rerun independently.
+> The next action is one fresh LeetCode observation on the exact new dist,
+> with action-time confirmation only after READY. D5 must not restart until D4
+> closes, then F1-F4 must all rerun independently.
 > This is not final user acceptance, an RC, or a release; do not push, create
 > a PR, deploy, publish, or enter V0.5.
 >
@@ -449,6 +456,15 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
+- Revision 5 exact-submit repair is frozen at candidate
+  `aa1a572c3913b35dd3f0391f849dab66e79c56a2`. Exact validator evidence is
+  root `2430/1`, app E2E `25/25`, extension unit `1591/1591`, extension E2E
+  `53/1`, build `20/20`, privacy `0 findings`, readiness `PASS`, and preserved
+  default database metadata. Exact dist:
+  `.tmp/task26-exact-dist-aa1a572`; receipt:
+  `work/reports/v4-phase-d-task26-exact-submit-refreeze-2026-08-11.md`.
+  Fresh same-SHA LeetCode and approved-pilot NowCoder observations remain
+  required; D5 is stopped. No live retry occurred during repair/re-freeze.
 - V4 Phase D D4 coordinator repair Tasks 0-10 are complete (implementation
   `a9515a8` `fix(v4): surface expired diagnostics and pin graphql
   coordination`, doc reconciliation `a1aeda0`, base `3246713`; plan
