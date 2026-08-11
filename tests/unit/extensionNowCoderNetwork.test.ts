@@ -186,6 +186,16 @@ describe("NowCoder E2 confirmation policy", () => {
       now: NOW,
     }).kind).toBe("no_match");
   });
+
+  it("keeps the generic authenticated-characterization identity outside E2 policy", () => {
+    expect(selectNowCoderConfirmation({
+      statusEvidence: status,
+      statusUrl: "https://ac.nowcoder.com/nccommon/status?submissionId=84257292",
+      submitCandidates: [e1()],
+      problemCandidates: [{ ...problem, problemExternalId: "acm/problem/319811" }],
+      now: NOW,
+    })).toEqual({ kind: "no_match", reason: "missing_problem" });
+  });
 });
 
 describe("NowCoder E3 policy", () => {
@@ -207,6 +217,19 @@ describe("NowCoder E3 policy", () => {
       problemExternalId: "acm/contest/18839/1001",
       verdict: "Wrong Answer",
     });
+  });
+
+  it("keeps the generic authenticated-characterization identity outside E3 policy", () => {
+    expect(NOWCODER_NETWORK_POLICY.verdictEvidence({
+      kind: "verdict",
+      pageUrl: "https://ac.nowcoder.com/acm/contest/view-submission?submissionId=84257292",
+      problemExternalId: "acm/problem/319811",
+      verdictText: "\u7b54\u6848\u9519\u8bef",
+      tabId: 8,
+      frameId: 0,
+      documentId: "doc-result-1",
+      receivedAt: NOW,
+    })).toBeNull();
   });
 
   it.each([

@@ -105,6 +105,7 @@ async function installNowCoderResultRoute(
         contentType: "text/html; charset=utf-8",
         body: [
           "<!doctype html><meta charset=\"utf-8\"><title>Historical NowCoder result</title>",
+          "<ul class=\"acm-nav\"><li><a href=\"/acm/problem/list\">题库</a></li></ul>",
           "<a href=\"/acm/contest/18839/1001\">problem</a>",
           `<div class="coder-cont-legend">${verdict}</div>`,
         ].join(""),

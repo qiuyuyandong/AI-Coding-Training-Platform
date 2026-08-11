@@ -195,6 +195,7 @@ function problemHtml(): string {
 function resultHtml(verdict: string | null): string {
   return [
     "<!doctype html><meta charset=\"utf-8\"><title>Fake NowCoder result</title>",
+    "<ul class=\"acm-nav\"><li><a href=\"/acm/problem/list\">题库</a></li></ul>",
     "<a href=\"/acm/contest/18839/1001\">problem</a>",
     verdict === null ? "" : `<div class=\"coder-cont-legend\">${verdict}</div>`,
   ].join("");

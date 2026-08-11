@@ -201,6 +201,39 @@ describe("detectProblemFromLocation", () => {
     });
   });
 
+  it.each([
+    ["exact reserved route", "https://ac.nowcoder.com/acm/problem/list"],
+    ["reserved route trailing slash", "https://ac.nowcoder.com/acm/problem/list/"],
+    ["reserved route repeated trailing slash", "https://ac.nowcoder.com/acm/problem/list///"],
+    ["reserved route with query and hash", "https://ac.nowcoder.com/acm/problem/list/?from=nav#list"],
+  ] as const)("rejects NowCoder %s from URL-only detection", (_name, url) => {
+    expect(detectProblemFromLocation(asLocation(url), "Problem list")).toBeNull();
+  });
+
+  it.each([
+    ["listing", "acm/problem/listing"],
+    ["list-1", "acm/problem/list-1"],
+    ["uppercase List", "acm/problem/List"],
+  ] as const)("retains non-reserved NowCoder problem segment %s", (_name, externalId) => {
+    expect(detectProblemFromLocation(
+      asLocation(`https://ac.nowcoder.com/acm/problem/${externalId.slice("acm/problem/".length)}`),
+      "Generic ACM Example",
+    )).toMatchObject({
+      platform: "nowcoder",
+      problemExternalId: externalId,
+    });
+  });
+
+  it("does not apply the ACM reserved route rule to www practice identities", () => {
+    expect(detectProblemFromLocation(
+      asLocation("https://www.nowcoder.com/practice/list"),
+      "Practice list",
+    )).toMatchObject({
+      platform: "nowcoder",
+      problemExternalId: "practice/list",
+    });
+  });
+
   it("returns null for unsupported NowCoder pages", () => {
     expect(detectProblemFromLocation(
       asLocation("https://www.nowcoder.com/"),
@@ -221,6 +254,10 @@ describe("detectProblemFromLocation", () => {
     expect(detectProblemFromLocation(
       asLocation("https://ac.nowcoder.com/contest/25000"),
       "Contest",
+    )).toBeNull();
+    expect(detectProblemFromLocation(
+      asLocation("https://ac.nowcoder.com/acm/problem/list"),
+      "Problem list",
     )).toBeNull();
   });
 

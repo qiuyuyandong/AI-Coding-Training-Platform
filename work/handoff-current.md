@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-10 V4 Phase D Tasks 17-20 COMPLETE; Task 21 next)
+## Status (2026-08-10 V4 Phase D Task 21 NowCoder FAIL; first divergence proven)
 
 The immutable repaired candidate is
 `4e7a47bfc22fece4aa60e4bab2f4223668be480b`. It adds strict content-runtime
@@ -16,14 +16,35 @@ privacy `0 findings`, readiness `PASS`, stable pre/post-gate identity, and
 preserved default-database metadata. Frozen dist hashes and the full receipt
 are recorded in
 `work/reports/v4-phase-d-task20-result-route-repair-refreeze-2026-08-10.md`.
-Port 3000 is free.
+Task 21 ran against the exact candidate/dist in one fresh paired extension and
+isolated database. LeetCode passed exactly once: one POST, four events, one
+session, one attempt, ACK, and zero waiting/outbox/quarantine. The blocked-
+platform readiness/drift lane passed 284/284 without submissions. The approved
+NowCoder pilot `acm/contest/18839/1001` failed after durable E2: the exact final
+result document showed stable submission `84438785` and `答案正确`, but waiting
+remained 1 with no E3 bundle, POST, ACK, or SQLite increment. The transient
+E1-only popup state was not separately observed. D4 is incomplete and D5 has
+not started. Evidence:
+`work/reports/v4-phase-d-task21-same-sha-automated-observations-2026-08-10.md`.
 
-Task 21 is now the only next action: load one fresh extension instance from
-the exact new dist, use fresh extension and isolated database state, recheck
-all five hashes, pair, and repeat the single authorized LeetCode automated
-engineering observation. No NowCoder or blocked-platform action precedes a
-LeetCode PASS. This remains engineering evidence, not a natural-user
-observation, D5 approval, RC, acceptance, or release.
+The first unproven alias hypothesis was rejected by plan/code review and kept
+only as a fail-closed lesson. The user then disabled capture and reopened the
+exact result. Sanitized live evidence proves the real first divergence: global
+navigation `/acm/problem/list` is incorrectly parsed as problem identity
+`acm/problem/list`; together with the real pilot breadcrumb it makes the
+unchanged exactly-one resolver return `null` before candidate emission.
+
+The revised causal RED fails exactly 3 of 270 focused tests: navigation
+`problem/list` conflicts with the pilot breadcrumb, DOM-only `problem/list` is
+fabricated as a problem, and URL-only `problem/list` is fabricated as a
+problem. Revised plan, code-boundary, and privacy reviews all returned
+`APPROVE`; test-first implementation of exact reserved-route rejection is
+complete. Focused tests pass 406/406 with typecheck, targeted lint, and privacy
+audit `0 findings`. Post-implementation code and privacy reviews are both
+`APPROVE`, with no HIGH or MEDIUM findings. Commit, candidate refreeze, D4
+retry, and D5 remain unauthorized.
+Plan:
+`docs/superpowers/plans/2026-08-10-v4-phase-d-d4-nowcoder-e3-identity-repair.md`.
 
 Task 16 failed twice, including once with a fresh exact-dist extension and
 fresh isolated database. Both new Accepted submissions produced zero capture
@@ -969,7 +990,10 @@ observation, final verification, and acceptance pending.**
 
 - Branch: `feature/v1-followup`; immutable repaired candidate is
   `4e7a47bfc22fece4aa60e4bab2f4223668be480b`. Tasks 17-20 are complete and
-  reviewed; Task 21 clean LeetCode re-observation is the only next action.
+  reviewed; Task 21 records LeetCode PASS, blocked-platform drift PASS, and
+  NowCoder FAIL. D4 is incomplete. The worktree contains only the uncommitted
+  Task21 report, blocked investigation plan, fail-closed test guard, and this
+  handoff update; no production file changed.
   Candidate `f18eddf4cb4d7dd24c439b2dea5917793839e6a2` is historical after the
   runtime/manifest repair, and `22fa470d24724c15b5bdb2874e6817b599505f3c`
   never became a candidate because its explicit path-ownership preflight
@@ -1001,7 +1025,7 @@ observation, final verification, and acceptance pending.**
   Task 12 plan gate APPROVED; Tasks 13 and 14 engineering COMPLETE and
   independently APPROVED; Task 15 initial re-freeze complete; Task 16 failed
   twice; Tasks 17-20 repair/review/re-freeze COMPLETE (2026-08-10); Task 21
-  clean LeetCode re-observation next.** The 9th
+  LeetCode and blocked-platform lanes PASS but approved-pilot NowCoder FAIL.** The 9th
   real observation (merge-two-sorted-lists,
   `cn/741081653`) confirmed E2 and E3 but produced no bundle: a stale
   historical "Accepted" result panel misclassified as a transition created a
@@ -1013,8 +1037,11 @@ observation, final verification, and acceptance pending.**
   new candidate to its exact persisted request identity and closes restart and
   legacy pre-E1 cleanup. Tasks 17-20 add the strict top-level result route and
   same-identity-only SPA epoch preservation on immutable candidate `4e7a47b`.
-  D4 end-to-end engineering delivery remains unproven until Task 21 passes.
-  D5 F1-F4 and final user acceptance remain blocked.
+  The NowCoder false negative leaves waiting 1 after the exact final result
+  document. Capture-disabled sanitized evidence proves `/acm/problem/list` is
+  misclassified as a problem and causes resolver ambiguity before E3.
+  D4 end-to-end engineering delivery remains unproven. D5 F1-F4 and final user
+  acceptance remain blocked.
 - V0 manual learning loop vertical slice: **implemented but not accepted.**
   Formal observation and replacement-RC work remain gated.
 
@@ -1076,19 +1103,20 @@ observation, final verification, and acceptance pending.**
 
 ## In Flight
 
-- Tasks 17-20 are complete and independently approved. The exact candidate
-  gate passed on `4e7a47b`; Task 21 clean LeetCode re-observation is next. The
-  prior `f18eddf4` candidate and both Task 16 waiting states are historical
-  failure evidence only. Nothing is RC, accepted, released, pushed, or
-  proposed through a PR.
+- Task21 failure evidence, implementation, tests, and the approved revised plan
+  are in the uncommitted worktree. The Worker is complete. Post-implementation
+  code/privacy reviews are both `APPROVE`. Root retains docs, review
+  acceptance, Git, candidate freeze, and browser scope. The user authorized
+  the reviewed local commit and D3 refreeze on 2026-08-11. Nothing is RC,
+  accepted, released, pushed, or proposed through a PR.
 
 ## Next Commander Action
 
-1. Recheck candidate `4e7a47bfc22fece4aa60e4bab2f4223668be480b`
-   lineage and exact dist hashes, then load one fresh exact-dist extension and
-   isolated database for Task 21's single LeetCode automated engineering
-   re-observation.
-2. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
+1. Commit the reviewed implementation/evidence, run the full D3 candidate
+   path, and freeze a new exact dist before any D4 retry.
+2. After D3 PASS, reconcile the immutable SHA, exact dist hashes, and default
+   database metadata before requesting fresh same-SHA D4 observations.
+3. Do not push, create a PR, deploy, label the work RC/accepted/released, resume
    formal V0 observation, or enter V0.5.
 
 ## Known Risks
@@ -1098,6 +1126,11 @@ observation, final verification, and acceptance pending.**
   network-`blocked` under their platform-specific identity constraints.
   AtCoder is still the sole production DOM adapter; LeetCode, Codeforces,
   NowCoder, and Luogu remain DOM-experimental.
+- NowCoder's exact approved pilot currently has a real E3 false negative after
+  durable E2. The proven cause is reserved navigation route
+  `/acm/problem/list` being fabricated as a problem identity. Global pilot-link
+  precedence remains explicitly unsafe because a stray link could consume the
+  wrong E2; the repair must reject only the reserved non-problem route.
 - Luogu production-adapter certification remains BLOCKED on missing public
   verdict DOM (historical record preserved in
   `work/reports/luogu-adapter-blocker.json`).

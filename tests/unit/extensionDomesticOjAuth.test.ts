@@ -228,6 +228,7 @@ describe("LeetCode top-level submission route", () => {
 
 describe("NowCoder authenticated-characterization detection", () => {
   const SUB_URL = "https://ac.nowcoder.com/acm/contest/view-submission?submissionId=84104369";
+  const PILOT_SUB_URL = "https://ac.nowcoder.com/acm/contest/view-submission?submissionId=84438785";
 
   it("detects problem identity via the unique acm problem anchor in the view-submission page", () => {
     const html = loadFixtureHtml("submission-84104369-ac.html", NOWCODER_FIXTURES_DIR);
@@ -244,6 +245,55 @@ describe("NowCoder authenticated-characterization detection", () => {
     expect(detectVerdictFromDocument("nowcoder", asDocument(html))).toEqual({ verdict: "Accepted" });
   });
 
+  it("detects the approved pilot identity from one exact contest anchor", () => {
+    const page = asDocument(`
+      <a href="/acm/contest/18839/1001">1001</a>
+      <div class="coder-cont-legend"><span class="font-green">\u7b54\u6848\u6b63\u786e</span></div>
+    `);
+    const location = asLocation(PILOT_SUB_URL);
+    const problem = detectProblemFromPage(location, page);
+
+    expect(problem).toEqual({
+      platform: "nowcoder",
+      problemExternalId: "acm/contest/18839/1001",
+      problemTitle: "1001",
+      canonicalUrl: "https://ac.nowcoder.com/acm/contest/18839/1001",
+    });
+    expect(detectVerdictFromDocument("nowcoder", page)).toEqual({ verdict: "Accepted" });
+    expect(isExactSubmissionResultPage(location, page, problem)).toBe(true);
+  });
+
+  it("causal RED: ignores the global problem-list navigation beside the pilot breadcrumb", () => {
+    const page = asDocument(`
+      <div class="acm-header js-site-global-nav">
+        <ul class="acm-nav"><li><a href="/acm/problem/list">\u9898\u5e93</a></li></ul>
+      </div>
+      <div class="crumbs-path"><a href="/acm/contest/18839/1001">1001</a></div>
+      <div class="coder-cont-legend"><span class="font-green">\u7b54\u6848\u6b63\u786e</span></div>
+    `);
+    const location = asLocation(PILOT_SUB_URL);
+    const problem = detectProblemFromPage(location, page);
+
+    expect(problem).toEqual({
+      platform: "nowcoder",
+      problemExternalId: "acm/contest/18839/1001",
+      problemTitle: "1001",
+      canonicalUrl: "https://ac.nowcoder.com/acm/contest/18839/1001",
+    });
+    expect(detectVerdictFromDocument("nowcoder", page)).toEqual({ verdict: "Accepted" });
+    expect(isExactSubmissionResultPage(location, page, problem)).toBe(true);
+  });
+
+  it("causal RED: never treats the global /acm/problem/list route as a problem identity", () => {
+    const page = asDocument(`
+      <div class="acm-header js-site-global-nav">
+        <ul class="acm-nav"><li><a href="/acm/problem/list">\u9898\u5e93</a></li></ul>
+      </div>
+    `);
+
+    expect(detectProblemFromPage(asLocation(PILOT_SUB_URL), page)).toBeNull();
+  });
+
   type RejectCase = readonly [name: string, url: string, anchorHtml: string];
   const ANCHOR = '<a href="/acm/problem/319811">Anchor</a>';
   const wrap = (body: string) =>
@@ -252,6 +302,10 @@ describe("NowCoder authenticated-characterization detection", () => {
   const REJECT_CASES: readonly RejectCase[] = [
     ["zero anchors", SUB_URL, "<span>no link</span>"],
     ["multiple conflicting anchors", SUB_URL, ANCHOR + '<a href="/acm/problem/12345">Other</a>'],
+    ["pilot plus generic current problem remains ambiguous", SUB_URL,
+      '<a href="/acm/contest/18839/1001">Pilot</a>' + ANCHOR],
+    ["reserved problem-list route with trailing slash", SUB_URL,
+      '<a href="/acm/problem/list/">Problem list</a>'],
     ["anchor with query string", SUB_URL, '<a href="/acm/problem/319811?foo=bar">x</a>'],
     ["anchor with hash fragment", SUB_URL, '<a href="/acm/problem/319811#frag">x</a>'],
     ["anchor on spoofed host (substring)", SUB_URL, '<a href="https://ac.nowcoder.com.evil.example/acm/problem/319811">x</a>'],

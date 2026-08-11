@@ -193,7 +193,7 @@ function tryDetectNowCoderProblem(
           || parsed.pathname === "/acm/contest/18839/1001/") {
           return { externalId: "acm/contest/18839/1001" };
         }
-        const id = readNowCoderSegment(parsed.pathname, "/acm/problem/", parsed.hostname);
+        const id = readNowCoderAcmProblemSegment(parsed.pathname, parsed.hostname);
         return { externalId: `acm/problem/${id}` };
       }
     }
@@ -216,6 +216,18 @@ function readNowCoderSegment(pathname: string, urlPrefix: string, host: string):
     throw new CanonicalProblemUrlError(`Invalid NowCoder problem path for ${host}`);
   }
   return id;
+}
+
+function readNowCoderAcmProblemSegment(pathname: string, host: string): string {
+  const id = readNowCoderSegment(pathname, "/acm/problem/", host);
+  if (isReservedNowCoderAcmProblemSegment(id)) {
+    throw new CanonicalProblemUrlError("Invalid NowCoder ACM problem path");
+  }
+  return id;
+}
+
+function isReservedNowCoderAcmProblemSegment(id: string): boolean {
+  return id === "list";
 }
 
 function detectLuoguProblem(
@@ -652,6 +664,7 @@ function resolveNowCoderProblemAnchor(pathname: string): string | null {
   if (match === null) return null;
   const id = match[1];
   if (id === undefined) return null;
+  if (isReservedNowCoderAcmProblemSegment(id)) return null;
   return `acm/problem/${id}`;
 }
 
