@@ -14,6 +14,8 @@ import {
   type Worker,
 } from "@playwright/test";
 
+import { resolveExtensionWorkerLifecycle } from "./extensionWorkerLifecycle";
+
 const TEMP_ROOT = resolve(process.cwd(), ".tmp", "playwright-extension");
 const PROFILES_ROOT = resolve(TEMP_ROOT, "profiles");
 export const EXTENSION_DIST = resolve(process.cwd(), "extension", "dist");
@@ -84,9 +86,13 @@ async function wakeExtensionServiceWorker(context: BrowserContext): Promise<Work
       return undefined;
     });
     if (extensionId === undefined) throw new Error("Unified OJ Capture is not loaded");
-    const started = context.waitForEvent("serviceworker", { timeout: 15_000 });
-    await page.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
-    return context.serviceWorkers()[0] ?? await started;
+    return await resolveExtensionWorkerLifecycle({
+      readExisting: () => context.serviceWorkers()[0],
+      waitForStarted: () => context.waitForEvent("serviceworker", { timeout: 15_000 }),
+      openPopup: async () => {
+        await page.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
+      },
+    });
   } finally {
     await page.close();
   }
