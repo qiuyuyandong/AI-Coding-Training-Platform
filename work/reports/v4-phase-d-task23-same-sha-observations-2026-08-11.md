@@ -255,3 +255,32 @@ ESLint exit `0`; privacy audit `0 findings`; independent code and privacy
 reviews `APPROVE` with no HIGH/MEDIUM findings. The old candidate remains
 invalid. D3 candidate ownership, full validation, new exact dist, and five new
 hashes are still pending; no live retry is authorized yet.
+
+## Task 27 `aa1a572` LeetCode live observation — FAIL (observer stage)
+
+Revision 5 was re-frozen as immutable candidate
+`aa1a572c3913b35dd3f0391f849dab66e79c56a2`, and its complete candidate
+validator passed before this run. A fresh disposable profile and isolated
+zero-row SQLite database reached `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, and
+`READY=1` against the exact frozen Task 26 dist. After explicit action-time
+authorization, the user manually submitted `merge-two-sorted-lists` once.
+The disposable Chromium was accidentally closed after the platform displayed
+the result.
+
+The observer failed closed with `observer_stage_rejected`. Safe evidence
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786450433237.json`
+contains only the last accepted `browse_only` stage: target E0/E1/submit/status
+`0/0/0/0`, confirmed/tombstones/outbox/quarantine all zero, and database
+capture events / sessions / attempts `0/0/0`. All five exact-dist hashes match
+the Task 26 freeze before and after. The dedicated server was stopped; port
+3000 has no listener. No retry or second submission occurred.
+
+This receipt does not observe or classify the verdict and therefore cannot
+support a claim that `Compile Error` caused the delay or should be excluded.
+`Compile Error` remains a legitimate final verdict and useful training signal.
+The observed failure boundary is the harness transition from `browse_only`,
+before accepted E1/E2/E3/ACK evidence. D4 remains incomplete and D5 remains
+stopped. The next action is a reviewed RED for the observer transition
+contract and bounded rejection receipt, especially storage callbacks that may
+coalesce E0 and exact-submit E1. Production runtime and verdict taxonomy remain
+frozen until causality is proved.

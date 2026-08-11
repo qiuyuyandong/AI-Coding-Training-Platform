@@ -1,6 +1,6 @@
 # V4 Phase D D4 NowCoder E3 First-Divergence Investigation and Conditional Repair Plan
 
-**Status:** `REVISION 5 REVIEW REQUIRED — Task 24 LeetCode control-plane identity contradiction reproduced; D4 incomplete; no live retry authorized; D5 stopped`
+**Status:** `REVISION 6 REVIEW REQUIRED — Task 27 observer transition rejected after READY; D4 incomplete; no live retry authorized; D5 stopped`
 
 **Date:** 2026-08-10
 
@@ -1074,3 +1074,52 @@ are frozen in
 `work/reports/v4-phase-d-task26-exact-submit-refreeze-2026-08-11.md`.
 No real submission occurred. The next gate is a fresh LeetCode observation on
 that exact dist, with action-time user confirmation only after READY.
+
+### 10.15 Task 27 live observation stop on observer stage rejection
+
+A fresh disposable Chromium/profile and zero-row isolated database were armed
+against candidate `aa1a572c3913b35dd3f0391f849dab66e79c56a2` and the exact
+Task 26 dist. The observer reported `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, and
+`READY=1`; all five pre/final artifact hashes remained identical. After fresh
+action-time authorization, the user manually submitted
+`merge-two-sorted-lists` and later accidentally closed the disposable browser
+after the platform displayed a result.
+
+The observer terminated fail-closed with `observer_stage_rejected`. Its last
+accepted safe state remained `browse_only`: target E0/E1/submit/status counts
+were `0/0/0/0`, confirmed/tombstone/outbox/quarantine counts were all zero,
+and the isolated SQLite database remained capture events / sessions / attempts
+`0/0/0`. Evidence:
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786450433237.json`.
+The local observation server was stopped and port 3000 was released. There was
+no retry or second submission.
+
+This evidence cannot attribute the rejection to the platform verdict. In
+particular, it does not justify excluding `Compile Error`: that is a valid
+final training outcome. The failure occurred before any E1/E2/E3 stage was
+accepted by the harness. The next permitted work is documentation and a
+reviewed, test-first diagnosis of the observer transition contract, including
+coalesced E0/E1 storage delivery and a bounded rejection receipt. No
+production change, verdict filtering, new candidate, NowCoder run, or live
+retry is authorized by this failure.
+
+Revision 6 must remain harness-only unless a later RED proves a separate
+production defect. Required REDs are:
+
+1. E0 plus exact E1 in one storage callback fails closed and its bounded safe
+   rejection receipt reports only target `e0=1/e1=1/submit=1/status=0`, closed
+   queue counts, and isolated DB counts;
+2. separate E0 then exact E1 reaches `e1_observed`;
+3. E1 plus E2 in one callback, and E0 plus E1 plus E2 in one callback, both
+   fail closed rather than fabricating an intermediate-stage claim;
+4. separate legal E1 then E2 reaches `e2_confirmed`;
+5. both `Compile Error` and `Accepted` remain on the same request-bound E3
+   path after legal E2 and can produce at most one candidate/bundle; and
+6. the rejection receipt contains no request/document/endpoint/time/URL,
+   verdict/DOM text, raw session entry, body/header/token/code, or DB path,
+   and unknown/hostile getters remain unread.
+
+The current receipt retains only the last accepted snapshot, so coalesced
+E0/E1 is a code-supported hypothesis, not a proven live cause. Independent
+read-only review agrees that the failure cannot be attributed to Compile Error
+and that filtering the verdict would be an unjustified product regression.

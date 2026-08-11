@@ -1,8 +1,30 @@
 # Current Handoff
 
-## Status (2026-08-11 V4 Phase D D3 re-frozen at aa1a572; D4 fresh observations next; D5 stopped)
+## Status (2026-08-11 V4 Phase D D3 re-frozen at aa1a572; Task 27 observer-stage failure; D5 stopped)
 
-The new immutable candidate is
+Task 27 attempted the first fresh LeetCode observation on immutable candidate
+`aa1a572c3913b35dd3f0391f849dab66e79c56a2`. The disposable profile and
+zero-row database reached `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, and `READY=1`.
+After explicit action-time authorization, the user manually submitted
+`merge-two-sorted-lists` once and accidentally closed Chromium after the result
+appeared. The observer terminated fail-closed with `observer_stage_rejected`;
+its last accepted safe state remained browse-only with target E0/E1/submit/
+status `0/0/0/0`, all extension queues zero, and SQLite `0/0/0`. All five
+frozen hashes were unchanged. Evidence:
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786450433237.json`.
+The dedicated server is stopped and port 3000 is free. No retry occurred.
+
+The receipt contains no verdict classification and cannot attribute this
+failure to `Compile Error`. Compile failures remain valid final training
+outcomes and must not be filtered without a separate product decision and
+causal evidence. The only next action is a reviewed RED for the observer
+transition contract and bounded rejection receipt, including a possible
+coalesced E0/exact-submit E1 storage callback. Production runtime, verdict
+taxonomy, NowCoder observation, D5, RC, acceptance, and release remain stopped.
+
+### Historical Task 22/23 context
+
+The superseded pre-Revision-5 immutable candidate was
 `a911425a415db2ee374430ced62edcaa7b786866`. Its exact validator exited `0`:
 root unit `2393/1`, app E2E `25/25`, extension unit `1587/1587`, extension E2E
 `53/1`, production build `20/20`, privacy `0 findings`, readiness `PASS`, clean
