@@ -112,8 +112,9 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-11):** **V4 Phase D D1-D3 are complete on a new
-> Revision 5 candidate; fresh D4 observations are next; D5 is stopped** on
+> **Current status (2026-08-14 Route A closeout):** **V4 Phase D D1-D3 are
+> complete on the frozen Revision 5 engineering candidate; D4 is incomplete
+> and `D4_CAUSAL_DIAGNOSTIC_UNADJUDICABLE`; D5 is stopped and unstarted** on
 > `feature/v1-followup`. Immutable candidate
 > `aa1a572c3913b35dd3f0391f849dab66e79c56a2` passed the exact D3 validator
 > with root `2430/1`, app E2E `25/25`, extension unit `1591/1591`, extension
@@ -130,9 +131,14 @@
 > request rather than GraphQL. All prior live observations are historical and
 > do not certify the new candidate. Evidence:
 > `work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`.
-> The next action is one fresh LeetCode observation on the exact new dist,
-> with action-time confirmation only after READY. D5 must not restart until D4
-> closes, then F1-F4 must all rerun independently.
+> Sections 14.33-14.34 close the external diagnostic route with
+> `NO_SAFE_DIRECT_WITNESS`; window-correlated facts are auxiliary only,
+> `TASK26_LIVE_PROTOCOL_ASSUMPTION_UNPROVEN` remains authoritative, and no
+> further live retry is authorized for this candidate. Earlier fresh-
+> observation/action-next wording is a superseded historical checkpoint. D5
+> must not restart; Route B is a future product-version plan only and is not
+> designed or authorized here. Independent section 14.34 closeout review
+> returned `ROUTE_A_CLOSEOUT_APPROVE`, with HIGH none and MEDIUM none.
 > This is not final user acceptance, an RC, or a release; do not push, create
 > a PR, deploy, publish, or enter V0.5.
 >
@@ -463,8 +469,11 @@ These are current implementation boundaries, not a permanent rejection of the ap
   default database metadata. Exact dist:
   `.tmp/task26-exact-dist-aa1a572`; receipt:
   `work/reports/v4-phase-d-task26-exact-submit-refreeze-2026-08-11.md`.
-  Fresh same-SHA LeetCode and approved-pilot NowCoder observations remain
-  required; D5 is stopped. No live retry occurred during repair/re-freeze.
+  At the historical Task26 checkpoint, fresh same-SHA LeetCode and
+  approved-pilot NowCoder observations remained required. Sections
+  14.33-14.34 now supersede that execution direction: the external diagnostic
+  route is closed, no further live retry is authorized for this candidate,
+  D4 remains incomplete and causally unadjudicable, and D5 is stopped.
 - V4 Phase D D4 coordinator repair Tasks 0-10 are complete (implementation
   `a9515a8` `fix(v4): surface expired diagnostics and pin graphql
   coordination`, doc reconciliation `a1aeda0`, base `3246713`; plan

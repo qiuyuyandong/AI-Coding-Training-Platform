@@ -1,6 +1,668 @@
 # Current Handoff
 
-## Status (2026-08-11 V4 Phase D D3 re-frozen at aa1a572; Task 27 observer-stage failure; D5 stopped)
+## Status (2026-08-14 section 14.34 `ROUTE_A_CLOSEOUT_APPROVE`; D4 incomplete; D5 stopped)
+
+Route A is selected. Static audit confirms the protected product/candidate
+diff from `aa1a572c3913b35dd3f0391f849dab66e79c56a2` is empty and the five
+Task26 dist hashes are unchanged. D1-D2 remain complete; D3 remains an
+immutable engineering candidate only. D4 is incomplete and currently
+`D4_CAUSAL_DIAGNOSTIC_UNADJUDICABLE`, not PASS and not a currently proven
+deterministic product failure. D5 remains stopped and unstarted.
+
+The external diagnostic route is closed after independent
+`NO_SAFE_DIRECT_WITNESS` with HIGH none and MEDIUM none. Window-correlated
+facts remain `AUXILIARY_ONLY`; the strongest safe causal outcome is
+`SUBMIT_BOUND_PROTOCOL_UNRESOLVED`. No further live retry is authorized. Every
+earlier READY/action/authorization/next-live-action statement below is a
+superseded historical checkpoint and grants no current authority.
+
+The generation5 JSON remains unchanged as historical factual evidence. Its
+`PRODUCT_FAIL` label is a superseded checkpoint interpretation; sections
+14.33-14.34 are current authority: `NO_SAFE_DIRECT_WITNESS`,
+`WINDOW_CORRELATED_FACTS_AUXILIARY_ONLY`, and
+`TASK26_LIVE_PROTOCOL_ASSUMPTION_UNPROVEN`. Historical diagnostic/protocol
+tools are `HISTORICAL_NON_AUTHORITATIVE_DO_NOT_EXECUTE`.
+
+No file was restored, deleted, reset, cleaned, committed, or pushed. No test,
+build, migration, browser, CDP, preflight, platform access, network
+characterization, click, submission, or retry ran. The exact KEEP / RESTORE /
+DELETE-UNTRACK / SEPARATE-UNRELATED recommendations and proposed commit split
+are in plan section 14.34; `AGENTS.md` is included in KEEP so the next agent
+receives the same stop state. These are recommendations only. Independent
+review initially found the stale `AGENTS.md` live-next instruction as one HIGH;
+after correction, all twelve questions passed with HIGH none and MEDIUM none.
+Final verdict is `ROUTE_A_CLOSEOUT_APPROVE` for documentation closeout only;
+it authorizes no cleanup, commit, live work, or Route B.
+
+## Status (2026-08-14 section 14.33 `NO_SAFE_DIRECT_WITNESS`; D4 incomplete; D5 stopped)
+
+Official CDP and Chromium source review found no complete privacy-safe,
+non-temporal, browser-native join from the exact controlled CDP click to the
+exact DOM click dispatch and then to one Network request. Chromium exposes an
+internal input latency id, an EventDispatch duration, and a
+ResourceSendRequest instant, but CDP does not return the input id and the trace
+events do not share an explicit click-parent/request identity. `hasUserGesture`
+is transient activation only; initiator/async stacks are code lineage; debugger
+breakpoints perturb execution; tracing exposes raw URL/request/stack material;
+page listeners, wrappers, and request-token injection mutate the target.
+
+Plan section 14.33 records all 14 candidates and contains no
+`DIRECT_FEASIBLE` result. Independent final review returned
+`NO_SAFE_DIRECT_WITNESS`, with HIGH none and MEDIUM none. Window-correlated
+facts are now permanently auxiliary and cannot yield
+`E1_ACCEPTED` or a submit root cause. Their strongest safe result is
+`SUBMIT_BOUND_PROTOCOL_UNRESOLVED`. The frozen candidate remains a D3
+engineering candidate, while D4 is
+`D4_CAUSAL_DIAGNOSTIC_UNADJUDICABLE`; D4 is incomplete and D5 stays stopped.
+`TASK26_LIVE_PROTOCOL_ASSUMPTION_UNPROVEN` remains authoritative.
+
+The new independent reviewer answered all fifteen required questions and
+returned `NO_SAFE_DIRECT_WITNESS` (no HIGH; one MEDIUM status-drift note). The
+existing uncommitted diagnostic/protocol scripts and tests are now explicitly
+`HISTORICAL_NON_AUTHORITATIVE_DO_NOT_EXECUTE`: any remaining `E1_ACCEPTED`,
+no-request, or metadata-root-cause label is superseded by section 14.33, cannot
+mint evidence or authorize preflight/action, and was not edited or executed in
+this round. The reviewer confirmed that clarification closes its initial
+status-drift note.
+
+This round is documentation/static-audit only. It did not modify probe/tests/
+product/dist and did not run tests, Chromium, CDP, preflight, platform/network,
+login, click, submit, re-freeze, or D5. Immediate Route A is to retain the
+candidate and stop further retries. Route B is a future product-native causal
+identity design requiring a new plan, RED/GREEN, privacy review, D3 re-freeze,
+and new D4; it is not authorized now.
+
+## Status (2026-08-14 §14.32 rooted-request contract REJECT; D4 incomplete; D5 stopped)
+
+The proposed repair now requires every eligible action request to originate in
+a directly observed post-arm/post-dispatch companion `onBeforeRequest` root.
+Later lifecycle events can only extend their exact request-id lineage; stale
+pre-dispatch roots are retained as stale and can never be repaired into action
+candidates. Tuple HMAC is only a candidate key, with exact cardinality and
+lineage required.
+
+Production E1 evidence is a monotonic positive ledger. Directly witnessed E1
+survives later E3/TTL removal; polling misses and equal arm/close snapshots are
+only `E1_NOT_OBSERVED`. Negative production classifications are removed or
+collapsed into `SUBMIT_BOUND_PROTOCOL_UNRESOLVED`. Quiescence covers known root
+lifecycles and diagnostic-owned work only; production internal quiescence stays
+unknown without an existing safe barrier.
+
+Independent review confirms the R0 late-lifecycle and X->Y->X false-negative
+attacks are closed, but returns **`REJECT / 1 HIGH / 0 MEDIUM`**. One same-tuple
+background request in the non-atomic gate-to-click interval can be the only
+post-dispatch root/page fact and direct production E1, satisfying cardinality,
+lineage, and both HMAC joins even when the click emitted no submit. That can
+falsely produce `E1_ACCEPTED` or terminal metadata attribution.
+
+The next contract must either define a privacy-safe non-temporal direct
+click-to-request witness or keep all window-correlated facts auxiliary and
+terminally unresolved. Current future diagnostic utility is insufficient to
+justify an action. This round remained documentation-only: no probe/product/
+test change and no test, Chromium, preflight, platform, network, click,
+submission, NowCoder, D3 re-freeze, or D5 ran. No offline implementation delta,
+zero-click preflight, or action is authorized.
+
+## Status (2026-08-14 §14.31 evidence-epoch contract REJECT; D4 incomplete; D5 stopped)
+
+The two former capability HIGHs are under explicit threat-model revision, not
+implementation expansion. Pre-attach history is now
+`PRE_EPOCH_UNOBSERVED`; only an arm-time safe baseline, fresh HMAC epoch,
+current exact workers/listeners/filter, and installed lifecycle witness can
+start evidence. The proposed hard continuity property covers arm through
+close, not Chromium launch through close. Pre-arm tokens/state are baseline
+exclusions and cannot be positive evidence.
+
+The former absolute zero-production-write requirement is replaced by
+`DIAGNOSTIC_NON_MUTATING` plus `RELEVANT_STATE_DRIFT_FAIL_CLOSED`. The tool may
+prove its own mutation surfaces absent and compare the same bounded,
+privacy-approved production projection at arm/close; it must not claim that
+production never wrote. Any relevant unexplained drift remains invalid.
+
+Independent threat-model review agrees that full-launch worker purity and
+absolute zero production writes are not necessary gates, but returns
+**`REJECT / 2 HIGH / 0 MEDIUM`** for the proposed replacements. A pre-arm
+request can deliver callbacks after dispatch and be confused with a same-tuple
+action request unless it has a direct post-arm/post-dispatch `onBeforeRequest`
+root. Separately, production E1 can appear and then be consumed by E3 or TTL,
+so arm/close snapshot equality cannot prove “no E1”; async persistence can also
+land after the final projection.
+
+Any future contract must root every eligible request after dispatch, forbid
+later lifecycle events from independently creating candidates, and leave no-E1
+outcomes unresolved without a direct production transition witness and a
+defined input-stop/queue-quiescence barrier. Privacy and D4 product hard gates
+remain unchanged. This round changed documentation only: no probe code/test,
+Chromium, preflight, page, login, network, click, submission, NowCoder, D5,
+product edit, or re-freeze ran. No zero-click preflight may be proposed from
+this revision; `TASK26_LIVE_PROTOCOL_ASSUMPTION_UNPROVEN` remains authoritative.
+
+## Status (2026-08-14 §14.30 four-plane engineering GREEN; preflight REJECT; D4 incomplete; D5 stopped)
+
+The historical audit fixed the status as
+**`TASK26_LIVE_PROTOCOL_ASSUMPTION_UNPROVEN`**: C1 v6 proved a real GraphQL
+delivery path, while Task26 proved exact-submit identity only in automated and
+synthetic evidence. Exact submit remains a defensible anti-misattribution
+design, but it is not proven to be a current authenticated-UI protocol fact.
+
+The candidate-external diagnostic now contains a mechanically generated
+same-filter passive MV3 companion, fixed frozen-worker read-only
+`session.transientE1` projection, fresh 32-byte domain-separated HMAC joins,
+a final-only reducer, a structural zero-click preflight runner, and a separate
+unwired page-action module. Initial RED was the missing tool import; current
+focused GREEN is `41/41`. Typecheck, targeted ESLint, both syntax checks,
+privacy (`0 findings`), diff check, and protected-path isolation pass. Current
+tool/action/test/declaration SHA-256 are `1D3971C0...CC19959`,
+`809CB3EC...02A51F`, `AC01E683...2B356F`, and
+`DBA9678D...A9BE85`.
+
+Independent review remains **`REJECT / LIVE NOT AUTHORIZED / NO ACTION
+REQUEST`**. Two HIGH evidence limitations cannot be safely represented as
+facts: Playwright exposes the persistent context only after launch, leaving a
+worker-lifecycle monitoring blind interval; and current Chrome APIs cannot
+prove that the production worker made zero transient storage writes. The code
+therefore deliberately sets both hard proof facts false and always returns
+`DIAGNOSTIC_INVALID / preflight_proof_unavailable`; it does not mint a READY
+proof. The earlier all-storage HMAC idea was withdrawn because reading
+credential-bearing local storage would violate privacy. Do not run the real
+zero-click preflight, open the platform, click, submit, retry, modify the
+frozen candidate, or enter D5.
+
+## Historical status (2026-08-13 generation5 LeetCode PRODUCT_FAIL; current interpretation superseded by sections 14.33-14.34)
+
+Observer Revision 3 and the generation4 LeetCode-first identity delta are now
+independently **`APPROVE`**, with no HIGH/MEDIUM. Generation4 RED/GREEN was
+`96/100` -> `100/100`, then review repair `100/103` -> `103/103`;
+typecheck/lint/syntax/privacy/diff/isolation pass. Current helper/runner/test/
+declaration hashes are `A023F3D1...858DAC2C`, `32CA4C6C...BC2FC88C`,
+`9665A610...DA77B096`, and `3ED3065E...2200753`.
+
+Generation4 NowCoder is hard-rejected before any asset is created; it cannot
+be enabled until LeetCode D4 PASS and a new amendment. Exactly one new
+LeetCode generation4 profile/zero-row DB may now be prepared READY-only. If
+login is needed, use that one fixed profile once and reuse it serially; do not
+open a second profile or copy private login material. No click/submission is
+authorized by this READY approval. D4 remains incomplete and D5 stopped.
+
+The permitted LeetCode generation4 READY-only run is now complete. Receipt
+`output/playwright/v4-observation/leetcode-readiness-1786566437035.json`
+records generation4, `browse_only`, target/queue counts `0/0/0/0`, SQLite
+`0/0/0`, fixed profile/database identities, the four approved tool hashes,
+and the five unchanged dist hashes. No click/submission occurred; context and
+server are closed and port 3000 is free. The next gate is one fresh
+action-time authorization for at most one strict LeetCode click. NowCoder
+remains closed; D4 incomplete and D5 stopped.
+
+The subsequent single authorized generation4 LeetCode action consumed exactly
+one strict click and stopped at
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786566841561.json`.
+It is `OBSERVER_INVALID / observer_stage_rejected /
+observer_transition_unadjudicable`: safe state remained `browse_only`, target
+and extension counts stayed zero, and SQLite stayed `0/0/0`. Tool/dist and
+lane identities did not drift. Runner, browser, and server are closed; locks
+are zero and port 3000 is free. Do not retry, reset, replay, or prepare
+NowCoder. Next: read-only callback/reducer adjudication and a minimal offline
+RED if the evidence supports one. D4 remains incomplete; D5 stopped.
+
+The deferred-replay evidence repair is now independently **`APPROVE`**, no
+HIGH/MEDIUM. RED `103/104` became GREEN `105/105`; anchors `174/174` and all
+focused type/lint/syntax/privacy/diff/isolation gates pass. Current hashes are
+`F9FEA06A...93B63B`, `4FDCC35F...DB16F3`,
+`983B8786...7EEB4`, and `2ED9635F...68D29`. It preserves only the safe
+accepted prefix and first rejected transition without changing acceptance.
+Generation4 remains consumed and cannot be retried. The next proposal is one
+generation5 LeetCode-only, single-profile READY/action sequence; it is
+`REVIEW REQUIRED`. NowCoder and D5 remain stopped.
+
+Generation5 identity code is now independently **`APPROVE`**, no HIGH/MEDIUM:
+focused `107/107`, anchors `174/174`, all focused gates green. Current hashes
+are `48B65E4E...E1D2C1`, `CE157469...8F515`,
+`6F0D0B33...6AD4F`, `E218D2A7...07CB2`. Only the separate LeetCode
+generation5 READY-only invocation is next. NowCoder remains pre-asset rejected;
+D4 incomplete, D5 stopped.
+
+Generation5 READY succeeded, then its only strict click produced safe evidence
+E0 `1` followed by E0 `0` with no E1/E2/E3/queue/DB progress. Product E0 is a
+30-second TTL fact pruned to empty. At that checkpoint, independent
+post-adjudication changed the historical lane result from the immutable
+receipt's `OBSERVER_INVALID` to **`PRODUCT_FAIL`**
+(`exact_submit_e1_missing_before_e0_lifecycle_end`). Sections 14.33-14.34 now
+supersede its current causal interpretation because the exact click-generated
+submit cannot be safely bound to E1. Record:
+`work/reports/v4-phase-d-d4-leetcode-generation5-post-adjudication.json`.
+Both D4 lanes are stopped; no retry/new generation/NowCoder/product edit/D3
+re-freeze/D5 is authorized. Next: frozen-candidate exact-E1 causal review.
+
+That causal review now excludes the two user-suspected environmental causes
+for generation5: the lane used one fixed profile, one zero-row database, and
+one exact frozen dist, so stale parallel DBs/extensions were not in its
+observation boundary. Current public LeetCode.cn frontend assets still contain
+`POST /problems/{slug}/submit/` and `/submissions/detail/{id}/v2/check/`,
+exactly matching the frozen adapter, but public assets do not prove which
+authenticated runtime branch generation5 executed and therefore do not
+exclude GraphQL/other protocol branching. The compile-error screen is a
+post-submit verdict and does not explain a missing E1. The remaining boundary
+is the actual protocol branch plus Chrome `webRequest` listener delivery and
+its optional `documentId`/safe metadata guards. Plan section 14.26 now
+requires an offline-only exact REST/listener/restart/documentId/redirect/E0
+deadline matrix. Independent plan review is **`APPROVE`** with no HIGH/MEDIUM
+for that offline-only matrix; characterization, another live action, and any
+product repair remain unauthorized. D4/D5 remain stopped.
+
+The §14.26 offline matrix is now independently **`APPROVE`**, no HIGH/MEDIUM:
+worker `353/353`, independent changed-file `184/184`, with type/lint/dist/
+privacy (`0 findings`)/diff/isolation green. It proves the modeled exact REST,
+document identity, restart, redirect, listener, and E0 deadline behavior, but
+does not reveal generation5's actual authenticated branch or callback
+metadata. No production, manifest, dist, observer/runner, DB, or candidate
+file changed.
+
+To avoid another login or submission, §14.27 proposes one no-click reopening
+of the existing generation5 profile solely to identify allowlisted public
+static asset filenames/hashes and closed protocol-symbol booleans. It forbids
+cookies/storage/account/DOM text/editor/body/header/token access, starts no
+local server or SQLite, cannot satisfy E1/D4, and cannot flow into a click.
+Current verdict: **`REVIEW REQUIRED`**; do not open the profile yet.
+
+Independent review rejected §14.27 because reopening a persistent profile
+necessarily uses/writes browser session state and static-asset identity cannot
+adjudicate runtime protocol branching. It will not be executed. §14.28 now
+proposes the narrower useful diagnostic: one extension-free strict click in
+the existing logged generation5 profile, with no localhost/DB and only bounded
+in-memory counters for exact REST, GraphQL path, other owned POST, or none.
+Chrome-internal session use is acknowledged; programmatic cookie/storage/
+account/header/body/DOM/editor/profile access is forbidden. The receipt cannot
+satisfy E1/D4. Current verdict is **`REVIEW REQUIRED`**; no browser/click yet.
+
+Independent review rejected the first §14.28 draft because the earlier action
+authorization was consumed, the click promise was not covered by a total
+deadline, extension disabling was not executable, and ordinary traffic was
+underspecified. The revised draft requires a new explicit authorization, one
+monotonic 15-second `Promise.race`, mandatory `--disable-extensions` with all
+extension-load arguments rejected, and filtering to POST xhr/fetch before URL
+classification. No browser/click is authorized yet.
+
+After the cross-origin terminal rule was closed, independent §14.28 plan
+review returned **`APPROVE`**, no HIGH/MEDIUM. This authorizes only offline
+tool RED/GREEN; browser launch and the one diagnostic click still require
+independent code approval and a new explicit action-time authorization.
+
+The §14.28 tool is now independently **`APPROVE`**, no HIGH/MEDIUM, at hashes
+`8D6196D6...ED85F9`, `FE4EC5FF...0CFC7C4`, and
+`09CDB3B8...4E9295`. Final RED `42/44` became GREEN `44/44`; type/lint/syntax/
+privacy (`0 findings`)/diff/isolation pass. No browser/network/live ran. The
+sole remaining gate is a new explicit authorization for one extension-disabled
+diagnostic click in the existing generation5 profile and one total 15-second
+window; it is not D4 evidence.
+
+That paragraph is now historical. The repaired Windows CLI was independently
+approved at final SHA
+`E50B8153C0F64A88B889F70D73BF17C182E3820BB26B53ED158CB132A235E029`,
+and exactly one later extension-disabled diagnostic action consumed the
+authorization. Receipt
+`output/playwright/v4-protocol-characterization/protocol-characterization.json`
+(SHA-256 `58DBB9CC062DC1B386EF60154ACF41B9320E6765D9B6229155323F1BCA6AD0BE`)
+records a completed strict click, REST `0`, GraphQL-path `0`, other-owned
+`many`, cross-origin `many`, unsafe `0`, and terminal
+**`protocol_characterization_invalid`**. No retry or second click is allowed.
+
+The official-public-bundle follow-up found eight literal POST sites across
+five of 66 JavaScript assets. Static categories include REST submit enqueue,
+telemetry, upload signature, code formatting, and run-code enqueue; separate
+chunks also expose GraphQL clients. This only proves public code presence and
+cannot identify the authenticated generation5 runtime branch or bind either
+`many` bucket to the submit. The compile-error UI is downstream verdict
+evidence, not the missing-E1 cause. The lane's fixed profile, zero-row DB, and
+exact frozen dist exclude parallel stale databases/extensions from its
+observation boundary.
+
+Historical checkpoint status: protocol characterization **`REJECT /
+OBSERVER_INVALID`**; generation5 was **`PRODUCT_FAIL /
+exact_submit_e1_missing_before_e0_lifecycle_end`**. Sections 14.33-14.34
+supersede the current interpretation with
+`D4_CAUSAL_DIAGNOSTIC_UNADJUDICABLE`; D4 is incomplete and D5
+stopped. Do not retry, launch NowCoder, widen the adapter, modify production,
+or re-freeze D3. The next action is evidence/document reconciliation only
+unless a new independently reviewed design can obtain safe submit-bound
+protocol/listener evidence without another submission.
+
+Independent final review: **`APPROVE`**, no HIGH/MEDIUM. Current-byte gates:
+protocol `52/52`, seven-file exact-E1/product anchors `330/330`, typecheck
+PASS, privacy `0 findings`, diff-check PASS, and protected product/candidate
+diff empty. Full build/quality, browser, server, migration, and further live
+actions were not run.
+
+## Historical status (superseded): Revision 3 approved; generation-4 identity was still REVIEW REQUIRED
+
+The generation3 LeetCode diagnostic was re-adjudicated correctly: the fixed
+`epoch_result_surface_unchanged` error does not delete the product epoch, so
+the receipt is `OBSERVER_INVALID`, not proof of a product defect or platform
+block. Observer Revision 3 is independently **`APPROVE`** with no HIGH/MEDIUM.
+It records exact E2 plus only that diagnostic as `e2_surface_pending`, waits a
+bounded `315000ms`, transitions exact E3 to a `30000ms` delivery deadline, and
+requires the error to clear only at exact ACK with SQLite `+4/+1/+1`. Exact
+duplicate callbacks are idempotent; duplicate durable effects and all prior
+identity/order/privacy gates still reject.
+
+RED/GREEN evidence is `89/94`, then Commander follow-up `93/96`, then final
+observer `96/96`; frozen product anchors are `174/174` (`270/270` combined).
+Typecheck, targeted lint, both syntax checks, privacy (`0 findings`),
+diff-check and protected-path isolation pass. Current observer/runner/test/d.ts
+hashes are `61316815...207C2DB`, `60A304A4...4E3259`,
+`B3753D1E...23CB65C8`, and `5EFA489D...E9E6A0D5`. Frozen dist is unchanged;
+D3 was not re-frozen. No live/browser/server/login/build/commit/push occurred.
+
+The consumed generation3 LeetCode lane remains terminal and may not be reset
+or reused. Plan section 14.23 proposes generation4, LeetCode first, so the user
+is never asked to log into two new windows together. Only after a LeetCode PASS
+would NowCoder be prepared. That identity delta is currently
+**`REVIEW REQUIRED`** and authorizes no READY, browser, login, click, or
+submission. D4 is incomplete and D5 remains stopped.
+
+Both generation3 READY-only receipts are valid:
+`leetcode-readiness-1786559426411.json` and
+`nowcoder-readiness-1786559535694.json`. The user interactively logged into both
+exact isolated profiles; no cookie/credential/token/account data was read or
+copied. Repeated login windows were an orchestration inefficiency and are not a
+future requirement.
+
+The authorized LeetCode lane consumed one strict click and produced
+`leetcode-real-observation-failed-1786560268026.json`:
+`OBSERVER_INVALID / observer_capture_error / epoch_result_surface_unchanged`,
+final `e2_confirmed`, target `1/1/1/0`, extension `1/0/0/0`, SQLite `0/0/0`.
+E0/E1 convergence and E2 worked; no E3/POST/ACK followed. Compile Error remains
+allowed and is not the rejection reason. Exact action processes and server are
+stopped, port 3000 is free, and ordinary Chrome remains running. First-failure
+stop means NowCoder action count is zero. Preserve all generation3 evidence;
+no retry/reset/replay/new submission is authorized. D4 completion is
+**`REJECT`**, D5 remains stopped, and the next engineering action requires a
+new written revision and independent review.
+
+The replacement observation batch is bound exclusively to
+`d4-revision2-generation3`. Independent final review found no HIGH/MEDIUM
+issues. Commander reran observer `89/89`, frozen product anchors `174/174`
+(`263/263` combined), typecheck, targeted lint, both syntax checks, privacy
+(`0 findings`), diff-check, and protected-path isolation; all passed. Current
+observer/runner/test/d.ts hashes are `4E697F11...B1F57A`,
+`72D14F40...5BF896A`, `3E3E11A4...946233`, and
+`10301E92...A829C`. The five frozen Task 26 dist hashes remain unchanged.
+
+Generation2 assets remain immutable historical evidence and are rejected by
+the current runner; they must not be reset, reused, or copied into generation3.
+The next permitted operation is sequential generation3 READY-only preparation
+with new empty profiles and isolated zero-row databases. No click, submission,
+cookie, credential, token, or account-data copy is permitted. This is not D4
+PASS, D5, RC, acceptance, or release.
+
+Latest action evidence: generation-2 LeetCode consumed exactly one authorized
+strict click and ended
+`OBSERVER_INVALID / observer_target_rejected` at `e1_provisional`; receipt:
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786555212760.json`.
+It records target `1/1/1/0`, queues `0/0/0/0`, SQLite `0/0/0`, and unchanged
+frozen dist hashes. The user's screenshot shows the platform reached final
+`Compile Error`. This is a valid D4 verdict category, so compilation failure is
+not the acceptance failure; the observer terminated first because the exact
+network E1 preceded the bubble-phase diagnostic E0 for the same click.
+Historical DB/profile assets and other extension versions were not loaded.
+
+The observer-only repair is independently **`APPROVE`** with no HIGH/MEDIUM
+findings. A private one-shot capability binds the strict dispatch to the exact
+lane and admits only matching LeetCode E1-provisional -> E0-after-E1. Deferred
+snapshots deterministically replay through E2/E3/ACK; only proven ACK can
+supersede a click-promise error, and ACK evidence/context close are finalized
+exactly once. Success receipts now contain only closed counts/basis/state and
+no identity or timestamp. Gates: observer `88/88`, frozen product anchors
+`174/174`, combined `262/262`, typecheck/lint/syntax/diff green, privacy `0
+findings`, protected diff empty. Current hashes: observer `45948FE4...E2BE9ED`,
+runner `72D14F40...5BF896A`, test `077E4D20...8ECD02`, d.ts
+`1A51483E...59283E6`; five Task 26 dist hashes are unchanged.
+
+The approval is observer-only. It does not convert the failed receipt into a
+D4 PASS or authorize reuse/retry of the consumed generation-2 LeetCode
+profile. NowCoder action count remains zero because the batch stopped on the
+first failure. Preserve the LeetCode profile/database/receipt as terminal
+evidence. The next live attempt requires a new isolated profile/database and a
+new READY under these reviewed observer bytes; never copy cookies,
+credentials, or account data. D4 remains incomplete and D5 remains stopped.
+
+Latest fixed-lane environment audit and READY-only attempt: both documented
+per-platform profile/database pairs were preflighted after migration, each
+pointer resolved to its adjacent non-symbolic `training-platform.sqlite`, and
+each database reported `0/0/0`. Fixed profile inspection found exactly one
+`location=8` unpacked extension record per lane, pointing to the exact
+`.tmp/task26-exact-dist-aa1a572`; historical profile/database directories were
+not loaded by the fixed runner and remain cleanup debt only. The exact fixed
+LeetCode lane then ran with `--ready-only=true --authorized-submit=false` and
+failed before READY with safe receipt
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786548934476.json`.
+It binds the fixed profile/database identities and byte-identical five dist
+hashes, classifies `OBSERVER_INVALID / epoch_result_surface_unchanged`, and
+records target `e0/e1/submit/status=0/0/0/0`, extension
+`confirmed/tombstones/outbox/quarantine=1/0/0/0`, and final SQLite `0/0/0`.
+No click, submission, or action authorization was consumed; server PIDs
+`52296/45408` were stopped, port 3000 is free, and NowCoder READY was not
+attempted.
+
+Static immutable-runtime review of
+`extension/src/backgroundOrchestrator.ts:871-906` and `:1207-1359` shows E2
+persists `confirmedSubmissions` before E3, while successful E3 removes the matching confirmed record and adds
+the tombstone/outbox delivery path. The safe interpretation is stale delayed
+same-profile durable state from an earlier observer termination or prior E2,
+not a proven product defect or new submit. It cannot be used as a READY
+baseline and does not invalidate the approved callback-arrival observer repair.
+That adjudication and its disposable observer/unit fixtures are recorded
+below; the next gate is independent review of the Option B recommendation. No
+profile/DB reset, live replay, READY retry, or new authorization is requested.
+D4 remains incomplete and D5 stopped.
+
+Read-only adjudication is now complete for the fixed LeetCode stale state. The
+actual receipt exposes only `confirmed=1` and deliberately omits the safe
+identity fields needed to bind that record to the prior target/submission;
+opening live profile storage was out of scope. A disposable observer fixture
+proves the bounded choices without touching the real profile: exact expected
+key is `recovery_candidate`, key/target mismatch is `wrong_identity`, and
+missing binding/error or any durable side effect is `stale_unbound`. The fresh
+baseline reducer still rejects the error-bearing confirmed snapshot, so this
+diagnostic does not relax D4 or replay E3/ACK. RED was `1 failed / 70 passed`
+(71 total); GREEN is observer `71/71`. Static E2→E3→ACK mapping is recorded in
+§14.15/report. Current recommendation is **Option B**: treat the profile as
+terminal evidence and defer to a new isolated profile/database plus separately
+authorized action. No browser,
+reset, replay, READY retry, submission, or new authorization occurred.
+
+Reviewer follow-up found and closed a MEDIUM harness ambiguity: only the exact
+allowlisted error `epoch_result_surface_unchanged` may qualify a recovery
+candidate; `epoch_started_missing`, network, and other allowlisted errors now
+return `stale_unbound/capture_error_mismatch`. RED was `1 failed / 70 passed`
+(71 total); GREEN is `71/71`. The real receipt has the exact result-surface
+error but lacks identity fields, so the fixture candidate is not live evidence.
+At the pre-review checkpoint, Option B was `REVIEW REQUIRED`; that historical
+status is superseded by the independent final `APPROVE` below. No replay,
+reset, READY retry, action, or new authorization occurred.
+
+Independent final review (2026-08-13) reran the post-fix observer and gates:
+observer `71/71`, typecheck/lint exit `0`, both observer syntax checks exit `0`,
+privacy audit `0 findings`, `git diff --check` exit `0` with known LF/CRLF
+warnings only, and protected-path diff empty. It matched the observer-only
+hashes and all five frozen Task 26 dist hashes recorded in the Revision 2
+report. The historical MEDIUM exact-error ambiguity is closed; H/M findings
+are none. Final verdict: **`APPROVE` for Option B**. This is evidence-only and
+does not grant current real authorization, reset/delete/replay the fixed
+profile or DB, or complete D4/restart D5. The next step is a new written
+real-observation plan, then a new profile/database READY preparation and fresh
+action-time authorization. No direct submission is permitted.
+
+Latest observer-only closeout: the authorized RED test reproduced the false
+terminal on callback-arrival E1-before-E0 (`67 passed / 1 failed`, 68 total).
+The repair now records E1-only as bounded `e1_provisional` with safe
+`e1Status=provisional`; a matching E0 converges only when the internal
+authoritative chronology is `e0 observedAt <= E1 receivedAt`. E0-after-E1,
+E2-without-E0, identity conflicts, duplicate effects, legacy V3 paths, and
+privacy violations remain fail-closed; unresolved page close is the fixed
+`observer_provisional_timeout` reason. GREEN evidence is observer `70/70`,
+the four frozen product anchor suites `174/174`, combined `244/244`,
+typecheck/targeted lint/two syntax checks/diff-check exit `0`, privacy audit
+`0 findings`, and an empty protected-path diff. The five Task 26 dist hashes
+are byte-identical and the immutable product candidate remains unchanged.
+This amendment has now received independent final `APPROVE` with no HIGH or
+MEDIUM findings; no live retry, NowCoder submission, or D5 action occurred and
+the previous consolidated authorization is expired.
+
+The first independent review rejected one remaining parity gap: an unrelated
+allowed callback between E1 and E0 could erase the persistent page's private
+chronology metadata. A fake-Chrome RED test reproduced this as
+`69 passed / 1 failed` (E0 expected `e0-before-e1`, received
+`not-observed`). The entrypoint now carries that bounded metadata across every
+allowed callback. GREEN is observer `70/70`, product anchors `174/174`,
+combined `244/244`; typecheck, targeted lint, two syntax checks, privacy audit
+`0 findings`, diff-check, and protected-path isolation pass. Serialized events
+contain only safe target-order enums and no timestamps or raw request/document
+fields. The independent final review reran observer `70/70` plus product
+anchors `174/174` (`244/244` combined), found no HIGH or MEDIUM issue, and
+matched the observer-only hashes and all five frozen dist hashes in the
+Revision 2 report. Final verdict: **`APPROVE` for the provisional-E1 observer
+amendment only**. This does not restore the expired authorization, authorize
+live retry, NowCoder, or D5; D4 remains incomplete. The next action is to form
+a new real-observation plan and obtain new explicit action-time authorization.
+No direct submission is permitted from this approval.
+
+Generation-2 observer-only amendment (2026-08-13) has now received independent
+final review **`APPROVE`** with no HIGH or MEDIUM findings. The runner requires
+exactly one closed generation token,
+`d4-revision2-generation2`; missing, unknown, historical `d4-revision2`,
+duplicate, cross-generation, wrong-platform, reuse-mismatch, and
+symlink/junction paths fail closed. Only these future lane roots are allowed:
+
+```text
+.tmp/v4-live-observation-profiles/d4-revision2-generation2-leetcode
+.tmp/v4-live-observation-profiles/d4-revision2-generation2-nowcoder
+.tmp/v4-live-observation-db/d4-revision2-generation2-leetcode/server-db-path.txt
+.tmp/v4-live-observation-db/d4-revision2-generation2-nowcoder/server-db-path.txt
+```
+
+Old `d4-revision2-*` paths remain readable historical evidence only. READY and
+eventual action receipts bind this generation with profile/database SHA-256
+identities; no raw paths or private platform fields are emitted. The written
+next sequence remains sequential READY-only (LeetCode, then approved
+NowCoder), with `--ready-only=true --authorized-submit=false`, no submission,
+no click, no replay/reset/delete, and no current action authorization. A first
+failure stops the sequence; any later action requires fresh action-time
+authorization after an independent review.
+
+Generation-2 evidence is RED `1 failed / 76 passed` (77 total), then GREEN
+observer `77/77`; frozen product anchors are `174/174`, combined focused
+`251/251`. Typecheck, targeted ESLint, both observer syntax checks, privacy
+audit (`0 findings`), `git diff --check`, and protected-path diff all pass.
+Current observer-only hashes are:
+
+```text
+scripts/v4-live-observation-observer.mjs  8B2D68B2C93274AF4F01667630F95EB125D352AE152E5AE35688D5F332C37D79
+scripts/v4-live-observation.mjs          6859FB997C7F379B9C4B3CBABEA2DCF7EB62F160A9544532E59B2102BCCA4E46
+tests/unit/v4LiveObservationObserver.test.ts 09AE1AC4CB595FE16D042AEA8F7B6C8C93E4397B9A928384982366C1B8D2DA70
+tests/unit/v4LiveObservationObserver.d.ts E76687FC485200E3C7C3A2350042F60E593494071652FCE42DB3E0DE68DDCE14
+```
+
+Frozen Task 26 dist hashes remain unchanged:
+
+```text
+manifest.json        A85C3275D559BD46AAA034FEEA9B14EAFECFC6F56341713B2AFB8B024E2B3E64
+background.js         9222BC90DB397B37499DE119482958BEAF1DD1A6E3136F7546A475676EC46C2D
+content.js            8AC66A0B8B23AA2F5273D1687550226926A4D3791CBF1C1C3786B9D20FD785FC
+popup.js              F863C9758EBF2FF464634D6FF986D3F296017C8A5A37D45A3692FB3F1B80240D
+main-world-bridge.js  4D89A80F0351295EE1C0CD173BE107080983868D18510D028854695EACEE3943
+```
+
+Independent review reran observer `77/77`, frozen product anchors `174/174`,
+and combined focused evidence `251/251`; it confirmed the corrected test SHA
+`09AE1AC4CB595FE16D042AEA8F7B6C8C93E4397B9A928384982366C1B8D2DA70` against
+`Get-FileHash`, with all observer-only hashes and five frozen Task 26 dist
+hashes unchanged. Final verdict: **`APPROVE` for generation-2 observer-only
+amendment and isolated preparation only**. It allows only new generation-2
+profile/database preparation and sequential READY-only work. The user's
+standing default action approval still requires each lane's own valid READY,
+allows at most one action per lane, and stops the sequence at the first
+failure; no cookies, credentials, or account data may be copied or exported.
+This does not complete D4, restart D5, or constitute RC/release/user
+acceptance; the immutable product candidate, extension source/runtime/
+manifest/schema/build/adapter/dist, and default database remain unchanged.
+
+The following older Revision 2 preparation and review paragraphs are retained
+as historical evidence only. They are superseded by the LeetCode failure,
+callback-arrival repair, and expired authorization above; no sentence below
+grants a current READY retry, platform action, or submission.
+
+The sole detailed Phase D plan now uses an invariant-based D4 acceptance
+contract. Product candidate `aa1a572c3913b35dd3f0391f849dab66e79c56a2`
+and its exact Task 26 dist remain immutable. The observation tool is versioned
+separately and may be repaired under a strict harness-only allowlist without
+forcing another D3 re-freeze. Legal E0/E1/E2 coalescence is accumulated as a
+causal fact set; separate millisecond snapshots, callback count/order, and
+manual popup screenshots are diagnostic rather than hard gates. Hard gates are
+exact product/artifact identity, isolated browse-only baseline, one authorized
+target action, exact causal binding, one final verdict (including Compile
+Error), exactly one bundle/POST/ACK, SQLite `+4/+1/+1`, and final queues
+`0/0/0` with no blocking diagnostic.
+
+The remaining user-interaction budget is deliberately small: login in the
+isolated windows if needed, then one consolidated action-time authorization
+covering at most one named LeetCode submission and one exact approved-pilot
+NowCoder submission. The Commander owns all setup, pairing, navigation,
+observation, evidence, cleanup, and reporting; no screenshots or repeated
+status messages are requested from the user. The fixed localhost origin means
+the two READY checkpoints are prepared sequentially with fixed per-lane
+profiles/databases and bounded receipts, then silently revalidated one at a
+time after authorization; simultaneous live readiness is not claimed. The
+harness-only implementation passes observer `67/67`, focused causal regression
+`241/241`, typecheck,
+targeted lint, syntax checks, privacy audit `0 findings`, diff check, candidate
+isolation, and five frozen-hash rechecks. It accepts legal E0/E1/E2 coalescence
+and the production consume-style E3/ACK chain while locking the E2 submission
+key; contradictions, duplicate effects, legacy V3 click causality, and privacy
+violations remain terminal. Independent code/privacy/scope review returned
+`APPROVE` with no HIGH/MEDIUM findings for causal observer Revision 2. The
+sequential READY runner amendment also received follow-up independent
+`APPROVE` with no HIGH/MEDIUM findings. Final real D4 readiness preparation may
+now begin on the unchanged candidate/dist, but no submission is authorized.
+No new live action has occurred.
+
+The exact `241/241` evidence is observer `67` plus frozen-product anchors
+LeetCode adapter `105`, NowCoder network `28`, verdict candidate coordinator
+`21`, and verdict candidate flow `20`; the Revision 2 report records both
+reproducible commands.
+
+Sequential preparation then produced a LeetCode READY receipt. The first
+NowCoder READY attempt stopped fail-closed at browse-only with
+`OBSERVER_INVALID / observer_storage_key_rejected`, queues and SQLite `0/0/0`,
+and no submission. The cause is the known non-causal V4 `b3WitnessState`
+navigation control key. A narrow observer-only rule now ignores that key name
+without reading its value; unknown/credential/V3/mixed illegal keys remain
+terminal. Follow-up independent review returned `APPROVE` with no HIGH/MEDIUM
+findings and authorizes one NowCoder READY retry only, not a submission.
+
+The retry succeeded. LeetCode and NowCoder now both have bounded READY receipts
+at `output/playwright/v4-observation/leetcode-readiness-1786526390512.json`
+and `output/playwright/v4-observation/nowcoder-readiness-1786527061654.json`.
+Each records browse-only target `0/0/0/0`, queues `0/0/0`, SQLite `0/0/0`, and
+identical frozen hashes. Both browsers are closed and port 3000 is free. The
+next and only gate is one consolidated action-time authorization; no submission
+has occurred.
+
+The consolidated authorization was granted, but desktop window ownership could
+not be safely bound and the outer runner timed out at browse-only. SQLite stayed
+`0/0/0`, so no submission occurred and the action budget is unconsumed. A
+closed runner mode now clicks exactly one fixed platform selector after READY
+and closes after ACK without reading code/editor content. Independent follow-up
+review is required before executing it.
+
+Independent review approved that runner amendment with no HIGH/MEDIUM
+findings. The one authorized LeetCode strict action then ended
+`OBSERVER_INVALID / observer_transition_unadjudicable`: safe evidence shows one
+exact submit E1, but E0/E2/delivery remained zero, all queues were zero, and
+SQLite stayed `0/0/0`. Receipt:
+`output/playwright/v4-observation/leetcode-real-observation-failed-1786528735567.json`.
+The E1 consumes the LeetCode action budget; the consolidated authorization
+expired, so NowCoder was not submitted. No retry occurred. D4 remains
+incomplete and D5 is stopped.
 
 Task 27 attempted the first fresh LeetCode observation on immutable candidate
 `aa1a572c3913b35dd3f0391f849dab66e79c56a2`. The disposable profile and
@@ -17,10 +679,10 @@ The dedicated server is stopped and port 3000 is free. No retry occurred.
 The receipt contains no verdict classification and cannot attribute this
 failure to `Compile Error`. Compile failures remain valid final training
 outcomes and must not be filtered without a separate product decision and
-causal evidence. The only next action is a reviewed RED for the observer
-transition contract and bounded rejection receipt, including a possible
-coalesced E0/exact-submit E1 storage callback. Production runtime, verdict
-taxonomy, NowCoder observation, D5, RC, acceptance, and release remain stopped.
+causal evidence. The only next action is the harness-only RED/GREEN gate for
+separated and coalesced E0/E1/E2 plus a bounded rejection receipt, followed by
+independent code/privacy review. Production runtime, verdict taxonomy,
+real-platform actions, D5, RC, acceptance, and release remain stopped.
 
 ### Historical Task 22/23 context
 
@@ -84,16 +746,16 @@ HIGH/MEDIUM findings. Candidate `a911425...` remains historical and invalid
 for further D4 observations. No platform retry is authorized before a new
 immutable candidate and exact dist are frozen.
 
-Task 26 has now re-frozen immutable candidate
+At the historical pre-Task27 checkpoint, Task 26 had re-frozen immutable candidate
 `aa1a572c3913b35dd3f0391f849dab66e79c56a2`. Its exact validator exited `0`:
 root `2430/1`, app E2E `25/25`, extension unit `1591/1591`, extension E2E
 `53/1`, build `20/20`, privacy `0 findings`, readiness `PASS`, clean candidate
 identity, and preserved default DB metadata. The exact dist is
 `.tmp/task26-exact-dist-aa1a572`; hashes are recorded in
 `work/reports/v4-phase-d-task26-exact-submit-refreeze-2026-08-11.md`.
-No platform submission occurred during re-freeze. The only next action is a
-fresh LeetCode observation against that exact dist; action-time confirmation
-is still required after observer READY. D4 and D5 remain incomplete.
+No platform submission occurred during re-freeze. At that checkpoint the next
+action was a fresh LeetCode observation; Task 27 and Acceptance Contract
+Revision 2 above supersede that instruction. D4 and D5 remain incomplete.
 
 ### Superseded Task21 failure context
 
@@ -1238,6 +1900,96 @@ observation, final verification, and acceptance pending.**
   mandatory junction safety tests must pass.
 - The current extension E2E lane has 53 runnable passing tests and one known skipped
   service-worker-restart harness case; the skip is not production evidence.
+
+## Generation-2 receipt identity repair (2026-08-13)
+
+The first generation-2 LeetCode READY-only receipt reached browse-only READY
+with `0/0/0`, but omitted `generation` because the runner read the
+`projectObservationIdentity()` wrapper instead of its `.value`. Receipt
+`output/playwright/v4-observation/leetcode-readiness-1786552707075.json` is
+preserved as an invalid READY diagnostic and cannot authorize an action.
+
+The observer-only fix adds a strict `projectObservationReceiptIdentity()` and
+binds generation/profile/database identities on READY, ACK, and failure
+receipts. RED was `3 failed / 75 passed (78 total)` and GREEN is observer
+`78/78`; product anchors are `174/174`, combined focused `252/252`.
+Typecheck, targeted lint, syntax, privacy (`0 findings`), diff check, and
+protected-path isolation pass; dist hashes remain unchanged. Observer-only
+hashes are:
+
+```text
+scripts/v4-live-observation-observer.mjs  7DF8EF7508D44B9F0E35920872BD9B8C84A849CA4CD0F267BA8EEAE1FCA511BE
+scripts/v4-live-observation.mjs          FBD9834F5709AAF12167DA171E44A4D68C2954CFD75D57E007CBF72719498F61
+tests/unit/v4LiveObservationObserver.test.ts 59FF98C2137E56FEA3B8F90E11462D2F38C3BC88DCA369C54B314631EE35631E
+tests/unit/v4LiveObservationObserver.d.ts FC53651B490F18BFC789D0331EC12D30A2078A4AD5C840D1D1883AB28F8E6539
+```
+
+The focused gates above are observer-tool evidence only; no full quality gate,
+build, extension E2E, or product release gate was rerun. The NowCoder lane was
+not run, and no live server, browser, login, READY retry, action, click, or
+submission occurred after the invalid receipt diagnosis.
+
+The fixed LeetCode server/browser are closed and port 3000 is free. The
+generation-2 NowCoder profile remains an un-opened empty ordinary directory;
+do not delete or launch it from this checkpoint. The pre-hardening checkpoint
+was **`REVIEW REQUIRED`**; that historical status is superseded by the
+independent final review recorded in the hostile-wrapper section below. D4
+remains incomplete and D5 stopped.
+
+## Generation-2 hostile outer receipt-wrapper hardening (2026-08-13)
+
+The observer audit found one MEDIUM limited to the observer helper: an outer
+`ok` or `value` accessor could throw before the fixed rejection was returned.
+RED added hostile outer getters with zero-read assertions, inherited fields,
+hidden extra own keys, and non-data descriptors; the pre-fix result was
+`3 failed / 78 passed` (`81`). The helper now checks the outer prototype,
+exact own keys (`ok`, `value`), and own data descriptors before reading either
+field. The inner exact-key/data-descriptor gate remains unchanged and no raw
+exception is swallowed.
+
+GREEN and focused gates:
+
+```text
+observer focused:       81/81 passed
+frozen product anchors: 174/174 passed
+combined focused total: 255/255 passed
+npm run typecheck:       exit 0
+targeted ESLint:         exit 0
+node --check (2 scripts): exit 0
+privacy audit:           PASS, 0 findings
+git diff --check:        exit 0 (CRLF conversion warnings only)
+protected product-path diff: empty
+```
+
+The prior identity-unwrapper hashes are historical: observer
+`8B2D68B2C93274AF4F01667630F95EB125D352AE152E5AE35688D5F332C37D79`, runner
+`6859FB997C7F379B9C4B3CBABEA2DCF7EB62F160A9544532E59B2102BCCA4E46`, test
+`09AE1AC4CB595FE16D042AEA8F7B6C8C93E4397B9A928384982366C1B8D2DA70`, and
+d.ts `E76687FC485200E3C7C3A2350042F60E593494071652FCE42DB3E0DE68DDCE14`.
+Current observer-only hashes are:
+
+```text
+scripts/v4-live-observation-observer.mjs  B058734A363D593BDF9FCC70768B0BAC88D34E8281B742F26E810A94FC8EEF65
+scripts/v4-live-observation.mjs           FBD9834F5709AAF12167DA171E44A4D68C2954CFD75D57E007CBF72719498F61
+tests/unit/v4LiveObservationObserver.test.ts 306FE408DBE0C418223907F392DA3125E8D1973C3D9AD7FEE06F9F0F83366E31
+tests/unit/v4LiveObservationObserver.d.ts FC53651B490F18BFC789D0331EC12D30A2078A4AD5C840D1D1883AB28F8E6539
+```
+
+The five frozen Task 26 dist hashes remain unchanged. The prior generation-2
+LeetCode READY receipt remains an **INVALID READY diagnostic** and was not
+amended; NowCoder was not run. No live/server/browser/READY or action work
+occurred. Independent final review reran the current observer and frozen
+product anchors: observer `81/81`, anchors `174/174`, combined focused
+`255/255`, with no HIGH or MEDIUM findings. It confirmed that the current
+observer-only SHA-256 values above and all five frozen dist hashes match the
+reviewed evidence. Final verdict: **`APPROVE` for the receipt identity
+observer-only repair and new generation-2 isolated READY-only preparation**.
+This approval does not amend or rehabilitate the old invalid receipt, complete
+D4, restart D5, or constitute RC/release. The user's standing action approval
+still requires a valid READY for each lane, at most one action per lane, and
+immediate stop on the first failure; cookies, credentials, and account data
+must never be copied or exported. Runtime, manifest, schema, build, adapter,
+dist, candidate, authorization, and D4/D5 state remain unchanged.
 - Phase 1– and 5 capability portfolios contain implemented V0 thin
   slices but are not complete; Phase 4 and 6 are future. None is an
   active line-by-line implementation plan.
@@ -1247,3 +1999,25 @@ observation, final verification, and acceptance pending.**
   the hash was discarded immediately, no write occurred, and default
   DB `Length` 73728 / `LastWriteTimeUtc` 2026-07-13T17:49:36.9126118Z
   remained unchanged.
+
+## Generation-2 valid READY-only closeout (2026-08-13)
+
+After independent approval of the receipt-identity repair, both new
+generation-2 lanes reached valid READY sequentially with no action mode:
+
+- LeetCode reused its generation-2 profile:
+  `output/playwright/v4-observation/leetcode-readiness-1786554246043.json`.
+- NowCoder used a freshly-created generation-2 profile after Commander removed
+  the verified empty directory:
+  `output/playwright/v4-observation/nowcoder-readiness-1786554388436.json`.
+
+Both receipts bind `generation=d4-revision2-generation2`, exact profile/database
+identities, and unchanged five frozen dist hashes. Both report
+`ready/browse_only`, target `e0/e1/submit/status=0/0/0/0`, queues `0/0`, and
+SQLite `0/0/0`. No click, submit, login, credential/cookie read, source-code
+read, or problem-text read occurred. The old missing-generation LeetCode
+receipt remains an invalid diagnostic and was not amended.
+
+Both browser contexts and fixed-DB servers are closed; port 3000 is free. This
+is sequential READY preparation only; D4 is not accepted, D5 remains stopped,
+and a new action-time authorization is required before any real submission.

@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "platform": "leetcode",
+  "generation": "d4-revision2-generation5",
+  "candidate": "aa1a572c3913b35dd3f0391f849dab66e79c56a2",
+  "sourceReceipts": {
+    "ready": {
+      "file": "leetcode-readiness-1786570800357.json",
+      "sha256": "C6212764DEB0802D5BC87C0C01744CCEDB1D9408DA6FBD167DE035737856F2BC"
+    },
+    "action": {
+      "file": "leetcode-real-observation-failed-1786571076379.json",
+      "sha256": "19266639E21D2ABCBD155BCBEFE33CC6852616F7C48DFF71B8E62D3E776A4390",
+      "originalClassification": "OBSERVER_INVALID"
+    }
+  },
+  "laneIdentity": {
+    "profileIdentity": "d2eecc840d67afb6a5b48d4f4acea763beb8ce584f19d56972a0885ab2aab7b4",
+    "databaseIdentity": "f33a0a20db457a87b5e1ed2a2ceb59dc41cd2500a4bbc59e6d8ad9f89f90be58",
+    "observer": "48B65E4E2432E9641C5D0D5D4F20027A23EEE9F64E21F128E4B9E9C233E1D2C1",
+    "runner": "CE15746975B2FBDC45506A14F2C9A37F8FA8BBC1AA9E8FD7BBC1482D75C8F515",
+    "focusedTest": "6F0D0B33CAEE66AEDBF44A125F3E07058B61C36BF82F6C9420C74E078F26AD4F",
+    "declaration": "E218D2A786B8F5EF70CE78633B33891BE60971B65C45E13039690E68E4807CB2"
+  },
+  "safeCausalFacts": {
+    "strictClickAttempted": true,
+    "strictClickCompleted": true,
+    "acceptedPrefix": {
+      "e0": 1,
+      "e1": 0,
+      "submit": 0,
+      "status": 0
+    },
+    "firstRejectedTransition": "target_count_regression",
+    "rejectedTarget": {
+      "e0": 0,
+      "e1": 0,
+      "submit": 0,
+      "status": 0
+    },
+    "captureErrorPresent": false,
+    "confirmed": 0,
+    "tombstones": 0,
+    "outbox": 0,
+    "quarantine": 0,
+    "database": {
+      "captureEvents": 0,
+      "trainingSessions": 0,
+      "trainingAttempts": 0
+    },
+    "productE0TtlMilliseconds": 30000,
+    "productE0PrunesToEmpty": true
+  },
+  "finalClassification": "PRODUCT_FAIL",
+  "fixedDiagnosis": "exact_submit_e1_missing_before_e0_lifecycle_end",
+  "scope": {
+    "d4PlatformPass": false,
+    "d5Authorized": false,
+    "retryAuthorized": false,
+    "nowcoderAuthorized": false,
+    "productChangeAuthorized": false,
+    "d3RefreezeAuthorized": false
+  },
+  "privacyBoundary": {
+    "noRawRequest": true,
+    "noUrl": true,
+    "noTimestamp": true,
+    "noCode": true,
+    "noProblemText": true,
+    "noCookie": true,
+    "noCredential": true,
+    "noToken": true,
+    "noAccountData": true
+  }
+}
