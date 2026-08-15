@@ -115,4 +115,33 @@ describe("V4 Phase 0 UI hints", () => {
     expect(writes).toEqual([{ uiHints: [] }]);
     expect(values.uiHints).toEqual([]);
   });
+
+  it("retains E0 one millisecond before TTL without rewriting session storage", async () => {
+    const observedAt = "2026-07-24T00:00:00.000Z";
+    const values: Record<string, unknown> = {
+      uiHints: [{
+        schemaVersion: 1,
+        tier: "E0",
+        kind: "ui_hint",
+        platform: "leetcode",
+        problemExternalId: "two-sum",
+        sourceDocumentId: "document_1",
+        observedAt,
+      }],
+    };
+    const writes: Record<string, unknown>[] = [];
+    const storage = {
+      get: async () => values,
+      set: async (items: Record<string, unknown>) => {
+        Object.assign(values, items);
+        writes.push(items);
+      },
+    };
+    const now = new Date(Date.parse(observedAt) + UI_HINT_TTL_MS - 1).toISOString();
+
+    const retained = await pruneStoredUiHints(storage, now);
+    expect(retained).toHaveLength(1);
+    expect(values.uiHints).toHaveLength(1);
+    expect(writes).toEqual([]);
+  });
 });

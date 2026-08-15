@@ -17,6 +17,8 @@ const hosts = {
   codeforces: "https://codeforces.com/contest/1/submit",
 } as const;
 
+const leetcodeCnRestSubmit = "https://leetcode.cn/problems/two-sum/submit/";
+
 const details = (url: string, overrides: Partial<WebRequestDetails> = {}): WebRequestDetails => ({
   requestId: "request-1",
   url,
@@ -326,6 +328,79 @@ describe("V4 network observer", () => {
     });
   });
 
+  it("records a supported exact LeetCode .cn REST submit through a completed branch", () => {
+    const subject = observer();
+    const input = details(leetcodeCnRestSubmit, { requestId: "leetcode-rest-completed" });
+    const before = subject.handleBeforeRequest(input);
+    expect(before).toMatchObject({
+      kind: "recorded",
+      lifecycle: {
+        platform: "leetcode",
+        endpointKey: "leetcode/submit/cn/two-sum",
+        method: "POST",
+        lifecycle: "before_request",
+      },
+    });
+
+    const completed = subject.handleCompleted(input);
+    expect(completed).toMatchObject({
+      kind: "recorded",
+      lifecycle: {
+        platform: "leetcode",
+        endpointKey: "leetcode/submit/cn/two-sum",
+        method: "POST",
+        lifecycle: "completed",
+      },
+    });
+  });
+
+  it("records a supported exact LeetCode .cn REST submit through an error branch", () => {
+    const subject = observer();
+    const input = details(leetcodeCnRestSubmit, { requestId: "leetcode-rest-error" });
+    const before = subject.handleBeforeRequest(input);
+    expect(before).toMatchObject({
+      kind: "recorded",
+      lifecycle: {
+        platform: "leetcode",
+        endpointKey: "leetcode/submit/cn/two-sum",
+        method: "POST",
+        lifecycle: "before_request",
+      },
+    });
+
+    const failed = subject.handleErrorOccurred(
+      input,
+      "net::ERR_FAILED should not be retained",
+    );
+    expect(failed).toMatchObject({
+      kind: "recorded",
+      lifecycle: {
+        platform: "leetcode",
+        endpointKey: "leetcode/submit/cn/two-sum",
+        method: "POST",
+        lifecycle: "error_occurred",
+      },
+    });
+    expect(JSON.stringify(failed)).not.toContain("ERR_FAILED");
+  });
+
+  it("projects a supported exact LeetCode .cn REST redirect without retaining URL data", () => {
+    const redirected = observer().handleBeforeRedirect(
+      details(leetcodeCnRestSubmit, { requestId: "leetcode-rest-redirect" }),
+      "https://leetcode.cn/submissions/detail/739040551/v2/check/?token=never-retained",
+    );
+    expect(redirected).toMatchObject({
+      kind: "recorded",
+      lifecycle: {
+        platform: "leetcode",
+        endpointKey: "leetcode/submit/cn/two-sum",
+        lifecycle: "before_redirect",
+        redirectEndpointKey: "leetcode/check/cn/739040551",
+      },
+    });
+    expect(JSON.stringify(redirected)).not.toContain("never-retained");
+  });
+
   it("rejects unsafe endpoint fragments and forbidden raw observation keys", () => {
     expect(normalizeOjEndpointKey("https://leetcode.com/submit?next=https://evil.test")).toBeNull();
     const raw = { ...details(hosts.leetcode), body: undefined };
@@ -362,9 +437,10 @@ describe("V4 network observer", () => {
 
   it.each([
     details(hosts.leetcode, { documentId: undefined }),
+    details(hosts.leetcode, { documentId: "" }),
     details(hosts.leetcode, { tabId: -1 }),
     details(hosts.leetcode, { frameId: -1 }),
-  ])("ignores missing browser-document identity", (input) => {
+  ])("ignores missing or empty browser-document identity", (input) => {
     expect(observer().handleBeforeRequest(input)).toEqual({ kind: "ignored", reason: "missing_document_id" });
   });
 
@@ -428,5 +504,68 @@ describe("V4 network observer", () => {
       outcome: "pending",
       evidence: { platform: "codeforces", endpointKey: "submit" },
     });
+  });
+
+  it("persists a completed exact REST branch across a fresh observer instance", async () => {
+    const values: Record<string, unknown> = {};
+    const storage = {
+      get: async (keys: readonly string[]) => Object.fromEntries(
+        keys.filter((key) => key in values).map((key) => [key, values[key]]),
+      ),
+      set: async (items: Record<string, unknown>) => { Object.assign(values, items); },
+    };
+    const input = details(leetcodeCnRestSubmit, { requestId: "leetcode-rest-restart-completed" });
+    const adapterVersion = "v4-leetcode-network-6";
+
+    const before = observer().handleBeforeRequest(input);
+    await persistRecordedLifecycle(storage, before, "leetcode", 4, 0, "document-1", adapterVersion);
+    const completed = observer().handleCompleted(input);
+    await persistRecordedLifecycle(storage, completed, "leetcode", 4, 0, "document-1", adapterVersion);
+
+    const state = readTransientSessionEvidenceState(values);
+    expect(state.requestLifecycles).toHaveLength(1);
+    expect(state.requestLifecycles[0]).toMatchObject({
+      kind: "request_lifecycle",
+      outcome: "pending",
+      rejectionReason: null,
+      evidence: {
+        platform: "leetcode",
+        requestId: "leetcode-rest-restart-completed",
+        endpointKey: "leetcode/submit/cn/two-sum",
+        lifecycle: "completed",
+      },
+    });
+  });
+
+  it("persists an error exact REST branch across a fresh observer instance", async () => {
+    const values: Record<string, unknown> = {};
+    const storage = {
+      get: async (keys: readonly string[]) => Object.fromEntries(
+        keys.filter((key) => key in values).map((key) => [key, values[key]]),
+      ),
+      set: async (items: Record<string, unknown>) => { Object.assign(values, items); },
+    };
+    const input = details(leetcodeCnRestSubmit, { requestId: "leetcode-rest-restart-error" });
+    const adapterVersion = "v4-leetcode-network-6";
+
+    const before = observer().handleBeforeRequest(input);
+    await persistRecordedLifecycle(storage, before, "leetcode", 4, 0, "document-1", adapterVersion);
+    const failed = observer().handleErrorOccurred(input, "net::ERR_FAILED should not be retained");
+    await persistRecordedLifecycle(storage, failed, "leetcode", 4, 0, "document-1", adapterVersion);
+
+    const state = readTransientSessionEvidenceState(values);
+    expect(state.requestLifecycles).toHaveLength(1);
+    expect(state.requestLifecycles[0]).toMatchObject({
+      kind: "request_lifecycle",
+      outcome: "error",
+      rejectionReason: "network_error",
+      evidence: {
+        platform: "leetcode",
+        requestId: "leetcode-rest-restart-error",
+        endpointKey: "leetcode/submit/cn/two-sum",
+        lifecycle: "error_occurred",
+      },
+    });
+    expect(JSON.stringify(state)).not.toContain("ERR_FAILED");
   });
 });
