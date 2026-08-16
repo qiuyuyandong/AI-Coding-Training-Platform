@@ -48,6 +48,15 @@ describe("V4 adapter readiness validator", () => {
     expect(validateV4AdapterReadiness(readiness, registry)).toEqual([]);
   });
 
+  it("locks the authorized LeetCode result-root readiness contract", () => {
+    const record = readiness.records.find((candidate) => candidate.platform === "leetcode");
+    expect(record).toMatchObject({
+      status: "experimental",
+      requestMatcher: "Legacy implemented path: POST /problems/<slug>/submit[/] then GET /submissions/detail/<numeric-id>/(v2/)?check[/]. Implemented P1 result-root path: one trusted visible exact submit control creates a same-document ActionEpoch and pre-action result baseline; one completed GET /submissions/api/{runtime|memory}_distribution/<numeric-id>[/] on an exact owned HTTPS host supplies the stable ID. Exact REST submit and POST /graphql/ may corroborate but are not required; identity conflict or multiple eligible roots fail closed.",
+      e2Policy: "The legacy implemented path requires one unique completed HTTP 200 submit/check pair. The implemented P1 result-root path requires one recent same-document trusted ActionEpoch, a zero/fresh pre-action result baseline, no competing action or submission, and exactly one completed HTTP 200 result-distribution lifecycle with a new numeric ID bound to the exact host/problem within five seconds. Historical or baseline IDs, wrong scope or document, conflicts, and multiple eligible IDs fail closed; duplicate callbacks for one stable ID coalesce; REST and GraphQL are optional corroboration. P1 offline RED/GREEN proves this runtime policy without promoting LeetCode beyond experimental readiness.",
+    });
+  });
+
   it("records Codeforces as terminally blocked after the natural form-navigation observation", () => {
     const record = readiness.records.find((candidate) => candidate.platform === "codeforces");
     expect(record).toMatchObject({

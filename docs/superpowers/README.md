@@ -1,16 +1,16 @@
 # Superpowers Documentation Index
 
-> **Current status (2026-08-11):** **V4 Phase D D1-D3 are complete; D4 final
-> delivery was observed but required stage evidence is incomplete; D5 is stopped.** Immutable candidate
-> `a911425a415db2ee374430ced62edcaa7b786866` passed the exact D3 validator,
-> and its exact dist produced final deliveries for LeetCode `cn/741526004`, approved
-> NowCoder pilot `84444687`, and the 292-case blocked-platform drift lane.
-> Each active platform produced exactly one POST, four events, one session,
-> one attempt, ACK, and zero final queues. Independent F1 review found the
-> required contemporaneous browse-only, E1, and E2 states missing, so this is
-> not yet D4 PASS evidence. Evidence and the superseding Revision 3:
-> [`../../work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`](../../work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md).
-> This is not final user acceptance, an RC, or a release.
+> **Current status (2026-08-16):** The user accepted `ISOLATED` as the
+> replacement D4 minimum; P0A alignment and P1 LeetCode offline RED/GREEN are
+> complete, and P2 NowCoder non-regression passes without a NowCoder production
+> change. The machine contract is `authorized_for_offline_work_only`; P3 is
+> next. P1 proves the ActionEpoch/result-root runtime branch offline but does
+> not create a live D4 claim. Candidate freeze, live observation, D5/F1-F4,
+> RC, release, push, and PR remain unauthorized. Historical Route A facts stay
+> authoritative for their own runs but cannot satisfy the new contract. Plans:
+> [`plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`](plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md)
+> and
+> [`plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`](plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md).
 >
 > **Historical status (2026-08-09):** **V4 Phase D D1, D2, and D3 candidate engineering
 > work is complete** on `feature/v1-followup` (candidate `509faf0e60532cf565a6a57aa796b96bc1053f38`;
@@ -143,9 +143,17 @@ bounded poll window; the 9th real observation (2026-08-09) FAILED with a new
 root cause (stale historical result panel → candidate predating the submit;
 real result deduped by identical verdict text), and a RED test plus plan
 revision are required before further code changes.
-D4 same-SHA real observations and D5 F1-F4 still require separate
-authorization. Formal V0 observation remains blocked; V0.5 stays out of
-scope. The total product target is **Phase 7 / Public Beta hosted SaaS**.
+On 2026-08-16 the user accepted `ISOLATED` as the replacement D4 minimum and
+P0A C0 alignment completed through
+[`plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`](plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md)
+and its template-derived
+[`plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`](plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md).
+P1 offline RED/GREEN, P2 NowCoder non-regression, P3 observer-contract
+repair, and P4 independent plan/tool review are complete (`APPROVE`, no
+HIGH/MEDIUM); P5 candidate freeze is not authorized. Candidate freeze, live observation, and D5
+F1-F4 remain separately gated. Formal V0 observation remains blocked; V0.5
+stays out of scope. The total product target is **Phase 7 / Public Beta hosted
+SaaS**.
 
 ## Completed Phase 0 records
 

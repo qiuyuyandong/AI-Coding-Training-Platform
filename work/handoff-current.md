@@ -1,5 +1,48 @@
 # Current Handoff
 
+## Status (2026-08-16 P4 complete; `ISOLATED` authorized for offline work only)
+
+The user explicitly accepted `ISOLATED` as the replacement D4 minimum and
+authorized P0A C0 readiness alignment. The canonical contract is Revision 4 of
+`docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`;
+the template-derived C0 delta is
+`docs/superpowers/plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`.
+The machine profile is `authorized_for_offline_work_only`; both platform
+profiles are `authorized_offline`, LeetCode readiness is aligned to the
+ActionEpoch/result-root policy, and LeetCode remains network-`experimental`.
+
+P0A changed no `extension/src/**` production file. P1 then implemented the
+LeetCode ActionEpoch/result-root branch with baseline-ID replay, multiple-action,
+multiple-new-ID, crossed-corroboration, historical-panel, repeat-verdict, and
+restart negatives. P1 verification passed: focused `248/248`, extension
+`1615/1615`, extension E2E `53/1`, both contract CLIs, typecheck, targeted
+ESLint, and privacy audit with `0 findings`. P2 then preserved the exact
+NowCoder pilot with zero NowCoder production diff, focused `504/504`, extension
+`1615/1615`, and extension E2E `53/1`. P3 then closed the observer contract:
+LeetCode E2 requires exactly one result/check stable ID equal to the confirmed
+`externalSubmissionId`; submit-only, mismatch, duplicate, and post-E2 identity
+replacement fail closed through E3/ACK; the first terminal failure closes the
+observation context exactly once; a required candidate receipt binds the
+candidate SHA, dist path, and five artifact hashes and is revalidated at final
+evidence; raw exception text never enters evidence. P3 verification passed:
+observer `43/43`, typecheck, targeted ESLint, both syntax checks, privacy
+`0 findings`, both contract CLIs, and diff-check; the final independent tool
+review returned `APPROVE` with no HIGH/MEDIUM. P4 then reviewed all five
+contracts (authority, readiness, observer, privacy, stop) and returned a
+conditional PASS; Build ran the four required offline verifications (4/4
+hashes match, focused `77/77`, both CLIs + privacy PASS, extension diff =
+exactly six P1 LeetCode files), so the retained verdict is `APPROVE` with no
+HIGH/MEDIUM and one deferred non-blocking advisory. P5 candidate freeze is the
+next package and is not authorized.
+Candidate freeze, live observation, D5/F1-F4, RC, release, push, and PR remain
+separately gated and unauthorized.
+
+The Route A sections below remain immutable historical facts for their own
+runs. `NO_SAFE_DIRECT_WITNESS`, `WINDOW_CORRELATED_FACTS_AUXILIARY_ONLY`, and
+`TASK26_LIVE_PROTOCOL_ASSUMPTION_UNPROVEN` are not erased or relabelled, but
+their former future-acceptance semantics are superseded by the user-authorized
+contract. Historical evidence cannot satisfy the new `ISOLATED` profile.
+
 ## Status (2026-08-14 section 14.34 `ROUTE_A_CLOSEOUT_APPROVE`; D4 incomplete; D5 stopped)
 
 Route A is selected. Static audit confirms the protected product/candidate

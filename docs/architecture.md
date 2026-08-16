@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-08-11 (V4 Phase D D1-D3 complete on immutable candidate `a911425a415db2ee374430ced62edcaa7b786866`; D4 final delivery observed but contemporaneous stage evidence incomplete; D5 stopped; no final user acceptance, RC, or release; the earlier Phase C C0-C5 evidence and Phase C-D readiness contract remain authoritative)
+Last updated: 2026-08-16 (D4 `ISOLATED` minimum authorized for offline work; P0A-P2 complete; P3 next; candidate freeze, live observation, D5, RC, and release remain unauthorized)
 
 ## Overview
 
@@ -8,14 +8,13 @@ The app is a local-first unified OJ training memory system. It opens original pr
 
 This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. Accounts, cloud sync, hosted AI, editor-agnostic project evidence, and multi-tenant storage are not implemented today. The product does not plan editor activity or workspace-footprint monitoring.
 
-Phase D has same-SHA final-delivery observations for the existing active
-policies: LeetCode `cn/741526004` and the narrow approved NowCoder pilot
-`84444687` each produced four events, one session, one attempt, and zero final
-queues. The evidence did not preserve the required contemporaneous browse-only,
-E1, and E2 stage states, so D4 remains incomplete. This does not promote either
-network policy beyond `experimental`; AtCoder, Codeforces, and Luogu remain
-network-`blocked`. See
-`work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`.
+Phase D now uses the user-authorized `ISOLATED` contract for future offline
+work. Historical same-SHA deliveries and the Route A closeout remain factual
+evidence for their own runs but cannot be relabelled or used to satisfy the new
+profile. P1 implements the offline LeetCode ActionEpoch/result-root branch; it
+does not produce a D4 PASS or live claim. LeetCode and
+NowCoder remain network-`experimental`; AtCoder, Codeforces, and Luogu remain
+network-`blocked`.
 
 ## Runtime modules
 
@@ -421,8 +420,13 @@ NowCoder's existing `experimental` V4 readiness is preserved through
 the manifest and remains governed by Phase B's terminal closeout. The
 E3 ingress repair at `c26c578` is the engineering baseline.
 
-C1 adds a closed LeetCode legacy submit/check policy and the current
-trusted-E0 + completed GraphQL + exact result-distribution policy. Adapter
+C1 adds a closed LeetCode legacy submit/check policy. The implemented D4 P1
+contract requires one trusted same-document ActionEpoch, a pre-action
+result baseline, no competing action/submission, and one unique new exact
+result-distribution ID; REST and GraphQL are optional corroboration and any
+identity conflict fails closed. Baseline-ID replay, multiple actions or new
+IDs, crossed corroboration, and historical surfaces reject; duplicate callbacks
+for one stable ID coalesce. Adapter
 `v4-leetcode-network-6` emits a plain problem slug and a `.cn`/`.com`
 namespaced submission ID. Confirmation storage preserves the first E2
 timestamp, rejects crossed problem identity, and treats final tombstones as
@@ -499,9 +503,18 @@ evidence only, not RC, acceptance, or release.
   confirmed. Independent D3 review returned `APPROVE` with no HIGH or
   MEDIUM findings.
 
-D4 same-SHA real natural observations and D5 F1-F4 still require separate
-authorization. The candidate is not pushed, not a PR, and is not RC,
-acceptance, or release.
+P1 offline RED/GREEN, P2 NowCoder non-regression, P3 observer-contract
+repair, and P4 independent plan/tool review are complete on the uncommitted
+working tree. P3 binds
+LeetCode E2 to one exact result/check stable ID, closes the observation
+context on the first terminal failure, and binds the candidate receipt to the
+SHA, dist path, and five artifact hashes; the final tool review returned
+`APPROVE`. P4 re-reviewed all five contracts and its conditional PASS resolved
+to `APPROVE` after Build ran the four offline verifications. P2 made no
+NowCoder production change. P5 candidate freeze is not authorized.
+Candidate freeze, D4 live observations, and D5 F1-F4 still require their own
+gates. The candidate is not pushed, not a PR, and is not RC, acceptance, or
+release.
 
 ## D4 E3-confirmed race fix (2026-08-06, superseded 2026-08-08 by the candidate coordinator repair)
 

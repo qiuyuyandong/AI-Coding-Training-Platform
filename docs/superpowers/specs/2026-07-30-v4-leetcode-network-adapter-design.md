@@ -68,6 +68,22 @@ trusted same-document problem hint precedes a completed same-document GraphQL
 POST and an exact completed result-distribution GET within 5 seconds. Opening
 a historical result page has no such E0 and therefore cannot create E2.
 
+### 2026-08-16 authorized D4 result-root amendment
+
+The user-authorized D4 `ISOLATED` target contract supersedes the
+GraphQL-required sentence above for P1 offline work. One trusted same-document ActionEpoch,
+a zero/fresh pre-action result baseline, no competing action or submission,
+and exactly one new completed result-distribution lifecycle with a stable
+numeric ID may create E2 within five seconds. Exact REST submit and GraphQL
+requests are optional corroboration; absence does not fail an otherwise exact
+chain, while identity conflict or multiple eligible roots fail closed. This is
+intervention-bounded evidence, not `DIRECT` click-to-request causality.
+P1 now implements and proves this contract offline: the runtime rejects
+baseline-ID replay, multiple ActionEpochs, multiple new IDs, crossed
+corroboration, and unchanged historical surfaces while coalescing duplicate
+callbacks for one stable ID. This does not promote LeetCode beyond
+network-`experimental` or establish a live D4 PASS.
+
 ## E3 policy
 
 A visible trusted LeetCode verdict candidate may create E3 only when:

@@ -115,7 +115,16 @@ const FAILURE_SNAPSHOT_KEYS = new Set([
   "session",
   "target",
 ]);
-const TARGET_COUNT_KEYS = new Set(["e0", "e1", "submit", "status"]);
+const TARGET_COUNT_KEYS = new Set(["e0", "e1", "submit", "status", "statusConfirmedMatch"]);
+const TARGET_IDENTITY_MEMORY = new WeakMap();
+const CANDIDATE_RECEIPT_KEYS = new Set(["schemaVersion", "candidateSha", "extensionDist", "artifactHashes"]);
+const CANDIDATE_ARTIFACT_KEYS = new Set([
+  "manifest.json",
+  "background.js",
+  "content.js",
+  "popup.js",
+  "main-world-bridge.js",
+]);
 
 const objectValue = (value) => typeof value === "object" && value !== null;
 const nonemptyString = (value) => typeof value === "string" && value.length > 0;
@@ -233,6 +242,49 @@ function exactDataSnapshotKeys(value, allowed) {
   return true;
 }
 
+export function validateCandidateReceipt(value, expected) {
+  if (!exactDataSnapshotKeys(value, CANDIDATE_RECEIPT_KEYS)
+    || value.schemaVersion !== 1
+    || !/^[a-f0-9]{40}$/u.test(value.candidateSha)
+    || !nonemptyString(value.extensionDist)
+    || !exactDataSnapshotKeys(value.artifactHashes, CANDIDATE_ARTIFACT_KEYS)
+    || !objectValue(expected)
+    || value.candidateSha !== expected.candidateSha
+    || resolve(value.extensionDist) !== resolve(expected.extensionDist)) {
+    return { ok: false, reason: "observer_candidate_receipt_rejected" };
+  }
+  for (const key of CANDIDATE_ARTIFACT_KEYS) {
+    const receiptHash = value.artifactHashes[key];
+    const expectedHash = expected.artifactHashes?.[key];
+    if (typeof receiptHash !== "string" || !/^[A-F0-9]{64}$/u.test(receiptHash)
+      || receiptHash !== expectedHash) {
+      return { ok: false, reason: "observer_candidate_receipt_rejected" };
+    }
+  }
+  return { ok: true };
+}
+
+export function createObservationTerminalController({ closeContext, rejectArmed }) {
+  let terminal = false;
+  let reason;
+  return Object.freeze({
+    fail(nextReason) {
+      if (terminal) return false;
+      terminal = true;
+      reason = nextReason;
+      rejectArmed(new Error(nextReason));
+      void Promise.resolve().then(closeContext).catch(() => undefined);
+      return true;
+    },
+    get terminal() {
+      return terminal;
+    },
+    get reason() {
+      return reason;
+    },
+  });
+}
+
 function targetValue(target) {
   if (target === undefined) return undefined;
   if (!objectValue(target)
@@ -303,6 +355,18 @@ function readE1TargetMatch(value, target) {
       }
       return { ok: true, kind: "submit", matches: true };
     }
+    if (/^leetcode\/(?:result|check)\/cn\/[0-9]{1,20}$/u.test(evidence.endpointKey)) {
+      if (evidence.platform !== "leetcode" || evidence.method !== "GET"
+        || evidence.resourceType !== "xmlhttprequest") {
+        return { ok: false };
+      }
+      return {
+        ok: true,
+        kind: "status",
+        matches: true,
+        stableSubmissionId: evidence.endpointKey.replace(/^leetcode\/(?:result|check)\//u, ""),
+      };
+    }
     return {
       ok: true,
       kind: "unrelated",
@@ -342,12 +406,16 @@ function projectTargetSession(session, target) {
   }
   let submit = 0;
   let status = 0;
+  const statusSubmissionIds = [];
   for (const lifecycle of lifecycles.value) {
     const result = readE1TargetMatch(lifecycle, parsedTarget);
     if (!result.ok) return { ok: false };
     if (!result.matches) continue;
     if (result.kind === "submit") submit += 1;
-    if (result.kind === "status") status += 1;
+    if (result.kind === "status") {
+      status += 1;
+      statusSubmissionIds.push(result.stableSubmissionId);
+    }
   }
   return {
     ok: true,
@@ -357,7 +425,23 @@ function projectTargetSession(session, target) {
       submit,
       status,
     }),
+    statusSubmissionIds: Object.freeze(statusSubmissionIds),
   };
+}
+
+function bindTargetStatusIdentity(counts, target, confirmed, statusSubmissionIds) {
+  const value = {
+    e0: counts.e0,
+    e1: counts.e1,
+    submit: counts.submit,
+    status: counts.status,
+  };
+  if (target?.platform === "leetcode" && confirmed.length > 0) {
+    value.statusConfirmedMatch = confirmed.length === 1
+      && statusSubmissionIds.length === 1
+      && statusSubmissionIds[0] === confirmed[0].externalSubmissionId;
+  }
+  return Object.freeze(value);
 }
 
 /**
@@ -397,18 +481,23 @@ export function projectSafeSnapshot(input, target) {
   }
   const targetResult = projectTargetSession(session, target);
   if (!targetResult.ok) return { ok: false, reason: "observer_value_rejected" };
+  const projectedTarget = target === undefined
+    ? undefined
+    : bindTargetStatusIdentity(targetResult.value, target, confirmed.value, targetResult.statusSubmissionIds);
+  const value = Object.freeze({
+    confirmed: confirmed.value,
+    tombstones: tombstones.value,
+    outbox: outboxResult.value.length,
+    quarantine: quarantineResult.value.length,
+    lastCaptureError: lastError.value,
+    lastSuccessfulCaptureAt: lastSuccess.value,
+    session: Object.freeze(sessionCounts),
+    ...(projectedTarget === undefined ? {} : { target: projectedTarget }),
+  });
+  TARGET_IDENTITY_MEMORY.set(value, targetResult.statusSubmissionIds);
   return {
     ok: true,
-    value: Object.freeze({
-      confirmed: confirmed.value,
-      tombstones: tombstones.value,
-      outbox: outboxResult.value.length,
-      quarantine: quarantineResult.value.length,
-      lastCaptureError: lastError.value,
-      lastSuccessfulCaptureAt: lastSuccess.value,
-      session: Object.freeze(sessionCounts),
-      ...(target === undefined ? {} : { target: targetResult.value }),
-    }),
+    value,
   };
 }
 
@@ -432,6 +521,7 @@ export function applySafeStorageChange(snapshot, areaName, changes, target) {
     tombstones: [...snapshot.tombstones],
     session: { ...snapshot.session },
   };
+  let statusSubmissionIds = TARGET_IDENTITY_MEMORY.get(snapshot) ?? Object.freeze([]);
   for (const key of validation.keys) {
     const changed = changedNewValue(changes, key);
     if (!changed.ok) return { ok: false, reason: "observer_value_rejected" };
@@ -445,6 +535,7 @@ export function applySafeStorageChange(snapshot, areaName, changes, target) {
           transientE1: key === "transientE1" ? (value ?? []) : [],
         }, target);
         if (!targetResult.ok) return { ok: false, reason: "observer_value_rejected" };
+        if (key === "transientE1") statusSubmissionIds = targetResult.statusSubmissionIds;
         next.target = {
           ...(next.target ?? { e0: 0, e1: 0, submit: 0, status: 0 }),
           ...(key === "uiHints" ? { e0: targetResult.value.e0 } : {
@@ -476,7 +567,12 @@ export function applySafeStorageChange(snapshot, areaName, changes, target) {
       next.lastCaptureError = projected.value;
     }
   }
-  return { ok: true, value: Object.freeze({ ...next, confirmed: Object.freeze(next.confirmed), tombstones: Object.freeze(next.tombstones), session: Object.freeze(next.session) }) };
+  if (target !== undefined && next.target !== undefined) {
+    next.target = bindTargetStatusIdentity(next.target, target, next.confirmed, statusSubmissionIds);
+  }
+  const value = Object.freeze({ ...next, confirmed: Object.freeze(next.confirmed), tombstones: Object.freeze(next.tombstones), session: Object.freeze(next.session) });
+  TARGET_IDENTITY_MEMORY.set(value, statusSubmissionIds);
+  return { ok: true, value };
 }
 
 export function isExactObserverPageUrl(actual, expected) {
@@ -508,6 +604,50 @@ export function projectStageEvidence(state, database) {
           : { lastCaptureError: latest.lastCaptureError }),
       }),
       database: db,
+    }),
+  };
+}
+
+/**
+ * D4 acceptance projection. Unlike the historical diagnostic projection,
+ * this exports only cumulative bounded facts and a closed grade/verdict.
+ * Request/document identity, URLs, timestamps, verdict text, storage values,
+ * database paths, and stable submission identifiers never cross this seam.
+ */
+export function projectD4AcceptanceEvidence(state, database) {
+  if (!objectValue(state) || !objectValue(state.latest) || typeof state.stage !== "string") {
+    return { ok: false, reason: "observer_value_rejected" };
+  }
+  const db = databaseValue(database);
+  const target = readTargetCounts(state.latest, state.latest.target);
+  if (db === undefined || target === undefined) {
+    return { ok: false, reason: "observer_value_rejected" };
+  }
+  const baseline = databaseValue(state.databaseBaseline);
+  if (baseline === undefined) return { ok: false, reason: "observer_value_rejected" };
+  return {
+    ok: true,
+    value: Object.freeze({
+      schemaVersion: 1,
+      stage: state.stage,
+      causalGrade: state.acknowledged === true ? "ISOLATED" : "UNRESOLVED",
+      verdict: state.acknowledged === true ? "PASS" : "PROFILE_UNRESOLVED",
+      facts: Object.freeze({
+        authorizedActions: target.e0,
+        exactSubmitCorroboration: target.submit,
+        stableResultLifecycles: target.status,
+        e2Confirmed: state.e2Seen === true ? 1 : 0,
+        e3Finalized: state.e3Seen === true ? 1 : 0,
+        acknowledged: state.acknowledged === true ? 1 : 0,
+        waiting: state.latest.confirmed.filter((record) => record.finalizedAt === undefined).length,
+        outbox: state.latest.outbox,
+        quarantine: state.latest.quarantine,
+        databaseDelta: Object.freeze({
+          captureEvents: db.captureEvents - baseline.captureEvents,
+          trainingSessions: db.trainingSessions - baseline.trainingSessions,
+          trainingAttempts: db.trainingAttempts - baseline.trainingAttempts,
+        }),
+      }),
     }),
   };
 }
@@ -613,7 +753,8 @@ function readTargetCounts(snapshot, target) {
   const value = snapshot.target;
   if (!objectValue(value)
     || !exactDataSnapshotKeys(value, TARGET_COUNT_KEYS)
-    || !["e0", "e1", "submit", "status"].every((key) => Number.isInteger(value[key]) && value[key] >= 0)) {
+    || !["e0", "e1", "submit", "status"].every((key) => Number.isInteger(value[key]) && value[key] >= 0)
+    || (Object.hasOwn(value, "statusConfirmedMatch") && typeof value.statusConfirmedMatch !== "boolean")) {
     return undefined;
   }
   return value;
@@ -743,13 +884,20 @@ export function reduceObservationSnapshot(previous, snapshot, database, target) 
   if (target !== undefined && (currentTarget === undefined || priorTarget === undefined)) {
     return { ok: false, reason: "observer_stage_rejected" };
   }
+  if (previous.e2Seen) {
+    if (snapshot.confirmed.length !== 1
+      || identityOf(snapshot) !== previous.e2Identity
+      || (target?.platform === "leetcode" && currentTarget?.statusConfirmedMatch !== true)) {
+      return { ok: false, reason: "observer_stage_rejected" };
+    }
+  }
   if (target !== undefined) {
     const targetCounts = currentTarget;
     const previousTarget = priorTarget;
     if (targetCounts.e0 < previousTarget.e0 || targetCounts.e1 < previousTarget.e1
       || targetCounts.submit < previousTarget.submit || targetCounts.status < previousTarget.status
       || targetCounts.e0 > 1
-      || (target.platform === "leetcode" && (targetCounts.submit > 1 || targetCounts.status > 0))
+      || (target.platform === "leetcode" && (targetCounts.submit > 1 || targetCounts.status > 1))
       || (target.platform === "nowcoder" && (targetCounts.submit > 1 || targetCounts.status > 1))) {
       return { ok: false, reason: "observer_stage_rejected" };
     }
@@ -770,7 +918,7 @@ export function reduceObservationSnapshot(previous, snapshot, database, target) 
       const previousTarget = priorTarget;
       const targetReady = targetCounts.e0 === 1
         && (target.platform === "leetcode"
-          ? targetCounts.submit === 1 && targetCounts.status === 0
+          ? targetCounts.status === 1 || targetCounts.submit === 1
           : targetCounts.submit === 1 && targetCounts.status === 0);
       if (targetCounts.e1 === 0) {
         if (confirmedDelta !== 0 || tombstoneDelta !== 0
@@ -805,7 +953,14 @@ export function reduceObservationSnapshot(previous, snapshot, database, target) 
       && !previous.e2Seen
       && previousTarget.submit === 1 && previousTarget.status === 0
       && targetCounts.submit === 1 && targetCounts.status === 1;
-    if (targetCounts.e1 !== previousTarget.e1 && !allowedNowCoderStatusAdvance) {
+    const allowedLeetCodeResultAdvance = target.platform === "leetcode"
+      && !previous.e2Seen
+      && previousTarget.status === 0
+      && targetCounts.status === 1
+      && targetCounts.submit === previousTarget.submit;
+    if (targetCounts.e1 !== previousTarget.e1
+      && !allowedNowCoderStatusAdvance
+      && !allowedLeetCodeResultAdvance) {
       return { ok: false, reason: "observer_stage_rejected" };
     }
   }
@@ -823,7 +978,12 @@ export function reduceObservationSnapshot(previous, snapshot, database, target) 
         && (currentTarget?.submit !== 1 || currentTarget.status !== 1)) {
         return { ok: false, reason: "observer_stage_rejected" };
       }
+      if (target.platform === "leetcode"
+        && (currentTarget?.status !== 1 || currentTarget.statusConfirmedMatch !== true)) {
+        return { ok: false, reason: "observer_stage_rejected" };
+      }
       next.e2Seen = true;
+      next.e2Identity = candidate.storageKey;
       next.stage = "e2_confirmed";
       return { ok: true, value: Object.freeze(next) };
     }
@@ -903,6 +1063,7 @@ export function persistentObserverEntrypoint(configuration) {
   let queue = Promise.resolve();
   let initialPromise;
   let projectedSnapshot;
+  let targetStatusSubmissionIds = [];
   const reject = (type) => {
     if (closed) return;
     closed = true;
@@ -956,9 +1117,10 @@ export function persistentObserverEntrypoint(configuration) {
   const requiredLifecycleKeys = lifecycleKeys;
   const requiredEvidenceKeys = ["schemaVersion", "evidenceId", "platform", "tier", "kind", "receivedAt", "tabId", "frameId", "documentId", "adapterVersion", "apiTimeStamp", "requestId", "method", "endpointKey", "resourceType", "lifecycle"];
   const targetProjection = (session) => {
-    if (target === undefined) return { e0: 0, e1: 0, submit: 0, status: 0 };
-    if (typeof target !== "object" || target === null || !knownPlatforms.has(target.platform)
-      || typeof target.problemExternalId !== "string") throw new Error("observer_value_rejected");
+    if (target === undefined) return { counts: { e0: 0, e1: 0, submit: 0, status: 0 } };
+    if (typeof target !== "object" || target === null
+      || (target.platform !== "leetcode" && target.platform !== "nowcoder")
+      || !safeIdentifier(target.problemExternalId)) throw new Error("observer_value_rejected");
     const hints = session.uiHints ?? [];
     const lifecycles = session.transientE1 ?? [];
     if (!Array.isArray(hints) || !Array.isArray(lifecycles)) throw new Error("observer_value_rejected");
@@ -975,6 +1137,7 @@ export function persistentObserverEntrypoint(configuration) {
     }
     let submit = 0;
     let status = 0;
+    const statusSubmissionIds = [];
     for (const lifecycle of lifecycles) {
       if (!onlyKeys(lifecycle, lifecycleKeys) || !hasKeys(lifecycle, requiredLifecycleKeys)
         || lifecycle.schemaVersion !== 1 || lifecycle.tier !== "E1" || lifecycle.kind !== "request_lifecycle"
@@ -993,6 +1156,12 @@ export function persistentObserverEntrypoint(configuration) {
             || evidence.method !== "POST" || evidence.resourceType !== "xmlhttprequest") throw new Error("observer_value_rejected");
           submit += 1;
         }
+        if (/^leetcode\/(?:result|check)\/cn\/[0-9]{1,20}$/u.test(evidence.endpointKey)) {
+          if (evidence.platform !== "leetcode" || evidence.method !== "GET"
+            || evidence.resourceType !== "xmlhttprequest") throw new Error("observer_value_rejected");
+          status += 1;
+          statusSubmissionIds.push(evidence.endpointKey.replace(/^leetcode\/(?:result|check)\//u, ""));
+        }
         continue;
       }
       const nowCoderLike = evidence.endpointKey.startsWith("nowcoder/submit") || evidence.endpointKey.startsWith("nowcoder/status");
@@ -1002,7 +1171,21 @@ export function persistentObserverEntrypoint(configuration) {
       else if (evidence.endpointKey === "nowcoder/status" && evidence.method === "GET") status += 1;
       else throw new Error("observer_value_rejected");
     }
-    return { e0, e1: submit + status, submit, status };
+    return {
+      counts: { e0, e1: submit + status, submit, status },
+      ...(Object.prototype.hasOwnProperty.call(session, "transientE1")
+        ? { statusSubmissionIds }
+        : {}),
+    };
+  };
+  const bindTargetStatusIdentity = (counts, records) => {
+    const value = { e0: counts.e0, e1: counts.e1, submit: counts.submit, status: counts.status };
+    if (target?.platform === "leetcode" && records.length > 0) {
+      value.statusConfirmedMatch = records.length === 1
+        && targetStatusSubmissionIds.length === 1
+        && targetStatusSubmissionIds[0] === records[0].externalSubmissionId;
+    }
+    return value;
   };
   const project = (local, session) => {
     if (Object.keys(local).some((key) => !localKeys.includes(key))
@@ -1030,7 +1213,13 @@ export function persistentObserverEntrypoint(configuration) {
     if (!safeCaptureError(local.lastCaptureError)) throw new Error("observer_value_rejected");
     if (local.lastSuccessfulCaptureAt !== undefined) output.lastSuccessfulCaptureAt = local.lastSuccessfulCaptureAt;
     if (local.lastCaptureError !== undefined) output.lastCaptureError = local.lastCaptureError;
-    if (target !== undefined) output.target = targetProjection(session);
+    if (target !== undefined) {
+      const projection = targetProjection(session);
+      if (projection.statusSubmissionIds !== undefined) {
+        targetStatusSubmissionIds = projection.statusSubmissionIds;
+      }
+      output.target = bindTargetStatusIdentity(projection.counts, records);
+    }
     return output;
   };
   const read = async () => {
@@ -1059,13 +1248,16 @@ export function persistentObserverEntrypoint(configuration) {
             if (value !== undefined && !Array.isArray(value)) throw new Error("observer_value_rejected");
             next.session[key] = target === undefined ? (value === undefined ? 0 : value.length) : 0;
             if (target !== undefined && (key === "uiHints" || key === "transientE1")) {
-              const targetProjectionForChange = targetProjection({
+              const projection = targetProjection({
                 uiHints: key === "uiHints" ? value : [],
                 transientE1: key === "transientE1" ? value : [],
               });
+              if (key === "transientE1" && projection.statusSubmissionIds !== undefined) {
+                targetStatusSubmissionIds = projection.statusSubmissionIds;
+              }
               next.target = key === "uiHints"
-                ? { ...(next.target ?? { e0: 0, e1: 0, submit: 0, status: 0 }), e0: targetProjectionForChange.e0 }
-                : { ...(next.target ?? { e0: 0, e1: 0, submit: 0, status: 0 }), e1: targetProjectionForChange.e1, submit: targetProjectionForChange.submit, status: targetProjectionForChange.status };
+                ? { ...(next.target ?? { e0: 0, e1: 0, submit: 0, status: 0 }), e0: projection.counts.e0 }
+                : { ...(next.target ?? { e0: 0, e1: 0, submit: 0, status: 0 }), e1: projection.counts.e1, submit: projection.counts.submit, status: projection.counts.status };
             }
           } else if (key === "confirmedSubmissions" || key === "confirmedSubmissionTombstones") {
             const local = {};
@@ -1086,6 +1278,9 @@ export function persistentObserverEntrypoint(configuration) {
             if (!safeCaptureError(value)) throw new Error("observer_value_rejected");
             if (value === undefined) delete next.lastCaptureError; else next.lastCaptureError = value;
           }
+        }
+        if (target !== undefined && next.target !== undefined) {
+          next.target = bindTargetStatusIdentity(next.target, next.confirmed);
         }
          projectedSnapshot = next;
         emit({ type: "snapshot", snapshot: next });

@@ -1,5 +1,5 @@
 请注意，将一切plan写入docs\superpowers\plans，将其作为plan的唯一入口。
-如果其他机制有执行或写入plan的需要，则将该机制的plan mklink到superpowers\plans。（如.omo的plan）
+在我提出需求时，你需要不断追问我以获得更多细节与想法，防止目标跑偏。尤其在于plan指定与开发新功能时。
 ## 最终汇报契约
 
 完成重要开发、修复、计划执行、阶段收口、审查或发布准备任务后，最终回复必须使用中文，并提供一份基于实际证据的项目状态报告。
@@ -28,16 +28,6 @@
 
 4. **当前可用程度**
 
-   * 列出现在可以可靠使用的能力。
-   * 列出尚不能可靠使用或尚未验收的能力。
-   * 明确区分：
-
-     * 已实现
-     * 已通过自动化验证
-     * 可供本地试用
-     * 已完成真实观察
-     * 已由用户验收
-     * 可公开发布
 
 5. **主要变更**
 
@@ -74,45 +64,38 @@
    * 如果下一步需要用户授权、真实观察或外部输入，应明确说明。
    * 不得在条件尚未满足时擅自进入下一版本或扩展范围。
 
-### 表述规则
-
-* 结论必须与代码、Git、测试、报告和计划状态一致。
-* 证据优先于计划复选框和旧状态文档。
-* 不得把 `PASS`、`APPROVE`、`RC`、`Accepted` 或 `Released` 混为一谈。
-* “工程门禁通过”不等于“产品已验收”。
-* “Release Candidate”不等于“正式发布版本”。
-* 存在真实观察、终审或用户验收缺口时，必须明确写出。
-* 不得伪造日期、参与者记录、测试结果、审查意见或提交 SHA。
-* 如果工作过程中发现新问题，应在报告中说明它是已修复、仍阻断还是转为后续事项。
-* 最终回复应完整但避免重复过程日志，优先呈现结论、证据、边界和下一步。
-
-### 推荐输出顺序
-
-```text
-已完成……
-- 当前提交：
-- 当前阶段：
-- 下一阶段：
-- 产品总目标：
-- 当前可用程度：
-
-主要结果：
-- …
-
-验证结果：
-- …
-
-仍未完成：
-1. …
-
-因此本轮没有……
-下一步是……
-```
-
+在计划制定和审计调整时，需要简单汇报当前修改或者制定后的计划，包括但不限于方向、技术细节、功能需求、实现计划。让我最终拍板
+在计划实施的时候，有什么不确定的点，会影响到产品使用逻辑和走向的，暂停并向我询问。除非我明确传达“允许自主实施”的指令。
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-14 Route A closeout):** **V4 Phase D D1-D3 are
+> **Current status (2026-08-16 P4 completion):** The user explicitly accepted
+> `ISOLATED` as the replacement D4 minimum and authorized P0A C0 readiness
+> alignment. Revision 4 of
+> `docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`
+> is now `authorized_for_offline_work_only`; the LeetCode readiness matcher/E2
+> policy, D4 profile, validator, architecture, and adapter-design amendment are
+> aligned. P1 implements the LeetCode ActionEpoch/result-root branch and passes
+> focused `248/248`, extension `1615/1615`, extension E2E `53/1`, typecheck,
+> targeted ESLint, both contract CLIs, and privacy audit with `0 findings`. P2
+> preserves the exact NowCoder pilot with focused `504/504`, extension
+> `1615/1615`, and extension E2E `53/1`; no NowCoder production file changed.
+> P3 then closed the observer contract: LeetCode E2 binds exactly one
+> result/check stable ID to the confirmed identity, first failure closes the
+> context once, the candidate receipt binds SHA/dist/five hashes, and raw
+> exception text never enters evidence; observer `43/43`, privacy `0
+> findings`, contract CLIs, syntax, typecheck, and lint PASS, and the final
+> tool review returned `APPROVE` with no HIGH/MEDIUM. P4 then independently
+> reviewed all five contracts and returned conditional PASS; Build ran the
+> four required offline verifications (4/4 hashes match, focused `77/77`,
+> both CLIs + privacy PASS, extension diff = exactly six P1 LeetCode files),
+> so the retained verdict is `APPROVE` with no HIGH/MEDIUM and one deferred
+> non-blocking advisory. P5 candidate freeze is next and is not authorized.
+> Live observation, D5/F1-F4, RC, release, push, and PR remain separately
+> gated and unauthorized. Historical Route A facts remain authoritative for
+> their own runs and cannot satisfy or be relabelled under the new contract.
+>
+> **Historical status (2026-08-14 Route A closeout):** **V4 Phase D D1-D3 are
 > complete on the frozen Revision 5 engineering candidate; D4 is incomplete
 > and `D4_CAUSAL_DIAGNOSTIC_UNADJUDICABLE`; D5 is stopped and unstarted** on
 > `feature/v1-followup`. Immutable candidate
@@ -462,6 +445,17 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
+- P0A contract alignment and P1 LeetCode offline RED/GREEN completed on 2026-08-16 after explicit user
+  acceptance of `ISOLATED` as the replacement D4 minimum. The machine contract
+  is `authorized_for_offline_work_only`; LeetCode remains network-`experimental`.
+  The canonical plan is
+  `docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`;
+  its C0 delta is
+  `docs/superpowers/plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`.
+  P2 NowCoder non-regression, P3 observer contract, and P4 independent
+  plan/tool review are complete; P5 candidate freeze is not authorized. Live
+  observation, D5,
+  F1-F4, RC, release, push, and PR are not authorized.
 - Revision 5 exact-submit repair is frozen at candidate
   `aa1a572c3913b35dd3f0391f849dab66e79c56a2`. Exact validator evidence is
   root `2430/1`, app E2E `25/25`, extension unit `1591/1591`, extension E2E
@@ -472,8 +466,9 @@ These are current implementation boundaries, not a permanent rejection of the ap
   At the historical Task26 checkpoint, fresh same-SHA LeetCode and
   approved-pilot NowCoder observations remained required. Sections
   14.33-14.34 now supersede that execution direction: the external diagnostic
-  route is closed, no further live retry is authorized for this candidate,
-  D4 remains incomplete and causally unadjudicable, and D5 is stopped.
+  route is closed and no further live retry is authorized for that candidate.
+  Its D4 causal status remains historical; it is not evidence under the newly
+  authorized `ISOLATED` contract. D5 remains stopped.
 - V4 Phase D D4 coordinator repair Tasks 0-10 are complete (implementation
   `a9515a8` `fix(v4): surface expired diagnostics and pin graphql
   coordination`, doc reconciliation `a1aeda0`, base `3246713`; plan

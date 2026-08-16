@@ -1,6 +1,6 @@
 # V4 Phase D D4 NowCoder E3 First-Divergence Investigation and Conditional Repair Plan
 
-**Status:** `REVISION 6 REVIEW REQUIRED — Task 27 observer transition rejected after READY; D4 incomplete; no live retry authorized; D5 stopped`
+**Status:** `TASK 27 RECORDED — D4 Acceptance Contract Revision 2 in the sole Phase D plan supersedes the proposed fail-on-coalescence remediation; harness implementation/review next; D5 stopped`
 
 **Date:** 2026-08-10
 
@@ -686,17 +686,18 @@ The harness contract is:
    frozen candidate and its exact automated coordinator/runtime tests. Any
    live report must distinguish that automated invariant from the observed
    stage evidence rather than overclaiming a document-level observation;
-10. require an explicit `--database-path` equal to the running server's
-   `.tmp/server-db-path.txt`, require the resolved path to remain under the
-   repository `.tmp` observation root, and require capture events, training
+10. require an explicit `--database-path` equal to the running server's fixed
+   lane pointer at `.tmp/v4-live-observation-db/d4-revision2-${platform}/server-db-path.txt`,
+   require the resolved database to be that lane's adjacent
+   `training-platform.sqlite`, and require capture events, training
    sessions, and training attempts all equal zero before arming. Use a fresh
    isolated database directory and disposable profile for each platform; an
    existing nonzero database is terminal and cannot be rebased as a baseline.
    Profile authentication is a user-controlled prerequisite; the harness may
    display the browser but may not read credential stores or automate login;
-11. require action-time user confirmation immediately before every real
-   platform submission. Standing or earlier consent is not substituted for
-   that confirmation;
+11. use the sole Phase D plan section 10.6 consolidated action-time
+   authorization only after both fixed-lane readiness receipts exist; the same
+   profile/database must silently regain READY before its one permitted action;
 12. preserve default-database length and `LastWriteTimeUtc`, produce no raw
     transcript, and delete no user profile or platform data.
 
@@ -1097,29 +1098,75 @@ no retry or second submission.
 This evidence cannot attribute the rejection to the platform verdict. In
 particular, it does not justify excluding `Compile Error`: that is a valid
 final training outcome. The failure occurred before any E1/E2/E3 stage was
-accepted by the harness. The next permitted work is documentation and a
-reviewed, test-first diagnosis of the observer transition contract, including
-coalesced E0/E1 storage delivery and a bounded rejection receipt. No
-production change, verdict filtering, new candidate, NowCoder run, or live
-retry is authorized by this failure.
+accepted by the harness.
 
-Revision 6 must remain harness-only unless a later RED proves a separate
-production defect. Required REDs are:
-
-1. E0 plus exact E1 in one storage callback fails closed and its bounded safe
-   rejection receipt reports only target `e0=1/e1=1/submit=1/status=0`, closed
-   queue counts, and isolated DB counts;
-2. separate E0 then exact E1 reaches `e1_observed`;
-3. E1 plus E2 in one callback, and E0 plus E1 plus E2 in one callback, both
-   fail closed rather than fabricating an intermediate-stage claim;
-4. separate legal E1 then E2 reaches `e2_confirmed`;
-5. both `Compile Error` and `Accepted` remain on the same request-bound E3
-   path after legal E2 and can produce at most one candidate/bundle; and
-6. the rejection receipt contains no request/document/endpoint/time/URL,
-   verdict/DOM text, raw session entry, body/header/token/code, or DB path,
-   and unknown/hostile getters remain unread.
+The next permitted work is the harness-only Acceptance Contract Revision 2 in
+section 10 of
+`docs/superpowers/plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`.
+That sole Phase D authority supersedes the earlier proposal to reject E0+E1 or
+E1+E2 coalescence. Legal coalesced facts are accumulated without invented
+timestamps; real contradictions remain fail-closed. The observer must also
+write a bounded safe rejection receipt. No production change, verdict
+filtering, new candidate, NowCoder run, or live retry is authorized before the
+harness tests and independent review pass.
 
 The current receipt retains only the last accepted snapshot, so coalesced
-E0/E1 is a code-supported hypothesis, not a proven live cause. Independent
-read-only review agrees that the failure cannot be attributed to Compile Error
-and that filtering the verdict would be an unjustified product regression.
+E0/E1 is a code-supported hypothesis, not a proven live cause. The revised
+RED matrix covers separated and coalesced E0/E1/E2, duplicate delivery,
+identity conflict, privacy-hostile inputs, and both `Compile Error` and
+`Accepted`. Filtering Compile Error would be an unjustified product
+regression.
+
+### 10.16 Acceptance Contract Revision 2 harness checkpoint
+
+The harness-only implementation is GREEN without a live retry. Initial RED was
+`33 passed / 5 failed`; final observer tests are `52/52`, and the focused
+exact-submit/control/flow/candidate regression is `207/207`. Typecheck,
+targeted lint, both observer syntax checks, privacy audit (`0 findings`), and
+diff check pass. Candidate-isolation diff is empty and the five Task 26 hashes
+remain byte-identical.
+
+The observer now accumulates legal E0/E1/E2 coalescence, treats exact repeated
+callbacks idempotently, and retains the locked E2 submission key through the
+runtime's consume-style E3 state (confirmed/transient E1 removed, same-key
+tombstone plus one outbox) and ACK. All observer rejection classes receive a
+bounded fixed-reason receipt. Identity replacement/conflict, pre-E2 cleanup,
+wrong tombstone, duplicate durable effects, old V3 `submit_clicked`, hostile
+getters/keys, unsafe data, and invalid ACK database deltas remain fail-closed.
+
+Independent code/privacy/scope review returned `APPROVE` with no HIGH/MEDIUM
+findings for the causal observer checkpoint. The later sequential READY runner
+amendment received follow-up independent `APPROVE` with no HIGH/MEDIUM
+findings. Sequential READY preparation is authorized, but no submission is.
+This checkpoint does not itself authorize a
+submission, change the product candidate, or restart D5.
+> 2026-08-12 operational note: final D4 readiness uses the sole Phase D plan's
+> section 10.6 sequential checkpoint contract and supersedes the old global
+> `.tmp/server-db-path.txt` and per-action confirmation wording above. NowCoder
+> owns fixed disposable
+> profile `d4-revision2-nowcoder` and its own zero-row database; it emits a
+> browse-only readiness receipt and closes without submission. The same
+> profile/database must regain READY after the consolidated action-time
+> authorization. This observer-runner-only amendment does not alter the frozen
+> candidate, adapter policy, runtime, manifest, schema, build, or dist.
+>
+> The first sequential NowCoder READY attempt ended safely at browse-only with
+> `OBSERVER_INVALID / observer_storage_key_rejected`, queues and SQLite
+> `0/0/0`, after ordinary navigation updated the known V4 control key
+> `b3WitnessState`. Revision 2 now permits this one key name to be ignored
+> without reading its value or treating it as evidence. Unknown, credential,
+> V3, and mixed illegal keys remain terminal. This observer-only correction
+> received follow-up independent `APPROVE` with no HIGH/MEDIUM findings. One
+> READY retry is authorized; no submission is.
+>
+> The retry succeeded with `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1`,
+> `READY_RECEIPT=1`, target/queues/SQLite all zero, and frozen hashes unchanged.
+> Receipt: `output/playwright/v4-observation/nowcoder-readiness-1786527061654.json`.
+> No submission occurred; the next gate is the single consolidated action-time
+> authorization in the sole Phase D plan section 10.6.
+>
+> The consolidated authorization later expired on the first LeetCode lane:
+> its one strict action observed exact submit E1 but ended `OBSERVER_INVALID`
+> before E2/delivery, with SQLite `0/0/0`. Therefore the authorized NowCoder
+> action was not executed. No retry is permitted by that authorization; D4 and
+> D5 remain stopped.

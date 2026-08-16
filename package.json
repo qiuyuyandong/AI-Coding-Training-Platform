@@ -20,7 +20,8 @@
     "extension:check": "npm run typecheck && npm run extension:test && npm run extension:build && node scripts/check-extension-dist.mjs",
     "extension:e2e": "npm run extension:build && node scripts/check-extension-dist.mjs && playwright test --config playwright.extension.config.ts",
     "extension:characterize": "npm run extension:build && node scripts/v4-live-characterization.mjs",
-    "extension:observe": "npm run extension:build && node scripts/v4-live-observation.mjs",
+    "extension:observe": "node -e \"throw new Error('Forbidden: use extension:observe:d4 with an immutable exact dist')\"",
+    "extension:observe:d4": "node scripts/v4-live-observation.mjs",
     "curriculum:validate": "node --import tsx scripts/validate-curriculum.mjs",
     "curriculum:check-links": "node --import tsx scripts/check-curriculum-links.mjs",
     "quality:gate": "node scripts/quality-gate.mjs"

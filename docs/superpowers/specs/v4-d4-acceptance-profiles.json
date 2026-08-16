@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "contractStatus": "authorized_for_offline_work_only",
+  "authorizationSource": "docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md",
+  "activationPrerequisites": [],
+  "remainingAuthorizationGates": [
+    "candidate_freeze",
+    "live_observation",
+    "d5"
+  ],
+  "minimumCausalGrade": "ISOLATED",
+  "directCapability": "CAPABILITY_BLOCKED",
+  "aggregateCompletion": "all-active-profiles-pass-on-one-candidate",
+  "coreInvariants": [
+    "candidate_artifact_identity",
+    "isolated_zero_baseline",
+    "single_authorized_action",
+    "intervention_bounded_action_epoch",
+    "unique_new_submission_identity",
+    "exact_e2_e3_binding",
+    "exactly_once_delivery_projection",
+    "closed_terminal_recovery_state",
+    "privacy_and_platform_isolation"
+  ],
+  "profiles": [
+    {
+      "platform": "leetcode",
+      "status": "authorized_offline",
+      "causalGrade": "ISOLATED",
+      "readinessStatus": "experimental",
+      "readinessPolicyAlignment": "aligned",
+      "profileVersion": "v4-d4-leetcode-isolated-1",
+      "characterizationSource": "work/reports/v4-leetcode-c1-closeout-2026-07-30.md",
+      "targetScope": "one exact LeetCode host and one exact problem slug",
+      "actionRoot": "one trusted visible exact submit control creates a bounded ActionEpoch and baseline only",
+      "submissionRoot": "one unique post-action result/check lifecycle with a new stable numeric submission ID bound to the exact problem",
+      "permittedCorroboration": [
+        "exact_rest_submit",
+        "graphql_post"
+      ],
+      "forbiddenFallbacks": [
+        "latest_submission",
+        "highest_submission_id",
+        "time_only",
+        "window_only",
+        "historical_result",
+        "popup_only",
+        "click_derived_waiting"
+      ],
+      "privacyFields": [
+        "platform",
+        "problem slug",
+        "stable namespaced submission ID",
+        "normalized endpoint kind",
+        "HTTP status",
+        "final verdict",
+        "bounded counts and causal grade"
+      ]
+    },
+    {
+      "platform": "nowcoder",
+      "status": "authorized_offline",
+      "causalGrade": "ISOLATED",
+      "readinessStatus": "experimental",
+      "readinessPolicyAlignment": "aligned",
+      "profileVersion": "v4-d4-nowcoder-isolated-1",
+      "characterizationSource": "work/reports/v4-nowcoder-e3-ingress-repair-2026-07-29.md",
+      "targetScope": "acm/contest/18839/1001 only",
+      "actionRoot": "one trusted exact 保存并提交 control creates E0",
+      "submissionRoot": "one exact submit/status pair yields one new numeric submission ID",
+      "permittedCorroboration": [
+        "exact_view_submission_result"
+      ],
+      "forbiddenFallbacks": [
+        "latest_submission",
+        "highest_submission_id",
+        "time_only",
+        "window_only",
+        "global_submission_list",
+        "popup_only",
+        "click_derived_waiting"
+      ],
+      "privacyFields": [
+        "platform",
+        "approved pilot problem ID",
+        "stable numeric submission ID",
+        "normalized endpoint kind",
+        "HTTP status",
+        "final verdict",
+        "bounded counts and causal grade"
+      ]
+    }
+  ],
+  "deferredPlatforms": [
+    {
+      "platform": "atcoder",
+      "readinessStatus": "blocked"
+    },
+    {
+      "platform": "codeforces",
+      "readinessStatus": "blocked"
+    },
+    {
+      "platform": "luogu",
+      "readinessStatus": "blocked"
+    }
+  ]
+}

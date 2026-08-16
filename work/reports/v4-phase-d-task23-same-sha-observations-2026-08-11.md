@@ -284,3 +284,28 @@ stopped. The next action is a reviewed RED for the observer transition
 contract and bounded rejection receipt, especially storage callbacks that may
 coalesce E0 and exact-submit E1. Production runtime and verdict taxonomy remain
 frozen until causality is proved.
+
+## D4 Acceptance Contract Revision 2 — 2026-08-12
+
+The sole Phase D plan now separates product acceptance invariants from
+observer callback timing. Candidate `aa1a572...` and its frozen dist remain
+unchanged. Individual E1/E2 snapshots, callback count/order, and manual popup
+screenshots are diagnostic rather than hard gates; legal E0/E1/E2 coalescence
+must be accumulated without invented timestamps. Exact SHA/hashes, isolated
+browse-only baseline, unambiguous causal binding, one final verdict, one
+bundle/POST/ACK, SQLite `+4/+1/+1`, and final queues `0/0/0` remain mandatory.
+Compile Error remains a valid final verdict.
+
+The observation tool receives its own reviewed SHA/hash identity and may be
+corrected without invalidating the immutable product candidate, provided the
+candidate-isolation guard passes. Harness RED/GREEN now passes observer
+`52/52`, focused causal regression `207/207`, typecheck/lint/syntax/diff
+checks, privacy audit `0 findings`, candidate isolation, and the five frozen
+hash rechecks. It covers the production consume-style E3/ACK state after a
+locked E2 identity. No platform submission occurred. Independent
+code/privacy/scope review then
+returned `APPROVE` with no HIGH/MEDIUM findings for the causal observer. A
+later sequential READY runner amendment received follow-up independent
+`APPROVE`; this historical appendix still does not authorize submission. The
+current Revision 2 report supersedes this appendix. Detailed rationale and sources:
+`work/reports/v4-phase-d-d4-acceptance-contract-revision-2026-08-12.md`.

@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,15 +8,18 @@ import {
   APPROVED_NOWCODER_PATH,
   LOCAL_TRIGGER_KEYS,
   SESSION_TRIGGER_KEYS,
+  createObservationTerminalController,
   createStorageObserverController,
   applySafeStorageChange,
   isCanonicalDescendant,
   isExactObserverPageUrl,
   persistentObserverEntrypoint,
+  projectD4AcceptanceEvidence,
   projectStageEvidence,
   projectFailureReceipt,
   projectSafeSnapshot,
   reduceObservationSnapshot,
+  validateCandidateReceipt,
   validateObservationTarget,
   validateObservationDatabase,
 } from "../../scripts/v4-live-observation-observer.mjs";
@@ -166,18 +169,22 @@ function leetCodeE2State() {
   const target = LEETCODE_TARGET;
   const hint = uiHint("leetcode", target.problemExternalId);
   const submit = e1Lifecycle("leetcode", `leetcode/submit/cn/${target.problemExternalId}`, "POST");
+  const result = e1Lifecycle("leetcode", "leetcode/result/cn/741526004", "GET");
   const base = projectSafeSnapshot({ local: emptyLocal, session: targetSession() }, target);
   const e0 = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint]) }, target);
   const e1 = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint], [submit]) }, target);
-  const e2 = projectSafeSnapshot({ local: { ...emptyLocal, confirmedSubmissions: [confirmed()] }, session: targetSession([hint], [submit]) }, target);
-  if (!base.ok || !e0.ok || !e1.ok || !e2.ok) throw new Error("fixture projection failed");
+  const rooted = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint], [submit, result]) }, target);
+  const e2 = projectSafeSnapshot({ local: { ...emptyLocal, confirmedSubmissions: [confirmed()] }, session: targetSession([hint], [submit, result]) }, target);
+  if (!base.ok || !e0.ok || !e1.ok || !rooted.ok || !e2.ok) throw new Error("fixture projection failed");
   const b = reduceObservationSnapshot(undefined, base.value, db, target);
   if (!b.ok || b.value === undefined) throw new Error("baseline reduction failed");
   const s0 = reduceObservationSnapshot(b.value, e0.value, db, target);
   if (!s0.ok || s0.value === undefined) throw new Error("E0 reduction failed");
   const s1 = reduceObservationSnapshot(s0.value, e1.value, db, target);
   if (!s1.ok || s1.value === undefined) throw new Error("E1 reduction failed");
-  const s2 = reduceObservationSnapshot(s1.value, e2.value, db, target);
+  const rootedState = reduceObservationSnapshot(s1.value, rooted.value, db, target);
+  if (!rootedState.ok || rootedState.value === undefined) throw new Error("result-root reduction failed");
+  const s2 = reduceObservationSnapshot(rootedState.value, e2.value, db, target);
   if (!s2.ok || s2.value === undefined) throw new Error("E2 reduction failed");
   return { state: s2.value, db, target };
 }
@@ -203,6 +210,67 @@ describe("V4 live observation storage observer", () => {
       "contentIngressDiagnostics",
       "leetcodeEndpointDiagnostics",
     ]);
+  });
+
+  it("keeps the legacy observation command forbidden and the D4 command build-free", () => {
+    const packageDocument = JSON.parse(readFileSync("package.json", "utf8"));
+    const runnerSource = readFileSync("scripts/v4-live-observation.mjs", "utf8");
+    expect(packageDocument.scripts["extension:observe"]).toContain("Forbidden");
+    expect(packageDocument.scripts["extension:observe:d4"]).toBe("node scripts/v4-live-observation.mjs");
+    expect(packageDocument.scripts["extension:observe:d4"]).not.toContain("build");
+    expect(runnerSource).toContain('requiredArgument(args, "--candidate-receipt")');
+    expect(runnerSource).toContain("createObservationTerminalController");
+    expect(runnerSource).toContain('terminal("observer_unexpected_failure")');
+    expect(runnerSource).toContain('process.stderr.write("EVIDENCE_ERROR=observer_evidence_write_failed\\n")');
+    expect(runnerSource).toContain("await context.close().catch(() => undefined)");
+    expect(runnerSource).not.toContain("terminal(error instanceof Error");
+    expect(runnerSource).not.toContain("String(evidenceError)");
+  });
+
+  it("binds the candidate SHA, exact dist path, and five hashes through one receipt", () => {
+    const artifactHashes = {
+      "manifest.json": "A".repeat(64),
+      "background.js": "B".repeat(64),
+      "content.js": "C".repeat(64),
+      "popup.js": "D".repeat(64),
+      "main-world-bridge.js": "E".repeat(64),
+    };
+    const expected = {
+      candidateSha: "a".repeat(40),
+      extensionDist: ".tmp/exact-dist",
+      artifactHashes,
+    };
+    const receipt = {
+      schemaVersion: 1,
+      candidateSha: expected.candidateSha,
+      extensionDist: expected.extensionDist,
+      artifactHashes,
+    };
+    expect(validateCandidateReceipt(receipt, expected)).toEqual({ ok: true });
+    expect(validateCandidateReceipt({ ...receipt, candidateSha: "b".repeat(40) }, expected))
+      .toEqual({ ok: false, reason: "observer_candidate_receipt_rejected" });
+    expect(validateCandidateReceipt({ ...receipt, extensionDist: ".tmp/other-dist" }, expected))
+      .toEqual({ ok: false, reason: "observer_candidate_receipt_rejected" });
+    expect(validateCandidateReceipt({
+      ...receipt,
+      artifactHashes: { ...artifactHashes, "popup.js": "F".repeat(64) },
+    }, expected)).toEqual({ ok: false, reason: "observer_candidate_receipt_rejected" });
+  });
+
+  it("closes the observation context exactly once on the first terminal failure", async () => {
+    let closes = 0;
+    const rejected: string[] = [];
+    const terminal = createObservationTerminalController({
+      closeContext: async () => { closes += 1; },
+      rejectArmed: (error) => rejected.push(error.message),
+    });
+    expect(terminal.fail("observer_stage_rejected")).toBe(true);
+    expect(terminal.fail("observer_value_rejected")).toBe(false);
+    await new Promise((complete) => setTimeout(complete, 0));
+    expect(terminal.terminal).toBe(true);
+    expect(terminal.reason).toBe("observer_stage_rejected");
+    expect(rejected).toEqual(["observer_stage_rejected"]);
+    expect(closes).toBe(1);
   });
 
   it("accepts only LeetCode.cn and the exact approved NowCoder pilot", () => {
@@ -419,6 +487,7 @@ describe("V4 live observation storage observer", () => {
     const target = LEETCODE_TARGET;
     const hint = uiHint("leetcode", target.problemExternalId);
     const submit = e1Lifecycle("leetcode", `leetcode/submit/cn/${target.problemExternalId}`, "POST");
+    const result = e1Lifecycle("leetcode", "leetcode/result/cn/741526004", "GET");
     const baseline = projectSafeSnapshot({ local: emptyLocal, session: targetSession() }, target);
     expect(baseline.ok).toBe(true);
     if (!baseline.ok) return;
@@ -430,13 +499,13 @@ describe("V4 live observation storage observer", () => {
     if (!e1.ok) return;
     const e2 = projectSafeSnapshot({
       local: { ...emptyLocal, confirmedSubmissions: [confirmed()] },
-      session: targetSession([hint], [submit]),
+      session: targetSession([hint], [submit, result]),
     }, target);
     expect(e2.ok).toBe(true);
     if (!e2.ok) return;
     const e3 = projectSafeSnapshot({
       local: { ...emptyLocal, confirmedSubmissions: [confirmed("leetcode", "merge-two-sorted-lists", "cn/741526004", true)], confirmedSubmissionTombstones: [tombstone()], captureOutbox: [{}] },
-      session: targetSession([hint], [submit]),
+      session: targetSession([hint], [submit, result]),
     }, target);
     expect(e3.ok).toBe(true);
     if (!e3.ok) return;
@@ -447,7 +516,7 @@ describe("V4 live observation storage observer", () => {
         confirmedSubmissionTombstones: [tombstone()],
         lastSuccessfulCaptureAt: "2026-08-11T08:10:03.000Z",
       },
-      session: targetSession([hint], [submit]),
+      session: targetSession([hint], [submit, result]),
     }, target);
     expect(ack.ok).toBe(true);
     if (!ack.ok) return;
@@ -482,7 +551,7 @@ describe("V4 live observation storage observer", () => {
 
     const e3WithoutOutbox = projectSafeSnapshot({
       local: { ...emptyLocal, confirmedSubmissions: [confirmed("leetcode", "merge-two-sorted-lists", "cn/741526004", true)], confirmedSubmissionTombstones: [tombstone()] },
-      session: targetSession([hint], [submit]),
+      session: targetSession([hint], [submit, result]),
     }, target);
     expect(e3WithoutOutbox.ok).toBe(true);
     if (e3WithoutOutbox.ok) {
@@ -777,12 +846,185 @@ describe("V4 live observation storage observer", () => {
     if (afterSubmit.ok) expect(afterSubmit.value.target).toEqual({ e0: 1, e1: 1, submit: 1, status: 0 });
   });
 
+  it("accepts one REST-less stable LeetCode result root after the exact action", () => {
+    const hint = uiHint("leetcode", LEETCODE_TARGET.problemExternalId);
+    const result = e1Lifecycle("leetcode", "leetcode/result/cn/741526004", "GET");
+    const db = { captureEvents: 0, trainingSessions: 0, trainingAttempts: 0 };
+    const baseline = projectSafeSnapshot({ local: emptyLocal, session: targetSession() }, LEETCODE_TARGET);
+    const action = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint]) }, LEETCODE_TARGET);
+    const rooted = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint], [result]) }, LEETCODE_TARGET);
+    const e2 = projectSafeSnapshot({
+      local: { ...emptyLocal, confirmedSubmissions: [confirmed()] },
+      session: targetSession([hint], [result]),
+    }, LEETCODE_TARGET);
+    expect(baseline.ok && action.ok && rooted.ok && e2.ok).toBe(true);
+    if (!baseline.ok || !action.ok || !rooted.ok || !e2.ok) return;
+    expect(rooted.value.target).toEqual({ e0: 1, e1: 1, submit: 0, status: 1 });
+    let state = reduceObservationSnapshot(undefined, baseline.value, db, LEETCODE_TARGET);
+    expect(state.ok).toBe(true);
+    if (!state.ok || state.value === undefined) return;
+    state = reduceObservationSnapshot(state.value, action.value, db, LEETCODE_TARGET);
+    expect(state.ok).toBe(true);
+    if (!state.ok || state.value === undefined) return;
+    state = reduceObservationSnapshot(state.value, rooted.value, db, LEETCODE_TARGET);
+    expect(state.value?.stage).toBe("e1_observed");
+    if (!state.ok || state.value === undefined) return;
+    state = reduceObservationSnapshot(state.value, e2.value, db, LEETCODE_TARGET);
+    expect(state.value?.stage).toBe("e2_confirmed");
+  });
+
+  it("RED: rejects LeetCode E2 when the action has only an exact submit lifecycle", () => {
+    const hint = uiHint("leetcode", LEETCODE_TARGET.problemExternalId);
+    const submit = e1Lifecycle("leetcode", `leetcode/submit/cn/${LEETCODE_TARGET.problemExternalId}`, "POST");
+    const db = { captureEvents: 0, trainingSessions: 0, trainingAttempts: 0 };
+    const baseline = projectSafeSnapshot({ local: emptyLocal, session: targetSession() }, LEETCODE_TARGET);
+    const action = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint]) }, LEETCODE_TARGET);
+    const submitted = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint], [submit]) }, LEETCODE_TARGET);
+    const e2 = projectSafeSnapshot({
+      local: { ...emptyLocal, confirmedSubmissions: [confirmed()] },
+      session: targetSession([hint], [submit]),
+    }, LEETCODE_TARGET);
+    expect(baseline.ok && action.ok && submitted.ok && e2.ok).toBe(true);
+    if (!baseline.ok || !action.ok || !submitted.ok || !e2.ok) return;
+    let state = reduceObservationSnapshot(undefined, baseline.value, db, LEETCODE_TARGET);
+    if (!state.ok || state.value === undefined) return;
+    state = reduceObservationSnapshot(state.value, action.value, db, LEETCODE_TARGET);
+    if (!state.ok || state.value === undefined) return;
+    state = reduceObservationSnapshot(state.value, submitted.value, db, LEETCODE_TARGET);
+    if (!state.ok || state.value === undefined) return;
+    expect(reduceObservationSnapshot(state.value, e2.value, db, LEETCODE_TARGET))
+      .toEqual({ ok: false, reason: "observer_stage_rejected" });
+  });
+
+  it("RED: rejects LeetCode E2 when the unique result identity does not match", () => {
+    const hint = uiHint("leetcode", LEETCODE_TARGET.problemExternalId);
+    const result = e1Lifecycle("leetcode", "leetcode/result/cn/741526005", "GET");
+    const db = { captureEvents: 0, trainingSessions: 0, trainingAttempts: 0 };
+    const baseline = projectSafeSnapshot({ local: emptyLocal, session: targetSession() }, LEETCODE_TARGET);
+    const action = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint]) }, LEETCODE_TARGET);
+    const rooted = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint], [result]) }, LEETCODE_TARGET);
+    const e2 = projectSafeSnapshot({
+      local: { ...emptyLocal, confirmedSubmissions: [confirmed()] },
+      session: targetSession([hint], [result]),
+    }, LEETCODE_TARGET);
+    expect(baseline.ok && action.ok && rooted.ok && e2.ok).toBe(true);
+    if (!baseline.ok || !action.ok || !rooted.ok || !e2.ok) return;
+    let state = reduceObservationSnapshot(undefined, baseline.value, db, LEETCODE_TARGET);
+    if (!state.ok || state.value === undefined) return;
+    state = reduceObservationSnapshot(state.value, action.value, db, LEETCODE_TARGET);
+    if (!state.ok || state.value === undefined) return;
+    state = reduceObservationSnapshot(state.value, rooted.value, db, LEETCODE_TARGET);
+    if (!state.ok || state.value === undefined) return;
+    expect(reduceObservationSnapshot(state.value, e2.value, db, LEETCODE_TARGET))
+      .toEqual({ ok: false, reason: "observer_stage_rejected" });
+  });
+
+  it("RED: rejects duplicate LeetCode result/check lifecycles for one stable identity", () => {
+    const hint = uiHint("leetcode", LEETCODE_TARGET.problemExternalId);
+    const result = e1Lifecycle("leetcode", "leetcode/result/cn/741526004", "GET");
+    const check = e1Lifecycle("leetcode", "leetcode/check/cn/741526004", "GET");
+    const db = { captureEvents: 0, trainingSessions: 0, trainingAttempts: 0 };
+    const baseline = projectSafeSnapshot({ local: emptyLocal, session: targetSession() }, LEETCODE_TARGET);
+    const action = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint]) }, LEETCODE_TARGET);
+    const duplicate = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint], [result, check]) }, LEETCODE_TARGET);
+    expect(baseline.ok && action.ok && duplicate.ok).toBe(true);
+    if (!baseline.ok || !action.ok || !duplicate.ok) return;
+    let state = reduceObservationSnapshot(undefined, baseline.value, db, LEETCODE_TARGET);
+    if (!state.ok || state.value === undefined) return;
+    state = reduceObservationSnapshot(state.value, action.value, db, LEETCODE_TARGET);
+    if (!state.ok || state.value === undefined) return;
+    expect(reduceObservationSnapshot(state.value, duplicate.value, db, LEETCODE_TARGET))
+      .toEqual({ ok: false, reason: "observer_stage_rejected" });
+  });
+
+  it("keeps the injected LeetCode result identity in memory and emits only its E2 match", async () => {
+    const hint = uiHint("leetcode", LEETCODE_TARGET.problemExternalId);
+    const result = e1Lifecycle("leetcode", "leetcode/result/cn/741526004", "GET");
+    const events = await runInjectedChange({
+      confirmedSubmissions: { newValue: [confirmed()] },
+    }, "local", LEETCODE_TARGET, targetSession([hint], [result]));
+    const snapshots = events.filter((event): event is { type: "snapshot"; snapshot: { target: Record<string, unknown> } } => (
+      typeof event === "object" && event !== null && Reflect.get(event, "type") === "snapshot"
+    ));
+    expect(snapshots.at(-1)?.snapshot.target).toEqual({
+      e0: 1,
+      e1: 1,
+      submit: 0,
+      status: 1,
+      statusConfirmedMatch: true,
+    });
+    expect(Object.keys(snapshots.at(-1)?.snapshot.target ?? {})).not.toContain("stableSubmissionId");
+  });
+
+  it("rejects E2 identity replacement and persistent status identity drift", async () => {
+    const { state, db, target } = leetCodeE2State();
+    const hint = uiHint("leetcode", target.problemExternalId);
+    const resultA = e1Lifecycle("leetcode", "leetcode/result/cn/741526004", "GET");
+    const resultB = e1Lifecycle("leetcode", "leetcode/result/cn/741526005", "GET");
+    const replaced = projectSafeSnapshot({
+      local: { ...emptyLocal, confirmedSubmissions: [confirmed("leetcode", target.problemExternalId, "cn/741526005")] },
+      session: targetSession([hint], [resultA]),
+    }, target);
+    expect(replaced.ok).toBe(true);
+    if (replaced.ok) {
+      expect(reduceObservationSnapshot(state, replaced.value, db, target))
+        .toEqual({ ok: false, reason: "observer_stage_rejected" });
+    }
+
+    const events = await runInjectedChanges([
+      { area: "session", changes: { uiHints: { newValue: [hint] } } },
+      { area: "session", changes: { transientE1: { newValue: [resultA] } } },
+      { area: "local", changes: { confirmedSubmissions: { newValue: [confirmed()] } } },
+      { area: "session", changes: { transientE1: { newValue: [resultB] } } },
+    ], target);
+    const snapshots = events.filter((event): event is { type: "snapshot"; snapshot: Parameters<typeof reduceObservationSnapshot>[1] } => (
+      typeof event === "object" && event !== null && Reflect.get(event, "type") === "snapshot"
+    ));
+    let reduced = reduceObservationSnapshot(undefined, (events[0] as { snapshot: Parameters<typeof reduceObservationSnapshot>[1] }).snapshot, db, target);
+    expect(reduced.ok).toBe(true);
+    for (const event of snapshots.slice(0, 3)) {
+      if (!reduced.ok || reduced.value === undefined) break;
+      reduced = reduceObservationSnapshot(reduced.value, event.snapshot, db, target);
+    }
+    expect(reduced.value?.stage).toBe("e2_confirmed");
+    if (!reduced.ok || reduced.value === undefined) return;
+    const driftedSnapshot = snapshots.at(-1)?.snapshot;
+    if (driftedSnapshot === undefined) return;
+    expect(reduceObservationSnapshot(reduced.value, driftedSnapshot, db, target))
+      .toEqual({ ok: false, reason: "observer_stage_rejected" });
+  });
+
+  it("keeps persistent submit-only, mismatch, duplicate, and invalid targets fail-closed", async () => {
+    const hint = uiHint("leetcode", LEETCODE_TARGET.problemExternalId);
+    const submit = e1Lifecycle("leetcode", `leetcode/submit/cn/${LEETCODE_TARGET.problemExternalId}`, "POST");
+    const matching = e1Lifecycle("leetcode", "leetcode/result/cn/741526004", "GET");
+    const mismatch = e1Lifecycle("leetcode", "leetcode/result/cn/741526005", "GET");
+    const duplicate = e1Lifecycle("leetcode", "leetcode/check/cn/741526004", "GET");
+    for (const lifecycles of [[submit], [mismatch], [matching, duplicate]]) {
+      const events = await runInjectedChanges([
+        { area: "session", changes: { uiHints: { newValue: [hint] } } },
+        { area: "session", changes: { transientE1: { newValue: lifecycles } } },
+        { area: "local", changes: { confirmedSubmissions: { newValue: [confirmed()] } } },
+      ], LEETCODE_TARGET);
+      const final = events.filter((event): event is { type: "snapshot"; snapshot: { target: Record<string, unknown> } } => (
+        typeof event === "object" && event !== null && Reflect.get(event, "type") === "snapshot"
+      )).at(-1);
+      expect(final?.snapshot.target.statusConfirmedMatch).toBe(false);
+    }
+    const invalidTarget = await runInjectedChanges([], {
+      platform: "luogu",
+      problemExternalId: "P1001",
+    } as never);
+    expect(invalidTarget.at(-1)).toEqual({ type: "observer_value_rejected" });
+  });
+
   it("keeps exact LeetCode E1 stable when unrelated GraphQL activity grows before E2", async () => {
     const target = LEETCODE_TARGET;
     const hint = uiHint("leetcode", target.problemExternalId);
     const graphqlBefore = e1Lifecycle("leetcode", "graphql", "POST");
     const graphqlAfter = e1Lifecycle("leetcode", "graphql", "POST");
     const submit = e1Lifecycle("leetcode", `leetcode/submit/cn/${target.problemExternalId}`, "POST");
+    const result = e1Lifecycle("leetcode", "leetcode/result/cn/741526004", "GET");
     const db = { captureEvents: 0, trainingSessions: 0, trainingAttempts: 0 };
     const baseline = projectSafeSnapshot({ local: emptyLocal, session: targetSession([], [graphqlBefore]) }, target);
     const e0 = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint], [graphqlBefore]) }, target);
@@ -790,7 +1032,7 @@ describe("V4 live observation storage observer", () => {
     const noisyE1 = projectSafeSnapshot({ local: emptyLocal, session: targetSession([hint], [graphqlBefore, submit, graphqlAfter]) }, target);
     const e2 = projectSafeSnapshot({
       local: { ...emptyLocal, confirmedSubmissions: [confirmed()] },
-      session: targetSession([hint], [graphqlBefore, submit, graphqlAfter]),
+      session: targetSession([hint], [graphqlBefore, submit, graphqlAfter, result]),
     }, target);
     expect(baseline.ok && e0.ok && e1.ok && noisyE1.ok && e2.ok).toBe(true);
     if (!baseline.ok || !e0.ok || !e1.ok || !noisyE1.ok || !e2.ok) return;
@@ -961,5 +1203,36 @@ describe("V4 live observation storage observer", () => {
     expect(JSON.stringify(evidence)).not.toContain("session");
     expect(JSON.stringify(evidence)).not.toContain("transientE1");
     expect(evidence.value).toMatchObject({ extension: { target: { e0: 0, e1: 0, submit: 0, status: 0 } } });
+  });
+
+  it("exports D4 evidence as bounded facts without identity, URL, or timestamps", () => {
+    const { state, db } = leetCodeE2State();
+    const evidence = projectD4AcceptanceEvidence(state, db);
+    expect(evidence.ok).toBe(true);
+    expect(evidence.value).toMatchObject({
+      schemaVersion: 1,
+      stage: "e2_confirmed",
+      causalGrade: "UNRESOLVED",
+      verdict: "PROFILE_UNRESOLVED",
+      facts: {
+        authorizedActions: 1,
+        exactSubmitCorroboration: 1,
+        stableResultLifecycles: 1,
+        e2Confirmed: 1,
+      },
+    });
+    const serialized = JSON.stringify(evidence);
+    for (const forbidden of [
+      "741526004",
+      "merge-two-sorted-lists",
+      "hostile-document",
+      "hostile-request-id",
+      "2026-08-11",
+      "http",
+      "storageKey",
+      "externalSubmissionId",
+    ]) {
+      expect(serialized).not.toContain(forbidden);
+    }
   });
 });

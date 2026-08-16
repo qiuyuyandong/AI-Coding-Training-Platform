@@ -1,23 +1,25 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-11):** **V4 Phase D D3 is complete; D4 final delivery was
-> observed but D4 remains incomplete, and D5 is stopped** on `feature/v1-followup`. Immutable candidate
-> `a911425a415db2ee374430ced62edcaa7b786866` passed the exact D3 validator
-> with root `2393/1`, app E2E `25/25`, extension unit `1587/1587`, extension
-> E2E `53/1`, production build `20/20`, privacy `0 findings`, readiness
-> `PASS`, and default-database preservation. Its exact dist then produced real
-> final deliveries for LeetCode `cn/741526004` and approved-pilot NowCoder `84444687`:
-> each produced one POST, four events, one session, one attempt, ACK, and zero
-> final waiting/outbox/quarantine; blocked-platform drift passed 292/292
-> without submissions. Independent F1 review found that the report did not
-> preserve the required contemporaneous browse-only, E1, and E2 stage states,
-> so these deliveries are not yet D4 PASS evidence and D5 must not proceed.
-> Evidence and the superseding Revision 3 are in
-> `work/reports/v4-phase-d-task23-same-sha-observations-2026-08-11.md`. This
-> is engineering evidence only, not final user acceptance, an RC, or a
-> release. LeetCode and NowCoder remain network-`experimental`; AtCoder,
-> Codeforces, and Luogu remain network-`blocked`; historical AtCoder DOM
-> production certification is unchanged.
+> **Status (2026-08-16):** The user accepted `ISOLATED` as the replacement V4
+> Phase D D4 minimum; P0A C0 alignment and P1 LeetCode offline RED/GREEN are complete on
+> `feature/v1-followup`. LeetCode readiness now documents the bounded
+> ActionEpoch/result-root policy; REST and GraphQL are optional corroboration,
+> while conflicts, baseline replay, multiple actions, and multiple eligible IDs
+> fail closed. Focused `248/248`, extension `1615/1615`, extension E2E `53/1`,
+> both contract CLIs, typecheck, targeted lint, and privacy audit pass. P2
+> NowCoder non-regression also passes focused `504/504` with zero NowCoder
+> production diff. P3 observer-contract repair passes `43/43` with privacy
+> `0 findings`, binds LeetCode E2 to one exact result/check stable ID, closes
+> the observation context on the first terminal failure, and received an
+> `APPROVE` independent tool review. P4 independent plan/tool review returned
+> `APPROVE` with no HIGH/MEDIUM after Build ran the four offline
+> verifications; P5 candidate freeze is not authorized. Live
+> observation, D5/F1-F4, RC, release, push, and PR remain unauthorized.
+> Historical Route A observations remain evidence for their own runs and are
+> not reclassified under the new contract. LeetCode and NowCoder remain
+> network-`experimental`; AtCoder, Codeforces, and Luogu remain
+> network-`blocked`; historical AtCoder DOM production certification is
+> unchanged.
 >
 > **Earlier V4 evidence (still authoritative for their own scope):**
 > V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12.

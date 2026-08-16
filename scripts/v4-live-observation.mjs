@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import Database from "better-sqlite3";
 import {
@@ -9,11 +11,13 @@ import {
   EXACT_SESSION_SNAPSHOT_KEYS,
   LOCAL_TRIGGER_KEYS,
   SESSION_TRIGGER_KEYS,
+  createObservationTerminalController,
   isExactObserverPageUrl,
   persistentObserverEntrypoint,
+  projectD4AcceptanceEvidence,
   projectFailureReceipt,
-  projectStageEvidence,
   reduceObservationSnapshot,
+  validateCandidateReceipt,
   validateObservationDatabase,
   validateObservationTarget,
 } from "./v4-live-observation-observer.mjs";
@@ -37,6 +41,17 @@ const D3_ARTIFACTS = Object.freeze([
   Object.freeze({ name: "popup", file: "popup.js" }),
   Object.freeze({ name: "mainWorldBridge", file: "main-world-bridge.js" }),
 ]);
+const OBSERVATION_PROFILE_FILE = resolve(
+  "docs",
+  "superpowers",
+  "specs",
+  "v4-d4-acceptance-profiles.json",
+);
+const OBSERVATION_TOOL_FILES = Object.freeze([
+  fileURLToPath(import.meta.url),
+  resolve("scripts", "v4-live-observation-observer.mjs"),
+]);
+const PROFILE_ROOT = resolve(".tmp", "v4-d4-observation-profiles");
 
 function argumentValue(argv, name) {
   const argument = argv.find((value) => value.startsWith(`${name}=`));
@@ -57,6 +72,71 @@ function expectedArtifactHashes(argv) {
     values[artifact.file] = value;
   }
   return Object.freeze(values);
+}
+
+function sha256Bytes(value) {
+  return createHash("sha256").update(value).digest("hex").toUpperCase();
+}
+
+function sha256File(path) {
+  if (!existsSync(path)) throw new Error(`Hash input is missing: ${path}`);
+  return sha256Bytes(readFileSync(path));
+}
+
+function observationToolHash() {
+  const hash = createHash("sha256");
+  for (const path of OBSERVATION_TOOL_FILES) hash.update(readFileSync(path));
+  return hash.digest("hex").toUpperCase();
+}
+
+function requiredSha256(argv, name) {
+  const value = requiredArgument(argv, name).toUpperCase();
+  if (!/^[A-F0-9]{64}$/u.test(value)) throw new Error(`Invalid SHA-256 for ${name}`);
+  return value;
+}
+
+function assertContractHashes(expectedProfileHash, expectedToolHash, phase) {
+  const profileHash = sha256File(OBSERVATION_PROFILE_FILE);
+  const toolHash = observationToolHash();
+  if (profileHash !== expectedProfileHash) throw new Error(`${phase} acceptance-profile hash drift`);
+  if (toolHash !== expectedToolHash) throw new Error(`${phase} observation-tool hash drift`);
+  return Object.freeze({ profileHash, toolHash });
+}
+
+function assertCandidateCommit(candidateSha) {
+  if (!/^[a-f0-9]{40}$/u.test(candidateSha)) throw new Error("Invalid candidate SHA");
+  execFileSync("git", ["cat-file", "-e", `${candidateSha}^{commit}`], {
+    cwd: process.cwd(),
+    env: { ...process.env, GIT_MASTER: "1" },
+    stdio: "ignore",
+  });
+}
+
+function assertCandidateReceiptFile(path, expected, phase) {
+  if (!existsSync(path)) throw new Error(`${phase} candidate receipt is missing`);
+  const raw = readFileSync(path);
+  let receipt;
+  try {
+    receipt = JSON.parse(raw.toString("utf8"));
+  } catch {
+    throw new Error(`${phase} candidate receipt is not valid JSON`);
+  }
+  const validation = validateCandidateReceipt(receipt, expected);
+  if (!validation.ok) throw new Error(`${phase} ${validation.reason}`);
+  return sha256Bytes(raw);
+}
+
+function fixedProfilePath(profileId) {
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/u.test(profileId)) {
+    throw new Error("Invalid fixed disposable profile id");
+  }
+  mkdirSync(PROFILE_ROOT, { recursive: true });
+  const profilePath = resolve(PROFILE_ROOT, profileId);
+  if (existsSync(profilePath)) {
+    throw new Error("Fixed disposable profile identity was already consumed; silent retry is forbidden");
+  }
+  mkdirSync(profilePath);
+  return profilePath;
 }
 
 function readPairingCode(value) {
@@ -155,13 +235,29 @@ function sleep(milliseconds) {
 }
 
 function safeStageEvidence(state, database) {
-  const projected = projectStageEvidence(state, database);
+  const projected = projectD4AcceptanceEvidence(state, database);
   if (!projected.ok) throw new Error(projected.reason);
   return projected.value;
 }
 
+function closedFailureVerdict(reason, failure) {
+  if (reason === "observer_capture_error") {
+    return (failure?.extension?.confirmed ?? 0) > 0 ? "PRODUCT_FAIL" : "PROFILE_UNRESOLVED";
+  }
+  if (reason === "observer_target_rejected"
+    || reason === "observer_storage_key_rejected"
+    || reason === "observer_value_rejected"
+    || reason === "observer_stage_rejected") return "OBSERVER_INVALID";
+  return "ENVIRONMENT_BLOCKED";
+}
+
 async function main() {
   const args = process.argv.slice(2);
+  const candidateSha = requiredArgument(args, "--candidate").toLowerCase();
+  assertCandidateCommit(candidateSha);
+  const expectedProfileHash = requiredSha256(args, "--profile-hash");
+  const expectedToolHash = requiredSha256(args, "--tool-hash");
+  const contractHashes = assertContractHashes(expectedProfileHash, expectedToolHash, "Preflight");
   const hostname = requiredArgument(args, "--hostname");
   const target = TARGETS[hostname];
   if (target === undefined) {
@@ -184,6 +280,18 @@ async function main() {
   const extensionDist = resolve(requiredArgument(args, "--extension-dist"));
   const expectedHashes = expectedArtifactHashes(args);
   const preflightHashes = assertArtifactHashes(extensionDist, expectedHashes, "Preflight");
+  const candidateReceiptPath = resolve(requiredArgument(args, "--candidate-receipt"));
+  const candidateReceiptHash = assertCandidateReceiptFile(candidateReceiptPath, {
+    candidateSha,
+    extensionDist,
+    artifactHashes: expectedHashes,
+  }, "Preflight");
+  const profileId = requiredArgument(args, "--profile-id");
+  const actionAuthorization = argumentValue(args, "--authorize-action");
+  const expectedActionAuthorization = `${target.platform}:${problemExternalId}:${candidateSha}`;
+  if (actionAuthorization.length > 0 && actionAuthorization !== expectedActionAuthorization) {
+    throw new Error("Action authorization does not name the exact platform, target, and candidate");
+  }
   const dbPathFile = resolve(".tmp", "server-db-path.txt");
   if (!existsSync(dbPathFile)) {
     throw new Error("Disposable database path is missing; start the live local server first.");
@@ -200,11 +308,9 @@ async function main() {
   });
   if (!databaseValidation.ok) throw new Error(databaseValidation.reason);
   await assertLocalAppReady();
+  const profilePath = fixedProfilePath(profileId);
 
-  const profileRoot = resolve(".tmp", "v4-live-observation-profiles");
   const outputPath = resolve("output", "playwright", "v4-observation");
-  mkdirSync(profileRoot, { recursive: true });
-  const profilePath = mkdtempSync(resolve(profileRoot, `${target.platform}-`));
   mkdirSync(outputPath, { recursive: true });
   const context = await chromium.launchPersistentContext(profilePath, {
     channel: "chromium",
@@ -217,8 +323,6 @@ async function main() {
   });
   let popup;
   let platformPage;
-  let observerTerminal = false;
-  let terminalReason;
   let stageState;
   let baselineDatabase;
   let latestDatabase;
@@ -234,18 +338,45 @@ async function main() {
     resolveArmed = resolve;
     rejectArmed = reject;
   });
+  const terminalController = createObservationTerminalController({
+    closeContext: () => context.close(),
+    rejectArmed: (error) => {
+      if (typeof rejectArmed === "function") rejectArmed(error);
+    },
+  });
+  const terminal = (reason) => {
+    if (!terminalController.terminal && failureReceipt === undefined) {
+      failureReceipt = Object.freeze({ reason });
+    }
+    return terminalController.fail(reason);
+  };
 
   const writeEvidence = (outcome, finalStage, failure) => {
     const finalHashes = assertArtifactHashes(extensionDist, expectedHashes, "Final");
+    const finalContractHashes = assertContractHashes(expectedProfileHash, expectedToolHash, "Final");
+    const finalCandidateReceiptHash = assertCandidateReceiptFile(candidateReceiptPath, {
+      candidateSha,
+      extensionDist,
+      artifactHashes: expectedHashes,
+    }, "Final");
+    if (finalCandidateReceiptHash !== candidateReceiptHash) {
+      throw new Error("Final candidate receipt hash drift");
+    }
     const failedStageHistory = stageHistory.map((entry) => ({ stage: entry.stage }));
     const payload = failure === undefined
       ? {
-        schemaVersion: 2,
+        schemaVersion: 3,
         platform: target.platform,
-        hostname,
-        observedAt: new Date().toISOString(),
+        candidateSha,
+        profileIdentity: sha256Bytes(profileId),
+        databaseIdentity: sha256Bytes(dbPath),
+        contract: {
+          preAction: contractHashes,
+          final: finalContractHashes,
+        },
         exactDist: {
           pathProvided: true,
+          candidateReceiptHash,
           preActionHashes: preflightHashes,
           finalHashes,
         },
@@ -265,10 +396,18 @@ async function main() {
         },
       }
       : {
-        schemaVersion: 2,
+        schemaVersion: 3,
         platform: target.platform,
+        candidateSha,
+        profileIdentity: sha256Bytes(profileId),
+        databaseIdentity: sha256Bytes(dbPath),
+        contract: {
+          preAction: contractHashes,
+          final: finalContractHashes,
+        },
         exactDist: {
           pathProvided: true,
+          candidateReceiptHash,
           preActionHashes: preflightHashes,
           finalHashes,
         },
@@ -277,11 +416,19 @@ async function main() {
         finalStage,
         ...(baselineDatabase === undefined ? {} : { baselineDatabase }),
         ...(latestDatabase === undefined ? {} : { finalDatabase: latestDatabase }),
-        failure,
+        failure: {
+          verdict: closedFailureVerdict(failure.reason, failure),
+          causalGrade: "UNRESOLVED",
+          ...failure,
+        },
         privacyBoundary: { noRawData: true },
       };
-    const suffix = outcome === "acknowledged" ? "real-observation" : "real-observation-failed";
-    const evidencePath = resolve(outputPath, `${target.platform}-${suffix}-${Date.now()}.json`);
+    const suffix = outcome === "acknowledged"
+      ? "real-observation"
+      : outcome === "ready_only"
+        ? "ready"
+        : "real-observation-failed";
+    const evidencePath = resolve(outputPath, `${candidateSha.slice(0, 12)}-${target.platform}-${profileId}-${suffix}.json`);
     writeFileSync(evidencePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
     process.stdout.write(`EVIDENCE=${evidencePath}\n`);
   };
@@ -305,15 +452,8 @@ async function main() {
     }
   };
 
-  const terminal = (reason) => {
-    if (observerTerminal) return;
-    observerTerminal = true;
-    terminalReason = reason;
-    if (typeof rejectArmed === "function") rejectArmed(new Error(reason));
-  };
-
   const processObserverEvent = async (event) => {
-    if (observerTerminal) return;
+    if (terminalController.terminal) return;
     if (typeof event !== "object" || event === null || typeof event.type !== "string") {
       terminal("observer_value_rejected");
       return;
@@ -397,15 +537,15 @@ async function main() {
     });
     const armedEvent = await armedPromise;
     await eventChain;
-    if (observerTerminal || stageState === undefined || armedEvent === undefined) {
-      throw new Error(terminalReason ?? "observer_failed_before_arm");
+    if (terminalController.terminal || stageState === undefined || armedEvent === undefined) {
+      throw new Error(terminalController.reason ?? "observer_failed_before_arm");
     }
     baselineDatabase = latestDatabase ?? readDatabaseCounts(dbPath);
     platformPage = await context.newPage();
     await platformPage.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await sleep(Number(argumentValue(args, "--browse-ms") || "1500"));
     await eventChain;
-    if (observerTerminal) throw new Error(terminalReason);
+    if (terminalController.terminal) throw new Error(terminalController.reason);
     const browseDatabase = readDatabaseCounts(dbPath);
     if (stageState.stage !== "browse_only"
       || JSON.stringify(browseDatabase) !== JSON.stringify(baselineDatabase)) {
@@ -413,8 +553,17 @@ async function main() {
     }
     latestDatabase = browseDatabase;
     process.stdout.write("OBSERVER_ARMED=1\nBROWSE_ONLY=1\nREADY=1\n");
+    if (actionAuthorization.length === 0) {
+      const readyEvidence = safeStageEvidence(stageState, browseDatabase);
+      stageHistory.push(readyEvidence);
+      writeEvidence("ready_only", stageState.stage);
+      process.stdout.write("ACTION_AUTHORIZED=0\n");
+      await context.close();
+      return;
+    }
+    process.stdout.write("ACTION_AUTHORIZED=1\n");
     const databaseMonitor = setInterval(() => {
-      if (observerTerminal || stageState === undefined || stageState.acknowledged) return;
+      if (terminalController.terminal || stageState === undefined || stageState.acknowledged) return;
       const database = readDatabaseCounts(dbPath);
       const reduced = reduceObservationSnapshot(stageState, stageState.latest, database, observationTarget);
       if (!reduced.ok) return;
@@ -435,21 +584,21 @@ async function main() {
         writeEvidence("not_delivered", stageState.stage, failureReceipt);
         failureEvidenceWritten = true;
       }
-      process.stdout.write(`DELIVERED=0\nTERMINAL=${terminalReason ?? "context_closed"}\n`);
+      process.stdout.write(`DELIVERED=0\nTERMINAL=${terminalController.reason ?? "context_closed"}\n`);
     }
-  } catch (error) {
-    terminalReason = terminalReason ?? (error instanceof Error ? error.message : String(error));
+  } catch {
+    terminal("observer_unexpected_failure");
     if (!failureEvidenceWritten && (failureReceipt !== undefined
       || (stageState !== undefined && latestDatabase !== undefined))) {
       try {
         writeEvidence("not_delivered", stageState?.stage ?? "observer_capture_error", failureReceipt);
         failureEvidenceWritten = true;
-      } catch (evidenceError) {
-        process.stderr.write(`EVIDENCE_ERROR=${String(evidenceError)}\n`);
+      } catch {
+        process.stderr.write("EVIDENCE_ERROR=observer_evidence_write_failed\n");
       }
     }
-    await context.close();
-    throw error;
+    await context.close().catch(() => undefined);
+    throw new Error(terminalController.reason ?? "observer_unexpected_failure");
   }
 }
 

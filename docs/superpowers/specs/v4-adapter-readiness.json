@@ -8,8 +8,8 @@
         "source": "work/reports/v4-leetcode-c1-characterization-2026-07-30.md",
         "tier": "authenticated"
       },
-      "requestMatcher": "Legacy: POST /problems/<slug>/submit[/] then GET /submissions/detail/<numeric-id>/(v2/)?check[/]. Current GraphQL UI: trusted recent exact submit-control E0, completed POST /graphql/, then GET /submissions/api/{runtime|memory}_distribution/<numeric-id>[/] on an exact owned HTTPS host.",
-      "e2Policy": "The legacy chain requires one unique completed HTTP 200 submit/check pair. The current chain requires one recent same-document trusted problem hint plus completed HTTP 200 GraphQL and result-distribution witnesses within five seconds; historical result pages fail closed.",
+      "requestMatcher": "Legacy implemented path: POST /problems/<slug>/submit[/] then GET /submissions/detail/<numeric-id>/(v2/)?check[/]. Implemented P1 result-root path: one trusted visible exact submit control creates a same-document ActionEpoch and pre-action result baseline; one completed GET /submissions/api/{runtime|memory}_distribution/<numeric-id>[/] on an exact owned HTTPS host supplies the stable ID. Exact REST submit and POST /graphql/ may corroborate but are not required; identity conflict or multiple eligible roots fail closed.",
+      "e2Policy": "The legacy implemented path requires one unique completed HTTP 200 submit/check pair. The implemented P1 result-root path requires one recent same-document trusted ActionEpoch, a zero/fresh pre-action result baseline, no competing action or submission, and exactly one completed HTTP 200 result-distribution lifecycle with a new numeric ID bound to the exact host/problem within five seconds. Historical or baseline IDs, wrong scope or document, conflicts, and multiple eligible IDs fail closed; duplicate callbacks for one stable ID coalesce; REST and GraphQL are optional corroboration. P1 offline RED/GREEN proves this runtime policy without promoting LeetCode beyond experimental readiness.",
       "e3Policy": "One trusted final verdict must match exactly one durable namespaced LeetCode confirmation for the same problem.",
       "privacyFields": [
         "method",
@@ -22,7 +22,7 @@
       ],
       "fakeOjCases": [
         "LeetCode legacy trailing-slash chain",
-        "LeetCode current GraphQL/result-distribution chain",
+        "LeetCode P1 ActionEpoch/result-distribution isolated chain",
         "LeetCode historical-result negative flow",
         "LeetCode repeated E2 and post-final tombstone replay",
         "LeetCode duplicate E3",
