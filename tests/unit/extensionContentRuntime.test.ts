@@ -123,7 +123,7 @@ describe("V4 Phase 0 capture content runtime", () => {
     expect(harness.runtime.uiHintObserved()).toEqual([]);
   });
 
-  it("a UI hint cannot create submit causality for a later exact result", () => {
+  it("a UI hint creates only an ActionEpoch and suppresses an unbound later exact result", () => {
     const harness = createHarness();
     harness.runtime.start();
     harness.runtime.uiHintObserved();
@@ -131,11 +131,7 @@ describe("V4 Phase 0 capture content runtime", () => {
     harness.setVerdict("Accepted");
 
     const messages = harness.runtime.locationObserved();
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).toMatchObject({
-      type: "VERDICT_CANDIDATE_OBSERVED",
-      candidate: { transitionEvidence: "exact_result_document" },
-    });
+    expect(messages).toEqual([]);
     expect(types(messages)).not.toContain("SUBMISSION_INTENT_OBSERVED");
   });
 
@@ -182,7 +178,7 @@ describe("V4 Phase 0 capture content runtime", () => {
       platform: "leetcode",
       problemExternalId: "two-sum",
       submitRequestId: "submit-request-2",
-      receivedAt: "2026-07-24T00:00:03.500Z",
+      receivedAt: "2026-07-24T00:00:04.500Z",
     } as const;
     const confirmed = {
       type: "LEETCODE_SUBMIT_EPOCH_CONFIRMED",
@@ -190,12 +186,13 @@ describe("V4 Phase 0 capture content runtime", () => {
       platform: "leetcode",
       problemExternalId: "two-sum",
       submitRequestId: "submit-request-2",
-      confirmedAt: "2026-07-24T00:00:04.500Z",
+      confirmedAt: "2026-07-24T00:00:05.500Z",
     } as const;
 
     // Only exact E1 STARTED may arm the epoch and take the stable DOM-node
     // baseline. Duplicate STARTED is idempotent, a generic mutation on the
     // same node is not evidence, and a different request's E2 fails closed.
+    harness.runtime.uiHintObserved();
     expect(deliverControlMessage(harness.runtime, started)).toEqual([]);
     expect(deliverControlMessage(harness.runtime, started)).toEqual([]);
     expect(harness.runtime.documentMutated()).toEqual([]);
@@ -247,6 +244,7 @@ describe("V4 Phase 0 capture content runtime", () => {
     harness.setVerdict("Accepted");
     harness.setVerdictSurface(historicalSurface);
     harness.runtime.start();
+    harness.runtime.uiHintObserved();
 
     expect(deliverControlMessage(harness.runtime, {
       type: "LEETCODE_SUBMIT_EPOCH_STARTED",

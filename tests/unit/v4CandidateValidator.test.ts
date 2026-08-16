@@ -66,6 +66,28 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("scripts/v4-live-observation-observer.mjs").kind).toBe("unknown");
   });
 
+  it("owns the D4 result-root runtime and focused tests without absorbing acceptance tooling", () => {
+    for (const path of [
+      "extension/src/submitEpochReplay.ts",
+      "extension/src/verdictCandidateCoordinator.ts",
+      "tests/unit/extensionVerdictCandidateCoordinator.test.ts",
+      "tests/unit/extensionSubmitEpochReplay.test.ts",
+    ]) {
+      expect(classifyCandidatePath(path)).toEqual({
+        kind: "candidate",
+        reason: "explicit-task-path",
+      });
+    }
+    for (const path of [
+      "docs/superpowers/specs/v4-d4-acceptance-profiles.json",
+      "scripts/v4-live-observation.mjs",
+      "scripts/v4-live-observation-observer.mjs",
+      "scripts/validate-v4-d4-acceptance-profiles.mjs",
+    ]) {
+      expect(classifyCandidatePath(path).kind).toBe("unknown");
+    }
+  });
+
   it("owns only the reviewed revision-4 plan, runtime, tests, and evidence paths", () => {
     const revisionFourPaths = [
       "docs/superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md",

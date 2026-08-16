@@ -19,7 +19,7 @@ const problem: DetectedProblem = {
   canonicalUrl: "https://leetcode.cn/problems/two-sum/",
 };
 
-const started = (requestId: string, receivedAt = "2026-08-10T00:00:00.000Z") => ({
+const started = (requestId: string, receivedAt = "2026-08-10T00:00:00.600Z") => ({
   type: "LEETCODE_SUBMIT_EPOCH_STARTED",
   schemaVersion: 1,
   platform: "leetcode",
@@ -28,13 +28,19 @@ const started = (requestId: string, receivedAt = "2026-08-10T00:00:00.000Z") => 
   receivedAt,
 } as const);
 
-const confirmed = (requestId: string, confirmedAt = "2026-08-10T00:00:01.000Z") => ({
+const confirmed = (
+  requestId: string,
+  confirmedAt = "2026-08-10T00:00:01.000Z",
+  actionObservedAt?: string,
+  baselineSubmissionIds: readonly string[] = ["cn/739040550"],
+) => ({
   type: "LEETCODE_SUBMIT_EPOCH_CONFIRMED",
   schemaVersion: 1,
   platform: "leetcode",
   problemExternalId: "two-sum",
   submitRequestId: requestId,
   confirmedAt,
+  ...(actionObservedAt === undefined ? {} : { actionObservedAt, baselineSubmissionIds }),
 } as const);
 
 function createHarness() {
@@ -76,10 +82,158 @@ describe("LeetCode submit epoch control plane", () => {
       ...started("request-1"),
       receivedAt: "2026-02-29T00:00:00.000Z",
     }).ok).toBe(false);
+    expect(parseLeetCodeSubmitEpochControlMessage(confirmed(
+      "request-result",
+      "2026-08-10T00:00:02.000Z",
+      "2026-08-10T00:00:00.500Z",
+    )).ok).toBe(true);
+    expect(parseLeetCodeSubmitEpochControlMessage(confirmed(
+      "request-result",
+      "2026-08-10T00:00:02.000Z",
+      "2026-08-10T00:00:03.000Z",
+    )).ok).toBe(false);
+    const resultRoot = confirmed(
+      "request-result",
+      "2026-08-10T00:00:02.000Z",
+      "2026-08-10T00:00:00.500Z",
+    );
+    const { baselineSubmissionIds: _baselineSubmissionIds, ...missingBaseline } = resultRoot;
+    expect(_baselineSubmissionIds).toEqual(["cn/739040550"]);
+    expect(parseLeetCodeSubmitEpochControlMessage(missingBaseline).ok).toBe(false);
+    expect(parseLeetCodeSubmitEpochControlMessage({
+      ...resultRoot,
+      baselineSubmissionIds: ["cn/739040550", "cn/739040550"],
+    }).ok).toBe(false);
+  });
+
+  it("promotes the exact trusted ActionEpoch into a result-root submit epoch", () => {
+    const harness = createHarness();
+    const historicalSurface = document.createElement("div");
+    const freshSurface = document.createElement("div");
+    harness.setSurface(historicalSurface);
+    const hints = harness.runtime.uiHintObserved();
+    expect(hints).toMatchObject([{
+      type: "UI_HINT_OBSERVED",
+      hint: { observedAt: "2026-08-10T00:00:00.500Z", problemExternalId: "two-sum" },
+    }]);
+    harness.setSurface(freshSurface);
+    expect(harness.runtime.documentMutated()).toEqual([]);
+    harness.setNow("2026-08-10T00:00:02.000Z");
+    const messages = deliver(harness.runtime, confirmed(
+      "result-request-842",
+      "2026-08-10T00:00:01.500Z",
+      "2026-08-10T00:00:00.500Z",
+    ));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      type: "VERDICT_CANDIDATE_OBSERVED",
+      candidate: { submitRequestId: "result-request-842", verdict: "Accepted" },
+    });
+    expect(harness.runtime.takeControlDiagnostic()).toBeUndefined();
+  });
+
+  it("never promotes a missing, crossed, or baseline-free ActionEpoch", () => {
+    const missing = createHarness();
+    deliver(missing.runtime, confirmed(
+      "result-request-842",
+      "2026-08-10T00:00:01.500Z",
+      "2026-08-10T00:00:00.500Z",
+    ));
+    expect(missing.runtime.takeControlDiagnostic()).toBe("epoch_started_missing");
+
+    const crossed = createHarness();
+    crossed.runtime.uiHintObserved();
+    deliver(crossed.runtime, confirmed(
+      "result-request-842",
+      "2026-08-10T00:00:01.500Z",
+      "2026-08-10T00:00:00.600Z",
+    ));
+    expect(crossed.runtime.takeControlDiagnostic()).toBe("epoch_identity_conflict");
+
+    let now = "2026-08-10T00:00:00.500Z";
+    const baselineFree = createCaptureContentRuntime({
+      detectProblem: () => problem,
+      detectVerdict: () => null,
+      exactResultPage: () => false,
+      now: () => now,
+    });
+    baselineFree.start();
+    baselineFree.uiHintObserved();
+    now = "2026-08-10T00:00:02.000Z";
+    deliver(baselineFree, confirmed(
+      "result-request-842",
+      "2026-08-10T00:00:01.500Z",
+      "2026-08-10T00:00:00.500Z",
+    ));
+    expect(baselineFree.takeControlDiagnostic()).toBe("epoch_baseline_missing");
+  });
+
+  it("rejects a result root when more than one ActionEpoch exists", () => {
+    const harness = createHarness();
+    harness.runtime.uiHintObserved();
+    harness.setNow("2026-08-10T00:00:00.600Z");
+    harness.runtime.uiHintObserved();
+    harness.setSurface(document.createElement("div"));
+    harness.setNow("2026-08-10T00:00:02.000Z");
+
+    expect(deliver(harness.runtime, confirmed(
+      "result-request-842",
+      "2026-08-10T00:00:01.500Z",
+      "2026-08-10T00:00:00.600Z",
+    ))).toEqual([]);
+    expect(harness.runtime.takeControlDiagnostic()).toBe("epoch_identity_conflict");
+  });
+
+  it("rejects an existing result surface without a proven stable-ID baseline", () => {
+    const harness = createHarness();
+    harness.runtime.uiHintObserved();
+    harness.setSurface(document.createElement("div"));
+    harness.setNow("2026-08-10T00:00:02.000Z");
+
+    expect(deliver(harness.runtime, confirmed(
+      "result-request-842",
+      "2026-08-10T00:00:01.500Z",
+      "2026-08-10T00:00:00.500Z",
+      [],
+    ))).toEqual([]);
+    expect(harness.runtime.takeControlDiagnostic()).toBe("epoch_baseline_missing");
+  });
+
+  it("requires exactly one ActionEpoch for the legacy REST STARTED path", () => {
+    const missing = createHarness();
+    deliver(missing.runtime, started("request-missing"));
+    expect(missing.runtime.takeControlDiagnostic()).toBe("epoch_started_missing");
+
+    const sameTimestamp = createHarness();
+    sameTimestamp.runtime.uiHintObserved();
+    sameTimestamp.runtime.uiHintObserved();
+    deliver(sameTimestamp.runtime, started("request-conflict"));
+    expect(sameTimestamp.runtime.takeControlDiagnostic()).toBe("epoch_identity_conflict");
+
+    const expired = createHarness();
+    expired.runtime.uiHintObserved();
+    expired.setNow("2026-08-10T00:05:00.500Z");
+    expired.runtime.start();
+    deliver(expired.runtime, started("request-expired", "2026-08-10T00:05:00.600Z"));
+    expect(expired.runtime.takeControlDiagnostic()).toBe("epoch_started_missing");
+
+    for (const expireThrough of ["location", "mutation"] as const) {
+      const actionOnly = createHarness();
+      actionOnly.runtime.uiHintObserved();
+      actionOnly.setNow("2026-08-10T00:05:00.500Z");
+      if (expireThrough === "location") actionOnly.runtime.locationObserved();
+      else actionOnly.runtime.documentMutated();
+      deliver(actionOnly.runtime, started(
+        `request-expired-${expireThrough}`,
+        "2026-08-10T00:05:00.600Z",
+      ));
+      expect(actionOnly.runtime.takeControlDiagnostic()).toBe("epoch_started_missing");
+    }
   });
 
   it("keeps duplicate controls idempotent and conflicts fail closed", () => {
     const harness = createHarness();
+    harness.runtime.uiHintObserved();
     expect(deliver(harness.runtime, started("request-1"))).toEqual([]);
     expect(harness.runtime.takeControlDiagnostic()).toBeUndefined();
     expect(deliver(harness.runtime, started("request-1"))).toEqual([]);
@@ -94,6 +248,7 @@ describe("LeetCode submit epoch control plane", () => {
     const harness = createHarness();
     deliver(harness.runtime, confirmed("request-1"));
     expect(harness.runtime.takeControlDiagnostic()).toBe("epoch_started_missing");
+    harness.runtime.uiHintObserved();
     deliver(harness.runtime, started("request-1"));
     deliver(harness.runtime, confirmed("request-1", "2026-08-09T23:59:59.000Z"));
     expect(harness.runtime.takeControlDiagnostic()).toBe("epoch_timestamp_conflict");
@@ -104,6 +259,7 @@ describe("LeetCode submit epoch control plane", () => {
     const firstSurface = document.createElement("div");
     const secondSurface = document.createElement("div");
     harness.setSurface(firstSurface);
+    harness.runtime.uiHintObserved();
     deliver(harness.runtime, started("request-1"));
     harness.setSurface(firstSurface);
     expect(harness.runtime.documentMutated()).toEqual([]);
@@ -128,10 +284,12 @@ describe("LeetCode submit epoch control plane", () => {
     const surfaceA = document.createElement("div");
     const surfaceB = document.createElement("div");
     harness.setSurface(surfaceA);
+    harness.runtime.uiHintObserved();
     deliver(harness.runtime, started("request-a"));
 
     // B starts from the same historical surface and takes exclusive
     // ownership; replacing that node is evidence for B only.
+    harness.runtime.uiHintObserved();
     deliver(harness.runtime, started("request-b"));
     harness.setSurface(surfaceB);
     expect(harness.runtime.documentMutated()).toEqual([]);
@@ -157,6 +315,7 @@ describe("LeetCode submit epoch control plane", () => {
     const harness = createHarness();
     const surface = document.createElement("div");
     harness.setSurface(surface);
+    harness.runtime.uiHintObserved();
     deliver(harness.runtime, started("request-1"));
     harness.setVerdict("Accepted");
     expect(harness.runtime.documentMutated()).toEqual([]);
@@ -165,6 +324,7 @@ describe("LeetCode submit epoch control plane", () => {
 
     const bodyHarness = createHarness();
     bodyHarness.setSurface(document.body);
+    bodyHarness.runtime.uiHintObserved();
     deliver(bodyHarness.runtime, started("request-body"));
     expect(bodyHarness.runtime.takeControlDiagnostic()).toBe("epoch_baseline_missing");
   });
@@ -187,10 +347,11 @@ describe("LeetCode submit epoch control plane", () => {
       now: () => "2026-08-10T00:00:02.000Z",
     });
     runtime.start();
-    deliver(runtime, started("request-dto"));
+    runtime.uiHintObserved();
+    deliver(runtime, started("request-dto", "2026-08-10T00:00:02.100Z"));
     surface = { node: selected };
     expect(runtime.documentMutated()).toEqual([]);
-    deliver(runtime, confirmed("request-dto"));
+    deliver(runtime, confirmed("request-dto", "2026-08-10T00:00:03.000Z"));
     expect(runtime.takeControlDiagnostic()).toBe("epoch_result_surface_unchanged");
 
     let genericSurface: Element | null = document.documentElement;
@@ -201,7 +362,8 @@ describe("LeetCode submit epoch control plane", () => {
       now: () => "2026-08-10T00:00:02.000Z",
     });
     genericRuntime.start();
-    deliver(genericRuntime, started("request-html"));
+    genericRuntime.uiHintObserved();
+    deliver(genericRuntime, started("request-html", "2026-08-10T00:00:02.100Z"));
     expect(genericRuntime.takeControlDiagnostic()).toBe("epoch_baseline_missing");
     genericSurface = document.body;
     expect(genericRuntime.documentMutated()).toEqual([]);
@@ -209,7 +371,11 @@ describe("LeetCode submit epoch control plane", () => {
 
   it("bounds entries at 32, expires lazily at five minutes, and clears on identity-invalidating navigation", () => {
     const harness = createHarness();
-    for (let i = 0; i < 32; i += 1) deliver(harness.runtime, started(`request-${i}`));
+    for (let i = 0; i < 32; i += 1) {
+      harness.runtime.uiHintObserved();
+      deliver(harness.runtime, started(`request-${i}`));
+    }
+    harness.runtime.uiHintObserved();
     deliver(harness.runtime, started("request-over-capacity"));
     expect(harness.runtime.takeControlDiagnostic()).toBe("epoch_capacity_exceeded");
 
@@ -229,6 +395,7 @@ describe("LeetCode submit epoch control plane", () => {
     expect(harness.runtime.takeControlDiagnostic()).toBe("epoch_started_missing");
 
     const navigation = createHarness();
+    navigation.runtime.uiHintObserved();
     deliver(navigation.runtime, started("request-nav"));
     navigation.setDetected(null);
     navigation.runtime.locationObserved();

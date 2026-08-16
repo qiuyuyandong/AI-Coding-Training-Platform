@@ -2304,6 +2304,17 @@ describe("verdict candidate orchestration (Task 5)", () => {
     statusCode: 200,
   });
 
+  const candidateE1Result = (): E1RequestObserved => ({
+    ...baseE1,
+    evidenceId: "e1_leetcode_result_842",
+    receivedAt: "2026-08-06T11:20:02.500Z",
+    apiTimeStamp: 1002.5,
+    requestId: "request_842",
+    method: "GET",
+    endpointKey: "leetcode/result/cn/920",
+    statusCode: 200,
+  });
+
   const candidateE2 = (): E2SubmissionConfirmed => ({
     schemaVersion: 1,
     evidenceId: "e2_leetcode_cn_920",
@@ -2408,6 +2419,45 @@ describe("verdict candidate orchestration (Task 5)", () => {
     expect(resolution.problemExternalId).toBe("two-sum");
     expect(resolution.verdict).toBe("Accepted");
     expect(effects.persistence.confirmed).toHaveLength(1);
+  });
+
+  it("result-root E2 and its exact armed candidate complete without a REST submit lifecycle", async () => {
+    const storage = storageSpy({
+      local: { captureProtocolVersion: 4, installationId, captureCredential: "capture_paired_credential" },
+    });
+    const orchestrator = await installWithLifecycles(storage, candidateNow);
+    const resultEvidence = candidateE1Result();
+    const e1Effects = await orchestrator.apply({
+      kind: "e1_recorded",
+      evidence: resultEvidence,
+      tabId: resultEvidence.tabId,
+      frameId: resultEvidence.frameId,
+      documentId: resultEvidence.documentId,
+      adapterVersion: resultEvidence.adapterVersion,
+    });
+    await applyEffectsToStorage(storage, e1Effects);
+    const e2Effects = await orchestrator.apply({
+      kind: "e2_recorded",
+      evidence: { ...candidateE2(), requestEvidenceId: resultEvidence.evidenceId },
+      matchedSubmitRequestId: "request_842",
+    });
+    await applyEffectsToStorage(storage, e2Effects);
+    expect(e2Effects.persistence.confirmed).toHaveLength(1);
+    expect(e2Effects.persistence.transientE1).toEqual([
+      expect.objectContaining({
+        outcome: "matched",
+        stableSubmissionId: "leetcode:cn/920",
+        evidence: expect.objectContaining({ requestId: "request_842" }),
+      }),
+    ]);
+
+    const candidateEffects = await orchestrator.apply({
+      kind: "verdict_candidate_recorded",
+      candidate: verdictCandidate({ submitRequestId: "request_842" }),
+    });
+    await applyEffectsToStorage(storage, candidateEffects);
+    expect(candidateEffects.verdictCandidateResolutions).toHaveLength(1);
+    expect(candidateEffects.verdictCandidateResolutions[0]?.externalSubmissionId).toBe("cn/920");
   });
 
   it("E2 event does not resolve unrelated candidates", async () => {

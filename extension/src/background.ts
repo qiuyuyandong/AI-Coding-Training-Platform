@@ -807,11 +807,17 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
       && entry.evidence.platform === "leetcode"
       && entry.evidence.endpointKey === "graphql")
     .map((entry) => entry.evidence);
+  const resultCandidates = transient.requestLifecycles
+    .filter((entry) =>
+      entry.evidence.platform === "leetcode"
+      && entry.evidence.tabId === resultLifecycle.evidence.tabId
+      && entry.evidence.frameId === resultLifecycle.evidence.frameId
+      && entry.evidence.documentId === resultLifecycle.evidence.documentId
+      && entry.evidence.endpointKey.startsWith(`${LEETCODE_RESULT_ENDPOINT_PREFIX}/`))
+    .map((entry) => entry.evidence);
   const submitCandidates = transient.requestLifecycles
     .filter((entry) =>
-      entry.outcome === "pending"
-      && entry.rejectionReason === null
-      && entry.evidence.platform === "leetcode"
+      entry.evidence.platform === "leetcode"
       && entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
     .map((entry) => entry.evidence);
   const problemCandidates = transient.uiHints
@@ -828,6 +834,7 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
     }));
   const confirmation = selectLeetCodeResultConfirmation({
     resultEvidence: resultLifecycle.evidence,
+    resultCandidates,
     graphqlCandidates,
     submitCandidates,
     problemCandidates,
@@ -848,6 +855,8 @@ async function applyLeetCodeResultConfirmation(details: WebRequestDetails): Prom
       confirmation.evidence,
       confirmation.matchedSubmitRequestId,
       true,
+      confirmation.matchedActionObservedAt,
+      confirmation.baselineSubmissionIds,
     ),
   });
 }
@@ -1441,6 +1450,8 @@ async function sendLeetCodeSubmitEpochConfirmed(
   evidence: import("./evidence").E2SubmissionConfirmed,
   matchedSubmitRequestId: string,
   persistenceComplete: boolean,
+  actionObservedAt?: string,
+  baselineSubmissionIds?: readonly string[],
 ): Promise<void> {
   if (evidence.platform !== "leetcode") return;
   await sendLeetCodeSubmitEpochControl(
@@ -1456,6 +1467,8 @@ async function sendLeetCodeSubmitEpochConfirmed(
       problemExternalId: evidence.problemExternalId,
       submitRequestId: matchedSubmitRequestId,
       confirmedAt: evidence.receivedAt,
+      ...(actionObservedAt === undefined ? {} : { actionObservedAt }),
+      ...(baselineSubmissionIds === undefined ? {} : { baselineSubmissionIds }),
     },
     persistenceComplete,
   );
@@ -1482,6 +1495,12 @@ async function sendLeetCodeSubmitEpochConfirmedReplay(
       problemExternalId: replay.problemExternalId,
       submitRequestId: replay.submitRequestId,
       confirmedAt: replay.confirmedAt,
+      ...(replay.actionObservedAt === undefined
+        ? {}
+        : {
+          actionObservedAt: replay.actionObservedAt,
+          baselineSubmissionIds: replay.baselineSubmissionIds ?? [],
+        }),
     },
     true,
   );

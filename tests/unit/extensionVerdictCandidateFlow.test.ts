@@ -610,6 +610,13 @@ describe("verdict candidate flow", () => {
     const graphqlCandidates = transient.requestLifecycles
       .filter((entry) => entry.evidence.platform === "leetcode" && entry.evidence.endpointKey === "graphql")
       .map((entry) => entry.evidence);
+    const resultCandidates = transient.requestLifecycles
+      .filter((entry) => entry.evidence.platform === "leetcode"
+        && entry.evidence.tabId === resultLifecycle.evidence.tabId
+        && entry.evidence.frameId === resultLifecycle.evidence.frameId
+        && entry.evidence.documentId === resultLifecycle.evidence.documentId
+        && entry.evidence.endpointKey.startsWith(`${LEETCODE_RESULT_ENDPOINT_PREFIX}/`))
+      .map((entry) => entry.evidence);
     const submitCandidates = transient.requestLifecycles
       .filter((entry) => entry.evidence.platform === "leetcode"
         && entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
@@ -631,6 +638,7 @@ describe("verdict candidate flow", () => {
       }));
     const confirmation = selectLeetCodeResultConfirmation({
       resultEvidence: resultLifecycle.evidence,
+      resultCandidates,
       graphqlCandidates,
       submitCandidates,
       problemCandidates,
@@ -668,7 +676,7 @@ describe("verdict candidate flow", () => {
     expect(retained).toHaveLength(0);
   });
 
-  it("rejects a submit requestId after an identity-conflicting lifecycle update", async () => {
+  it("does not let a pre-action rejected submit lifecycle poison a later result root", async () => {
     const storage = storageSpy();
     const orchestrator = createBackgroundOrchestrator({
       storage,
@@ -739,7 +747,7 @@ describe("verdict candidate flow", () => {
     if (checkLifecycle === undefined) return;
     expect(selectLeetCodeConfirmation({
       checkEvidence: checkLifecycle.evidence,
-      submitCandidates: clean
+      submitCandidates: transient.requestLifecycles
         .filter((entry) => entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
         .map((entry) => entry.evidence),
     })).not.toMatchObject({ kind: "confirmed" });
@@ -750,7 +758,7 @@ describe("verdict candidate flow", () => {
       graphqlCandidates: clean
         .filter((entry) => entry.evidence.endpointKey === "graphql")
         .map((entry) => entry.evidence),
-      submitCandidates: clean
+      submitCandidates: transient.requestLifecycles
         .filter((entry) => entry.evidence.endpointKey.startsWith(`${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/`))
         .map((entry) => entry.evidence),
       problemCandidates: transient.uiHints.map((entry) => ({
@@ -762,7 +770,10 @@ describe("verdict candidate flow", () => {
         documentId: entry.sourceDocumentId,
       })),
     });
-    expect(confirmation).toEqual({ kind: "no_match", reason: "missing_submit" });
+    expect(confirmation).toMatchObject({
+      kind: "confirmed",
+      matchedSubmitRequestId: "result-842",
+    });
     expect(storage.localState().confirmedSubmissions).toBeUndefined();
     expect(storage.sessionState().transientVerdictCandidates).toEqual([]);
   });

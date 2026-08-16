@@ -7,6 +7,7 @@ import type { UiHintMessage } from "./uiHint";
 import { normalizeTrustedVerdictText } from "@/lib/capture/verdictTaxonomy";
 import {
   diagnosticSubmitEpochResponse,
+  LEETCODE_SUBMIT_EPOCH_CONFIRMED,
   LEETCODE_SUBMIT_EPOCH_STARTED,
   parseLeetCodeSubmitEpochControlMessage,
   SUBMIT_EPOCH_MAX_ENTRIES,
@@ -92,6 +93,12 @@ type SubmitEpoch = Readonly<{
   readonly emitted: boolean;
 }>;
 
+type ActionEpoch = Readonly<{
+  readonly problemExternalId: string;
+  readonly observedAt: string;
+  readonly baseline: EpochBaseline;
+}>;
+
 function isNarrowDomSurface(surface: unknown): surface is Element {
   if (typeof Element === "undefined" || !(surface instanceof Element)) return false;
   // Generic document containers are explicitly outside the adapter-owned
@@ -114,6 +121,8 @@ export function createCaptureContentRuntime(
 ): CaptureContentRuntime {
   let state: RuntimeState = { detected: null };
   const epochs = new Map<string, SubmitEpoch>();
+  const actionEpochs = new Map<string, ActionEpoch>();
+  let actionEpochSequence = 0;
   let pendingDiagnostic: SubmitEpochDiagnostic | undefined;
 
   function reportDiagnostic(reason: SubmitEpochDiagnostic): void {
@@ -151,6 +160,7 @@ export function createCaptureContentRuntime(
 
   function clearEpochs(): void {
     epochs.clear();
+    actionEpochs.clear();
   }
 
   function pruneExpiredEpochs(nowValue?: string): void {
@@ -161,6 +171,12 @@ export function createCaptureContentRuntime(
       const receivedMs = Date.parse(epoch.receivedAt);
       if (!Number.isFinite(receivedMs) || nowMs >= receivedMs + SUBMIT_EPOCH_TTL_MS) {
         epochs.delete(requestId);
+      }
+    }
+    for (const [observedAt, epoch] of actionEpochs) {
+      const observedMs = Date.parse(epoch.observedAt);
+      if (!Number.isFinite(observedMs) || nowMs >= observedMs + SUBMIT_EPOCH_TTL_MS) {
+        actionEpochs.delete(observedAt);
       }
     }
   }
@@ -182,8 +198,10 @@ export function createCaptureContentRuntime(
 
   function hasEpochMarkerForDetectedProblem(): boolean {
     return state.detected?.platform === "leetcode"
-      && [...epochs.values()].some((epoch) =>
-        epoch.problemExternalId === state.detected?.problemExternalId);
+      && ([...epochs.values()].some((epoch) =>
+        epoch.problemExternalId === state.detected?.problemExternalId)
+        || [...actionEpochs.values()].some((epoch) =>
+          epoch.problemExternalId === state.detected?.problemExternalId));
   }
 
   function baselineFromObservation(): EpochBaseline {
@@ -245,7 +263,26 @@ export function createCaptureContentRuntime(
       });
       return;
     }
-    const baseline = baselineFromObservation();
+    const eligibleActions = [...actionEpochs.values()]
+      .filter((action) => action.problemExternalId === message.problemExternalId
+        && Date.parse(action.observedAt) <= Date.parse(message.receivedAt));
+    if (eligibleActions.length === 0) {
+      reportDiagnostic("epoch_started_missing");
+      return;
+    }
+    if (eligibleActions.length !== 1) {
+      reportDiagnostic("epoch_identity_conflict");
+      return;
+    }
+    const action = eligibleActions[0];
+    if (action === undefined) {
+      reportDiagnostic("epoch_started_missing");
+      return;
+    }
+    const baseline = action.baseline;
+    for (const [observedAt, action] of actionEpochs) {
+      if (action.problemExternalId === message.problemExternalId) actionEpochs.delete(observedAt);
+    }
     epochs.set(message.submitRequestId, {
       problemExternalId: message.problemExternalId,
       submitRequestId: message.submitRequestId,
@@ -256,6 +293,67 @@ export function createCaptureContentRuntime(
       emitted: false,
     });
     if (!baseline.captured) reportDiagnostic("epoch_baseline_missing");
+  }
+
+  function promoteActionEpoch(
+    message: Extract<LeetCodeSubmitEpochControlMessage, { readonly type: typeof LEETCODE_SUBMIT_EPOCH_CONFIRMED }>,
+  ): SubmitEpoch | undefined {
+    if (message.actionObservedAt === undefined || message.baselineSubmissionIds === undefined) {
+      reportDiagnostic("epoch_started_missing");
+      return undefined;
+    }
+    const candidates = [...actionEpochs.values()].filter((action) =>
+      action.problemExternalId === message.problemExternalId
+      && Date.parse(action.observedAt) <= Date.parse(message.confirmedAt));
+    if (candidates.length === 0) {
+      reportDiagnostic("epoch_started_missing");
+      return undefined;
+    }
+    if (candidates.length !== 1) {
+      reportDiagnostic("epoch_identity_conflict");
+      return undefined;
+    }
+    const action = candidates[0];
+    if (action === undefined) {
+      reportDiagnostic("epoch_started_missing");
+      return undefined;
+    }
+    if (action.problemExternalId !== message.problemExternalId) {
+      reportDiagnostic("epoch_identity_conflict");
+      return undefined;
+    }
+    if (action.observedAt !== message.actionObservedAt) {
+      reportDiagnostic("epoch_identity_conflict");
+      return undefined;
+    }
+    if (Date.parse(message.confirmedAt) < Date.parse(action.observedAt)) {
+      reportDiagnostic("epoch_timestamp_conflict");
+      return undefined;
+    }
+    if (action.baseline.surface !== null
+      && action.baseline.surface !== undefined
+      && message.baselineSubmissionIds.length === 0) {
+      reportDiagnostic("epoch_baseline_missing");
+      return undefined;
+    }
+    if (epochs.size >= SUBMIT_EPOCH_MAX_ENTRIES) {
+      reportDiagnostic("epoch_capacity_exceeded");
+      return undefined;
+    }
+    for (const [observedAt, stored] of actionEpochs) {
+      if (stored.problemExternalId === message.problemExternalId) actionEpochs.delete(observedAt);
+    }
+    const promoted: SubmitEpoch = {
+      problemExternalId: message.problemExternalId,
+      submitRequestId: message.submitRequestId,
+      receivedAt: action.observedAt,
+      baseline: action.baseline,
+      superseded: false,
+      proofObserved: false,
+      emitted: false,
+    };
+    epochs.set(message.submitRequestId, promoted);
+    return promoted;
   }
 
   function candidateForEpoch(
@@ -334,6 +432,21 @@ export function createCaptureContentRuntime(
   function recordUiHint(): readonly UiHintMessage[] {
     const detected = state.detected;
     if (detected === null) return [];
+    const observedAt = dependencies.now();
+    if (detected.platform === "leetcode") {
+      pruneExpiredEpochs(observedAt);
+      while (actionEpochs.size >= SUBMIT_EPOCH_MAX_ENTRIES) {
+        const oldest = actionEpochs.keys().next().value;
+        if (typeof oldest !== "string") break;
+        actionEpochs.delete(oldest);
+      }
+      actionEpochSequence += 1;
+      actionEpochs.set(`${observedAt}#${actionEpochSequence}`, {
+        problemExternalId: detected.problemExternalId,
+        observedAt,
+        baseline: baselineFromObservation(),
+      });
+    }
     return [{
       type: "UI_HINT_OBSERVED",
       hint: {
@@ -342,7 +455,7 @@ export function createCaptureContentRuntime(
         kind: "ui_hint",
         platform: detected.platform,
         problemExternalId: detected.problemExternalId,
-        observedAt: dependencies.now(),
+        observedAt,
       },
     }];
   }
@@ -478,9 +591,8 @@ export function createCaptureContentRuntime(
       return [];
     }
 
-    const epoch = epochs.get(value.submitRequestId);
+    const epoch = epochs.get(value.submitRequestId) ?? promoteActionEpoch(value);
     if (epoch === undefined) {
-      reportDiagnostic("epoch_started_missing");
       return [];
     }
     if (epoch.superseded) {
@@ -528,13 +640,13 @@ export function createCaptureContentRuntime(
 
   return {
     start: () => {
-      if (epochs.size > 0) pruneExpiredEpochs();
+      if (epochs.size > 0 || actionEpochs.size > 0) pruneExpiredEpochs();
       observeDetectedProblem();
       clearVerdictTransitions();
       return evaluateVerdictCandidate();
     },
     locationObserved: () => {
-      if (epochs.size > 0) pruneExpiredEpochs();
+      if (epochs.size > 0 || actionEpochs.size > 0) pruneExpiredEpochs();
       // Strict identity reconciliation preserves a same-problem epoch. Null,
       // ambiguous, unsupported, or cross-problem detection still clears it.
       observeDetectedProblem();
@@ -547,7 +659,7 @@ export function createCaptureContentRuntime(
       return hasEpochMarkerForDetectedProblem() ? [] : evaluateVerdictCandidate();
     },
     documentMutated: () => {
-      if (epochs.size > 0) pruneExpiredEpochs();
+      if (epochs.size > 0 || actionEpochs.size > 0) pruneExpiredEpochs();
       observeDetectedProblem();
       const armed = evaluateArmedEpochs();
       if (armed.length > 0) return armed;

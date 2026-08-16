@@ -40,12 +40,13 @@ export async function replayLeetCodeConfirmedEpochs(
 ): Promise<readonly LeetCodeConfirmedEpochReplay[]> {
   const [local, session] = await Promise.all([
     input.storage.local.get(["confirmedSubmissions", "confirmedSubmissionTombstones"]),
-    input.storage.session.get(["transientE1"]),
+    input.storage.session.get(["transientE1", "uiHints"]),
   ]);
   const confirmed = readConfirmedSubmissionState(local);
   const transient = readTransientSessionEvidenceState(session);
   const replays = selectLeetCodeConfirmedEpochReplays({
     requestLifecycles: transient.requestLifecycles,
+    uiHints: transient.uiHints,
     confirmed: confirmed.confirmed,
     now: input.now(),
   });

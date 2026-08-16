@@ -41,6 +41,10 @@ export type LeetCodeSubmitEpochConfirmedMessage = Readonly<{
   readonly problemExternalId: string;
   readonly submitRequestId: string;
   readonly confirmedAt: string;
+  /** Exact trusted E0 used only when the stable result request is the root. */
+  readonly actionObservedAt?: string;
+  /** Stable result identities observed at or before that trusted action. */
+  readonly baselineSubmissionIds?: readonly string[];
 }>;
 
 export type LeetCodeSubmitEpochControlMessage =
@@ -170,10 +174,25 @@ export function parseLeetCodeSubmitEpochControlMessage(
     };
   }
   if (Reflect.get(value, "type") === LEETCODE_SUBMIT_EPOCH_CONFIRMED) {
-    if (!ownKeysExactly(value, [
-      "type", "schemaVersion", "platform", "problemExternalId", "submitRequestId", "confirmedAt",
-    ]) || !validCommonFields(value, LEETCODE_SUBMIT_EPOCH_CONFIRMED)
-      || !isCanonicalSubmitEpochTimestamp(Reflect.get(value, "confirmedAt"))) {
+    const actionObservedAt = Reflect.get(value, "actionObservedAt");
+    const baselineSubmissionIds = Reflect.get(value, "baselineSubmissionIds");
+    const confirmedAt = Reflect.get(value, "confirmedAt");
+    const hasActionObservedAt = Object.prototype.hasOwnProperty.call(value, "actionObservedAt");
+    const hasBaselineSubmissionIds = Object.prototype.hasOwnProperty.call(value, "baselineSubmissionIds");
+    const keys = hasActionObservedAt
+      ? ["type", "schemaVersion", "platform", "problemExternalId", "submitRequestId", "confirmedAt", "actionObservedAt", "baselineSubmissionIds"]
+      : ["type", "schemaVersion", "platform", "problemExternalId", "submitRequestId", "confirmedAt"];
+    if (!ownKeysExactly(value, keys)
+      || !validCommonFields(value, LEETCODE_SUBMIT_EPOCH_CONFIRMED)
+      || !isCanonicalSubmitEpochTimestamp(confirmedAt)
+      || hasActionObservedAt !== hasBaselineSubmissionIds
+      || (hasActionObservedAt && !isCanonicalSubmitEpochTimestamp(actionObservedAt))
+      || (hasActionObservedAt && Date.parse(String(actionObservedAt)) > Date.parse(String(confirmedAt)))
+      || (hasBaselineSubmissionIds && (!Array.isArray(baselineSubmissionIds)
+        || baselineSubmissionIds.length > SUBMIT_EPOCH_MAX_ENTRIES
+        || !baselineSubmissionIds.every((entry) =>
+          typeof entry === "string" && /^(?:cn|com)\/[0-9]{1,20}$/u.test(entry))
+        || new Set(baselineSubmissionIds).size !== baselineSubmissionIds.length))) {
       return { ok: false, reason: "epoch_control_malformed" };
     }
     return {
@@ -184,7 +203,11 @@ export function parseLeetCodeSubmitEpochControlMessage(
         platform: "leetcode",
         problemExternalId: Reflect.get(value, "problemExternalId") as string,
         submitRequestId: Reflect.get(value, "submitRequestId") as string,
-        confirmedAt: Reflect.get(value, "confirmedAt") as string,
+        confirmedAt: confirmedAt as string,
+        ...(hasActionObservedAt ? { actionObservedAt: actionObservedAt as string } : {}),
+        ...(hasBaselineSubmissionIds
+          ? { baselineSubmissionIds: Object.freeze([...(baselineSubmissionIds as string[])]) }
+          : {}),
       }),
     };
   }

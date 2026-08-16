@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { replayLeetCodeConfirmedEpochs, type SubmitEpochReplayStorage } from "@/extension/src/submitEpochReplay";
 import type { ConfirmedSubmissionRecord } from "@/extension/src/confirmedSubmissionStorage";
 import type { TransientE1Lifecycle } from "@/extension/src/transientEvidenceStorage";
+import { createCaptureContentRuntime } from "@/extension/src/contentRuntime";
 
 const NOW = "2026-08-10T12:00:00.000Z";
 const DOCUMENT_ID = "doc-live";
@@ -34,6 +35,20 @@ const lifecycle = (overrides: Partial<TransientE1Lifecycle> = {}): TransientE1Li
   stableSubmissionId: "leetcode:cn/920",
   rejectionReason: null,
   receivedAt: "2026-08-10T11:59:01.000Z",
+  ...overrides,
+});
+
+const resultLifecycle = (overrides: Partial<TransientE1Lifecycle> = {}): TransientE1Lifecycle => ({
+  ...lifecycle(),
+  evidence: {
+    ...lifecycle().evidence,
+    evidenceId: "e1-result-842",
+    requestId: "842",
+    method: "GET",
+    endpointKey: "leetcode/result/cn/920",
+    receivedAt: "2026-08-10T11:59:02.000Z",
+  },
+  receivedAt: "2026-08-10T11:59:02.000Z",
   ...overrides,
 });
 
@@ -117,6 +132,170 @@ describe("submitEpochReplay", () => {
     const second = await replayLeetCodeConfirmedEpochs(input);
     expect(second).toEqual([]);
     expect(deliveryCount).toBe(1);
+  });
+
+  it("replays a result root only with its complete ActionEpoch baseline proof", async () => {
+    const hint = {
+      schemaVersion: 1,
+      tier: "E0",
+      kind: "ui_hint",
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      observedAt: "2026-08-10T11:59:01.500Z",
+      sourceDocumentId: DOCUMENT_ID,
+    } as const;
+    const historical = resultLifecycle({
+      evidence: {
+        ...resultLifecycle().evidence,
+        evidenceId: "e1-result-919",
+        requestId: "919",
+        endpointKey: "leetcode/result/cn/919",
+        receivedAt: "2026-08-10T11:59:01.000Z",
+      },
+      outcome: "pending",
+      stableSubmissionId: null,
+      receivedAt: "2026-08-10T11:59:01.000Z",
+    });
+    const withProof = await replayLeetCodeConfirmedEpochs({
+      storage: storageFor(
+        { confirmedSubmissions: [confirmed()], confirmedSubmissionTombstones: [] },
+        { transientE1: [historical, resultLifecycle()], uiHints: [hint] },
+      ),
+      now: () => NOW,
+      deliver: async (replay) => {
+        expect(replay).toMatchObject({
+          submitRequestId: "842",
+          actionObservedAt: hint.observedAt,
+          baselineSubmissionIds: ["cn/919"],
+        });
+      },
+    });
+    expect(withProof).toHaveLength(1);
+
+    const withoutProof = await replayLeetCodeConfirmedEpochs({
+      storage: storageFor(
+        { confirmedSubmissions: [confirmed()], confirmedSubmissionTombstones: [] },
+        { transientE1: [resultLifecycle()] },
+      ),
+      now: () => NOW,
+      deliver: async () => { throw new Error("must not replay without ActionEpoch proof"); },
+    });
+    expect(withoutProof).toEqual([]);
+
+    const baselineReplay = await replayLeetCodeConfirmedEpochs({
+      storage: storageFor(
+        { confirmedSubmissions: [confirmed()], confirmedSubmissionTombstones: [] },
+        {
+          transientE1: [
+            resultLifecycle({
+              evidence: {
+                ...resultLifecycle().evidence,
+                evidenceId: "e1-result-920-baseline",
+                requestId: "920-baseline",
+                receivedAt: "2026-08-10T11:59:01.000Z",
+              },
+              outcome: "pending",
+              stableSubmissionId: null,
+              receivedAt: "2026-08-10T11:59:01.000Z",
+            }),
+            resultLifecycle(),
+          ],
+          uiHints: [hint],
+        },
+      ),
+      now: () => NOW,
+      deliver: async () => { throw new Error("must not replay a baseline stable ID"); },
+    });
+    expect(baselineReplay).toEqual([]);
+
+    const simultaneous = await replayLeetCodeConfirmedEpochs({
+      storage: storageFor(
+        { confirmedSubmissions: [confirmed()], confirmedSubmissionTombstones: [] },
+        {
+          transientE1: [resultLifecycle()],
+          uiHints: [{ ...hint, observedAt: "2026-08-10T11:59:02.000Z" }],
+        },
+      ),
+      now: () => NOW,
+      deliver: async () => { throw new Error("must not replay a non-post-action result"); },
+    });
+    expect(simultaneous).toEqual([]);
+  });
+
+  it("preserves legacy check-root replay without result-root proof", async () => {
+    const check = resultLifecycle({
+      evidence: {
+        ...resultLifecycle().evidence,
+        evidenceId: "e1-check-842",
+        requestId: "check-842",
+        endpointKey: "leetcode/check/cn/920",
+      },
+    });
+    const result = await replayLeetCodeConfirmedEpochs({
+      storage: storageFor(
+        { confirmedSubmissions: [confirmed()], confirmedSubmissionTombstones: [] },
+        { transientE1: [check] },
+      ),
+      now: () => NOW,
+      deliver: async (replay) => {
+        expect(replay).toMatchObject({ submitRequestId: "check-842" });
+        expect(replay.actionObservedAt).toBeUndefined();
+      },
+    });
+    expect(result).toHaveLength(1);
+  });
+
+  it("keeps a surviving historical result surface fail-closed across worker replay", async () => {
+    let surface: Element = document.createElement("div");
+    let runtimeNow = "2026-08-10T11:59:01.500Z";
+    const runtime = createCaptureContentRuntime({
+      detectProblem: () => ({
+        platform: "leetcode",
+        problemExternalId: "two-sum",
+        problemTitle: "Two Sum",
+        canonicalUrl: "https://leetcode.cn/problems/two-sum/",
+      }),
+      detectVerdict: () => ({ verdict: "Accepted", verdictSurface: surface }),
+      exactResultPage: () => false,
+      now: () => runtimeNow,
+    });
+    runtime.start();
+    runtime.uiHintObserved();
+    surface = document.createElement("div");
+    runtimeNow = "2026-08-10T11:59:03.000Z";
+    runtime.documentMutated();
+
+    await replayLeetCodeConfirmedEpochs({
+      storage: storageFor(
+        { confirmedSubmissions: [confirmed()], confirmedSubmissionTombstones: [] },
+        {
+          transientE1: [resultLifecycle()],
+          uiHints: [{
+            schemaVersion: 1,
+            tier: "E0",
+            kind: "ui_hint",
+            platform: "leetcode",
+            problemExternalId: "two-sum",
+            observedAt: "2026-08-10T11:59:01.500Z",
+            sourceDocumentId: DOCUMENT_ID,
+          }],
+        },
+      ),
+      now: () => NOW,
+      deliver: async (replay) => {
+        expect(runtime.controlMessageReceived({
+          type: "LEETCODE_SUBMIT_EPOCH_CONFIRMED",
+          schemaVersion: 1,
+          platform: "leetcode",
+          problemExternalId: replay.problemExternalId,
+          submitRequestId: replay.submitRequestId,
+          confirmedAt: replay.confirmedAt,
+          actionObservedAt: replay.actionObservedAt,
+          baselineSubmissionIds: replay.baselineSubmissionIds,
+        })).toEqual([]);
+      },
+    });
+    expect(runtime.takeControlDiagnostic()).toBe("epoch_baseline_missing");
   });
 
   it("delivers nothing for missing or non-unique document identity", async () => {

@@ -439,9 +439,29 @@ describe("LeetCode E2 confirmation policy", () => {
 });
 
 describe("LeetCode GraphQL result E2 confirmation policy", () => {
-  it("RED: binds GraphQL-result E2 to the exact submit epoch through the exact delivery seam", async () => {
+  it("accepts one fresh stable result identity without assuming REST submit or GraphQL", () => {
+    expect(selectLeetCodeResultConfirmation({
+      resultEvidence: result(),
+      resultCandidates: [result()],
+      graphqlCandidates: [],
+      submitCandidates: [],
+      problemCandidates: [problemHint()],
+    })).toMatchObject({
+      kind: "confirmed",
+      matchedSubmitRequestId: "842",
+      matchedActionObservedAt: "2026-07-30T08:40:11.000Z",
+      evidence: {
+        externalSubmissionId: "cn/739040551",
+        problemExternalId: "add-two-numbers",
+        requestEvidenceId: "e1_leetcode_842",
+      },
+    });
+  });
+
+  it("binds GraphQL-result E2 to the exact submit epoch through the exact delivery seam", async () => {
     let verdict: string | null = null;
     let surface: Element | null = null;
+    let runtimeNow = "2026-07-30T08:40:11.000Z";
     const runtime = createCaptureContentRuntime({
       detectProblem: () => ({
         platform: "leetcode",
@@ -451,9 +471,10 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
       }),
       detectVerdict: () => ({ verdict, verdictSurface: surface }),
       exactResultPage: () => false,
-      now: () => NOW,
+      now: () => runtimeNow,
     });
     runtime.start();
+    runtime.uiHintObserved();
     const deliveredMessages: LeetCodeSubmitEpochControlMessage[] = [];
     let emittedMessages: readonly unknown[] = [];
     const deliveryDiagnostics: string[] = [];
@@ -486,6 +507,7 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
     verdict = "Compile Error";
     surface = document.createElement("div");
     expect(runtime.documentMutated()).toEqual([]);
+    runtimeNow = NOW;
 
     const confirmation = selectLeetCodeResultConfirmation({
       resultEvidence: result(),
@@ -533,9 +555,10 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
     });
   });
 
-  it("RED: keeps one exact submit eligible across lifecycle update and rejects zero or two submit identities", () => {
+  it("keeps one exact submit as corroboration, accepts no REST submit, and rejects two submit identities", () => {
     const base = {
       resultEvidence: result(),
+      resultCandidates: [result()],
       graphqlCandidates: [
         graphql(),
         graphql({ requestId: "graphql-843", evidenceId: "e1_leetcode_graphql_843", receivedAt: "2026-07-30T08:40:11.180Z" }),
@@ -549,7 +572,11 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
     expect(selectLeetCodeResultConfirmation({
       ...base,
       submitCandidates: [],
-    })).toMatchObject({ kind: "no_match", reason: "missing_submit" });
+    })).toMatchObject({
+      kind: "confirmed",
+      matchedSubmitRequestId: "842",
+      matchedActionObservedAt: "2026-07-30T08:40:11.000Z",
+    });
     expect(selectLeetCodeResultConfirmation({
       ...base,
       submitCandidates: [
@@ -559,18 +586,60 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
     })).toMatchObject({ kind: "ambiguous", reason: "multiple_submit_candidates" });
   });
 
-  it("RED: rejects crossed or inverted exact submit candidates without falling back to GraphQL", () => {
+  it("rejects baseline ID replay and multiple new result identities", () => {
+    const current = result();
+    expect(selectLeetCodeResultConfirmation({
+      resultEvidence: current,
+      resultCandidates: [
+        result({ receivedAt: "2026-07-30T08:40:10.900Z" }),
+        current,
+      ],
+      graphqlCandidates: [],
+      submitCandidates: [],
+      problemCandidates: [problemHint()],
+    })).toMatchObject({ kind: "no_match", reason: "baseline_result_replay" });
+
+    expect(selectLeetCodeResultConfirmation({
+      resultEvidence: current,
+      resultCandidates: [
+        current,
+        result({
+          evidenceId: "e1_leetcode_843",
+          requestId: "843",
+          endpointKey: `${LEETCODE_RESULT_ENDPOINT_PREFIX}/cn/739040552`,
+        }),
+      ],
+      graphqlCandidates: [],
+      submitCandidates: [],
+      problemCandidates: [problemHint()],
+    })).toMatchObject({ kind: "ambiguous", reason: "multiple_result_candidates" });
+  });
+
+  it("coalesces duplicate callbacks for one stable result identity", () => {
+    const current = result();
+    expect(selectLeetCodeResultConfirmation({
+      resultEvidence: current,
+      resultCandidates: [
+        current,
+        result({ lifecycle: "response_started" }),
+      ],
+      graphqlCandidates: [],
+      submitCandidates: [],
+      problemCandidates: [problemHint()],
+    })).toMatchObject({
+      kind: "confirmed",
+      evidence: { externalSubmissionId: "cn/739040551" },
+    });
+  });
+
+  it("rejects crossed or chronologically invalid exact submit corroboration", () => {
     const base = {
       resultEvidence: result(),
       graphqlCandidates: [graphql()],
       problemCandidates: [problemHint()],
     };
     for (const invalidSubmit of [
-      submit({ documentId: "other-document" }),
       submit({ endpointKey: `${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/cn/two-sum` }),
-      submit({ receivedAt: "2026-07-30T08:40:11.121Z" }),
-      submit({ receivedAt: "2026-07-30T08:40:11.265Z" }),
-      submit({ receivedAt: "2026-07-30T08:40:05.000Z" }),
       submit({ lifecycle: "error_occurred", statusCode: undefined }),
     ]) {
       expect(selectLeetCodeResultConfirmation({
@@ -578,6 +647,42 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
         submitCandidates: [invalidSubmit],
       })).not.toMatchObject({ kind: "confirmed" });
     }
+  });
+
+  it("ignores historical and other-document submits but rejects a competing current-epoch submit", () => {
+    const base = {
+      resultEvidence: result(),
+      resultCandidates: [result()],
+      graphqlCandidates: [],
+      problemCandidates: [problemHint()],
+    };
+    expect(selectLeetCodeResultConfirmation({
+      ...base,
+      submitCandidates: [
+        submit({ receivedAt: "2026-07-30T08:40:10.900Z" }),
+        submit({ documentId: "other-document" }),
+      ],
+    })).toMatchObject({ kind: "confirmed", matchedSubmitRequestId: "842" });
+    expect(selectLeetCodeResultConfirmation({
+      ...base,
+      submitCandidates: [submit({ endpointKey: `${LEETCODE_SUBMIT_ENDPOINT_PREFIX}/cn/two-sum` })],
+    })).toMatchObject({ kind: "no_match", reason: "crossed_identity" });
+  });
+
+  it("rejects an unrepresentable pre-action stable-ID baseline before E2", () => {
+    const baseline = Array.from({ length: 33 }, (_, index) => result({
+      evidenceId: `e1-baseline-${index}`,
+      requestId: `baseline-${index}`,
+      endpointKey: `${LEETCODE_RESULT_ENDPOINT_PREFIX}/cn/${700000000 + index}`,
+      receivedAt: "2026-07-30T08:40:10.900Z",
+    }));
+    expect(selectLeetCodeResultConfirmation({
+      resultEvidence: result(),
+      resultCandidates: [...baseline, result()],
+      graphqlCandidates: [],
+      submitCandidates: [],
+      problemCandidates: [problemHint()],
+    })).toMatchObject({ kind: "no_match", reason: "baseline_capacity_exceeded" });
   });
 
   it("confirms a recent trusted problem hint plus GraphQL and exact result path", () => {
@@ -615,35 +720,57 @@ describe("LeetCode GraphQL result E2 confirmation policy", () => {
   });
 
   it.each([
-    ["historical result without E0", [], [graphql()], "missing_problem_hint"],
+    ["historical result without E0", [], "missing_problem_hint"],
     [
       "expired E0",
       [problemHint({ observedAt: new Date(
         Date.parse(result().receivedAt) - LEETCODE_CONFIRMATION_WINDOW_MS - 1,
       ).toISOString() })],
-      [graphql()],
       "expired_problem_hint",
     ],
-    ["missing GraphQL witness", [problemHint()], [], "missing_graphql"],
-    [
-      "cross-document GraphQL",
-      [problemHint()],
-      [graphql({ documentId: "other-document" })],
-      "missing_graphql",
-    ],
-    [
-      "GraphQL before the trusted click",
-      [problemHint()],
-      [graphql({ receivedAt: "2026-07-30T08:40:10.999Z" })],
-      "missing_graphql",
-    ],
-  ] as const)("fails closed for %s", (_name, hints, graphqlCandidates, reason) => {
+  ] as const)("fails closed for %s", (_name, hints, reason) => {
     expect(selectLeetCodeResultConfirmation({
       resultEvidence: result(),
-      graphqlCandidates,
+      graphqlCandidates: [graphql()],
       submitCandidates: [submit()],
       problemCandidates: hints,
           })).toMatchObject({ kind: "no_match", reason });
+  });
+
+  it.each([
+    ["missing GraphQL witness", []],
+    ["GraphQL before the trusted click", [graphql({ receivedAt: "2026-07-30T08:40:10.999Z" })]],
+  ] as const)("treats %s as optional corroboration", (_name, graphqlCandidates) => {
+    expect(selectLeetCodeResultConfirmation({
+      resultEvidence: result(),
+      resultCandidates: [result()],
+      graphqlCandidates,
+      submitCandidates: [],
+      problemCandidates: [problemHint()],
+    })).toMatchObject({
+      kind: "confirmed",
+      matchedSubmitRequestId: "842",
+      matchedActionObservedAt: "2026-07-30T08:40:11.000Z",
+    });
+  });
+
+  it("rejects cross-document GraphQL corroboration", () => {
+    expect(selectLeetCodeResultConfirmation({
+      resultEvidence: result(),
+      graphqlCandidates: [graphql({ documentId: "other-document" })],
+      submitCandidates: [],
+      problemCandidates: [problemHint()],
+    })).toMatchObject({ kind: "no_match", reason: "crossed_identity" });
+  });
+
+  it("rejects a REST-less policy call that omits the complete result lifecycle set", () => {
+    expect(LEETCODE_NETWORK_POLICY.submissionEvidence({
+      kind: "result_confirmation",
+      resultEvidence: result(),
+      graphqlCandidates: [],
+      submitCandidates: [],
+      problemCandidates: [problemHint()],
+    })).toBeNull();
   });
 
   it("rejects ambiguous trusted clicks and a failed result witness", () => {

@@ -11,6 +11,7 @@ import type {
 import type { ConfirmedSubmissionRecord } from "@/extension/src/confirmedSubmissionStorage";
 
 const SUBMIT_ENDPOINT = "leetcode/submit/cn/two-sum";
+const RESULT_ENDPOINT = "leetcode/result/cn/920";
 const DOCUMENT_ID = "docA";
 const NOW = "2026-08-06T11:22:00.000Z";
 
@@ -41,6 +42,21 @@ const lifecycle = (overrides: Partial<TransientE1Lifecycle> = {}): TransientE1Li
   stableSubmissionId: "leetcode:cn:920",
   rejectionReason: null,
   receivedAt: "2026-08-06T11:20:01.500Z",
+  ...overrides,
+});
+
+const resultLifecycle = (overrides: Partial<TransientE1Lifecycle> = {}): TransientE1Lifecycle => ({
+  ...lifecycle(),
+  evidence: {
+    ...lifecycle().evidence,
+    evidenceId: "e1_leetcode_result_842",
+    requestId: "842",
+    receivedAt: "2026-08-06T11:20:02.000Z",
+    apiTimeStamp: 1002,
+    method: "GET",
+    endpointKey: RESULT_ENDPOINT,
+  },
+  receivedAt: "2026-08-06T11:20:02.000Z",
   ...overrides,
 });
 
@@ -88,6 +104,34 @@ describe("verdictCandidateCoordinator", () => {
       tabId: 7,
       frameId: 0,
       documentId: DOCUMENT_ID,
+    }]);
+  });
+
+  it("restart replay selects the exact stable result lifecycle root", () => {
+    const result = selectLeetCodeConfirmedEpochReplays({
+      requestLifecycles: [resultLifecycle()],
+      uiHints: [{
+        schemaVersion: 1,
+        tier: "E0",
+        kind: "ui_hint",
+        platform: "leetcode",
+        problemExternalId: "two-sum",
+        observedAt: "2026-08-06T11:20:01.000Z",
+        sourceDocumentId: DOCUMENT_ID,
+      }],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result).toEqual([{
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "842",
+      confirmedAt: "2026-08-06T11:20:02.000Z",
+      tabId: 7,
+      frameId: 0,
+      documentId: DOCUMENT_ID,
+      actionObservedAt: "2026-08-06T11:20:01.000Z",
+      baselineSubmissionIds: [],
     }]);
   });
 
@@ -139,6 +183,19 @@ describe("verdictCandidateCoordinator", () => {
     expect(result.resolutions).toHaveLength(1);
     expect(result.resolutions[0]?.externalSubmissionId).toBe("cn/920");
     expect(result.terminal).toEqual([]);
+  });
+
+  it("result-root armed candidate resolves only through its exact stable lifecycle", () => {
+    const result = reconcileVerdictCandidates({
+      candidates: [Object.assign(candidate(), { submitRequestId: "842" })],
+      requestLifecycles: [resultLifecycle()],
+      confirmed: [confirmedRecord()],
+      now: NOW,
+    });
+    expect(result.pending).toEqual([]);
+    expect(result.terminal).toEqual([]);
+    expect(result.resolutions).toHaveLength(1);
+    expect(result.resolutions[0]?.externalSubmissionId).toBe("cn/920");
   });
 
   it("armed duplicate request ids with conflicting timestamps fail closed", () => {

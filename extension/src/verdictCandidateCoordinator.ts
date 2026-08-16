@@ -4,6 +4,7 @@ import {
   type TransientVerdictCandidate,
 } from "./transientEvidenceStorage";
 import type { ConfirmedSubmissionRecord } from "./confirmedSubmissionStorage";
+import type { StoredUiHint } from "./uiHint";
 
 export type VerdictCandidateResolution = Readonly<{
   candidateId: string;
@@ -51,11 +52,13 @@ export type LeetCodeConfirmedEpochReplay = Readonly<{
   tabId: number;
   frameId: number;
   documentId: string;
+  actionObservedAt?: string;
+  baselineSubmissionIds?: readonly string[];
 }>;
 
 /**
  * Select restart-time CONFIRMED controls only when an unfinalized confirmed
- * record has exactly one matched LeetCode submit lifecycle.  No lifecycle,
+ * record has exactly one matched LeetCode submission-root lifecycle. No lifecycle,
  * no stable identity, chronology inversion, context mismatch or duplicate
  * legal lifecycle is replayed.  The caller still delivers to Chrome's exact
  * tab/frame/document target; a missing live document is reported by that
@@ -63,6 +66,7 @@ export type LeetCodeConfirmedEpochReplay = Readonly<{
  */
 export function selectLeetCodeConfirmedEpochReplays(input: Readonly<{
   requestLifecycles: readonly TransientE1Lifecycle[];
+  uiHints?: readonly StoredUiHint[];
   confirmed: readonly ConfirmedSubmissionRecord[];
   now: string;
 }>): readonly LeetCodeConfirmedEpochReplay[] {
@@ -82,12 +86,15 @@ export function selectLeetCodeConfirmedEpochReplays(input: Readonly<{
       lifecycle.outcome === "matched"
       && lifecycle.stableSubmissionId === stableKey
       && lifecycle.evidence.platform === "leetcode"
-      && lifecycle.evidence.method === "POST"
       && lifecycle.evidence.resourceType === "xmlhttprequest"
       && lifecycle.evidence.lifecycle === "completed"
       && lifecycle.evidence.statusCode === 200
       && lifecycle.evidence.documentId.length > 0
-      && isEndpointForCandidate(lifecycle.evidence.endpointKey, record.problemExternalId)
+      && isLifecycleRootForRecord(
+        lifecycle.evidence,
+        record.problemExternalId,
+        record.externalSubmissionId,
+      )
       && lifecycle.evidence.receivedAt <= record.confirmedAt
       && Date.parse(lifecycle.evidence.receivedAt) <= confirmedMs
       && Date.parse(lifecycle.evidence.receivedAt) <= nowMs
@@ -95,6 +102,15 @@ export function selectLeetCodeConfirmedEpochReplays(input: Readonly<{
     if (matches.length !== 1) continue;
     const lifecycle = matches[0];
     if (lifecycle === undefined) continue;
+    const resultRootProof = resultRootReplayProof(
+      lifecycle,
+      input.requestLifecycles,
+      input.uiHints ?? [],
+      record.problemExternalId,
+      record.externalSubmissionId,
+    );
+    const isResultRoot = lifecycle.evidence.endpointKey.startsWith("leetcode/result/");
+    if (isResultRoot && resultRootProof === null) continue;
     replays.push(Object.freeze({
       platform: "leetcode",
       problemExternalId: record.problemExternalId,
@@ -103,9 +119,62 @@ export function selectLeetCodeConfirmedEpochReplays(input: Readonly<{
       tabId: lifecycle.evidence.tabId,
       frameId: lifecycle.evidence.frameId,
       documentId: lifecycle.evidence.documentId,
+      ...(resultRootProof === null ? {} : resultRootProof),
     }));
   }
   return Object.freeze(replays);
+}
+
+function resultRootReplayProof(
+  lifecycle: TransientE1Lifecycle,
+  requestLifecycles: readonly TransientE1Lifecycle[],
+  uiHints: readonly StoredUiHint[],
+  problemExternalId: string,
+  externalSubmissionId: string,
+): Readonly<{
+  actionObservedAt: string;
+  baselineSubmissionIds: readonly string[];
+}> | null {
+  if (lifecycle.evidence.method !== "GET"
+    || !lifecycle.evidence.endpointKey.startsWith("leetcode/result/")) return null;
+  const resultMs = Date.parse(lifecycle.evidence.receivedAt);
+  const hints = uiHints.filter((hint) => {
+    const hintMs = Date.parse(hint.observedAt);
+    return hint.platform === "leetcode"
+      && hint.problemExternalId === problemExternalId
+      && hint.sourceDocumentId === lifecycle.evidence.documentId
+      && Number.isFinite(hintMs)
+      && hintMs < resultMs
+      && resultMs - hintMs <= 5_000;
+  });
+  if (hints.length !== 1) return null;
+  const hint = hints[0];
+  if (hint === undefined) return null;
+  const baselineSubmissionIds = new Set<string>();
+  for (const candidate of requestLifecycles) {
+    const match = /^leetcode\/result\/(cn|com)\/([0-9]{1,20})$/u.exec(
+      candidate.evidence.endpointKey,
+    );
+    const scope = match?.[1];
+    const submissionId = match?.[2];
+    if ((scope !== "cn" && scope !== "com")
+      || submissionId === undefined
+      || candidate.evidence.platform !== "leetcode"
+      || candidate.evidence.method !== "GET"
+      || candidate.evidence.resourceType !== "xmlhttprequest"
+      || candidate.evidence.lifecycle !== "completed"
+      || candidate.evidence.statusCode !== 200
+      || candidate.evidence.tabId !== lifecycle.evidence.tabId
+      || candidate.evidence.frameId !== lifecycle.evidence.frameId
+      || candidate.evidence.documentId !== lifecycle.evidence.documentId
+      || Date.parse(candidate.evidence.receivedAt) > Date.parse(hint.observedAt)) continue;
+    baselineSubmissionIds.add(`${scope}/${submissionId}`);
+  }
+  if (baselineSubmissionIds.has(externalSubmissionId)) return null;
+  return Object.freeze({
+    actionObservedAt: hint.observedAt,
+    baselineSubmissionIds: Object.freeze([...baselineSubmissionIds].sort()),
+  });
 }
 
 /**
@@ -266,9 +335,7 @@ function reconcileArmedCandidate(
     return terminalResult(candidate, "chronology_mismatch");
   }
   if (!sameCandidateContext(evidence, candidate)
-    || evidence.method !== "POST"
-    || evidence.resourceType !== "xmlhttprequest"
-    || !isEndpointForCandidate(evidence.endpointKey, candidate.problemExternalId)) {
+    || evidence.resourceType !== "xmlhttprequest") {
     return terminalResult(candidate, "identity_mismatch");
   }
   // The exact request may still be at its pre-request/response lifecycle
@@ -288,6 +355,9 @@ function reconcileArmedCandidate(
   if (record.platform !== candidate.platform
     || record.problemExternalId !== candidate.problemExternalId
     || record.storageKey !== lifecycle.stableSubmissionId) {
+    return terminalResult(candidate, "identity_mismatch");
+  }
+  if (!isLifecycleRootForRecord(evidence, candidate.problemExternalId, record.externalSubmissionId)) {
     return terminalResult(candidate, "identity_mismatch");
   }
   if (Date.parse(record.confirmedAt) > observedMs) {
@@ -348,6 +418,19 @@ function isEndpointForCandidate(endpointKey: string, problemExternalId: string):
   if (endpointKey === "graphql") return true;
   const parsed = parseSubmitEndpointKey(endpointKey);
   return parsed?.problemSlug === problemExternalId;
+}
+
+function isLifecycleRootForRecord(
+  evidence: TransientE1Lifecycle["evidence"],
+  problemExternalId: string,
+  externalSubmissionId: string,
+): boolean {
+  if (evidence.method === "POST") {
+    return isEndpointForCandidate(evidence.endpointKey, problemExternalId);
+  }
+  return evidence.method === "GET"
+    && (evidence.endpointKey === `leetcode/result/${externalSubmissionId}`
+      || evidence.endpointKey === `leetcode/check/${externalSubmissionId}`);
 }
 
 function hasLaterMatchingSubmitLifecycle(
