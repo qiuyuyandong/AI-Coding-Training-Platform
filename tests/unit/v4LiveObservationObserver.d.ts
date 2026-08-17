@@ -3,6 +3,8 @@ declare module "*/scripts/v4-live-observation-observer.mjs" {
   export const BLOCKED_NOWCODER_PATH: string;
   export const LOCAL_TRIGGER_KEYS: readonly string[];
   export const SESSION_TRIGGER_KEYS: readonly string[];
+  export const IGNORED_LOCAL_KEYS: readonly string[];
+  export const IGNORED_SESSION_KEYS: readonly string[];
   export const EXACT_LOCAL_SNAPSHOT_KEYS: readonly string[];
   export const EXACT_SESSION_SNAPSHOT_KEYS: readonly string[];
   export function isCanonicalDescendant(parent: string, child: string): boolean;

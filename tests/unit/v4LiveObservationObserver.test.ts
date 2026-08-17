@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   APPROVED_NOWCODER_PATH,
+  IGNORED_LOCAL_KEYS,
+  IGNORED_SESSION_KEYS,
   LOCAL_TRIGGER_KEYS,
   SESSION_TRIGGER_KEYS,
   createObservationTerminalController,
@@ -20,8 +22,9 @@ import {
   projectSafeSnapshot,
   reduceObservationSnapshot,
   validateCandidateReceipt,
-  validateObservationTarget,
   validateObservationDatabase,
+  validateObservationTarget,
+  validateStorageChange,
 } from "../../scripts/v4-live-observation-observer.mjs";
 
 const emptyLocal = {
@@ -142,7 +145,13 @@ async function runInjectedChanges(
   Reflect.set(globalThis, "window", { __v4ObservationEvent: (event: unknown) => events.push(event), addEventListener: () => undefined });
   Reflect.set(globalThis, "chrome", { storage: { local: { get: async () => emptyLocal }, session: { get: async () => initialSession }, onChanged: { addListener: (listener: (value: Record<string, unknown>, storageArea: string) => void) => listeners.push(listener) } } });
   try {
-    persistentObserverEntrypoint({ localKeys: LOCAL_TRIGGER_KEYS, sessionKeys: SESSION_TRIGGER_KEYS, target });
+    persistentObserverEntrypoint({
+      localKeys: LOCAL_TRIGGER_KEYS,
+      sessionKeys: SESSION_TRIGGER_KEYS,
+      ignoredLocalKeys: IGNORED_LOCAL_KEYS,
+      ignoredSessionKeys: IGNORED_SESSION_KEYS,
+      target,
+    });
     await new Promise((complete) => setTimeout(complete, 0));
     for (const change of changes) {
       listeners[0]?.(change.changes, change.area);
@@ -210,6 +219,91 @@ describe("V4 live observation storage observer", () => {
       "contentIngressDiagnostics",
       "leetcodeEndpointDiagnostics",
     ]);
+  });
+
+  it("RED: exports the closed approved-namespace ignore lists without touching triggers", () => {
+    expect(IGNORED_SESSION_KEYS).toEqual([
+      "b3WitnessState",
+      "characterizationSession",
+      "webRequestSpikeMarkers",
+    ]);
+    expect(IGNORED_LOCAL_KEYS).toEqual([
+      "installationId",
+      "captureCredential",
+      "captureCredentialVersion",
+      "captureEnabled",
+      "captureEndpoint",
+      "captureProtocolVersion",
+      "lastDeliveredAttemptId",
+      "lastDeliveredAttemptStatus",
+      "pairedAt",
+      "v4ClickIntentMigration",
+      "discardedPreBundleEventCount",
+      "preBundleQueueDiscardedAt",
+      "pendingSubmissionIntents",
+      "eventQueue",
+      "outbox",
+      "quarantine",
+    ]);
+  });
+
+  it("RED: accepts ignored-key batches by name and still rejects unknown keys", () => {
+    expect(validateStorageChange("session", { b3WitnessState: { newValue: { nested: true } } }))
+      .toEqual({ ok: true, keys: ["b3WitnessState"] });
+    expect(validateStorageChange("local", { pairedAt: { newValue: {} }, captureOutbox: { newValue: [] } }))
+      .toEqual({ ok: true, keys: ["pairedAt", "captureOutbox"] });
+    expect(validateStorageChange("session", { hostileUnknownKey: { newValue: {} } }).ok).toBe(false);
+    expect(validateStorageChange("local", { captureHostileUnknown: { newValue: {} } }).ok).toBe(false);
+  });
+
+  it("RED: applies ignored-key changes without reading their values", () => {
+    const baseline = projectSafeSnapshot({ local: emptyLocal, session: emptySession });
+    expect(baseline.ok).toBe(true);
+    if (!baseline.ok) return;
+    let reads = 0;
+    const hostile: Record<string, unknown> = {};
+    Object.defineProperty(hostile, "newValue", {
+      get() {
+        reads += 1;
+        throw new Error("ignored newValue must never be read");
+      },
+    });
+    const result = applySafeStorageChange(baseline.value, "session", {
+      b3WitnessState: hostile,
+      uiHints: { newValue: [] },
+    });
+    expect(result.ok).toBe(true);
+    expect(reads).toBe(0);
+    if (result.ok) expect(result.value.session.uiHints).toBe(0);
+    const localResult = applySafeStorageChange(baseline.value, "local", {
+      pairedAt: hostile,
+      captureOutbox: { newValue: [{}] },
+    });
+    expect(localResult.ok).toBe(true);
+    expect(reads).toBe(0);
+    if (localResult.ok) expect(localResult.value.outbox).toBe(1);
+  });
+
+  it("RED: injected observer accepts ignored batches and keeps rejecting unknown keys", async () => {
+    let reads = 0;
+    const hostile: Record<string, unknown> = {};
+    Object.defineProperty(hostile, "newValue", {
+      get() {
+        reads += 1;
+        throw new Error("ignored newValue must never be read");
+      },
+    });
+    const events = await runInjectedChange({
+      b3WitnessState: hostile,
+      uiHints: { newValue: [] },
+    }, "session");
+    expect(reads).toBe(0);
+    expect(events).toContainEqual(expect.objectContaining({ type: "snapshot" }));
+    expect(events.at(-1)).not.toEqual({ type: "observer_storage_key_rejected" });
+
+    const unknownEvents = await runInjectedChange({ captureHostileUnknown: hostile }, "local");
+    expect(reads).toBe(0);
+    expect(unknownEvents.at(-1)).toEqual({ type: "observer_storage_key_rejected" });
   });
 
   it("keeps the legacy observation command forbidden and the D4 command build-free", () => {
@@ -343,7 +437,7 @@ describe("V4 live observation storage observer", () => {
     });
     listeners[0]?.({
       captureOutbox: unsafe,
-      captureCredential: unsafe,
+      captureHostileUnknown: unsafe,
     }, "local");
     await controller.flush();
     expect(events).toContainEqual({ type: "observer_storage_key_rejected" });
@@ -391,7 +485,7 @@ describe("V4 live observation storage observer", () => {
     });
     expect(applySafeStorageChange(baseline.value, "local", {
       captureOutbox: { newValue: [] },
-      captureCredential: unsafe,
+      captureHostileUnknown: unsafe,
     })).toEqual({ ok: false, reason: "observer_storage_key_rejected" });
   });
 
@@ -420,7 +514,12 @@ describe("V4 live observation storage observer", () => {
       },
     });
     try {
-      persistentObserverEntrypoint({ localKeys: LOCAL_TRIGGER_KEYS, sessionKeys: SESSION_TRIGGER_KEYS });
+      persistentObserverEntrypoint({
+        localKeys: LOCAL_TRIGGER_KEYS,
+        sessionKeys: SESSION_TRIGGER_KEYS,
+        ignoredLocalKeys: IGNORED_LOCAL_KEYS,
+        ignoredSessionKeys: IGNORED_SESSION_KEYS,
+      });
       await new Promise((complete) => setTimeout(complete, 0));
       expect(events).toContainEqual(expect.objectContaining({ type: "observer_armed" }));
       // No service-worker object participates in the observer. Its absence or
@@ -450,12 +549,17 @@ describe("V4 live observation storage observer", () => {
     Reflect.set(globalThis, "window", { __v4ObservationEvent: (event: unknown) => events.push(event), addEventListener: () => undefined });
     Reflect.set(globalThis, "chrome", { storage: { local: { get: async () => emptyLocal }, session: { get: async () => emptySession }, onChanged: { addListener: (listener: (changes: Record<string, unknown>, area: string) => void) => listeners.push(listener) } } });
     try {
-      persistentObserverEntrypoint({ localKeys: LOCAL_TRIGGER_KEYS, sessionKeys: SESSION_TRIGGER_KEYS });
+      persistentObserverEntrypoint({
+        localKeys: LOCAL_TRIGGER_KEYS,
+        sessionKeys: SESSION_TRIGGER_KEYS,
+        ignoredLocalKeys: IGNORED_LOCAL_KEYS,
+        ignoredSessionKeys: IGNORED_SESSION_KEYS,
+      });
       await new Promise((complete) => setTimeout(complete, 0));
       let getterReads = 0;
       const hostile: Record<string, unknown> = {};
       Object.defineProperty(hostile, "newValue", { get() { getterReads += 1; throw new Error("must not read"); } });
-      listeners[0]?.({ captureOutbox: hostile, captureCredential: hostile }, "local");
+      listeners[0]?.({ captureOutbox: hostile, captureHostileUnknown: hostile }, "local");
       await new Promise((complete) => setTimeout(complete, 0));
       expect(getterReads).toBe(0);
       expect(events.at(-1)).toEqual({ type: "observer_storage_key_rejected" });
@@ -478,7 +582,7 @@ describe("V4 live observation storage observer", () => {
     let reads = 0;
     const hostile: Record<string, unknown> = {};
     Object.defineProperty(hostile, "newValue", { get() { reads += 1; throw new Error("unknown newValue read"); } });
-    const events = await runInjectedChange({ captureCredential: hostile }, "local");
+    const events = await runInjectedChange({ captureHostileUnknown: hostile }, "local");
     expect(reads).toBe(0);
     expect(events.at(-1)).toEqual({ type: "observer_storage_key_rejected" });
   });

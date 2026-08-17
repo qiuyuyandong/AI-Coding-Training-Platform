@@ -9,6 +9,8 @@ import {
   APPROVED_NOWCODER_PATH,
   EXACT_LOCAL_SNAPSHOT_KEYS,
   EXACT_SESSION_SNAPSHOT_KEYS,
+  IGNORED_LOCAL_KEYS,
+  IGNORED_SESSION_KEYS,
   LOCAL_TRIGGER_KEYS,
   SESSION_TRIGGER_KEYS,
   createObservationTerminalController,
@@ -21,6 +23,7 @@ import {
   validateObservationDatabase,
   validateObservationTarget,
 } from "./v4-live-observation-observer.mjs";
+import { buildStageSequence, storageKeyDiagnosticListener, validateDiagnosticOutputPath, writeDiagnosticOutputFile } from "./v4-live-observation-diagnostic.mjs";
 
 const TARGETS = Object.freeze({
   "leetcode.cn": Object.freeze({
@@ -50,6 +53,7 @@ const OBSERVATION_PROFILE_FILE = resolve(
 const OBSERVATION_TOOL_FILES = Object.freeze([
   fileURLToPath(import.meta.url),
   resolve("scripts", "v4-live-observation-observer.mjs"),
+  resolve("scripts", "v4-live-observation-diagnostic.mjs"),
 ]);
 const PROFILE_ROOT = resolve(".tmp", "v4-d4-observation-profiles");
 
@@ -287,6 +291,23 @@ async function main() {
     artifactHashes: expectedHashes,
   }, "Preflight");
   const profileId = requiredArgument(args, "--profile-id");
+  const diagnosticArgument = argumentValue(args, "--diagnostic-storage-keys");
+  let diagnosticPath;
+  if (diagnosticArgument.length > 0) {
+    const candidatePath = resolve(diagnosticArgument);
+    const pathValidation = validateDiagnosticOutputPath(candidatePath, resolve("."));
+    if (!pathValidation.ok) throw new Error(pathValidation.reason);
+    diagnosticPath = candidatePath;
+  }
+  const refreshArgument = argumentValue(args, "--diagnostic-refresh-after-ms");
+  let diagnosticRefreshAfterMs;
+  if (refreshArgument.length > 0) {
+    diagnosticRefreshAfterMs = Number(refreshArgument);
+    if (!Number.isInteger(diagnosticRefreshAfterMs)
+      || diagnosticRefreshAfterMs < 1 || diagnosticRefreshAfterMs > 60_000) {
+      throw new Error("--diagnostic-refresh-after-ms must be an integer between 1 and 60000");
+    }
+  }
   const actionAuthorization = argumentValue(args, "--authorize-action");
   const expectedActionAuthorization = `${target.platform}:${problemExternalId}:${candidateSha}`;
   if (actionAuthorization.length > 0 && actionAuthorization !== expectedActionAuthorization) {
@@ -330,6 +351,8 @@ async function main() {
   let failureEvidenceWritten = false;
   let failureReceipt;
   const stageHistory = [];
+  const diagnosticBatches = [];
+  let diagnosticWritten = false;
   const observationTarget = Object.freeze({ platform: target.platform, problemExternalId });
   let eventChain = Promise.resolve();
   let resolveArmed;
@@ -349,6 +372,59 @@ async function main() {
       failureReceipt = Object.freeze({ reason });
     }
     return terminalController.fail(reason);
+  };
+
+  const writeDiagnosticOutput = (refresh = false) => {
+    if (diagnosticPath === undefined) return;
+    if (diagnosticWritten && !refresh) return;
+    const firstWrite = !diagnosticWritten;
+    diagnosticWritten = true;
+    let finalProjection;
+    if (stageState !== undefined) {
+      try {
+        finalProjection = safeStageEvidence(stageState, latestDatabase ?? baselineDatabase);
+      } catch {
+        finalProjection = undefined;
+      }
+    }
+    const sequence = buildStageSequence(stageHistory, finalProjection);
+    const writeResult = writeDiagnosticOutputFile(diagnosticPath, {
+      schemaVersion: 1,
+      note: "DIAGNOSTIC, NOT A READY RECEIPT, NOT ACCEPTANCE EVIDENCE",
+      candidateSha,
+      profileIdentity: sha256Bytes(profileId),
+      rejectedBatches: diagnosticBatches,
+      stageSequence: sequence.entries,
+      stageSequenceCapped: sequence.capped,
+      ...(sequence.reason === undefined ? {} : { stageSequenceRejected: sequence.reason }),
+      ...(terminalController.reason === undefined
+        ? {}
+        : { terminalReason: terminalController.reason }),
+    });
+    if (!writeResult.ok) {
+      process.stderr.write("STORAGE_KEY_DIAGNOSTIC_ERROR=observer_evidence_write_failed\n");
+      return;
+    }
+    if (firstWrite) process.stdout.write(`STORAGE_KEY_DIAGNOSTIC=${diagnosticPath}\n`);
+  };
+
+  const recordDiagnosticBatch = (area, keys) => {
+    if (diagnosticPath === undefined) return;
+    if (area !== "local" && area !== "session") {
+      terminal("observer_value_rejected");
+      return;
+    }
+    if (!Array.isArray(keys) || keys.length === 0 || keys.length > 32
+      || !keys.every((key) => typeof key === "string" && /^[A-Za-z0-9_.:/-]{1,200}$/u.test(key))) {
+      terminal("observer_value_rejected");
+      return;
+    }
+    if (diagnosticBatches.length >= 8) return;
+    diagnosticBatches.push(Object.freeze({
+      area,
+      keys: Object.freeze([...new Set(keys)].sort()),
+    }));
+    writeDiagnosticOutput();
   };
 
   const writeEvidence = (outcome, finalStage, failure) => {
@@ -483,6 +559,10 @@ async function main() {
       terminal(event.type);
       return;
     }
+    if (event.type === "observer_storage_key_diagnostic") {
+      recordDiagnosticBatch(event.area, event.keys);
+      return;
+    }
     if (event.type !== "snapshot") {
       terminal("observer_value_rejected");
       return;
@@ -528,9 +608,19 @@ async function main() {
     await popup.exposeFunction("__v4ObservationEvent", (event) => {
       eventChain = eventChain.then(() => processObserverEvent(event));
     });
+    if (diagnosticPath !== undefined) {
+      await popup.evaluate(storageKeyDiagnosticListener, {
+        localKeys: LOCAL_TRIGGER_KEYS,
+        sessionKeys: SESSION_TRIGGER_KEYS,
+        ignoredLocalKeys: IGNORED_LOCAL_KEYS,
+        ignoredSessionKeys: IGNORED_SESSION_KEYS,
+      });
+    }
     await popup.evaluate(persistentObserverEntrypoint, {
       localKeys: LOCAL_TRIGGER_KEYS,
       sessionKeys: SESSION_TRIGGER_KEYS,
+      ignoredLocalKeys: IGNORED_LOCAL_KEYS,
+      ignoredSessionKeys: IGNORED_SESSION_KEYS,
       exactLocalSnapshotKeys: EXACT_LOCAL_SNAPSHOT_KEYS,
       exactSessionSnapshotKeys: EXACT_SESSION_SNAPSHOT_KEYS,
       target: observationTarget,
@@ -545,6 +635,11 @@ async function main() {
     await platformPage.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await sleep(Number(argumentValue(args, "--browse-ms") || "1500"));
     await eventChain;
+    if (diagnosticRefreshAfterMs !== undefined) {
+      await platformPage.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
+      await sleep(diagnosticRefreshAfterMs);
+      await eventChain;
+    }
     if (terminalController.terminal) throw new Error(terminalController.reason);
     const browseDatabase = readDatabaseCounts(dbPath);
     if (stageState.stage !== "browse_only"
@@ -557,6 +652,7 @@ async function main() {
       const readyEvidence = safeStageEvidence(stageState, browseDatabase);
       stageHistory.push(readyEvidence);
       writeEvidence("ready_only", stageState.stage);
+      writeDiagnosticOutput(true);
       process.stdout.write("ACTION_AUTHORIZED=0\n");
       await context.close();
       return;
@@ -584,6 +680,7 @@ async function main() {
         writeEvidence("not_delivered", stageState.stage, failureReceipt);
         failureEvidenceWritten = true;
       }
+      writeDiagnosticOutput(true);
       process.stdout.write(`DELIVERED=0\nTERMINAL=${terminalController.reason ?? "context_closed"}\n`);
     }
   } catch {
@@ -597,6 +694,7 @@ async function main() {
         process.stderr.write("EVIDENCE_ERROR=observer_evidence_write_failed\n");
       }
     }
+    writeDiagnosticOutput(true);
     await context.close().catch(() => undefined);
     throw new Error(terminalController.reason ?? "observer_unexpected_failure");
   }

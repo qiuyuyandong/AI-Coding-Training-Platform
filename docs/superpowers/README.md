@@ -149,8 +149,12 @@ P0A C0 alignment completed through
 and its template-derived
 [`plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`](plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md).
 P1 offline RED/GREEN, P2 NowCoder non-regression, P3 observer-contract
-repair, and P4 independent plan/tool review are complete (`APPROVE`, no
-HIGH/MEDIUM); P5 candidate freeze is not authorized. Candidate freeze, live observation, and D5
+repair, P4 independent plan/tool review (`APPROVE`, no HIGH/MEDIUM), P5
+candidate freeze, P6 READY-only preflight (both lanes), and P7 platform
+observations (both lanes executed once and failed closed) are complete; the
+immutable candidate is `62e57096c29babe8370c3ad98f6bfe57a1a997f9` and the
+exact D3 validator PASSED. D4 is not delivered; P8 closeout is unmet. Live
+observation and D5
 F1-F4 remain separately gated. Formal V0 observation remains blocked; V0.5
 stays out of scope. The total product target is **Phase 7 / Public Beta hosted
 SaaS**.

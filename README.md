@@ -13,7 +13,18 @@
 > the observation context on the first terminal failure, and received an
 > `APPROVE` independent tool review. P4 independent plan/tool review returned
 > `APPROVE` with no HIGH/MEDIUM after Build ran the four offline
-> verifications; P5 candidate freeze is not authorized. Live
+> verifications. P5 froze the immutable candidate
+> `62e57096c29babe8370c3ad98f6bfe57a1a997f9` with an exact D3 validator PASS
+> and exact dist `.tmp/p5-exact-dist-62e5709`. P6 then completed both
+> READY-only lanes: LeetCode passed on the frozen tool; NowCoder first failed
+> closed on the approved session key `b3WitnessState`, the bounded diagnostic
+> pinned it, the user authorized the full closed ignore-list, and the fresh
+> NowCoder READY lane passed (`READY=1`, DB `0/0/0`) with the refrozen tool
+> hash `F0183DC7...D40911`. P7 then ran exactly one action per lane: both
+> lanes failed closed (LeetCode `verdict_candidate_chronology_mismatch`
+> `PROFILE_UNRESOLVED`; NowCoder `observer_stage_rejected`
+> `OBSERVER_INVALID`), DBs `0/0/0`, no retry. D4 is not delivered; P8
+> closeout is unmet. Live
 > observation, D5/F1-F4, RC, release, push, and PR remain unauthorized.
 > Historical Route A observations remain evidence for their own runs and are
 > not reclassified under the new contract. LeetCode and NowCoder remain

@@ -69,7 +69,7 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-16 P4 completion):** The user explicitly accepted
+> **Current status (2026-08-16 P7 completion):** The user explicitly accepted
 > `ISOLATED` as the replacement D4 minimum and authorized P0A C0 readiness
 > alignment. Revision 4 of
 > `docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`
@@ -90,10 +90,33 @@
 > four required offline verifications (4/4 hashes match, focused `77/77`,
 > both CLIs + privacy PASS, extension diff = exactly six P1 LeetCode files),
 > so the retained verdict is `APPROVE` with no HIGH/MEDIUM and one deferred
-> non-blocking advisory. P5 candidate freeze is next and is not authorized.
-> Live observation, D5/F1-F4, RC, release, push, and PR remain separately
-> gated and unauthorized. Historical Route A facts remain authoritative for
-> their own runs and cannot satisfy or be relabelled under the new contract.
+> non-blocking advisory. P5 then froze the immutable candidate
+> `62e57096c29babe8370c3ad98f6bfe57a1a997f9` on parent `6e3fb6f`; exact D3
+> `V4 candidate commit PASS` (root `2478/1`, app E2E `25/25`, extension
+> `1615/1615`, extension E2E `53/1`, build `20/20`, privacy `0 findings`,
+> readiness PASS); exact dist `.tmp/p5-exact-dist-62e5709`; default DB
+> metadata preserved; receipt
+> `work/reports/v4-phase-d-p5-candidate-freeze-2026-08-16.md`. P6 then ran
+> both READY-only lanes: LeetCode passed on the frozen tool; NowCoder first
+> failed closed on the approved session key `b3WitnessState`, a bounded
+> key-name diagnostic pinned it exactly, and the user authorized the full
+> closed ignore-list (trigger ∪ 16 local + 3 session ignored keys; values
+> never read; unknown keys still fail closed). The fix passed RED/GREEN
+> (`60/60` focused), privacy `0 findings`, both CLIs, and a focused review
+> with no HIGH findings; the tool hash was refrozen to `F0183DC7...D40911`,
+> and the fresh NowCoder READY lane then passed with `READY=1` and DB
+> `0/0/0`. P6 is complete for both lanes. P7 then ran exactly one action per
+> lane on the frozen candidate: the LeetCode lane failed closed with
+> `verdict_candidate_chronology_mismatch` (`PROFILE_UNRESOLVED`, browse_only)
+> and the NowCoder lane failed closed with `observer_stage_rejected`
+> (`OBSERVER_INVALID`, browse_only); both DBs remained `0/0/0`, no retry
+> occurred, and both single-action authorizations are consumed. D4 is NOT
+> delivered; P8 closeout is unmet, and any repair, new candidate, or further
+> live attempt requires a new reviewed plan revision and its own user
+> authorization. Live observation, D5/F1-F4, RC, release, push, and PR
+> remain separately gated and unauthorized. Historical Route A facts remain
+> authoritative for their own runs and cannot satisfy or be relabelled under
+> the new contract.
 >
 > **Historical status (2026-08-14 Route A closeout):** **V4 Phase D D1-D3 are
 > complete on the frozen Revision 5 engineering candidate; D4 is incomplete
@@ -452,8 +475,10 @@ These are current implementation boundaries, not a permanent rejection of the ap
   `docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`;
   its C0 delta is
   `docs/superpowers/plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`.
-  P2 NowCoder non-regression, P3 observer contract, and P4 independent
-  plan/tool review are complete; P5 candidate freeze is not authorized. Live
+  P2 NowCoder non-regression, P3 observer contract, P4 independent
+  plan/tool review, P5 candidate freeze, P6 READY-only preflight (both
+  lanes), and P7 platform observations (both lanes executed once and failed
+  closed) are complete; D4 is not delivered and P8 closeout is unmet. Live
   observation, D5,
   F1-F4, RC, release, push, and PR are not authorized.
 - Revision 5 exact-submit repair is frozen at candidate

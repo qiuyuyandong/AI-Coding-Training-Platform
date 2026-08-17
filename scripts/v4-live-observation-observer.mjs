@@ -34,11 +34,43 @@ export const SESSION_TRIGGER_KEYS = Object.freeze([
   "leetcodeEndpointDiagnostics",
 ]);
 
+/**
+ * Closed ignore lists: approved-namespace storage keys that are NOT capture
+ * state. Batches may carry these keys by name only; their values are never
+ * read, counted, or exported. Any key outside trigger ∪ ignored fails closed.
+ */
+export const IGNORED_SESSION_KEYS = Object.freeze([
+  "b3WitnessState",
+  "characterizationSession",
+  "webRequestSpikeMarkers",
+]);
+
+export const IGNORED_LOCAL_KEYS = Object.freeze([
+  "installationId",
+  "captureCredential",
+  "captureCredentialVersion",
+  "captureEnabled",
+  "captureEndpoint",
+  "captureProtocolVersion",
+  "lastDeliveredAttemptId",
+  "lastDeliveredAttemptStatus",
+  "pairedAt",
+  "v4ClickIntentMigration",
+  "discardedPreBundleEventCount",
+  "preBundleQueueDiscardedAt",
+  "pendingSubmissionIntents",
+  "eventQueue",
+  "outbox",
+  "quarantine",
+]);
+
 export const EXACT_LOCAL_SNAPSHOT_KEYS = LOCAL_TRIGGER_KEYS;
 export const EXACT_SESSION_SNAPSHOT_KEYS = SESSION_TRIGGER_KEYS;
 
 const LOCAL_KEY_SET = new Set(LOCAL_TRIGGER_KEYS);
 const SESSION_KEY_SET = new Set(SESSION_TRIGGER_KEYS);
+const IGNORED_LOCAL_KEY_SET = new Set(IGNORED_LOCAL_KEYS);
+const IGNORED_SESSION_KEY_SET = new Set(IGNORED_SESSION_KEYS);
 const CONFIRMED_KEYS = new Set([
   "schemaVersion",
   "status",
@@ -522,7 +554,9 @@ export function applySafeStorageChange(snapshot, areaName, changes, target) {
     session: { ...snapshot.session },
   };
   let statusSubmissionIds = TARGET_IDENTITY_MEMORY.get(snapshot) ?? Object.freeze([]);
+  const ignored = areaName === "local" ? IGNORED_LOCAL_KEY_SET : IGNORED_SESSION_KEY_SET;
   for (const key of validation.keys) {
+    if (ignored.has(key)) continue;
     const changed = changedNewValue(changes, key);
     if (!changed.ok) return { ok: false, reason: "observer_value_rejected" };
     const value = changed.value;
@@ -711,11 +745,16 @@ export function validateStorageChange(areaName, changes) {
     : areaName === "session"
       ? SESSION_KEY_SET
       : undefined;
-  if (allowed === undefined || !objectValue(changes)) {
+  const ignored = areaName === "local"
+    ? IGNORED_LOCAL_KEY_SET
+    : areaName === "session"
+      ? IGNORED_SESSION_KEY_SET
+      : undefined;
+  if (allowed === undefined || ignored === undefined || !objectValue(changes)) {
     return { ok: false, reason: "observer_storage_key_rejected" };
   }
   const keys = Object.keys(changes);
-  return keys.every((key) => allowed.has(key))
+  return keys.every((key) => allowed.has(key) || ignored.has(key))
     ? { ok: true, keys: Object.freeze(keys) }
     : { ok: false, reason: "observer_storage_key_rejected" };
 }
@@ -1054,6 +1093,8 @@ export function persistentObserverEntrypointSource() {
 export function persistentObserverEntrypoint(configuration) {
   const localKeys = configuration.localKeys;
   const sessionKeys = configuration.sessionKeys;
+  const ignoredLocalKeys = configuration.ignoredLocalKeys;
+  const ignoredSessionKeys = configuration.ignoredSessionKeys;
   const target = configuration.target;
   const emit = (event) => {
     if (typeof window.__v4ObservationEvent === "function") window.__v4ObservationEvent(event);
@@ -1064,15 +1105,26 @@ export function persistentObserverEntrypoint(configuration) {
   let initialPromise;
   let projectedSnapshot;
   let targetStatusSubmissionIds = [];
+  const stringArray = (value) => Array.isArray(value)
+    && value.every((key) => typeof key === "string");
+  const validConfiguration = () => stringArray(localKeys)
+    && stringArray(sessionKeys)
+    && stringArray(ignoredLocalKeys)
+    && stringArray(ignoredSessionKeys);
   const reject = (type) => {
     if (closed) return;
     closed = true;
     emit({ type });
   };
+  if (!validConfiguration()) {
+    reject("observer_value_rejected");
+    return;
+  }
   const valid = (area, changes) => {
     if (area !== "local" && area !== "session") return false;
     const allowed = new Set(area === "local" ? localKeys : sessionKeys);
-    return Object.keys(changes).every((key) => allowed.has(key));
+    const ignored = new Set(area === "local" ? ignoredLocalKeys : ignoredSessionKeys);
+    return Object.keys(changes).every((key) => allowed.has(key) || ignored.has(key));
   };
   const count = (value) => {
     if (value === undefined) return 0;
@@ -1240,7 +1292,9 @@ export function persistentObserverEntrypoint(configuration) {
         await initialPromise;
         if (closed) return;
         const next = { ...projectedSnapshot, confirmed: [...projectedSnapshot.confirmed], tombstones: [...projectedSnapshot.tombstones], session: { ...projectedSnapshot.session } };
+        const ignored = new Set(area === "local" ? ignoredLocalKeys : ignoredSessionKeys);
         for (const key of Object.keys(changes)) {
+          if (ignored.has(key)) continue;
           const change = changes[key];
           if (typeof change !== "object" || change === null) throw new Error("observer_value_rejected");
           const value = Reflect.get(change, "newValue");

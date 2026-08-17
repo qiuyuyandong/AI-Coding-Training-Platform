@@ -504,17 +504,27 @@ evidence only, not RC, acceptance, or release.
   MEDIUM findings.
 
 P1 offline RED/GREEN, P2 NowCoder non-regression, P3 observer-contract
-repair, and P4 independent plan/tool review are complete on the uncommitted
-working tree. P3 binds
+repair, P4 independent plan/tool review, P5 candidate freeze, P6
+READY-only preflight (both lanes), and P7 platform observations (both lanes
+executed once and failed closed) are complete.
+P3 binds
 LeetCode E2 to one exact result/check stable ID, closes the observation
 context on the first terminal failure, and binds the candidate receipt to the
 SHA, dist path, and five artifact hashes; the final tool review returned
 `APPROVE`. P4 re-reviewed all five contracts and its conditional PASS resolved
-to `APPROVE` after Build ran the four offline verifications. P2 made no
-NowCoder production change. P5 candidate freeze is not authorized.
-Candidate freeze, D4 live observations, and D5 F1-F4 still require their own
-gates. The candidate is not pushed, not a PR, and is not RC, acceptance, or
-release.
+to `APPROVE` after Build ran the four offline verifications. P5 froze the
+immutable candidate `62e57096c29babe8370c3ad98f6bfe57a1a997f9` (product-only
+diff on parent `6e3fb6f`); the exact D3 validator passed with the full
+quality gate and the exact dist is `.tmp/p5-exact-dist-62e5709`. P6 completed
+both READY-only lanes: LeetCode passed on the frozen tool, and NowCoder
+passed after the closed ignore-list fix (trigger ∪ approved non-trigger
+keys, values never read) and tool-hash refreeze. P7 then ran one action per
+lane on the frozen candidate; both lanes failed closed (LeetCode
+`verdict_candidate_chronology_mismatch`, NowCoder `observer_stage_rejected`),
+so D4 is not delivered and P8 closeout is unmet. P2 made no
+NowCoder production change. D4 live observations and D5 F1-F4 still require
+their own gates. The candidate is not pushed, not a PR, and is not RC,
+acceptance, or release.
 
 ## D4 E3-confirmed race fix (2026-08-06, superseded 2026-08-08 by the candidate coordinator repair)
 

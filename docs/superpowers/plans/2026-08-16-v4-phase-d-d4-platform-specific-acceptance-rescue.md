@@ -1,6 +1,6 @@
 # V4 Phase D D4 Platform-Specific Acceptance Rescue Plan
 
-**Status:** `REVISION 4 P4 COMPLETE — P0A-P4 PASS; P5 CANDIDATE FREEZE, LIVE, AND D5 NOT AUTHORIZED`
+**Status:** `REVISION 4 P7 COMPLETE — BOTH ACTION LANES EXECUTED ONCE AND FAILED CLOSED; D4 NOT DELIVERED; D5 NOT AUTHORIZED`
 
 **Date:** 2026-08-16
 
@@ -255,9 +255,9 @@ does not complete P1-P8 or remove their own gates.
 | P2 NowCoder non-regression | Prove the exact pilot profile remains unchanged | focused NowCoder suite and extension E2E | complete; zero NowCoder production diff, focused `504/504`, extension `1615/1615`, extension E2E `53/1`, privacy `0 findings`; no new live claim |
 | P3 Observer contract | Keep `extension:observe` fail-fast; separately review the build-free `extension:observe:d4` tool for READY default, exact hashes/identities, one-action authorization, bounded output, and hostile-input rejection | separate observation-tool diff/hash, observer tests, privacy audit, syntax, targeted lint; no product-candidate ownership | complete; focused `43/43`, privacy `0 findings`, both contract CLIs, both syntax checks, typecheck, targeted lint, diff-check PASS; independent tool review `APPROVE` with no HIGH/MEDIUM |
 | P4 Independent plan/tool review | External cross-review of the revised authority, readiness, observer, privacy, and stop contracts | retained reviewer verdict with required changes resolved or explicitly blocked | complete; independent read-only review covered all five contracts and returned conditional PASS; Build ran the four offline verifications (4/4 hashes match, focused `77/77`, both CLIs + privacy PASS, extension diff = exactly six P1 LeetCode files); retained verdict `APPROVE` with no HIGH/MEDIUM and one deferred non-blocking advisory |
-| P5 Candidate freeze | After P0A-P4, isolate product-owned diff, commit one immutable candidate, build exact dist, record five hashes, and rerun D3 | `node scripts/validate-v4-candidate.mjs --candidate <sha>` PASS plus default-database length and `LastWriteTimeUtc` preservation receipt | not authorized or started |
-| P6 READY-only preflight | Run one fresh fixed profile/database lane without action | profile/tool/dist hashes unchanged, database `0/0/0`, browse-only delta zero, `READY=1`, `ACTION_AUTHORIZED=0` | not started |
-| P7 Platform observations | One separately authorized action for one named target per lane; no retry | closed platform verdict and bounded evidence | not authorized |
+| P5 Candidate freeze | After P0A-P4, isolate product-owned diff, commit one immutable candidate, build exact dist, record five hashes, and rerun D3 | `node scripts/validate-v4-candidate.mjs --candidate <sha>` PASS plus default-database length and `LastWriteTimeUtc` preservation receipt | complete; candidate `62e57096c29babe8370c3ad98f6bfe57a1a997f9` (15 files, product-only diff) with parent `6e3fb6f`; exact D3 `V4 candidate commit PASS` (root `2478/1`, app E2E `25/25`, extension `1615/1615`, extension E2E `53/1`, build `20/20`, privacy `0 findings`, readiness PASS); exact dist `.tmp/p5-exact-dist-62e5709`; DB `479232` / `2026-07-23T15:56:38` preserved; receipt `work/reports/v4-phase-d-p5-candidate-freeze-2026-08-16.md` |
+| P6 READY-only preflight | Run one fresh fixed profile/database lane without action | profile/tool/dist hashes unchanged, database `0/0/0`, browse-only delta zero, `READY=1`, `ACTION_AUTHORIZED=0` | complete; LeetCode lane READY on the frozen tool; NowCoder lane first failed closed on the unlisted session key `b3WitnessState`, a bounded key-name diagnostic pinned it exactly, the user authorized the full closed ignore-list (trigger ∪ 16 local + 3 session ignored keys, values never read), the fix passed RED/GREEN (`60/60` focused), privacy `0 findings`, both CLIs, and a focused review with no HIGH/MEDIUM; refrozen tool hash `F0183DC7...D40911`; the fresh NowCoder READY lane then passed with `READY=1` and DB `0/0/0` |
+| P7 Platform observations | One separately authorized action for one named target per lane; no retry | closed platform verdict and bounded evidence | complete as executed; LeetCode lane consumed its one action and failed closed with `verdict_candidate_chronology_mismatch` (`PROFILE_UNRESOLVED`, browse_only, DB `0/0/0`); NowCoder lane consumed its one action and failed closed with `observer_stage_rejected` (`OBSERVER_INVALID`, browse_only, DB `0/0/0`); no retry occurred; D4 remains undelivered |
 | P8 D4 integrated closeout | If both lanes PASS on one candidate, reconcile D4 evidence and request a separate decision on whether D5 planning may begin; do not run F1-F4 | reviewed D4 closeout and explicit D5-planning request that grants no authority by itself | not authorized or started; D5 remains stopped until a separate future plan is reviewed and authorized |
 
 Product-candidate files and observation/plan files must remain separable. A
@@ -349,9 +349,9 @@ push, PR, deployment, or release.
 
 The current stop is deliberate. Existing working-tree changes are preserved as
 requested and must not be called accepted, candidate-frozen, D4 PASS, RC, or
-released. P0A, P1, P2, P3, and P4 are complete. Candidate isolation cannot
-begin until its separate authorization gate is removed; P6/P7
-remain gated by the full offline commands and receipts listed above.
+released. P0A through P7 are complete. P8 closeout remains gated by its own
+authorization and requires both lanes to PASS on one candidate, which has
+not happened.
 
 ## 13. P0A authorization and C0 alignment (2026-08-16)
 
@@ -609,3 +609,210 @@ revisited in a future tool revision.
 P4 completion does not authorize P5 candidate freeze, P6/P7 observation work,
 D5, push, PR, deployment, or release. Candidate isolation and every later
 package still require their own explicit authorization.
+
+## 18. P5 candidate freeze completion (2026-08-16)
+
+P5 isolated the product-owned diff and froze one immutable candidate. The
+documentation/harness work (observation tooling, acceptance profiles, plans,
+docs) was committed first as parent `6e3fb6f`
+(`feat(v4): record D4 acceptance authority and observer contract tooling`,
+21 files). The candidate commit `62e57096c29babe8370c3ad98f6bfe57a1a997f9`
+(`feat(v4): implement LeetCode D4 result-root capture branch`, 15 files,
+single parent) contains exactly the six P1 LeetCode product sources, the
+candidate validator, and eight focused extension unit suites; zero NowCoder
+production files and zero observation/harness files are in its diff. The
+candidate whitelist now also owns `extension/src/submitEpochReplay.ts`.
+
+The exact D3 validator ran against the candidate with a clean worktree and
+HEAD at the candidate commit:
+
+```text
+node scripts/validate-v4-candidate.mjs --candidate 62e57096c29babe8370c3ad98f6bfe57a1a997f9
+  exit 0 — V4 candidate commit PASS
+```
+
+Inside the gate: lint, db:migrate, curriculum validation, root unit
+`2478 passed / 1 skipped`, typecheck, app E2E `25/25`, extension unit
+`1615/1615`, extension E2E `53 passed / 1 known harness skip`, production
+build `20/20`, privacy `0 findings`, readiness PASS, and post-gate identity
+replay PASS.
+
+The exact dist was frozen at `.tmp/p5-exact-dist-62e5709` with five artifact
+SHA-256 values:
+
+```text
+manifest.json         A85C3275D559BD46AAA034FEEA9B14EAFECFC6F56341713B2AFB8B024E2B3E64
+background.js         E187758177B9AE2F6F4159CAEE53AB4E993C31533A7F98AAC8F2F1AC058126EC
+content.js            A4EB98D59D76682B51B977997FF6C164BA4F9F05DE792AF16B95ED6788D0D697
+popup.js              649FE6BCADE7EB92C39619302D1BE94D914FB54869AE8571A18EA2B333A95F9A
+main-world-bridge.js  4D89A80F0351295EE1C0CD173BE107080983868D18510D028854695EACEE3943
+```
+
+Default database metadata was preserved across the gate:
+`Length 479232` and `LastWriteTimeUtc 2026-07-23T15:56:38` before and after.
+The freeze receipt is
+`work/reports/v4-phase-d-p5-candidate-freeze-2026-08-16.md` (uncommitted
+post-freeze documentation, as permitted when the candidate-isolation diff is
+empty and profile/tool hashes are unchanged).
+
+P5 completion does not authorize P6 READY-only preflight, P7 platform
+observations, D4 closeout, D5, F1-F4, RC, release, push, or PR. Each remains
+separately gated.
+
+## 19. P6 READY-only first round and bounded diagnostic amendment (2026-08-16)
+
+P6 ran both lanes as fresh fixed profile/database browse-only lanes with no
+action mode, using the frozen candidate/dist and the frozen profile/tool
+hashes. The LeetCode lane PASSED:
+`READY=1`, `ACTION_AUTHORIZED=0`, browse_only, database `0/0/0`; evidence
+`output/playwright/v4-observation/62e57096c29b-leetcode-p6-leetcode-ready-62e5709-ready.json`.
+The NowCoder lane FAILED closed with `observer_storage_key_rejected` during
+browse of the approved pilot page; evidence
+`output/playwright/v4-observation/62e57096c29b-nowcoder-p6-nowcoder-ready-62e5709-real-observation-failed.json`;
+database `0/0/0`; no retry occurred.
+
+Static analysis shows the candidate extension legitimately writes storage keys
+outside the observer's reviewed trigger allowlists (local 6, session 9). The
+full approved namespace is `APPROVED_LOCAL_STORAGE_KEYS` (22) and
+`APPROVED_SESSION_STORAGE_KEYS` (12) in `extension/src/storagePrivacy.ts`. The
+primary suspect is session `b3WitnessState` (Phase B NowCoder navigation
+witness, `extension/src/b3Witness.ts:461-479`, unconditionally written on
+every witness transition wired at `extension/src/background.ts:1100-1109`);
+secondary suspects are the 16 local keys outside the observer allowlist
+(`installationId`, `captureCredential`, `captureCredentialVersion`,
+`captureEnabled`, `captureEndpoint`, `captureProtocolVersion`,
+`lastDeliveredAttemptId`, `lastDeliveredAttemptStatus`, `pairedAt`,
+`v4ClickIntentMigration`, `discardedPreBundleEventCount`,
+`preBundleQueueDiscardedAt`, `pendingSubmissionIntents`, `eventQueue`,
+`outbox`, `quarantine`) and session `characterizationSession` /
+`webRequestSpikeMarkers`. LeetCode pages trigger no B3 witness writes, which
+explains the lane difference.
+
+The user selected the bounded diagnostic option and requested plan-reviewer
+and plan-consultant opinions. plan-reviewer returned `APPROVE with required
+adjustments`; plan-consultant returned partial agreement with corrections.
+The reconciled design below incorporates both. The diagnostic is a P6
+adjunct, not P6 exit evidence, and consumes no P7 action authority; the
+candidate and all five dist hashes remain untouched.
+
+Reconciled diagnostic contract:
+
+1. Instrument: a new disposable pure module
+   `scripts/v4-live-observation-diagnostic.mjs` (key-name-only rejected-batch
+   classifier plus a self-contained injected listener source) and minimal
+   wiring in `scripts/v4-live-observation.mjs` behind an opt-in
+   `--diagnostic-storage-keys=<path>` argument. The P4-reviewed observer
+   module stays byte-identical; the runner hash changes, so the combined tool
+   hash is refrozen in this amendment after RED/GREEN and a focused delta
+   review.
+2. Privacy: only key NAMES (validated against the `SAFE_IDENTIFIER`
+   pattern) and the storage area are emitted; no values, `oldValue`,
+   `newValue`, or getter access; the schemaVersion-3 failure evidence JSON
+   stays exactly unchanged; the diagnostic output is a separate
+   `*-storage-key-diagnostic.json` file marked
+   `DIAGNOSTIC, NOT A READY RECEIPT, NOT ACCEPTANCE EVIDENCE`.
+3. One-shot terminal behavior is unchanged; the diagnostic listener only
+   observes, it never consumes, re-emits, or alters the main observer path.
+4. Run: ONE fresh profile (`p6-nowcoder-diag-62e5709`) and fresh database
+   browse-only NowCoder lane with the same candidate, dist hashes, profile
+   hash, and the refrozen tool hash.
+5. Classification: every rejected key must belong to
+   `APPROVED_LOCAL_STORAGE_KEYS ∪ APPROVED_SESSION_STORAGE_KEYS`; if the
+   first rejected batch is exactly `{b3WitnessState}`, the primary suspect is
+   confirmed and the allowlist/ignore-list fix decision returns to the user;
+   any other key, multiple keys, or a cross-area batch is a NEW FINDING and
+   pauses for a user decision.
+6. Out of scope for this step: any change to the observer allowlists, the
+   product runtime, `assertCaptureStorageKeys`, or `b3Witness.ts`; a fix
+   would go through its own RED/GREEN, privacy audit, tool review, hash
+   refreeze, and fresh NowCoder READY lane.
+
+The instrument went through two focused delta review rounds (first `REVISE`:
+tool hash did not cover the diagnostic module, the evidence-seam assertion
+was ineffective, and the output path lacked validation/isolation; all fixed).
+The final review returned `APPROVE` with no HIGH/MEDIUM. Refrozen hashes:
+
+```text
+scripts/v4-live-observation.mjs           C79C1DA56398EF794CE56B86BD5A1B0274BEFC918C4B87C01BDD716715D3C541
+scripts/v4-live-observation-observer.mjs  0462386B446B57D35D8E25D57322F8FF8543325D6F7ADDDE71F72A4F4970DBDD (unchanged from section 16)
+scripts/v4-live-observation-diagnostic.mjs EB33F477BE77AAB57F0CEBD11A6339E08E6A3C742E56F150766536D372C27880
+combined observation-tool hash (runner + observer + diagnostic, in order) 4A85646036F5A2F8ADF47F8BF57F147527B052B7AE86CCDA98ED0D44F1C8E52D
+```
+
+Verification: observer focused `43/43`, diagnostic focused `12/12` (combined
+`55/55`), typecheck, targeted ESLint, both `node --check`, privacy audit
+`0 findings`, and `git diff --stat -- extension/src` empty.
+
+### 19.1 Diagnostic outcome, ignore-list fix, and P6 completion (2026-08-16)
+
+The diagnostic lane reproduced the rejection and pinned it exactly: one
+rejected batch, `area: "session"`, `keys: ["b3WitnessState"]`; no other key,
+no cross-area batch. Diagnostic file:
+`output/playwright/v4-observation/p6-nowcoder-diag-62e5709-storage-key-diagnostic.json`
+(marked DIAGNOSTIC, not a READY receipt); diagnostic DB `0/0/0`.
+
+The user then authorized the full closed ignore-list design. The observer
+contract now validates every batch key by name against
+`trigger ∪ ignored` per area, where the ignore lists are exactly the approved
+namespace keys that are not capture state: `IGNORED_SESSION_KEYS`
+(`b3WitnessState`, `characterizationSession`, `webRequestSpikeMarkers`) and
+`IGNORED_LOCAL_KEYS` (the 16 approved non-trigger local keys). Ignored-key
+values are never read, counted, or exported in the pure module, the injected
+entrypoint, or the diagnostic listener; any key outside `trigger ∪ ignored`
+still fails closed. RED first produced `7 failed / 53 passed`; GREEN closed
+them. Verification: observer focused `47/47`, diagnostic focused `13/13`
+(combined `60/60`), typecheck, targeted ESLint (5 files), three
+`node --check`, privacy `0 findings`, both contract CLIs, diff-check, and
+`git diff --stat -- extension/src` empty. The focused review returned no
+HIGH findings; its one MEDIUM (a malformed diagnostic event terminates the
+run) was confirmed as intentional fail-closed design and accepted.
+
+Refrozen tool hashes:
+
+```text
+scripts/v4-live-observation.mjs           CFF13CB463BA00928BE2A072CF74E93F9620AF910131E2EC35C93F1F7E3BF1CC
+scripts/v4-live-observation-observer.mjs  7DA0A1826E05B178911733786244734966585B3B38F24B8F3AB05D9C774FE2D3
+scripts/v4-live-observation-diagnostic.mjs D09E5CD4A827155D477FA233A8D8407ED233BA46451C57A79E869C3357A2F0BC
+combined observation-tool hash (runner + observer + diagnostic, in order) F0183DC723722ED939400D99782AC40A779A761971F2DFD310B8B964B6D40911
+```
+
+The final fresh NowCoder READY lane
+(`p6-nowcoder-ready-r2-62e5709`, fresh `0/0/0` database) then passed with the
+refrozen tool hash: `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1`,
+`ACTION_AUTHORIZED=0`; evidence
+`output/playwright/v4-observation/62e57096c29b-nowcoder-p6-nowcoder-ready-r2-62e5709-ready.json`;
+database `0/0/0`. The LeetCode READY receipt from the first round remains
+valid for its own tool hash. P6 is complete for both lanes. The five frozen
+dist hashes and the acceptance-profile hash are unchanged; no product file
+changed.
+
+P6 completion does not authorize P7 platform observations, D4 closeout, D5,
+F1-F4, RC, release, push, or PR. Each remains separately gated.
+
+## 20. P7 platform observation completion (2026-08-16)
+
+P7 executed exactly one action per lane on the frozen candidate and both
+lanes failed closed; no retry occurred.
+
+- LeetCode (`merge-two-sorted-lists`): the user performed the submission;
+  the extension recorded the allowlisted capture error
+  `verdict_candidate_chronology_mismatch` while the observer stage was still
+  `browse_only` (target `e0/submit/status = 0/0/0`, no confirmed E2). The
+  projection verdict is `PROFILE_UNRESOLVED`, database `0/0/0`. Evidence:
+  `output/playwright/v4-observation/62e57096c29b-leetcode-p7-leetcode-action-62e5709-real-observation-failed.json`.
+- NowCoder (approved pilot `acm/contest/18839/1001`): the user performed the
+  submission; the observer terminated with `observer_stage_rejected` at
+  `browse_only` (bounded evidence carries no further detail by design).
+  Projection verdict `OBSERVER_INVALID`, database `0/0/0`. Evidence:
+  `output/playwright/v4-observation/62e57096c29b-nowcoder-p7-nowcoder-action-62e5709-real-observation-failed.json`.
+
+The five dist hashes, the acceptance-profile hash, and the tool hash
+`F0183DC723722ED939400D99782AC40A779A761971F2DFD310B8B964B6D40911` were
+re-verified unchanged by the runner at final evidence time for each lane. No
+product file changed; the candidate remains frozen. D4 is NOT delivered and
+neither lane PASSed, so the P8 integrated closeout precondition is unmet.
+
+These are terminal single-action outcomes under this plan: a repair, a new
+candidate, or any further live attempt requires a new reviewed plan revision
+and its own user authorization. P8 closeout, D5, F1-F4, RC, release, push,
+and PR remain separately gated.
