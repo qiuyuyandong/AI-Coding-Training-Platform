@@ -136,12 +136,14 @@ export function isExactSubmitControl(
 
 // --- internals --------------------------------------------------------------
 
-const INTERACTIVE_CONTROL_SELECTOR = [
+export const SUBMIT_CONTROL_SELECTOR = [
   'button',
   'input[type="submit"]',
   'input[type="button"]',
   '[role="button"]',
 ].join(",");
+
+const INTERACTIVE_CONTROL_SELECTOR = SUBMIT_CONTROL_SELECTOR;
 
 function readVisibleLabel(control: Element): string {
   if (control instanceof HTMLInputElement) {

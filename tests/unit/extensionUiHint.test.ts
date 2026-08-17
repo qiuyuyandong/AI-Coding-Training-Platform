@@ -4,6 +4,7 @@ import {
   UI_HINT_MAX_COUNT,
   UI_HINT_TTL_MS,
   isEligibleUiHint,
+  isVisibleSeededSubmitControl,
   pruneStoredUiHints,
   retainUiHint,
 } from "@/extension/src/uiHint";
@@ -58,6 +59,33 @@ describe("V4 Phase 0 UI hints", () => {
         "span",
       ),
     })).toBe(true);
+  });
+
+  it("RED: seeds a visible enabled exact submit control without a click", () => {
+    document.body.innerHTML = "<button>提交</button>";
+    expect(isVisibleSeededSubmitControl("leetcode", document)).toBe(true);
+    document.body.innerHTML = '<button class="a b">Submit</button>';
+    expect(isVisibleSeededSubmitControl("leetcode", document)).toBe(true);
+  });
+
+  it("RED: refuses hidden, disabled, and non-exact controls for visibility seeding", () => {
+    document.body.innerHTML = "<button hidden>Submit</button>";
+    expect(isVisibleSeededSubmitControl("leetcode", document)).toBe(false);
+    document.body.innerHTML = '<button style="display:none">Submit</button>';
+    expect(isVisibleSeededSubmitControl("leetcode", document)).toBe(false);
+    document.body.innerHTML = "<button disabled>Submit</button>";
+    expect(isVisibleSeededSubmitControl("leetcode", document)).toBe(false);
+    document.body.innerHTML = "<div>提交记录</div>";
+    expect(isVisibleSeededSubmitControl("leetcode", document)).toBe(false);
+  });
+
+  it("RED: NowCoder visibility seeding keeps the exact btn-submit contract", () => {
+    document.body.innerHTML = '<button class="btn btn-submit"><span>保存并提交</span></button>';
+    expect(isVisibleSeededSubmitControl("nowcoder", document)).toBe(true);
+    document.body.innerHTML = '<button class="btn-submit">提交</button>';
+    expect(isVisibleSeededSubmitControl("nowcoder", document)).toBe(false);
+    document.body.innerHTML = "<button>保存并提交</button>";
+    expect(isVisibleSeededSubmitControl("nowcoder", document)).toBe(false);
   });
 
   it("expires old hints and bounds the session-only collection", () => {

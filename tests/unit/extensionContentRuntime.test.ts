@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -121,6 +122,30 @@ describe("V4 Phase 0 capture content runtime", () => {
     harness.runtime.locationObserved();
 
     expect(harness.runtime.uiHintObserved()).toEqual([]);
+  });
+
+  it("RED: visibility seeding emits the same bounded E0 hint as the click path", () => {
+    const harness = createHarness();
+    harness.runtime.start();
+
+    expect(harness.runtime.uiHintVisible()).toEqual([{
+      type: "UI_HINT_OBSERVED",
+      hint: {
+        schemaVersion: 1,
+        tier: "E0",
+        kind: "ui_hint",
+        platform: "leetcode",
+        problemExternalId: "two-sum",
+        observedAt: "2026-07-24T00:00:02.000Z",
+      },
+    }]);
+  });
+
+  it("RED: wires visibility seeding into the content script watchers", () => {
+    const source = readFileSync("extension/src/content.ts", "utf8");
+    expect(source).toContain("isVisibleSeededSubmitControl");
+    expect(source).toContain("uiHintVisible");
+    expect(source).toContain("seedVisibleUiHint");
   });
 
   it("a UI hint creates only an ActionEpoch and suppresses an unbound later exact result", () => {

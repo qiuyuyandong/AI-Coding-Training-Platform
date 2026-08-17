@@ -39,6 +39,7 @@ export type CaptureContentRuntime = {
   readonly locationObserved: () => readonly AttemptCaptureRuntimeMessage[];
   readonly documentMutated: () => readonly AttemptCaptureRuntimeMessage[];
   readonly uiHintObserved: () => readonly UiHintMessage[];
+  readonly uiHintVisible: () => readonly UiHintMessage[];
   readonly pageHidden: () => readonly AttemptCaptureRuntimeMessage[];
   readonly pageShown: () => readonly AttemptCaptureRuntimeMessage[];
   /**
@@ -671,6 +672,7 @@ export function createCaptureContentRuntime(
       return hasEpochMarker ? [] : evaluateVerdictCandidate();
     },
     uiHintObserved: () => recordUiHint(),
+    uiHintVisible: () => recordUiHint(),
     pageHidden: () => {
       clearEpochs();
       clearVerdictTransitions();

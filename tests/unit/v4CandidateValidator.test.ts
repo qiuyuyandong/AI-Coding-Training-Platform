@@ -69,7 +69,10 @@ describe("V4 candidate validator", () => {
   it("owns the D4 result-root runtime and focused tests without absorbing acceptance tooling", () => {
     for (const path of [
       "extension/src/submitEpochReplay.ts",
+      "extension/src/submissionControl.ts",
+      "extension/src/uiHint.ts",
       "extension/src/verdictCandidateCoordinator.ts",
+      "tests/unit/extensionUiHint.test.ts",
       "tests/unit/extensionVerdictCandidateCoordinator.test.ts",
       "tests/unit/extensionSubmitEpochReplay.test.ts",
     ]) {

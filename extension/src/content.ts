@@ -12,6 +12,7 @@ import { isVerdictCandidateMessage } from "@/extension/src/attemptCapture";
 import {
   isEligibleUiHint,
   isUiHintMessage,
+  isVisibleSeededSubmitControl,
 } from "@/extension/src/uiHint";
 import {
   createExtensionContextGuard,
@@ -57,6 +58,7 @@ async function run(announceReady: () => void): Promise<boolean> {
   let lastHref = window.location.href;
   let pollId: number | undefined;
   let observer: MutationObserver | undefined;
+  let seededVisibleHint = false;
   const contextGuard = createExtensionContextGuard((error) => {
     void error;
     console.error("[capture-v4] content callback failed");
@@ -83,9 +85,24 @@ async function run(announceReady: () => void): Promise<boolean> {
   };
   chrome.runtime.onMessage.addListener(controlMessageListener);
 
+  function seedVisibleUiHint(): void {
+    const detected = detectProblemFromPage(window.location, document);
+    if (detected === null) {
+      seededVisibleHint = false;
+      return;
+    }
+    const visible = isVisibleSeededSubmitControl(detected.platform, document);
+    if (visible && !seededVisibleHint) {
+      seededVisibleHint = true;
+      forwardMessages(runtime.uiHintVisible());
+    }
+    if (!visible) seededVisibleHint = false;
+  }
+
   function observeLocation(): boolean {
     if (window.location.href === lastHref) return false;
     lastHref = window.location.href;
+    seededVisibleHint = false;
     sendCharacterizationNavigationWitness();
     const messages = runtime.locationObserved();
     forwardMessages(messages);
@@ -97,6 +114,7 @@ async function run(announceReady: () => void): Promise<boolean> {
       pollId = window.setInterval(() => {
         contextGuard.run(() => {
           observeLocation();
+          seedVisibleUiHint();
         });
       }, NAVIGATION_POLL_MS);
     }
@@ -106,6 +124,7 @@ async function run(announceReady: () => void): Promise<boolean> {
       contextGuard.run(() => {
         observeLocation();
         forwardMessages(runtime.documentMutated());
+        seedVisibleUiHint();
       });
     });
     observer.observe(document.body, {
@@ -118,6 +137,7 @@ async function run(announceReady: () => void): Promise<boolean> {
   function observeInitialDocument(): void {
     sendCharacterizationNavigationWitness();
     forwardMessages(runtime.locationObserved());
+    seedVisibleUiHint();
     startWatchers();
   }
   if (document.readyState === "loading") {
@@ -171,6 +191,7 @@ async function run(announceReady: () => void): Promise<boolean> {
   });
   window.addEventListener("pagehide", () => {
     contextGuard.run(() => {
+      seededVisibleHint = false;
       forwardMessages(runtime.pageHidden());
       stopWatchers();
     });
@@ -178,8 +199,10 @@ async function run(announceReady: () => void): Promise<boolean> {
   window.addEventListener("pageshow", () => {
     contextGuard.run(() => {
       lastHref = window.location.href;
+      seededVisibleHint = false;
       forwardMessages(runtime.pageShown());
       startWatchers();
+      seedVisibleUiHint();
     });
   });
 

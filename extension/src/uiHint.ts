@@ -1,5 +1,6 @@
 import type { Platform } from "./platforms";
 import {
+  SUBMIT_CONTROL_SELECTOR,
   isExactSubmitControl,
   normalizeControlLabel,
   resolveSubmitControl,
@@ -50,6 +51,30 @@ export function isEligibleUiHint(input: {
       && normalizeControlLabel(control) === "保存并提交";
   }
   return isExactSubmitControl(input.platform, target);
+}
+
+/**
+ * Visibility-seeded E0: report whether the document currently contains an
+ * exact, visible, enabled submit control for the platform. This seeds the
+ * bounded E0 hint BEFORE any click so the hint write can never race the
+ * submit E1. It never creates waiting state.
+ */
+export function isVisibleSeededSubmitControl(
+  platform: Platform,
+  document: Document,
+): boolean {
+  if (platform === "nowcoder") {
+    for (const control of Array.from(document.querySelectorAll("button.btn-submit"))) {
+      if (normalizeControlLabel(control) !== "保存并提交") continue;
+      if (isVisibleAndEnabled(control)) return true;
+    }
+    return false;
+  }
+  for (const control of Array.from(document.querySelectorAll(SUBMIT_CONTROL_SELECTOR))) {
+    if (!isExactSubmitControl(platform, control)) continue;
+    if (isVisibleAndEnabled(control)) return true;
+  }
+  return false;
 }
 
 export function isUiHintMessage(value: unknown): value is UiHintMessage {
