@@ -19,6 +19,13 @@ const problem: DetectedProblem = {
   canonicalUrl: "https://leetcode.cn/problems/two-sum/",
 };
 
+const otherProblem: DetectedProblem = {
+  platform: "leetcode",
+  problemExternalId: "add-two-numbers",
+  problemTitle: "Add Two Numbers",
+  canonicalUrl: "https://leetcode.cn/problems/add-two-numbers/",
+};
+
 const started = (requestId: string, receivedAt = "2026-08-10T00:00:00.600Z") => ({
   type: "LEETCODE_SUBMIT_EPOCH_STARTED",
   schemaVersion: 1,
@@ -204,11 +211,23 @@ describe("LeetCode submit epoch control plane", () => {
     deliver(missing.runtime, started("request-missing"));
     expect(missing.runtime.takeControlDiagnostic()).toBe("epoch_started_missing");
 
+    // The E0 dedup collapses same-problem hints inside the TTL window into
+    // one ActionEpoch, so a same-timestamp seed+click pair arms cleanly.
     const sameTimestamp = createHarness();
     sameTimestamp.runtime.uiHintObserved();
     sameTimestamp.runtime.uiHintObserved();
     deliver(sameTimestamp.runtime, started("request-conflict"));
-    expect(sameTimestamp.runtime.takeControlDiagnostic()).toBe("epoch_identity_conflict");
+    expect(sameTimestamp.runtime.takeControlDiagnostic()).toBeUndefined();
+
+    // A different problem owns its own epoch and never conflicts with the
+    // requested problem's eligible set.
+    const differentProblems = createHarness();
+    differentProblems.runtime.uiHintObserved();
+    differentProblems.setDetected(otherProblem);
+    differentProblems.runtime.uiHintObserved();
+    differentProblems.setDetected(problem);
+    deliver(differentProblems.runtime, started("request-conflict-two-problems"));
+    expect(differentProblems.runtime.takeControlDiagnostic()).toBeUndefined();
 
     const expired = createHarness();
     expired.runtime.uiHintObserved();
