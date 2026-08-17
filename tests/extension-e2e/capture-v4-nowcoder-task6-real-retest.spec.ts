@@ -91,17 +91,19 @@ test("Task 6: same-build full-chain real retest delivers one bundle and one trai
     // Pair the fresh extension with the disposable local app.
     await pairExtension(extensionContext, extensionWorker, extensionId);
 
-    // Browse list -> problem before submit. No trusted click yet; browse-only
-    // waiting must remain zero.
+    // Browse list -> problem before submit. The visibility-seeded E0 fires
+    // for the visible exact submit control; waiting must remain zero.
     await page.goto(NOWCODER_B7_LIST_URL, { waitUntil: "domcontentloaded" });
     await page.goto(NOWCODER_B7_PROBLEM_URL, { waitUntil: "domcontentloaded" });
     await page.locator("button.btn-submit").waitFor();
+    await expect.poll(async () => (await readFakeOjStorage(extensionWorker)).uiHints.length)
+      .toBe(1);
     const browseStorage = await readFakeOjStorage(extensionWorker);
-    expect(browseStorage.uiHints).toHaveLength(0);
     expect(browseStorage.confirmedSubmissions).toHaveLength(0);
     expect(browseStorage.transientE1).toHaveLength(0);
 
-    // Trusted click → E0 hint → synthetic submit → status → confirmed.
+    // Trusted click must not duplicate the seeded E0 hint; submit → status →
+    // confirmed.
     await page.waitForTimeout(550);
     await page.locator("button.btn-submit").click();
     await expect.poll(async () => (await readFakeOjStorage(extensionWorker)).uiHints.length)

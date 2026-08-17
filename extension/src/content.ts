@@ -166,7 +166,11 @@ async function run(announceReady: () => void): Promise<boolean> {
       const target = event.target;
       if (!(target instanceof Element)) return;
       // A click is only a bounded diagnostic hint. Waiting state requires
-      // server-confirmed evidence in a later V4 phase.
+      // server-confirmed evidence in a later V4 phase. When the visibility
+      // seed already emitted the E0 hint for the current control, the click
+      // must not emit a second hint: NowCoder confirmation requires exactly
+      // one problem candidate and a duplicate would be ambiguous.
+      if (seededVisibleHint) return;
       const detected = detectProblemFromPage(window.location, document);
       if (detected === null) return;
       if (!isEligibleUiHint({

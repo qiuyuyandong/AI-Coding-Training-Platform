@@ -1085,7 +1085,7 @@ test.describe.parallel("Phase A Task A9 v2 — Fake OJ matrix", () => {
     });
   });
 
-  test("LeetCode GraphQL/result-distribution chain requires a trusted click and finalizes once", async () => {
+  test("LeetCode GraphQL/result-distribution chain finalizes once with a seeded E0", async () => {
     const { context, worker } = activeHarness();
     const scenario = scenarioAt(18);
     const liveWorker = await getFakeOjLiveWorker(context, worker.url());

@@ -260,7 +260,7 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
       await page.goto(NOWCODER_B7_LIST_URL, { waitUntil: "domcontentloaded" });
       await page.goto(NOWCODER_B7_PROBLEM_URL, { waitUntil: "domcontentloaded" });
       await page.locator("button.btn-submit").waitFor();
-      await expect.poll(async () => (await readFakeOjStorage(liveWorker)).uiHints.length).toBe(0);
+      await expect.poll(async () => (await readFakeOjStorage(liveWorker)).uiHints.length).toBe(1);
       expect((await readFakeOjStorage(liveWorker)).confirmedSubmissions).toHaveLength(0);
       return liveWorker;
     });
@@ -587,7 +587,9 @@ test("D1 reload, disable/enable, replacement dist, browser restart, and pause re
       });
       await pauseResultPage.waitForTimeout(500);
       const paused = await readFakeOjStorageEventually(context, workerUrl);
-      expect(paused.uiHints).toHaveLength(0);
+      // The visibility-seeded E0 is TTL-bounded (30s): at most one fresh
+      // hint can exist per visibility epoch, and it may already be pruned.
+      expect(paused.uiHints.length).toBeLessThanOrEqual(1);
       expect(paused.transientE1).toHaveLength(0);
       expect(paused.confirmedSubmissions).toHaveLength(1);
       expect(paused.confirmedSubmissionTombstones).toHaveLength(1);
