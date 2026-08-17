@@ -166,11 +166,10 @@ async function run(announceReady: () => void): Promise<boolean> {
       const target = event.target;
       if (!(target instanceof Element)) return;
       // A click is only a bounded diagnostic hint. Waiting state requires
-      // server-confirmed evidence in a later V4 phase. When the visibility
-      // seed already emitted the E0 hint for the current control, the click
-      // must not emit a second hint: NowCoder confirmation requires exactly
-      // one problem candidate and a duplicate would be ambiguous.
-      if (seededVisibleHint) return;
+      // server-confirmed evidence in a later V4 phase. The click always
+      // reports: the background dedups identical E0 hints per (platform,
+      // problem, document, TTL) and the runtime never mints a duplicate
+      // ActionEpoch for the same problem inside the TTL window.
       const detected = detectProblemFromPage(window.location, document);
       if (detected === null) return;
       if (!isEligibleUiHint({

@@ -51,6 +51,7 @@ import {
   recordConfirmedSubmission,
 } from "./confirmedSubmissionStorage";
 import {
+  pruneUiHints,
   readStoredUiHints,
   retainUiHint,
   type StoredUiHint,
@@ -860,10 +861,26 @@ function handleE0Recorded(
     return emptyOutcome(now);
   }
   const current = readStoredUiHints(session.uiHints);
+  const pruned = pruneUiHints(current, now);
+  const transient = readTransientSessionEvidenceState(session);
+  // The visibility seed and the trusted click may both report the same
+  // control. Retain exactly one hint per (platform, problem, document)
+  // inside the TTL window so NowCoder confirmation never sees two problem
+  // candidates for one submission.
+  const duplicate = pruned.some((existing) =>
+    existing.platform === event.hint.platform
+    && existing.problemExternalId === event.hint.problemExternalId
+    && existing.sourceDocumentId === event.sourceDocumentId);
+  if (duplicate) {
+    return makeSessionOnlyOutcome({
+      ...transient,
+      uiHints: pruned,
+    }, session, now);
+  }
   const hint: StoredUiHint = { ...event.hint, sourceDocumentId: event.sourceDocumentId };
-  const retained = retainUiHint(current, hint, now);
+  const retained = retainUiHint(pruned, hint, now);
   return makeSessionOnlyOutcome({
-    ...readTransientSessionEvidenceState(session),
+    ...transient,
     uiHints: retained,
   }, session, now);
 }

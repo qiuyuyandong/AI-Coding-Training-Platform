@@ -2261,6 +2261,48 @@ describe("background.ts expireCaptureUiHints alarm wiring", () => {
     expect(reestablished?.name).toBe("expireCaptureUiHints");
     expect(reestablished?.periodInMinutes).toBe(1);
   });
+
+  it("RED: dedups seed-plus-click E0 hints per platform, problem, and document", async () => {
+    const fake = createFakeChrome();
+    await loadBackgroundWithChrome(fake);
+    expect(fake.installedListeners).toHaveLength(1);
+    const installed = fake.installedListeners[0];
+    if (installed === undefined) throw new Error("installed listener missing");
+    await installed();
+    await pumpMicrotasks();
+    expect(fake.messageListeners).toHaveLength(1);
+    const messageListener = fake.messageListeners[0];
+    if (messageListener === undefined) throw new Error("message listener missing");
+
+    const sender: chrome.runtime.MessageSender = { documentId: "doc_e0_dedup" };
+    const now = new Date().toISOString();
+    const hint = (problemExternalId: string, observedAt: string) => ({
+      type: "UI_HINT_OBSERVED",
+      hint: {
+        schemaVersion: 1,
+        tier: "E0",
+        kind: "ui_hint",
+        platform: "nowcoder",
+        problemExternalId,
+        observedAt,
+      },
+    });
+
+    messageListener(hint("acm/contest/18839/1001", now), sender, () => undefined);
+    messageListener(hint("acm/contest/18839/1001", now), sender, () => undefined);
+    await waitForSessionPredicate(fake.storage.session, (stored) =>
+      Array.isArray(stored.uiHints) && stored.uiHints.length === 1);
+    const deduped = await fake.storage.session.get(["uiHints"]);
+    expect(Array.isArray(deduped.uiHints)).toBe(true);
+    expect((deduped.uiHints as readonly unknown[]).length).toBe(1);
+
+    messageListener(hint("acm/contest/18839/1002", now), sender, () => undefined);
+    await waitForSessionPredicate(fake.storage.session, (stored) =>
+      Array.isArray(stored.uiHints) && stored.uiHints.length === 2);
+    const withOther = await fake.storage.session.get(["uiHints"]);
+    expect(Array.isArray(withOther.uiHints)).toBe(true);
+    expect((withOther.uiHints as readonly unknown[]).length).toBe(2);
+  });
 });
 
 describe("verdict candidate orchestration (Task 5)", () => {

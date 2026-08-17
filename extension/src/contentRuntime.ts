@@ -3,6 +3,7 @@ import {
   type AttemptCaptureRuntimeMessage,
   problemIdentityKey,
 } from "./attemptCapture";
+import { UI_HINT_TTL_MS } from "./uiHint";
 import type { UiHintMessage } from "./uiHint";
 import { normalizeTrustedVerdictText } from "@/lib/capture/verdictTaxonomy";
 import {
@@ -436,17 +437,25 @@ export function createCaptureContentRuntime(
     const observedAt = dependencies.now();
     if (detected.platform === "leetcode") {
       pruneExpiredEpochs(observedAt);
-      while (actionEpochs.size >= SUBMIT_EPOCH_MAX_ENTRIES) {
-        const oldest = actionEpochs.keys().next().value;
-        if (typeof oldest !== "string") break;
-        actionEpochs.delete(oldest);
+      const observedMs = Date.parse(observedAt);
+      const freshSameProblem = Number.isFinite(observedMs)
+        && [...actionEpochs.values()].some((epoch) =>
+          epoch.problemExternalId === detected.problemExternalId
+          && Number.isFinite(Date.parse(epoch.observedAt))
+          && observedMs - Date.parse(epoch.observedAt) < UI_HINT_TTL_MS);
+      if (!freshSameProblem) {
+        while (actionEpochs.size >= SUBMIT_EPOCH_MAX_ENTRIES) {
+          const oldest = actionEpochs.keys().next().value;
+          if (typeof oldest !== "string") break;
+          actionEpochs.delete(oldest);
+        }
+        actionEpochSequence += 1;
+        actionEpochs.set(`${observedAt}#${actionEpochSequence}`, {
+          problemExternalId: detected.problemExternalId,
+          observedAt,
+          baseline: baselineFromObservation(),
+        });
       }
-      actionEpochSequence += 1;
-      actionEpochs.set(`${observedAt}#${actionEpochSequence}`, {
-        problemExternalId: detected.problemExternalId,
-        observedAt,
-        baseline: baselineFromObservation(),
-      });
     }
     return [{
       type: "UI_HINT_OBSERVED",

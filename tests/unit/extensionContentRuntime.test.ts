@@ -124,6 +124,45 @@ describe("V4 Phase 0 capture content runtime", () => {
     expect(harness.runtime.uiHintObserved()).toEqual([]);
   });
 
+  it("seed plus click hint still finalizes exactly one candidate", () => {
+    const harness = createHarness();
+    const historicalSurface = document.createElement("div");
+    const repeatedSubmissionSurface = document.createElement("div");
+    harness.setVerdict("Accepted");
+    harness.setVerdictSurface(historicalSurface);
+    harness.runtime.start();
+    harness.runtime.uiHintVisible();
+    harness.runtime.uiHintObserved();
+
+    const started = {
+      type: "LEETCODE_SUBMIT_EPOCH_STARTED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "seed-click-request",
+      receivedAt: "2026-07-24T00:00:03.000Z",
+    } as const;
+    const confirmed = {
+      type: "LEETCODE_SUBMIT_EPOCH_CONFIRMED",
+      schemaVersion: 1,
+      platform: "leetcode",
+      problemExternalId: "two-sum",
+      submitRequestId: "seed-click-request",
+      confirmedAt: "2026-07-24T00:00:04.000Z",
+    } as const;
+
+    expect(deliverControlMessage(harness.runtime, started)).toEqual([]);
+    expect(harness.runtime.documentMutated()).toEqual([]);
+    harness.setVerdictSurface(repeatedSubmissionSurface);
+    expect(harness.runtime.documentMutated()).toEqual([]);
+    const messages = deliverControlMessage(harness.runtime, confirmed);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      type: "VERDICT_CANDIDATE_OBSERVED",
+      candidate: { submitRequestId: "seed-click-request" },
+    });
+  });
+
   it("RED: visibility seeding emits the same bounded E0 hint as the click path", () => {
     const harness = createHarness();
     harness.runtime.start();
