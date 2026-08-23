@@ -56,6 +56,7 @@ const IGNORED_LOCAL_KEYS = [
 
 const IGNORED_SESSION_KEYS = [
   "b3WitnessState",
+  "captureRecoveryRetryAttempt",
   "characterizationSession",
   "webRequestSpikeMarkers",
 ];
@@ -366,5 +367,22 @@ describe("V4 live observation storage-key diagnostic", () => {
       .not.toContain("rejectedBatches");
     expect(runner.slice(evidenceWriteIndex, recordFailureIndex))
       .not.toContain("diagnosticBatches");
+  });
+
+  it("requires the closed product state before any READY-only platform navigation", () => {
+    const runner = readFileSync("scripts/v4-live-observation.mjs", "utf8");
+    expect(runner).toContain("async function assertCaptureReadyPreflight(popup)");
+    expect(runner).toContain('Reflect.get(state, "captureEndpoint") !== canonicalEndpoint');
+    expect(runner).toContain('Reflect.get(state, "provenanceLevel") !== "extension_paired"');
+    expect(runner).toContain('Reflect.get(recovery, "state") !== "ready"');
+    expect(runner).toContain('Reflect.get(state, "waitingCount") !== 0');
+    expect(runner).toContain('Reflect.get(state, "outboxCount") !== 0');
+    expect(runner).toContain('Reflect.get(state, "quarantineCount") !== 0');
+    expect(runner).not.toContain("async function pairExtension(popup)");
+    expect(runner).not.toContain("/api/capture/pairing-codes");
+    const preflight = runner.indexOf("await assertCaptureReadyPreflight(popup)");
+    const navigation = runner.indexOf("await platformPage.goto(startUrl");
+    expect(preflight).toBeGreaterThan(-1);
+    expect(navigation).toBeGreaterThan(preflight);
   });
 });

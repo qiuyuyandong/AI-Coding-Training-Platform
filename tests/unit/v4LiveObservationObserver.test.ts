@@ -229,6 +229,7 @@ describe("V4 live observation storage observer", () => {
   it("RED: exports the closed approved-namespace ignore lists without touching triggers", () => {
     expect(IGNORED_SESSION_KEYS).toEqual([
       "b3WitnessState",
+      "captureRecoveryRetryAttempt",
       "characterizationSession",
       "webRequestSpikeMarkers",
     ]);

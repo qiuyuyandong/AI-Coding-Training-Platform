@@ -37,6 +37,7 @@ const TARGETS = Object.freeze({
 });
 
 const LOCAL_APP_ORIGIN = "http://localhost:3000";
+const CANONICAL_CAPTURE_ENDPOINT = `${LOCAL_APP_ORIGIN}/api/capture/attempts`;
 const D3_ARTIFACTS = Object.freeze([
   Object.freeze({ name: "manifest", file: "manifest.json" }),
   Object.freeze({ name: "background", file: "background.js" }),
@@ -143,17 +144,6 @@ function fixedProfilePath(profileId) {
   return profilePath;
 }
 
-function readPairingCode(value) {
-  if (typeof value !== "object" || value === null) {
-    throw new Error("Pairing response is not an object");
-  }
-  const code = Reflect.get(value, "code");
-  if (Reflect.get(value, "ok") !== true || typeof code !== "string" || code.length === 0) {
-    throw new Error("Pairing response did not contain a code");
-  }
-  return code;
-}
-
 function readDatabaseCounts(dbPath) {
   const db = new Database(dbPath, { readonly: true, fileMustExist: true });
   try {
@@ -196,34 +186,23 @@ async function assertLocalAppReady() {
   }
 }
 
-async function pairedState(popup) {
-  return popup.evaluate(async () => {
-    const result = await chrome.runtime.sendMessage({ type: "GET_CAPTURE_STATE" });
-    return typeof result === "object"
-      && result !== null
-      && Reflect.get(result, "provenanceLevel") === "extension_paired";
-  });
-}
-
-async function pairExtension(popup) {
-  const response = await fetch(`${LOCAL_APP_ORIGIN}/api/capture/pairing-codes`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: LOCAL_APP_ORIGIN,
-    },
-    body: "{}",
-  });
-  if (!response.ok) throw new Error(`Pairing-code request failed with HTTP ${response.status}`);
-  const code = readPairingCode(await response.json());
-  await popup.locator("#pairingCode").fill(code);
-  await popup.locator("#pairButton").click();
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline) {
-    if (await pairedState(popup)) return;
-    await new Promise((complete) => setTimeout(complete, 250));
-  }
-  throw new Error("Extension did not acknowledge pairing without exposing the credential");
+async function assertCaptureReadyPreflight(popup) {
+  const result = await popup.evaluate(async (canonicalEndpoint) => {
+    const state = await chrome.runtime.sendMessage({ type: "GET_CAPTURE_STATE" });
+    if (typeof state !== "object" || state === null) return "state_invalid";
+    if (Reflect.get(state, "captureEnabled") !== true) return "capture_disabled";
+    if (Reflect.get(state, "captureEndpoint") !== canonicalEndpoint) return "endpoint_invalid";
+    if (Reflect.get(state, "provenanceLevel") !== "extension_paired") return "pairing_invalid";
+    const recovery = Reflect.get(state, "captureRecoveryStatus");
+    if (typeof recovery !== "object" || recovery === null
+      || Reflect.get(recovery, "schemaVersion") !== 1
+      || Reflect.get(recovery, "state") !== "ready") return "recovery_not_ready";
+    if (Reflect.get(state, "waitingCount") !== 0) return "waiting_not_empty";
+    if (Reflect.get(state, "outboxCount") !== 0) return "outbox_not_empty";
+    if (Reflect.get(state, "quarantineCount") !== 0) return "quarantine_not_empty";
+    return "ready";
+  }, CANONICAL_CAPTURE_ENDPOINT);
+  if (result !== "ready") throw new Error(`Capture READY preflight rejected: ${result}`);
 }
 
 async function stopCharacterization(popup) {
@@ -629,7 +608,7 @@ async function main() {
     });
     await popup.goto(observerPageUrl, { waitUntil: "domcontentloaded" });
     await stopCharacterization(popup);
-    await pairExtension(popup);
+    await assertCaptureReadyPreflight(popup);
 
     await popup.exposeFunction("__v4ObservationEvent", (event) => {
       eventChain = eventChain.then(() => processObserverEvent(event));

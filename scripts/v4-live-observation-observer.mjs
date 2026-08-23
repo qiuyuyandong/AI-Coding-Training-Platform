@@ -41,6 +41,7 @@ export const SESSION_TRIGGER_KEYS = Object.freeze([
  */
 export const IGNORED_SESSION_KEYS = Object.freeze([
   "b3WitnessState",
+  "captureRecoveryRetryAttempt",
   "characterizationSession",
   "webRequestSpikeMarkers",
 ]);
