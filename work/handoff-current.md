@@ -1,6 +1,61 @@
 # Current Handoff
 
-## Status (2026-08-16 P7 complete; both action lanes failed closed; D4 not delivered; `ISOLATED` authorized for offline work only)
+## Status (2026-08-23 cross-project repair stopped at old-candidate READY authorization gate)
+
+The user approved the master repair plan at
+`docs/superpowers/plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md`.
+Only its first offline track has run. The observer now validates closed E0
+data properties, canonical time, and safe document identity; it projects
+same-target hints from distinct refresh documents as bounded presence `0 | 1`
+and rejects a duplicate from the same document. RED was `2 failed / 49
+passed`; final focused observer/diagnostic verification is `68/68`, with
+typecheck, targeted lint, syntax, privacy `0 findings`, both contract
+validators, and empty product-candidate isolation diff passing. Frozen tool
+hash: `40FB0E40...CB775A9`; product candidate
+`915a98d0317148d063a3fad0e1888cb7aa74e2da` is unchanged.
+
+Execution is stopped before the old-candidate READY-only proof. No browser or
+real OJ was opened, and neither LeetCode nor NowCoder lane ran. Those browse-
+only lanes require separate authorization. Until both pass in order, the
+approved plan forbids starting the product ACK/recovery/storage/endpoint/
+browser-capability implementation. Real actions, D4 closeout, D5, RC,
+release, push, and PR remain unauthorized.
+
+## Status (2026-08-23 P7F4 diagnostic stopped after first browse-lane failure; user decision required)
+
+The user authorized
+`docs/superpowers/plans/2026-08-23-v4-phase-d-p7f3-observer-rejection-diagnostic.md`
+and explicitly requested Sentry and Ponytail plugin use. Sentry read-only API
+access was unavailable because no local token/org/project is configured; no
+SDK or telemetry dependency was added. Ponytail full mode and its review pass
+kept the change harness-only and dependency-free. RED was `2 failed / 64
+passed`; GREEN and final focused verification are `66/66`, with typecheck,
+targeted ESLint, three syntax checks, privacy `0 findings`, both contract
+validators, and empty candidate-isolation production diff all passing. The
+new frozen observation-tool hash is `9E3880AC...E89E8CB`; candidate
+`915a98d0317148d063a3fad0e1888cb7aa74e2da`, exact dist, receipt, profile hash,
+and five dist hashes remain unchanged.
+
+The first authorized browse-only lane used fresh profile/database identity
+`p7f4-leetcode-diagnostic-915a98d`, candidate `915a98d...`, one accepted
+diagnostic refresh, and no `--authorize-action`. It failed closed before READY
+with the new exact diagnostic root `e0_cardinality_exceeded` at `browse_only`;
+authorized actions `0`, DB `0/0/0`, no click/submission/E2/delivery. Evidence:
+`output/playwright/v4-observation/p7f4-leetcode-diagnostic-915a98d-storage-key-diagnostic.json`
+and
+`output/playwright/v4-observation/915a98d03171-leetcode-p7f4-leetcode-diagnostic-915a98d-real-observation-failed.json`.
+The stop-on-first-failure rule prevented the NowCoder lane from starting.
+
+Static tracing closes the root mismatch: production keeps one E0 per
+`(platform, problem, document)` for 30 seconds; refresh creates a new document,
+but the observer counts target E0 across documents and rejects `e0 > 1`. The
+recommended next decision is an observer-only projection fix that validates
+every hint but projects bounded presence (`0 | 1`), followed by RED/GREEN,
+privacy/review, tool-hash refreeze, and two new browse-only lanes. This fix is
+not authorized. Real actions, D4 closeout, P8, D5, RC, release, push, and PR
+remain unauthorized.
+
+## Prior status (2026-08-16 F1 complete; new candidate 915a98d frozen; both lanes READY; awaiting new single-action authorizations)
 
 The user explicitly accepted `ISOLATED` as the replacement D4 minimum and
 authorized P0A C0 readiness alignment. The canonical contract is Revision 4 of
@@ -59,7 +114,20 @@ failed closed with the allowlisted capture error
 DB `0/0/0`). The NowCoder lane (approved pilot) failed closed with
 `observer_stage_rejected` (`OBSERVER_INVALID`, browse_only, DB `0/0/0`). No
 retry occurred; both single-action authorizations are consumed. D4 is NOT
-delivered and P8 closeout is therefore unmet. Any repair, new candidate, or
+delivered and P8 closeout is therefore unmet. The user then authorized the
+P7 failure diagnostic revision
+(`docs/superpowers/plans/2026-08-16-v4-phase-d-p7-failure-diagnostic-revision.md`):
+diagnosis confirmed H2 (LeetCode chronology guard on the stale pre-action
+result panel) and H3 (NowCoder E1-before-E0 race on the click-only hint
+path). The user approved the F1 product fix (visibility-seeded E0 + dedup).
+The F1 chain invalidated candidate `62e5709` and froze the new immutable
+candidate `915a98d0317148d063a3fad0e1888cb7aa74e2da` (D3 `V4 candidate
+commit PASS`: root `2505/1`, app E2E `25/25`, extension `1622/1622`,
+extension E2E `53/1`, build `20/20`, privacy `0 findings`, readiness PASS);
+exact dist `.tmp/p7-f1-exact-dist-915a98d`; receipt
+`.tmp/p7-f1-candidate-receipt-915a98d.json`. Both fresh READY lanes passed
+(browse-only, DB `0/0/0`). New single-action authorizations (one per lane)
+require a separate user decision. Any repair, new candidate, or
 further live attempt requires a new reviewed plan revision and its own user
 authorization. Live observation, D5/F1-F4, RC, release, push,
 and PR remain separately gated and unauthorized.

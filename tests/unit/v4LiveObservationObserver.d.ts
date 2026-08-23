@@ -53,10 +53,12 @@ declare module "*/scripts/v4-live-observation-observer.mjs" {
     snapshot: SafeObservationSnapshot,
     database: Readonly<{ captureEvents: number; trainingSessions: number; trainingAttempts: number }>,
     target?: Readonly<{ platform: "leetcode" | "nowcoder"; problemExternalId: string }>,
+    diagnostic?: boolean,
   ): Readonly<{
     ok: boolean;
     value?: Readonly<Record<string, unknown>>;
     reason?: string;
+    diagnosticCode?: string;
   }>;
 
   export function validateObservationDatabase(input: Readonly<{

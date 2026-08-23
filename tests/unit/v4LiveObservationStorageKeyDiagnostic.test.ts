@@ -328,6 +328,22 @@ describe("V4 live observation storage-key diagnostic", () => {
     expect(observer).not.toContain("diagnostic-refresh");
   });
 
+  it("RED: keeps one closed stage-rejection code in diagnostic output only", () => {
+    const runner = readFileSync("scripts/v4-live-observation.mjs", "utf8");
+    const observer = readFileSync("scripts/v4-live-observation-observer.mjs", "utf8");
+    expect(observer).toContain("diagnosticCode");
+    expect(runner).toContain("stageRejection");
+    expect(runner).toContain('recordStageRejection("snapshot_before_arm")');
+    const diagnosticStart = runner.indexOf("const writeDiagnosticOutput");
+    const evidenceStart = runner.indexOf("const writeEvidence");
+    const failureStart = runner.indexOf("const recordFailure");
+    expect(diagnosticStart).toBeGreaterThan(-1);
+    expect(evidenceStart).toBeGreaterThan(diagnosticStart);
+    expect(failureStart).toBeGreaterThan(evidenceStart);
+    expect(runner.slice(diagnosticStart, evidenceStart)).toContain("stageRejection");
+    expect(runner.slice(evidenceStart, failureStart)).not.toContain("stageRejection");
+  });
+
   it("wires the runner opt-in without touching the reviewed observer module", () => {
     const runner = readFileSync("scripts/v4-live-observation.mjs", "utf8");
     const observer = readFileSync("scripts/v4-live-observation-observer.mjs", "utf8");

@@ -352,6 +352,7 @@ async function main() {
   let failureReceipt;
   const stageHistory = [];
   const diagnosticBatches = [];
+  let stageRejection;
   let diagnosticWritten = false;
   const observationTarget = Object.freeze({ platform: target.platform, problemExternalId });
   let eventChain = Promise.resolve();
@@ -389,13 +390,14 @@ async function main() {
     }
     const sequence = buildStageSequence(stageHistory, finalProjection);
     const writeResult = writeDiagnosticOutputFile(diagnosticPath, {
-      schemaVersion: 1,
+      schemaVersion: 2,
       note: "DIAGNOSTIC, NOT A READY RECEIPT, NOT ACCEPTANCE EVIDENCE",
       candidateSha,
       profileIdentity: sha256Bytes(profileId),
       rejectedBatches: diagnosticBatches,
       stageSequence: sequence.entries,
       stageSequenceCapped: sequence.capped,
+      ...(stageRejection === undefined ? {} : { stageRejection }),
       ...(sequence.reason === undefined ? {} : { stageSequenceRejected: sequence.reason }),
       ...(terminalController.reason === undefined
         ? {}
@@ -406,6 +408,15 @@ async function main() {
       return;
     }
     if (firstWrite) process.stdout.write(`STORAGE_KEY_DIAGNOSTIC=${diagnosticPath}\n`);
+  };
+
+  const recordStageRejection = (diagnosticCode) => {
+    if (diagnosticPath === undefined || stageRejection !== undefined
+      || typeof diagnosticCode !== "string") return;
+    stageRejection = Object.freeze({
+      code: diagnosticCode,
+      ...(stageState === undefined ? {} : { stage: stageState.stage }),
+    });
   };
 
   const recordDiagnosticBatch = (area, keys) => {
@@ -542,8 +553,15 @@ async function main() {
         return;
       }
       const database = baselineDatabase ?? readDatabaseCounts(dbPath);
-      const reduced = reduceObservationSnapshot(undefined, event.snapshot, database, observationTarget);
+      const reduced = reduceObservationSnapshot(
+        undefined,
+        event.snapshot,
+        database,
+        observationTarget,
+        diagnosticPath !== undefined,
+      );
       if (!reduced.ok) {
+        recordStageRejection(reduced.diagnosticCode);
         recordFailure(event.snapshot, database, reduced.reason);
         return;
       }
@@ -568,12 +586,20 @@ async function main() {
       return;
     }
     if (stageState === undefined) {
+      recordStageRejection("snapshot_before_arm");
       terminal("observer_stage_rejected");
       return;
     }
     const database = readDatabaseCounts(dbPath);
-    const reduced = reduceObservationSnapshot(stageState, event.snapshot, database, observationTarget);
+    const reduced = reduceObservationSnapshot(
+      stageState,
+      event.snapshot,
+      database,
+      observationTarget,
+      diagnosticPath !== undefined,
+    );
     if (!reduced.ok) {
+      recordStageRejection(reduced.diagnosticCode);
       recordFailure(event.snapshot, database, reduced.reason);
       return;
     }
@@ -661,8 +687,17 @@ async function main() {
     const databaseMonitor = setInterval(() => {
       if (terminalController.terminal || stageState === undefined || stageState.acknowledged) return;
       const database = readDatabaseCounts(dbPath);
-      const reduced = reduceObservationSnapshot(stageState, stageState.latest, database, observationTarget);
-      if (!reduced.ok) return;
+      const reduced = reduceObservationSnapshot(
+        stageState,
+        stageState.latest,
+        database,
+        observationTarget,
+        diagnosticPath !== undefined,
+      );
+      if (!reduced.ok) {
+        recordStageRejection(reduced.diagnosticCode);
+        return;
+      }
       stageState = reduced.value;
       latestDatabase = database;
       if (stageState.acknowledged && !ackEvidenceWritten) {
