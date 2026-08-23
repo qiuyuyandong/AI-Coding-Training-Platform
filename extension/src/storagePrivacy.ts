@@ -38,6 +38,7 @@ export const APPROVED_SESSION_STORAGE_KEYS: readonly string[] = Object.freeze([
   "contentIngressReady",
   "webRequestSpikeMarkers",
   "leetcodeEndpointDiagnostics",
+  "captureRecoveryRetryAttempt",
 ]);
 
 const APPROVED_KEYS: Readonly<Record<CaptureStorageAreaName, ReadonlySet<string>>> = {

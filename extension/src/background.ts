@@ -2,6 +2,8 @@ import {
   isVerdictCandidateMessage,
 } from "./attemptCapture";
 import {
+  DEFAULT_CAPTURE_ENDPOINT,
+  captureEndpointStatus,
   postCaptureAttemptBundle,
 } from "./captureTransport";
 import {
@@ -22,6 +24,20 @@ import {
   type CaptureOutboxState,
 } from "./outboxDrain";
 import { createSerializedWorkExecutor } from "./serializedWork";
+import { createInitializationController } from "./initializationController";
+import type { CaptureIngressAck } from "./captureIngressReliability";
+import {
+  CAPTURE_CONTENT_SCRIPT_MATCHES,
+  CAPTURE_RECOVERY_READY_TIMEOUT_MS,
+  collectCaptureRecoveryDocuments,
+  isCaptureContentScriptUrl,
+  nextCaptureRecoveryRetry,
+  recoverCaptureDocuments,
+  type CaptureRecoveryDocument,
+  type CaptureRecoveryError,
+  type CaptureRecoveryStatus,
+  type CaptureRecoveryTabFrames,
+} from "./captureRecovery";
 import {
   createRegistryRequestLifecycleSource,
   createWebRequestObserver,
@@ -147,9 +163,16 @@ const INGRESS_DIAGNOSTIC_KEY = "contentIngressDiagnostics";
 const INGRESS_DIAGNOSTIC_LIMIT = 20;
 const INGRESS_READY_KEY = "contentIngressReady";
 const INGRESS_READY_LIMIT = 20;
+const CAPTURE_RECOVERY_ALARM_NAME = "retryCaptureRecovery";
+const CAPTURE_RECOVERY_RETRY_KEY = "captureRecoveryRetryAttempt";
 let activeOutboxFlush: Promise<void> | undefined;
 let cachedSnapshot: OrchestratorState | undefined;
 let ingressState: IngressCoordinatorState = INITIAL_INGRESS_STATE;
+let captureRecoveryStatus: CaptureRecoveryStatus = { schemaVersion: 1, state: "recovering" };
+let activeCaptureRecovery: Promise<void> | undefined;
+let recoveryRetryAttempt = 0;
+const readyCaptureDocuments = new Set<string>();
+const captureReadyWaiters = new Map<string, () => void>();
 const characterizationClock = (): string => new Date().toISOString();
 
 chrome.storage.onChanged?.addListener((changes, areaName) => {
@@ -402,7 +425,7 @@ async function scheduleUiHintCleanupAlarmFromSession(): Promise<void> {
   await scheduleUiHintCleanupAlarm(transient);
 }
 
-const initialization = (async (): Promise<void> => {
+async function initializeCaptureBackground(): Promise<void> {
   // Chromium 138 exposes this API for session but not local storage. Newer
   // browsers that expose the local method are restricted too; the runtime key
   // allowlist below remains mandatory on every supported browser.
@@ -445,12 +468,28 @@ const initialization = (async (): Promise<void> => {
       deliver: sendLeetCodeSubmitEpochConfirmedReplay,
     });
   }
-  await reconcileOpenNowCoderResultTabs();
-})();
+}
 
-const executor = createSerializedWorkExecutor(initialization, (error) => {
+const initializationController = createInitializationController(initializeCaptureBackground);
+
+async function ensureCaptureBackgroundInitialized(): Promise<void> {
+  const priorStatus = initializationController.status();
+  await initializationController.ensure();
+  if (priorStatus !== "ready") void requestCaptureRecovery();
+}
+
+const executor = createSerializedWorkExecutor(ensureCaptureBackgroundInitialized, (error, stage) => {
   void error;
   console.error("[capture-v4] operation failed");
+  void blockCaptureRecovery(
+    stage === "initialization" ? "initialization_failed" : "persistence_failed",
+    true,
+  );
+});
+
+void ensureCaptureBackgroundInitialized().catch((error: unknown) => {
+  void error;
+  void blockCaptureRecovery("initialization_failed", true);
 });
 
 function toIngressUrl(rawUrl: string): URL | undefined {
@@ -469,34 +508,22 @@ async function applyContentIngress(input: IngressInput): Promise<void> {
   await persistIngressReadyRecords(reduced.effects);
   for (const effect of reduced.effects) {
     if (effect.type !== "inject") continue;
-    try {
-      await chrome.scripting.executeScript({
-        target: effect.documentId === undefined
-          ? { tabId: effect.tabId, frameIds: [0] }
-          : { tabId: effect.tabId, documentIds: [effect.documentId] },
-        files: ["content.js"],
-        world: "ISOLATED",
-        injectImmediately: true,
-      });
-      const result = reduceIngress(ingressState, {
-        kind: "injection_result",
-        tabId: effect.tabId,
-        frameId: effect.frameId,
-        documentId: effect.documentId,
-        success: true,
-      });
-      ingressState = result.state;
-      await persistIngressDiagnostics(result.effects);
-    } catch {
-      const result = reduceIngress(ingressState, {
-        kind: "injection_result",
-        tabId: effect.tabId,
-        frameId: effect.frameId,
-        documentId: effect.documentId,
-        success: false,
-      });
-      ingressState = result.state;
-      await persistIngressDiagnostics(result.effects);
+    const recovery = await recoverCaptureDocuments([{
+      tabId: effect.tabId,
+      documentId: effect.documentId,
+      url: effect.url.toString(),
+    }], injectCaptureDocumentAndWait);
+    const result = reduceIngress(ingressState, {
+      kind: "injection_result",
+      tabId: effect.tabId,
+      frameId: effect.frameId,
+      documentId: effect.documentId,
+      success: recovery.ok,
+    });
+    ingressState = result.state;
+    await persistIngressDiagnostics(result.effects);
+    if (!recovery.ok) {
+      await blockCaptureRecovery(recovery.error, recovery.error !== "unsupported_browser");
     }
   }
 }
@@ -575,26 +602,200 @@ async function persistIngressReadyRecords(
   });
 }
 
-async function reconcileOpenNowCoderResultTabs(): Promise<void> {
-  const tabs = await chrome.tabs.query({
-    url: ["https://ac.nowcoder.com/acm/contest/view-submission*"],
+type CaptureRecoveryBlockError = CaptureRecoveryError
+  | "initialization_failed"
+  | "persistence_failed"
+  | "unsupported_capture_endpoint";
+
+const RECOVERY_DIAGNOSTICS = new Set<CaptureRecoveryBlockError>([
+  "unsupported_browser",
+  "capture_recovery_capacity_exceeded",
+  "capture_recovery_failed",
+  "initialization_failed",
+  "persistence_failed",
+  "unsupported_capture_endpoint",
+]);
+
+function browserSupportsCaptureRecovery(): boolean {
+  return typeof chrome.webNavigation.getAllFrames === "function"
+    && typeof chrome.scripting.executeScript === "function"
+    && typeof chrome.tabs.sendMessage === "function";
+}
+
+function noteCaptureRuntimeReady(documentId: string): void {
+  readyCaptureDocuments.add(documentId);
+  while (readyCaptureDocuments.size > 100) {
+    const oldest = readyCaptureDocuments.values().next().value;
+    if (oldest === undefined) break;
+    readyCaptureDocuments.delete(oldest);
+  }
+  captureReadyWaiters.get(documentId)?.();
+}
+
+function waitForCaptureRuntimeReady(documentId: string): Readonly<{
+  readonly promise: Promise<boolean>;
+  readonly cancel: () => void;
+}> {
+  if (readyCaptureDocuments.has(documentId)) {
+    return { promise: Promise.resolve(true), cancel: () => undefined };
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let settle: (ready: boolean) => void = () => undefined;
+  const promise = new Promise<boolean>((resolve) => {
+    settle = (ready) => {
+      if (timer !== undefined) clearTimeout(timer);
+      captureReadyWaiters.delete(documentId);
+      resolve(ready);
+    };
+    captureReadyWaiters.set(documentId, () => { settle(true); });
+    timer = setTimeout(() => { settle(false); }, CAPTURE_RECOVERY_READY_TIMEOUT_MS);
   });
+  return { promise, cancel: () => { settle(false); } };
+}
+
+async function injectCaptureDocumentAndWait(document: CaptureRecoveryDocument): Promise<boolean> {
+  if (readyCaptureDocuments.has(document.documentId)) return true;
+  const waiter = waitForCaptureRuntimeReady(document.documentId);
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: document.tabId, documentIds: [document.documentId] },
+      files: ["content.js"],
+      world: "ISOLATED",
+      injectImmediately: true,
+    });
+  } catch {
+    waiter.cancel();
+    return false;
+  }
+  return waiter.promise;
+}
+
+async function resetCaptureRecoveryRetryBudget(): Promise<void> {
+  recoveryRetryAttempt = 0;
+  await trustedSessionStorage.remove(CAPTURE_RECOVERY_RETRY_KEY);
+  await settleExtensionOperation(
+    () => chrome.alarms.clear(CAPTURE_RECOVERY_ALARM_NAME),
+    () => console.warn("[capture-v4] recovery alarm was not cleared"),
+  );
+}
+
+async function scheduleCaptureRecoveryRetry(): Promise<void> {
+  try {
+    const stored = await trustedSessionStorage.get([CAPTURE_RECOVERY_RETRY_KEY]);
+    const persisted = stored[CAPTURE_RECOVERY_RETRY_KEY];
+    if (typeof persisted === "number" && Number.isInteger(persisted) && persisted >= 0) {
+      recoveryRetryAttempt = Math.max(recoveryRetryAttempt, persisted);
+    }
+  } catch {
+    // The bounded in-memory budget remains authoritative until session storage recovers.
+  }
+  const retry = nextCaptureRecoveryRetry(recoveryRetryAttempt);
+  if (retry === undefined) return;
+  recoveryRetryAttempt = retry.attempt;
+  await settleExtensionOperation(
+    () => trustedSessionStorage.set({ [CAPTURE_RECOVERY_RETRY_KEY]: retry.attempt }),
+    () => console.warn("[capture-v4] recovery retry budget was not persisted"),
+  );
+  await settleExtensionOperation(
+    () => chrome.alarms.create(CAPTURE_RECOVERY_ALARM_NAME, {
+      delayInMinutes: retry.delayMinutes,
+    }),
+    () => console.warn("[capture-v4] recovery alarm was not scheduled"),
+  );
+}
+
+async function blockCaptureRecovery(
+  error: CaptureRecoveryBlockError,
+  retryable: boolean,
+): Promise<void> {
+  captureRecoveryStatus = { schemaVersion: 1, state: "blocked", error };
+  cachedSnapshot = undefined;
+  await settleExtensionOperation(
+    () => trustedLocalStorage.set({ lastCaptureError: error }),
+    () => console.warn("[capture-v4] recovery diagnostic was not persisted"),
+  );
+  if (retryable) await scheduleCaptureRecoveryRetry();
+}
+
+async function clearCaptureRecoveryDiagnostic(): Promise<void> {
+  const stored = await trustedLocalStorage.get(["lastCaptureError"]);
+  if (typeof stored.lastCaptureError === "string"
+    && RECOVERY_DIAGNOSTICS.has(stored.lastCaptureError as CaptureRecoveryBlockError)) {
+    await trustedLocalStorage.remove("lastCaptureError");
+    cachedSnapshot = undefined;
+  }
+}
+
+async function performCaptureRecovery(): Promise<void> {
+  const runtime = await trustedLocalStorage.get(["captureEnabled", "captureEndpoint"]);
+  if (runtime.captureEnabled === false) {
+    captureRecoveryStatus = { schemaVersion: 1, state: "ready" };
+    await resetCaptureRecoveryRetryBudget();
+    return;
+  }
+  if (captureEndpointStatus(runtime.captureEndpoint).status === "unsupported") {
+    await blockCaptureRecovery("unsupported_capture_endpoint", false);
+    return;
+  }
+  if (!browserSupportsCaptureRecovery()) {
+    await blockCaptureRecovery("unsupported_browser", false);
+    return;
+  }
+
+  captureRecoveryStatus = { schemaVersion: 1, state: "recovering" };
+  const tabs = await chrome.tabs.query({ url: [...CAPTURE_CONTENT_SCRIPT_MATCHES] });
+  const tabFrames: CaptureRecoveryTabFrames[] = [];
   for (const tab of tabs) {
-    if (typeof tab.id !== "number" || typeof tab.url !== "string") continue;
-    const url = toIngressUrl(tab.url);
-    if (url === undefined) continue;
-    await applyContentIngress({
-      kind: "startup",
-      url,
+    if (typeof tab.id !== "number") {
+      await blockCaptureRecovery("unsupported_browser", false);
+      return;
+    }
+    const frames = await chrome.webNavigation.getAllFrames({ tabId: tab.id });
+    if (frames === null) {
+      await blockCaptureRecovery("unsupported_browser", false);
+      return;
+    }
+    tabFrames.push({
       tabId: tab.id,
-      frameId: 0,
-      documentId: undefined,
+      frames: frames.map((frame) => ({
+        frameId: frame.frameId,
+        url: frame.url,
+        ...(typeof frame.documentId === "string" ? { documentId: frame.documentId } : {}),
+      })),
     });
   }
+  const collected = collectCaptureRecoveryDocuments(tabFrames);
+  if (!collected.ok) {
+    await blockCaptureRecovery(collected.error, false);
+    return;
+  }
+  const result = await recoverCaptureDocuments(collected.documents, injectCaptureDocumentAndWait);
+  if (!result.ok) {
+    await blockCaptureRecovery(result.error, result.error !== "unsupported_browser");
+    return;
+  }
+  captureRecoveryStatus = { schemaVersion: 1, state: "ready" };
+  await resetCaptureRecoveryRetryBudget();
+  await clearCaptureRecoveryDiagnostic();
+}
+
+function requestCaptureRecovery(): Promise<void> {
+  if (activeCaptureRecovery !== undefined) return activeCaptureRecovery;
+  const recovery = performCaptureRecovery().catch(async (error: unknown) => {
+    void error;
+    await blockCaptureRecovery("capture_recovery_failed", true);
+  });
+  activeCaptureRecovery = recovery.finally(() => { activeCaptureRecovery = undefined; });
+  return activeCaptureRecovery;
 }
 
 chrome.webNavigation.onCommitted.addListener((details) => {
   const url = toIngressUrl(details.url);
+  if (url !== undefined && details.frameId === 0
+    && (typeof details.documentId !== "string" || details.documentId.length === 0)) {
+    void blockCaptureRecovery("unsupported_browser", false);
+    return;
+  }
   executor.schedule(async () => {
     if (url === undefined) {
       if (details.frameId === 0 && details.tabId >= 0) {
@@ -615,6 +816,11 @@ chrome.webNavigation.onCommitted.addListener((details) => {
 chrome.webNavigation.onCompleted.addListener((details) => {
   const url = toIngressUrl(details.url);
   if (url === undefined) return;
+  if (details.frameId === 0
+    && (typeof details.documentId !== "string" || details.documentId.length === 0)) {
+    void blockCaptureRecovery("unsupported_browser", false);
+    return;
+  }
   executor.schedule(async () => {
     await applyContentIngress({
       kind: "completed",
@@ -629,6 +835,11 @@ chrome.webNavigation.onCompleted.addListener((details) => {
 chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
   const url = toIngressUrl(details.url);
   if (url === undefined) return;
+  if (details.frameId === 0
+    && (typeof details.documentId !== "string" || details.documentId.length === 0)) {
+    void blockCaptureRecovery("unsupported_browser", false);
+    return;
+  }
   executor.schedule(async () => {
     await applyContentIngress({
       kind: "history_state",
@@ -1071,9 +1282,13 @@ chrome.runtime.onInstalled.addListener(() => {
   // Guarantee the cleanup alarm slot is populated before any async work so
   // even an empty-session install wakes up with a periodic prune driver.
   void ensurePruneAlarmSlot();
-  void initialization.then(async () => {
+  void ensureCaptureBackgroundInitialized().then(async () => {
     await scheduleUiHintCleanupAlarmFromSession();
     await scheduleCharacterizationExpiry(await characterizationController.getSession());
+    await requestCaptureRecovery();
+  }).catch((error: unknown) => {
+    void error;
+    void blockCaptureRecovery("initialization_failed", true);
   });
   void settleExtensionOperation(
     () => chrome.alarms.create(FLUSH_ALARM_NAME, { periodInMinutes: 1 }),
@@ -1093,9 +1308,26 @@ chrome.runtime.onStartup.addListener(() => {
     await flushOutbox();
     await scheduleUiHintCleanupAlarmFromSession();
     await scheduleCharacterizationExpiry(session);
-    await reconcileOpenNowCoderResultTabs();
+    await requestCaptureRecovery();
   });
 });
+
+function scheduleCaptureIngressAck(
+  work: () => Promise<"persisted" | "paused">,
+  sendResponse: (response: CaptureIngressAck) => void,
+): void {
+  executor.schedule(async () => {
+    const status = await work();
+    sendResponse({ schemaVersion: 1, ok: true, status });
+  }, (stage) => {
+    const error = stage === "initialization" ? "initialization_failed" : "persistence_failed";
+    sendResponse({ schemaVersion: 1, ok: false, error });
+  });
+}
+
+function captureIngressStatus(effects: OrchestratorEffects): "persisted" | "paused" {
+  return effects.state.captureEnabled ? "persisted" : "paused";
+}
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
   // B3: Sanitize sender synchronously, then transition B3 state serially via executor.
@@ -1109,28 +1341,38 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return false;
   }
   if (isContentRuntimeReadyMessage(message)) {
-    const url = typeof sender.url === "string" ? toIngressUrl(sender.url) : undefined;
+    const senderUrl = typeof sender.url === "string" ? sender.url : undefined;
     const senderTabId = sender.tab?.id;
-    if (url === undefined || typeof senderTabId !== "number"
-      || typeof sender.frameId !== "number" || typeof sender.documentId !== "string") {
+    if (senderUrl === undefined || !isCaptureContentScriptUrl(senderUrl)
+      || typeof senderTabId !== "number" || sender.frameId !== 0
+      || typeof sender.documentId !== "string" || sender.documentId.length === 0) {
       return false;
     }
-    const senderFrameId = sender.frameId;
     const senderDocumentId = sender.documentId;
+    noteCaptureRuntimeReady(senderDocumentId);
+    const nowCoderUrl = toIngressUrl(senderUrl);
+    if (nowCoderUrl === undefined) return false;
     executor.schedule(async () => {
       // The closed ready payload carries no page-derived fields. Chrome owns
       // the sender identity and URL used to admit this control-plane record.
       await applyContentIngress({
         kind: "ready",
         tabId: senderTabId,
-        frameId: senderFrameId,
+        frameId: 0,
         documentId: senderDocumentId,
       });
     });
     return false;
   }
   if (isCaptureContextRequest(message)) {
-    void initialization.then(readRuntimeContext).then(sendResponse).catch(() => sendResponse(undefined));
+    void ensureCaptureBackgroundInitialized()
+      .then(readRuntimeContext)
+      .then(sendResponse)
+      .catch((error: unknown) => {
+        void error;
+        void blockCaptureRecovery("initialization_failed", true);
+        sendResponse(undefined);
+      });
     return true;
   }
   if (isCaptureStateRequest(message)) {
@@ -1159,15 +1401,41 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return false;
   }
   if (isUiHintMessage(message)) {
-    executor.schedule(async () => {
-      if (await blocksCharacterizationProductionIngress(message.hint.platform, characterizationController)) return;
-      await applyOrchestratorEvent({
+    if (typeof sender.documentId !== "string" || sender.documentId.length === 0) return false;
+    const senderDocumentId = sender.documentId;
+    scheduleCaptureIngressAck(async () => {
+      if (await blocksCharacterizationProductionIngress(message.hint.platform, characterizationController)) {
+        return "persisted";
+      }
+      const effects = await applyOrchestratorEvent({
         kind: "e0_recorded",
         hint: message.hint,
-        sourceDocumentId: sender.documentId,
+        sourceDocumentId: senderDocumentId,
       });
+      return captureIngressStatus(effects);
+    }, sendResponse);
+    return true;
+  }
+  if (isRetryCaptureRecoveryMessage(message)) {
+    executor.schedule(async () => {
+      await resetCaptureRecoveryRetryBudget();
+      initializationController.reset();
+      await ensureCaptureBackgroundInitialized();
+      await requestCaptureRecovery();
+      sendResponse({ ok: captureRecoveryStatus.state === "ready", captureRecoveryStatus });
+    }, () => {
+      sendResponse({ ok: false, captureRecoveryStatus });
     });
-    return false;
+    return true;
+  }
+  if (isResetCaptureEndpointMessage(message)) {
+    executor.schedule(async () => {
+      await resetCanonicalCaptureEndpoint();
+      sendResponse({ ok: true, captureRecoveryStatus });
+    }, () => {
+      sendResponse({ ok: false, captureRecoveryStatus });
+    });
+    return true;
   }
   if (isVerdictCandidateMessage(message)) {
     const candidate = message.candidate;
@@ -1186,8 +1454,10 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     }
 
     if (candidate.platform === "nowcoder") {
-      executor.schedule(async () => {
-        if (await blocksCharacterizationProductionIngress(candidate.platform, characterizationController)) return;
+      scheduleCaptureIngressAck(async () => {
+        if (await blocksCharacterizationProductionIngress(candidate.platform, characterizationController)) {
+          return "persisted";
+        }
         const e3 = NOWCODER_NETWORK_POLICY.verdictEvidence({
           kind: "verdict",
           pageUrl: senderTabUrl,
@@ -1199,20 +1469,25 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
           receivedAt: candidate.observedAt,
         });
         if (e3?.kind === "final_verdict_confirmed") {
-          await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3 });
+          return captureIngressStatus(
+            await applyOrchestratorEvent({ kind: "e3_recorded", evidence: e3 }),
+          );
         }
-      });
-      return false;
+        return "persisted";
+      }, sendResponse);
+      return true;
     }
 
     if (candidate.platform === "leetcode") {
-      executor.schedule(async () => {
-        if (await blocksCharacterizationProductionIngress(candidate.platform, characterizationController)) return;
+      scheduleCaptureIngressAck(async () => {
+        if (await blocksCharacterizationProductionIngress(candidate.platform, characterizationController)) {
+          return "persisted";
+        }
         const problemIdentity = normalizeLeetCodeProblemIdentity(
           senderTabUrl,
           candidate.problemExternalId,
         );
-        if (problemIdentity === null) return;
+        if (problemIdentity === null) return "persisted";
         const transientCandidate = createLeetCodeTransientVerdictCandidate({
           problemExternalId: problemIdentity,
           verdictText: candidate.verdict,
@@ -1227,17 +1502,18 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
         // `Other Failure` fallback before any session write, so a bogus
         // verdict can never wait in the bounded candidate slice for an E2
         // that cannot satisfy it.
-        if (transientCandidate === null) return;
-        await applyOrchestratorEvent({
+        if (transientCandidate === null) return "persisted";
+        return captureIngressStatus(await applyOrchestratorEvent({
           kind: "verdict_candidate_recorded",
           candidate: transientCandidate,
-        });
-      });
-      return false;
+        }));
+      }, sendResponse);
+      return true;
     }
 
     // Unsupported platforms: drop the candidate without storage work.
-    return false;
+    scheduleCaptureIngressAck(async () => "persisted", sendResponse);
+    return true;
   }
   if (isActionMessage(message)) {
     executor.schedule(async () => {
@@ -1245,6 +1521,12 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
         kind: "user_action",
         action: toOrchestratorAction(message),
       });
+      if (message.type === "SET_CAPTURE_ENABLED" && message.enabled) {
+        await resetCaptureRecoveryRetryBudget();
+        initializationController.reset();
+        await ensureCaptureBackgroundInitialized();
+        await requestCaptureRecovery();
+      }
       sendResponse(effects.state);
     });
     return true;
@@ -1337,6 +1619,11 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === CAPTURE_RECOVERY_ALARM_NAME) {
+    initializationController.reset();
+    executor.schedule(async () => { await requestCaptureRecovery(); });
+    return;
+  }
   if (alarm.name === CHARACTERIZATION_EXPIRY_ALARM_NAME) {
     executor.schedule(async () => {
       await characterizationController.stop();
@@ -1657,15 +1944,17 @@ async function respondCaptureState(
   sendResponse: (response: unknown) => void,
 ): Promise<void> {
   if (cachedSnapshot !== undefined) {
-    sendResponse(cachedSnapshot);
+    sendResponse({ ...cachedSnapshot, captureRecoveryStatus });
     return;
   }
   try {
-    await initialization;
+    await ensureCaptureBackgroundInitialized();
     const snapshot = cachedSnapshot ?? await orchestrator.snapshot();
     cachedSnapshot = snapshot;
-    sendResponse(snapshot);
-  } catch {
+    sendResponse({ ...snapshot, captureRecoveryStatus });
+  } catch (error) {
+    void error;
+    await blockCaptureRecovery("initialization_failed", true);
     sendResponse(undefined);
   }
 }
@@ -1722,7 +2011,12 @@ async function pairCaptureInstallation(
     return { ok: false, error: "Extension installation is not initialized" };
   }
   try {
-    const response = await fetch(pairingEndpointFromCaptureEndpoint(state.captureEndpoint), {
+    const pairingEndpoint = pairingEndpointFromCaptureEndpoint(state.captureEndpoint);
+    if (pairingEndpoint === undefined) {
+      await blockCaptureRecovery("unsupported_capture_endpoint", false);
+      return { ok: false, error: "unsupported_capture_endpoint" };
+    }
+    const response = await fetch(pairingEndpoint, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ code: message.code, installationId: state.installationId }),
@@ -1743,6 +2037,37 @@ async function pairCaptureInstallation(
     void error;
     return { ok: false, error: "Pairing failed" };
   }
+}
+
+async function resetCanonicalCaptureEndpoint(): Promise<void> {
+  const stored = await trustedLocalStorage.get(["lastCaptureError"]);
+  // Remove endpoint-bound authority first. If a later write fails, the old
+  // custom endpoint remains safely unpaired and cannot send.
+  await trustedLocalStorage.remove("captureCredential");
+  await trustedLocalStorage.remove("captureCredentialVersion");
+  await trustedLocalStorage.remove("pairedAt");
+  await trustedLocalStorage.set({ captureEndpoint: DEFAULT_CAPTURE_ENDPOINT });
+  if (stored.lastCaptureError === "unsupported_capture_endpoint") {
+    await trustedLocalStorage.remove("lastCaptureError");
+  }
+  cachedSnapshot = undefined;
+  captureRecoveryStatus = { schemaVersion: 1, state: "recovering" };
+  await resetCaptureRecoveryRetryBudget();
+  initializationController.reset();
+  await ensureCaptureBackgroundInitialized();
+  await requestCaptureRecovery();
+}
+
+function isRetryCaptureRecoveryMessage(value: unknown): boolean {
+  return typeof value === "object" && value !== null
+    && Reflect.get(value, "type") === "RETRY_CAPTURE_RECOVERY"
+    && Reflect.ownKeys(value).length === 1;
+}
+
+function isResetCaptureEndpointMessage(value: unknown): boolean {
+  return typeof value === "object" && value !== null
+    && Reflect.get(value, "type") === "RESET_CAPTURE_ENDPOINT"
+    && Reflect.ownKeys(value).length === 1;
 }
 
 type ActionMessage = {

@@ -17,10 +17,13 @@ describe("extension pairing", () => {
     })).toBe(false);
   });
 
-  it("derives the pairing endpoint from the configured capture endpoint", () => {
+  it("derives pairing only from the canonical endpoint", () => {
     expect(pairingEndpointFromCaptureEndpoint(
       "http://127.0.0.1:3001/api/capture/events?old=true",
-    )).toBe("http://127.0.0.1:3001/api/capture/pair");
+    )).toBeUndefined();
+    expect(pairingEndpointFromCaptureEndpoint(
+      "http://localhost:3000/api/capture/attempts",
+    )).toBe("http://localhost:3000/api/capture/pair");
   });
 
   it("accepts only a matching successful pairing response", () => {

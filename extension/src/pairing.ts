@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { readCaptureEndpoint } from "./captureTransport";
+import { captureAttemptEndpoint } from "./captureTransport";
 
 export const PairCaptureInstallationMessageSchema = z.object({
   type: z.literal("PAIR_CAPTURE_INSTALLATION"),
@@ -30,8 +30,10 @@ export function isPairCaptureInstallationMessage(
   return PairCaptureInstallationMessageSchema.safeParse(value).success;
 }
 
-export function pairingEndpointFromCaptureEndpoint(value: unknown): string {
-  const endpoint = new URL(readCaptureEndpoint(value));
+export function pairingEndpointFromCaptureEndpoint(value: unknown): string | undefined {
+  const attemptEndpoint = captureAttemptEndpoint(value);
+  if (attemptEndpoint === undefined) return undefined;
+  const endpoint = new URL(attemptEndpoint);
   endpoint.pathname = "/api/capture/pair";
   endpoint.search = "";
   endpoint.hash = "";

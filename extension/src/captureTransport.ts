@@ -1,17 +1,30 @@
 import { CaptureAttemptAckSchema, type CaptureAttemptAck } from "@/lib/capture/attemptBundle";
 import type { CaptureAttemptBundle } from "@/lib/capture/attemptBundle";
 
-export const DEFAULT_CAPTURE_ENDPOINT = "http://localhost:3000/api/capture/events";
+export const DEFAULT_CAPTURE_ENDPOINT = "http://localhost:3000/api/capture/attempts";
+export const LEGACY_DEFAULT_CAPTURE_ENDPOINT = "http://localhost:3000/api/capture/events";
 export const MAX_RETRY_ATTEMPTS = 3;
+
+export type CaptureEndpointStatus = Readonly<{
+  readonly endpoint: string;
+  readonly status: "supported" | "unsupported";
+}>;
 
 export type CaptureAttemptFlushResult =
   | { readonly status: 200; readonly ack: CaptureAttemptAck }
   | { readonly status: "ack_error"; readonly error: string }
+  | { readonly status: "endpoint_error"; readonly error: "unsupported_capture_endpoint" }
   | { readonly status: 400 | 401 | 403 | 409 | 413 | 415 | 500; readonly error: string }
   | { readonly status: "network_error"; readonly error: string };
 
 export function readCaptureEndpoint(value: unknown): string {
-  if (typeof value !== "string") return DEFAULT_CAPTURE_ENDPOINT;
+  return captureEndpointStatus(value).endpoint;
+}
+
+export function captureEndpointStatus(value: unknown): CaptureEndpointStatus {
+  if (typeof value !== "string") {
+    return { endpoint: DEFAULT_CAPTURE_ENDPOINT, status: "supported" };
+  }
   try {
     const url = new URL(value);
     const isLoopback = url.hostname === "localhost"
@@ -19,24 +32,24 @@ export function readCaptureEndpoint(value: unknown): string {
       || url.hostname === "[::1]";
     if (url.protocol !== "http:" || !isLoopback
       || url.username !== "" || url.password !== "") {
-      return DEFAULT_CAPTURE_ENDPOINT;
+      return { endpoint: DEFAULT_CAPTURE_ENDPOINT, status: "supported" };
     }
-    return url.toString();
+    const normalized = url.toString();
+    if (normalized === DEFAULT_CAPTURE_ENDPOINT || normalized === LEGACY_DEFAULT_CAPTURE_ENDPOINT) {
+      return { endpoint: DEFAULT_CAPTURE_ENDPOINT, status: "supported" };
+    }
+    return { endpoint: normalized, status: "unsupported" };
   } catch (error) {
-    if (error instanceof TypeError) return DEFAULT_CAPTURE_ENDPOINT;
+    if (error instanceof TypeError) {
+      return { endpoint: DEFAULT_CAPTURE_ENDPOINT, status: "supported" };
+    }
     throw error;
   }
 }
 
-export function captureAttemptEndpoint(value: unknown): string {
-  const endpoint = new URL(readCaptureEndpoint(value));
-  if (endpoint.pathname !== "/api/capture/events") {
-    return "http://localhost:3000/api/capture/attempts";
-  }
-  endpoint.pathname = "/api/capture/attempts";
-  endpoint.search = "";
-  endpoint.hash = "";
-  return endpoint.toString();
+export function captureAttemptEndpoint(value: unknown): string | undefined {
+  const endpoint = captureEndpointStatus(value);
+  return endpoint.status === "supported" ? DEFAULT_CAPTURE_ENDPOINT : undefined;
 }
 
 export function captureRequestHeaders(credential: unknown): Record<string, string> {
@@ -54,8 +67,12 @@ export async function postCaptureAttemptBundle(input: {
   readonly fetchImpl?: typeof fetch;
 }): Promise<CaptureAttemptFlushResult> {
   const fetchImpl = input.fetchImpl ?? fetch;
+  const endpoint = captureAttemptEndpoint(input.endpoint);
+  if (endpoint === undefined) {
+    return { status: "endpoint_error", error: "unsupported_capture_endpoint" };
+  }
   try {
-    const response = await fetchImpl(captureAttemptEndpoint(input.endpoint), {
+    const response = await fetchImpl(endpoint, {
       method: "POST",
       headers: captureRequestHeaders(input.credential),
       body: JSON.stringify(input.bundle),

@@ -150,6 +150,12 @@ export function planOutboxAfterFlush(
     };
   }
   const safeError = captureFlushError(result);
+  if (result.status === "endpoint_error") {
+    return {
+      ...state,
+      lastCaptureError: "unsupported_capture_endpoint",
+    };
+  }
   if (result.status === "network_error" || result.status === 401 || result.status === 403) {
     const prefix = result.status === 401
       ? "Pairing required"
@@ -202,6 +208,7 @@ export function planOutboxAfterFlush(
 }
 
 function captureFlushError(result: Exclude<CaptureAttemptFlushResult, { readonly status: 200 }>): string {
+  if (result.status === "endpoint_error") return "unsupported_capture_endpoint";
   if (result.status === "network_error") return "Network request failed";
   if (result.status === "ack_error") return "ACK mismatch: invalid response";
   return `HTTP ${result.status}`;
@@ -236,7 +243,8 @@ export async function drainCaptureOutbox(
     const latest = await dependencies.readState();
     await dependencies.persist(planOutboxAfterFlush(latest, item, result, now()));
     processed += 1;
-    if (result.status === "network_error" || result.status === 401 || result.status === 403) {
+    if (result.status === "endpoint_error"
+      || result.status === "network_error" || result.status === 401 || result.status === 403) {
       return { reason: "global_blocked", processed };
     }
     if (result.status === "ack_error") {

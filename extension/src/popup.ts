@@ -5,8 +5,9 @@ import type { CharacterizationExportDocument } from "./characterization";
 import { characterizationPlatformForHostname } from "./characterizationStorage";
 import { parseNetworkTranscriptDocument } from "./networkTranscriptContract";
 import { CaptureAttemptBundleSchema } from "@/lib/capture/attemptBundle";
-import { DEFAULT_CAPTURE_ENDPOINT, readCaptureEndpoint } from "./captureTransport";
+import { DEFAULT_CAPTURE_ENDPOINT } from "./captureTransport";
 import { safeQuarantineSummary, safeStoredCaptureError } from "./captureErrorPrivacy";
+import type { CaptureRecoveryStatus } from "./captureRecovery";
 
 const DEFAULT_ENDPOINT = DEFAULT_CAPTURE_ENDPOINT;
 const BUTTON_FEEDBACK_MS = 180;
@@ -28,6 +29,7 @@ export type PopupPresentation = {
   readonly migrationText: string;
   readonly transitionText: string;
   readonly pairingStateText: string;
+  readonly recoveryText: string;
   readonly quarantineDetails: readonly string[];
 };
 
@@ -75,6 +77,7 @@ export function presentPopupState(value: unknown): PopupPresentation {
     pairingStateText: error?.startsWith("Pairing required:") === true
       ? "配对需要处理"
       : paired ? pairingSuccessText(credentialVersion) : "未配对",
+    recoveryText: presentCaptureRecoveryStatus(readField(value, "captureRecoveryStatus")),
     quarantineDetails: quarantine
       .map(classifyQuarantineEntry)
       .concat(malformedOutboxDetails)
@@ -155,17 +158,35 @@ export function pairingResultText(credentialVersion: number): string {
   return credentialVersion > 1 ? "凭证已轮换" : "已配对";
 }
 
+const CAPTURE_RECOVERY_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
+  unsupported_browser: "浏览器能力不受支持",
+  unsupported_capture_endpoint: "采集地址不受支持",
+  capture_recovery_capacity_exceeded: "可恢复页面数量超过上限",
+  capture_recovery_failed: "页面恢复未完成",
+  initialization_failed: "后台初始化失败",
+  persistence_failed: "本地持久化失败",
+});
+
+export function presentCaptureRecoveryStatus(value: unknown): string {
+  if (typeof value !== "object" || value === null || Reflect.get(value, "schemaVersion") !== 1) {
+    return "采集恢复：已阻断";
+  }
+  const state = Reflect.get(value, "state");
+  if (state === "ready" && Reflect.ownKeys(value).length === 2) return "采集恢复：就绪";
+  if (state === "recovering" && Reflect.ownKeys(value).length === 2) return "采集恢复：恢复中";
+  if (state !== "blocked" || Reflect.ownKeys(value).length !== 3) return "采集恢复：已阻断";
+  const error = Reflect.get(value, "error");
+  const detail = typeof error === "string" ? CAPTURE_RECOVERY_ERROR_TEXT[error] : undefined;
+  return detail === undefined ? "采集恢复：已阻断" : `采集恢复：已阻断（${detail}）`;
+}
+
 let initialized = false;
 export function initializePopup(): void {
   if (initialized) return;
   initialized = true;
   const enabled = document.querySelector<HTMLInputElement>("#captureEnabled");
-  const endpoint = document.querySelector<HTMLInputElement>("#captureEndpoint");
   enabled?.addEventListener("change", () => runPopupOperation(
     () => chrome.runtime.sendMessage({ type: "SET_CAPTURE_ENABLED", enabled: enabled.checked }),
-  ));
-  endpoint?.addEventListener("change", () => runPopupOperation(
-    () => chrome.storage.local.set({ captureEndpoint: readCaptureEndpoint(endpoint.value) }),
   ));
   document.querySelector("#pairingForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -173,6 +194,8 @@ export function initializePopup(): void {
     if (button !== null) runPopupButton(button, "配对", pairInstallation);
   });
   bindAction("#retryAll", { type: "RETRY_CAPTURE_OUTBOX" });
+  bindAction("#recoverCapture", { type: "RETRY_CAPTURE_RECOVERY" });
+  bindAction("#resetCaptureEndpoint", { type: "RESET_CAPTURE_ENDPOINT" });
   bindConfirmedClear("#clearOutbox", "captureOutbox", "CLEAR_CAPTURE_OUTBOX", "待同步结果");
   bindConfirmedClear("#clearQuarantine", "captureQuarantine", "CLEAR_CAPTURE_QUARANTINE", "隔离结果");
 
@@ -220,7 +243,9 @@ function isOrchestratorStateLike(value: unknown): value is OrchestratorState {
     && "installationId" in value && typeof Reflect.get(value, "installationId") === "string";
 }
 
-export function renderOrchestratorSnapshot(state: OrchestratorState): void {
+export function renderOrchestratorSnapshot(
+  state: OrchestratorState & { readonly captureRecoveryStatus?: CaptureRecoveryStatus },
+): void {
   setText("#pendingState", `等待判题 ${state.waitingCount}`);
   setText("#outboxState", `待同步结果 ${state.outboxCount}`);
   setText("#quarantineState", `已隔离结果 ${state.quarantineCount}`);
@@ -238,10 +263,10 @@ export function renderOrchestratorSnapshot(state: OrchestratorState): void {
     ? pairingSuccessText(state.captureCredentialVersion)
     : "未配对");
   setText("#status", state.captureEnabled ? "本地采集已开启" : "本地采集已暂停");
+  setText("#recoveryState", presentCaptureRecoveryStatus(state.captureRecoveryStatus));
+  setText("#captureEndpoint", `本地接收地址：${state.captureEndpoint}`);
   const enabled = document.querySelector<HTMLInputElement>("#captureEnabled");
-  const endpoint = document.querySelector<HTMLInputElement>("#captureEndpoint");
   if (enabled !== null) enabled.checked = state.captureEnabled;
-  if (endpoint !== null) endpoint.value = state.captureEndpoint;
   const details = document.querySelector("#quarantineDetails");
   if (details !== null) renderQuarantine(details, state.quarantineDetails);
 }
@@ -256,10 +281,10 @@ function renderLegacyPresentation(presentation: PopupPresentation, stored: unkno
   setText("#transitionState", presentation.transitionText);
   setText("#pairingState", presentation.pairingStateText);
   setText("#status", presentation.captureEnabled ? "本地采集已开启" : "本地采集已暂停");
+  setText("#recoveryState", presentation.recoveryText);
+  setText("#captureEndpoint", `本地接收地址：${presentation.endpoint}`);
   const enabled = document.querySelector<HTMLInputElement>("#captureEnabled");
-  const endpoint = document.querySelector<HTMLInputElement>("#captureEndpoint");
   if (enabled !== null) enabled.checked = presentation.captureEnabled;
-  if (endpoint !== null) endpoint.value = presentation.endpoint;
   const details = document.querySelector("#quarantineDetails");
   if (details !== null) {
     const quarantine = readArray(readField(stored, "captureQuarantine"));
@@ -315,6 +340,7 @@ export async function requestPairing(
 function safePairingError(value: unknown): string {
   if (value === "Extension installation is not initialized") return "扩展尚未初始化";
   if (value === "Pairing failed") return "配对失败";
+  if (value === "unsupported_capture_endpoint") return "采集地址不受支持，请恢复默认地址";
   if (typeof value === "string" && /^Pairing request rejected \(HTTP [1-5][0-9]{2}\)$/u.test(value)) {
     return "配对请求被拒绝";
   }

@@ -2,7 +2,7 @@
 
 **状态：已获批；仅授权离线实施、验证及必要的本地冻结提交。真实 OJ 浏览、点击、提交、推送、PR、发布均未授权。**
 
-**执行状态（2026-08-23）：观察器离线修复与冻结门已通过；停在旧候选 READY-only 单独授权门，产品修复尚未开始。**
+**执行状态（2026-08-24）：观察器修复、旧候选双通道 READY-only 证明和产品离线修复均已完成；产品预冻结质量门全绿，正在创建并校验新的单一产品候选。新候选 READY-only 仍需新的单独授权。**
 
 ## 摘要
 
@@ -89,4 +89,34 @@
 - 产品隔离：相对候选 `915a98d0317148d063a3fad0e1888cb7aa74e2da` 的 `extension/src`、manifest、`lib`、`app` 差异为空，旧候选未改变。
 - 冻结文件哈希：runner `9F35CF21...D0B6465`、observer `974E916B...17F43`、diagnostic `EBDDA2C9...9E8287D`；组合工具哈希 `40FB0E40FFDD949F96C287B60AEC52C482B4BE6D9F620297CCBD2FCBDCB775A9`。
 - acceptance-profile 哈希保持 `D35892A2FADDB8B8F4313684E96C261F6C256A3E9FEE79D34C5DB531678D6069`。
-- 未启动本地观察浏览器或访问真实 OJ；LeetCode、NowCoder 新 READY-only 通道均未运行。下一操作必须取得旧候选 READY-only 单独授权。
+- 本记录形成时尚未启动本地观察浏览器；后续旧候选 READY-only 的实际结果见下一节。
+
+## 旧候选 READY-only 执行记录（2026-08-23）
+
+- 用户已单独批准 READY-only 测试；全程未提供 `--authorize-action`，未点击、未提交、未触发真实平台动作。
+- LeetCode 使用全新 profile/database `p7f5-leetcode-ready-915a98d`，并包含一次已批准的诊断刷新；结果为 `OBSERVER_ARMED=1`、`BROWSE_ONLY=1`、`READY=1`、`ACTION_AUTHORIZED=0`，数据库 `capture_events/training_sessions/training_attempts = 0/0/0`。
+- LeetCode 证据：`output/playwright/v4-observation/915a98d03171-leetcode-p7f5-leetcode-ready-915a98d-ready.json`；storage-key 诊断：`output/playwright/v4-observation/p7f5-leetcode-ready-915a98d-storage-key-diagnostic.json`。
+- NowCoder 使用全新 profile/database `p7f5-nowcoder-ready-915a98d`；结果同为 `OBSERVER_ARMED=1`、`BROWSE_ONLY=1`、`READY=1`、`ACTION_AUTHORIZED=0`，数据库 `0/0/0`。
+- NowCoder 证据：`output/playwright/v4-observation/915a98d03171-nowcoder-p7f5-nowcoder-ready-915a98d-ready.json`；storage-key 诊断：`output/playwright/v4-observation/p7f5-nowcoder-ready-915a98d-storage-key-diagnostic.json`。
+- 两条证据均绑定旧候选 `915a98d0317148d063a3fad0e1888cb7aa74e2da`、组合工具哈希 `40FB0E40FFDD949F96C287B60AEC52C482B4BE6D9F620297CCBD2FCBDCB775A9`、profile 哈希 `D35892A2FADDB8B8F4313684E96C261F6C256A3E9FEE79D34C5DB531678D6069`、同一 receipt 哈希与五项 exact-dist 哈希，且 preAction/final 无漂移。
+- NowCoder 首个本地命令在浏览器创建前因误用 `--candidate-sha` 被参数校验拒绝；核验 profile/证据均未创建且数据库仍为 `0/0/0` 后，按脚本真实参数契约启动唯一一次联网通道并通过。该预检错误未访问 OJ、未消耗通道动作或产生页面证据。
+- 两条通道结束后本地服务均已关闭。旧候选证明门完成，产品修复门现已打开；新候选 READY-only 仍需新的单独授权。
+
+## 观察工具兼容性冻结记录（2026-08-24）
+
+- READY runner 补齐规范端点、有效配对、`captureRecoveryStatus=ready`、空 waiting/outbox/quarantine 前置门；READY 前不再自动配对，也不发送捕获数据。
+- 观察工具兼容性提交为 `9cf79268840870398165974376a322095bcea602`，只包含 runner、observer 及其两份测试，不包含产品代码。
+- 最终观察工具组合哈希为 `EB564C529595F5F168FE1300EBCA431340135F48C21AA132829A863C0F44DF19`；acceptance-profile 哈希仍为 `D35892A2FADDB8B8F4313684E96C261F6C256A3E9FEE79D34C5DB531678D6069`。
+- 兼容性定向测试 `69/69`、两份脚本语法检查、隐私审计与两个契约校验器均通过。旧候选 READY 凭据继续只绑定其执行时的 `40FB0E40...CB775A9`，不得事后改写；后续新候选 READY 必须绑定新的 `EB564C52...F44DF19`。
+
+## 产品离线执行记录（2026-08-24）
+
+- 持久化 ACK 已闭合为 `persisted | paused | initialization_failed | persistence_failed`；成功只在初始化、编排和必要存储写入完成后返回。内容脚本使用最多 8 条 FIFO 内存队列，同一对象最多按 `250ms / 1s / 4s` 重试三次，扩展上下文失效立即停止。
+- 初始化改为可重入单航班控制器；恢复协调器只接受 Chrome 提供的顶层 `documentId`，单次最多 100 个文档、并发 4、每文档最多三次注入且每次等待 READY 2 秒；自动恢复预算为 `1 / 5 / 15` 分钟，重新启用和手动恢复会重置预算。
+- manifest 加入 `unlimitedStorage` 和 `minimum_chrome_version: "106"`；删除未接入生产的配额估算/预留代码。存储拒绝不会消费候选或删除恢复状态，弹窗只显示闭合恢复状态与固定错误码。
+- 端点收敛到 `http://localhost:3000/api/capture/attempts`：旧默认 `/events` 同源迁移；其他自定义环回端点失败关闭为 `unsupported_capture_endpoint`。弹窗移除自由编辑，显式重置会清除端点绑定凭证但保留捕获与恢复证据。
+- 候选校验器显式所有权清单已覆盖恢复协调器、content ingress/bootstrap 边界、串行执行器及对应测试，并继续拒绝未知路径、生成物、数据库、密钥和原始转录。
+- 权威预冻结 `npm run quality:gate` 退出 `0`：根单测 `2550 passed / 1 skipped`，App E2E `25/25`，扩展单测 `1660/1660`，扩展 E2E `54 passed / 1 skipped`，生产构建静态页 `20/20`；lint、迁移、课程契约和 typecheck 均通过。
+- Extension E2E 压力运行暴露 NowCoder worker-restart 测试只等待 `transientE1.length === 1`，可能在提交仍处于 `before_request` 时就终止 worker；后续状态 E1 虽被观察到，确认器仍正确拒绝未完成的提交生命周期。重启切点改为提交 E1 的 `completed + 200` 已持久化，并继续在确认后验证恢复 READY；定向压力复验 `30/30`，未增加无界请求重试或放宽五秒产品时间窗。
+- 独立终检：扩展隐私审计 `0 findings`、adapter readiness `PASS`、D4 acceptance profiles `PASS`；未新增外部遥测、Sentry SDK、第三方网络、`tabs`、`activeTab`、`<all_urls>`、原始页面数据或持久化内容队列。
+- 默认 `training-platform.sqlite` 在最终质量门前后均为 `479232` bytes，mtime 均为 `2026-07-23T15:56:38.8411343Z`。新候选 exact dist、五项哈希和 receipt 仅由候选校验器在干净隔离工作树中生成。

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_CAPTURE_ENDPOINT,
   captureAttemptEndpoint,
+  captureEndpointStatus,
   postCaptureAttemptBundle,
   readCaptureEndpoint,
 } from "@/extension/src/captureTransport";
@@ -21,15 +22,17 @@ const bundle = buildCaptureAttemptBundle(intent, {
 }, "extension_paired");
 
 describe("capture attempt transport", () => {
-  it("derives only the local attempts endpoint", () => {
+  it("uses one canonical attempts endpoint and migrates only the exact legacy default", () => {
     expect(captureAttemptEndpoint("http://127.0.0.1:3001/api/capture/events"))
-      .toBe("http://127.0.0.1:3001/api/capture/attempts");
+      .toBeUndefined();
     expect(captureAttemptEndpoint("https://evil.example/upload"))
       .toBe("http://localhost:3000/api/capture/attempts");
-    expect(captureAttemptEndpoint("https://leetcode.com/api/capture/events"))
-      .toBe("http://localhost:3000/api/capture/attempts");
+    expect(readCaptureEndpoint("http://localhost:3000/api/capture/events"))
+      .toBe(DEFAULT_CAPTURE_ENDPOINT);
     expect(readCaptureEndpoint("http://[::1]:4173/api/capture/events"))
       .toBe("http://[::1]:4173/api/capture/events");
+    expect(captureEndpointStatus("http://[::1]:4173/api/capture/events"))
+      .toEqual({ endpoint: "http://[::1]:4173/api/capture/events", status: "unsupported" });
     expect(readCaptureEndpoint("https://localhost:3000/api/capture/events"))
       .toBe(DEFAULT_CAPTURE_ENDPOINT);
   });
@@ -46,6 +49,17 @@ describe("capture attempt transport", () => {
       "http://localhost:3000/api/capture/attempts",
       expect.objectContaining({ headers: expect.objectContaining({ authorization: "Bearer capture_secret" }) }),
     );
+  });
+
+  it("does not pair or send when a preserved loopback endpoint is unsupported", async () => {
+    const fetchImpl = vi.fn(async () => new Response("", { status: 500 }));
+    expect(await postCaptureAttemptBundle({
+      bundle,
+      endpoint: "http://127.0.0.1:3001/api/capture/events",
+      credential: "capture_secret",
+      fetchImpl,
+    })).toEqual({ status: "endpoint_error", error: "unsupported_capture_endpoint" });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("validates successful ACK identity", async () => {

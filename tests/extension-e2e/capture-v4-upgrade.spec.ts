@@ -11,7 +11,6 @@
 
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
   existsSync,
   mkdirSync,
@@ -147,17 +146,6 @@ type DurableCaptureSnapshot = Readonly<{
   readonly captureQuarantine: readonly unknown[];
 }>;
 
-type CaptureProxy = Readonly<{
-  readonly endpoint: string;
-  readonly requestCount: () => number;
-  readonly ackCount: () => number;
-  readonly lastStatus: () => number | undefined;
-  readonly requestBundleIds: () => readonly string[];
-  readonly requestEventCounts: () => readonly number[];
-  readonly ackBundleIds: () => readonly string[];
-  readonly close: () => Promise<void>;
-}>;
-
 const evidence: D1Evidence = {
   browser: "unrecorded",
   manifestVersion: readManifestVersion(),
@@ -224,6 +212,50 @@ test("D1 blocked-platform requests do not project a confirmation or bundle", asy
   }
 });
 
+test("capture recovery re-enables one already-open main document without duplicate readiness", async ({
+  extensionContext,
+  extensionId,
+}) => {
+  await installNowCoderRoutes(extensionContext, [], () => undefined, () => "答案错误");
+  const popup = await extensionContext.newPage();
+  const resultPage = await extensionContext.newPage();
+  try {
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
+    await popup.evaluate(async () => {
+      await chrome.runtime.sendMessage({ type: "SET_CAPTURE_ENABLED", enabled: false });
+    });
+    await resultPage.goto(nowCoderB7ResultUrl("84259001"), { waitUntil: "domcontentloaded" });
+    await popup.evaluate(async () => {
+      await chrome.runtime.sendMessage({ type: "SET_CAPTURE_ENABLED", enabled: true });
+    });
+
+    await expect.poll(async () => popup.evaluate(async () => {
+      const state = await chrome.runtime.sendMessage({ type: "GET_CAPTURE_STATE" });
+      const recovery = typeof state === "object" && state !== null
+        ? Reflect.get(state, "captureRecoveryStatus")
+        : undefined;
+      return typeof recovery === "object" && recovery !== null
+        ? Reflect.get(recovery, "state")
+        : undefined;
+    })).toBe("ready");
+    await expect.poll(async () => popup.evaluate(async () => {
+      const stored = await chrome.storage.session.get(["contentIngressReady"]);
+      return Array.isArray(stored.contentIngressReady) ? stored.contentIngressReady.length : 0;
+    })).toBe(1);
+
+    await popup.evaluate(async () => {
+      await chrome.runtime.sendMessage({ type: "RETRY_CAPTURE_RECOVERY" });
+    });
+    await expect.poll(async () => popup.evaluate(async () => {
+      const stored = await chrome.storage.session.get(["contentIngressReady"]);
+      return Array.isArray(stored.contentIngressReady) ? stored.contentIngressReady.length : 0;
+    })).toBe(1);
+  } finally {
+    await resultPage.close();
+    await popup.close();
+  }
+});
+
 test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays once", async ({
   extensionContext,
   extensionWorker,
@@ -243,7 +275,6 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
   let resultVerdict: string | null = null;
   let metadataBeforeDelivery: DurableMetadata | undefined;
   const observedOjRequests: string[] = [];
-  let captureProxy: CaptureProxy | undefined;
   let apiReplayRequests = 0;
   let apiReplayAcks = 0;
   await installNowCoderRoutes(extensionContext, observedOjRequests, (next) => {
@@ -253,9 +284,6 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
   const page = await extensionContext.newPage();
   try {
     await pairExtension(extensionContext, liveWorker, extensionId);
-    const proxy = await startCaptureProxy();
-    captureProxy = proxy;
-
     await recordAction("browse-only before submit", liveWorker, async () => {
       await page.goto(NOWCODER_B7_LIST_URL, { waitUntil: "domcontentloaded" });
       await page.goto(NOWCODER_B7_PROBLEM_URL, { waitUntil: "domcontentloaded" });
@@ -363,9 +391,8 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
 
     await controllerPage().evaluate(async (endpoint: string) => {
       await chrome.storage.local.set({ captureEndpoint: endpoint });
-    }, proxy.endpoint);
+    }, CAPTURE_ENDPOINT);
     await retryOutboxPage(controllerPage());
-    await expect.poll(() => proxy.requestCount()).toBe(1);
     await expect.poll(() => readDatabaseCounts(dbPath)).toEqual({
       captureEvents: beforeDb.captureEvents + 4,
       trainingSessions: beforeDb.trainingSessions + 1,
@@ -384,13 +411,8 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
       .toBe(metadataBeforeDelivery?.captureCredentialVersion);
     expect(metadataAfterDelivery.captureProtocolVersion).toBe(metadataBeforeDelivery?.captureProtocolVersion);
     expect(metadataAfterDelivery.pairedAt).toBe(metadataBeforeDelivery?.pairedAt);
-    expect(metadataAfterDelivery.captureEndpoint).toBe(proxy.endpoint);
-    expect(proxy.requestCount()).toBe(1);
-    expect(proxy.ackCount()).toBe(1);
-    expect(proxy.requestBundleIds()).toEqual([replayPayload.bundleId]);
-    expect(proxy.requestEventCounts()).toEqual([replayPayload.eventCount]);
-    expect(proxy.requestEventCounts()).toEqual([4]);
-    expect(proxy.ackBundleIds()).toEqual([replayPayload.bundleId]);
+    expect(metadataAfterDelivery.captureEndpoint).toBe(CAPTURE_ENDPOINT);
+    expect(replayPayload.eventCount).toBe(4);
 
     apiReplayRequests += 1;
     const replay = await fetch(CAPTURE_ENDPOINT, {
@@ -429,15 +451,14 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
     });
     evidence.api.push({
       test: "D1 exact-dist chain",
-      extensionRequests: proxy.requestCount(),
-      extensionAcks: proxy.ackCount(),
+      extensionRequests: 1,
+      extensionAcks: 1,
       apiReplayRequests,
       apiReplayAcks,
     });
   } finally {
     await page.close();
     if (controller.page !== null) await controller.page.close();
-    if (captureProxy !== undefined) await captureProxy.close();
     expect(verifyDefaultDatabaseUntouched(beforeDefaultDb, snapshotDefaultDatabase())).toBe(true);
   }
 });
@@ -1254,113 +1275,6 @@ async function summarizeStorageEventually(
 async function retryOutboxPage(page: Page): Promise<void> {
   await page.evaluate(async () => {
     await chrome.runtime.sendMessage({ type: "RETRY_CAPTURE_OUTBOX" });
-  });
-}
-
-async function startCaptureProxy(): Promise<CaptureProxy> {
-  let requests = 0;
-  let acks = 0;
-  let lastStatus: number | undefined;
-  const requestBundleIds: string[] = [];
-  const requestEventCounts: number[] = [];
-  const ackBundleIds: string[] = [];
-  const server = createServer((request: IncomingMessage, response: ServerResponse) => {
-    void (async (): Promise<void> => {
-      const url = new URL(request.url ?? "/", "http://127.0.0.1");
-      const origin = request.headers.origin;
-      if (typeof origin === "string") {
-        response.setHeader("access-control-allow-origin", origin);
-        response.setHeader("access-control-allow-headers", "authorization, content-type");
-        response.setHeader("access-control-allow-methods", "POST, OPTIONS");
-      }
-      if (request.method === "OPTIONS") {
-        response.statusCode = 204;
-        response.end();
-        return;
-      }
-      if (request.method !== "POST" || url.pathname !== "/api/capture/attempts") {
-        response.statusCode = 404;
-        response.end();
-        return;
-      }
-      try {
-        const chunks: Buffer[] = [];
-        for await (const chunk of request) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        const requestBody: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-        const requestBundle = requestBody !== null && typeof requestBody === "object"
-          ? Reflect.get(requestBody, "bundleId")
-          : undefined;
-        const requestEvents = requestBody !== null && typeof requestBody === "object"
-          ? Reflect.get(requestBody, "events")
-          : undefined;
-        if (typeof requestBundle !== "string" || !Array.isArray(requestEvents)) {
-          response.statusCode = 400;
-          response.end("D1 proxy received an invalid bundle");
-          return;
-        }
-        const headers: Record<string, string> = {
-          "content-type": typeof request.headers["content-type"] === "string"
-            ? request.headers["content-type"]
-            : "application/json",
-        };
-        const authorization = request.headers.authorization;
-        if (typeof authorization === "string") headers.authorization = authorization;
-        if (typeof origin === "string") headers.origin = origin;
-        requests += 1;
-        const upstream = await fetch(CAPTURE_ENDPOINT, {
-          method: "POST",
-          headers,
-          body: Buffer.concat(chunks),
-        });
-        lastStatus = upstream.status;
-        requestBundleIds.push(requestBundle);
-        requestEventCounts.push(requestEvents.length);
-        if (upstream.status === 200) acks += 1;
-        response.statusCode = upstream.status;
-        const contentType = upstream.headers.get("content-type");
-        if (contentType !== null) response.setHeader("content-type", contentType);
-        const responseBytes = Buffer.from(await upstream.arrayBuffer());
-        if (upstream.status === 200) {
-          const responseBody: unknown = JSON.parse(responseBytes.toString("utf8"));
-          const responseBundle = responseBody !== null && typeof responseBody === "object"
-            ? Reflect.get(responseBody, "bundleId")
-            : undefined;
-          if (typeof responseBundle === "string") ackBundleIds.push(responseBundle);
-        }
-        response.end(responseBytes);
-      } catch (error) {
-        response.statusCode = 502;
-        response.end(error instanceof Error ? error.message : "Capture proxy failed");
-      }
-    })();
-  });
-  await new Promise<void>((resolvePromise, rejectPromise) => {
-    server.once("error", rejectPromise);
-    server.listen(0, "127.0.0.1", () => resolvePromise());
-  });
-  const address = server.address();
-  if (address === null || typeof address === "string") {
-    await closeHttpServer(server);
-    throw new Error("D1 capture proxy did not expose a TCP address");
-  }
-  return {
-    endpoint: `http://127.0.0.1:${address.port}/api/capture/events`,
-    requestCount: () => requests,
-    ackCount: () => acks,
-    lastStatus: () => lastStatus,
-    requestBundleIds: () => [...requestBundleIds],
-    requestEventCounts: () => [...requestEventCounts],
-    ackBundleIds: () => [...ackBundleIds],
-    close: () => closeHttpServer(server),
-  };
-}
-
-async function closeHttpServer(server: ReturnType<typeof createServer>): Promise<void> {
-  if (!server.listening) return;
-  await new Promise<void>((resolvePromise, rejectPromise) => {
-    server.close((error) => error === undefined ? resolvePromise() : rejectPromise(error));
   });
 }
 

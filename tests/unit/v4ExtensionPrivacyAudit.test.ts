@@ -14,7 +14,8 @@ import type { V4ExtensionPrivacyAuditInput } from "@/scripts/audit-v4-extension-
 
 const approvedManifest = {
   manifest_version: 3,
-  permissions: ["storage", "alarms", "webRequest", "downloads", "scripting", "webNavigation"],
+  minimum_chrome_version: "106",
+  permissions: ["storage", "unlimitedStorage", "alarms", "webRequest", "downloads", "scripting", "webNavigation"],
   host_permissions: [
     "http://localhost:3000/*",
     "https://leetcode.com/*",

@@ -3,6 +3,7 @@ import {
   pairingResultText,
   pairingSuccessText,
   presentPopupState,
+  presentCaptureRecoveryStatus,
   requestPairing,
   runButtonAction,
   deliverCharacterizationExport,
@@ -32,6 +33,22 @@ const exportDocument = {
 } as const;
 
 describe("extension popup presenter", () => {
+  it("renders only the closed capture recovery status and fixed diagnostics", () => {
+    expect(presentCaptureRecoveryStatus({ schemaVersion: 1, state: "ready" }))
+      .toBe("采集恢复：就绪");
+    expect(presentCaptureRecoveryStatus({ schemaVersion: 1, state: "recovering" }))
+      .toBe("采集恢复：恢复中");
+    expect(presentCaptureRecoveryStatus({
+      schemaVersion: 1,
+      state: "blocked",
+      error: "unsupported_browser",
+    })).toBe("采集恢复：已阻断（浏览器能力不受支持）");
+    expect(presentCaptureRecoveryStatus({
+      schemaVersion: 1,
+      state: "blocked",
+      error: "https://secret.example/path",
+    })).toBe("采集恢复：已阻断");
+  });
   it("distinguishes waiting, outbox, quarantine, and migration counts", () => {
     expect(presentPopupState({
       pendingSubmissionIntents: [{ status: "active" }, { status: "active" }],

@@ -378,7 +378,7 @@ function deriveState(
   const captureEnabled = local.captureEnabled !== false;
   const captureEndpoint = typeof local.captureEndpoint === "string" && local.captureEndpoint.length > 0
     ? local.captureEndpoint
-    : "http://localhost:3000/api/capture/events";
+    : "http://localhost:3000/api/capture/attempts";
   const captureCredentialVersion = readPositiveInteger(local.captureCredentialVersion);
   const captureCredential = readNonemptyString(local.captureCredential);
   const provenanceLevel: OrchestratorProvenanceLevel = captureCredential === undefined

@@ -129,6 +129,26 @@ describe("planExtensionInitialization V4", () => {
     });
   });
 
+  it("migrates only the exact legacy default endpoint", () => {
+    const plan = planExtensionInitialization({
+      captureProtocolVersion: 4,
+      captureEndpoint: "http://localhost:3000/api/capture/events",
+    }, options);
+    expect(plan.captureEndpoint).toBe("http://localhost:3000/api/capture/attempts");
+    expect(plan.lastCaptureError).toBeUndefined();
+  });
+
+  it("preserves an old custom loopback endpoint and blocks it with a fixed diagnostic", () => {
+    const plan = planExtensionInitialization({
+      captureProtocolVersion: 4,
+      captureEndpoint: "http://127.0.0.1:3001/api/capture/events?old=true",
+      captureCredential: "capture_old",
+    }, options);
+    expect(plan.captureEndpoint).toBe("http://127.0.0.1:3001/api/capture/events?old=true");
+    expect(plan.captureCredential).toBe("capture_old");
+    expect(plan.lastCaptureError).toBe("unsupported_capture_endpoint");
+  });
+
   it("resumes after the V4 authoritative write without recounting or changing time", () => {
     const first = planExtensionInitialization({
       captureProtocolVersion: 3,

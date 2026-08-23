@@ -218,9 +218,10 @@ describe("reduceIngress – document identity", () => {
     expect(committed.state.committed.has("tab=1:frame=0")).toBe(false);
   });
 
-  it("synthesizes key from tabId:frameId when documentId is undefined", () => {
+  it("rejects frame-only fallback when documentId is undefined", () => {
     const committed = reduceIngress(INITIAL_STATE, { kind: "committed", url: new URL(VALID_URL), tabId: 5, frameId: 0, documentId: undefined }, tick());
-    expect(committed.state.committed.has("tab=5:frame=0")).toBe(true);
+    expect(committed.state.committed.size).toBe(0);
+    expect(committed.effects).toEqual([{ type: "ignored", reason: "document_id_missing" }]);
   });
 
   it("records committed with documentId but not injected", () => {

@@ -55,20 +55,41 @@ describe("serialized extension work", () => {
     expect(completed).toEqual(["second"]);
   });
 
-  it("recovers from initialization failure", async () => {
+  it("does not run work after initialization failure and retries on the next trusted job", async () => {
     const errors: unknown[] = [];
     const completed: string[] = [];
+    let attempts = 0;
     const executor = createSerializedWorkExecutor(
-      Promise.reject(new Error("initialization failed")),
+      async () => {
+        attempts += 1;
+        if (attempts === 1) throw new Error("initialization failed");
+      },
       (error) => errors.push(error),
     );
 
     executor.schedule(async () => {
-      completed.push("after-init");
+      completed.push("must-not-run");
+    });
+    executor.schedule(async () => {
+      completed.push("recovered");
     });
     await executor.idle();
 
     expect(errors).toHaveLength(1);
-    expect(completed).toEqual(["after-init"]);
+    expect(completed).toEqual(["recovered"]);
+    expect(attempts).toBe(2);
+  });
+
+  it("identifies initialization versus work failures for ACK callers", async () => {
+    let initializationAttempts = 0;
+    const failures: string[] = [];
+    const executor = createSerializedWorkExecutor(async () => {
+      initializationAttempts += 1;
+      if (initializationAttempts === 1) throw new Error("init");
+    }, () => undefined);
+    executor.schedule(async () => undefined, (stage) => { failures.push(stage); });
+    executor.schedule(async () => { throw new Error("work"); }, (stage) => { failures.push(stage); });
+    await executor.idle();
+    expect(failures).toEqual(["initialization", "work"]);
   });
 });

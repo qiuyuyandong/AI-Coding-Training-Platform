@@ -1,10 +1,46 @@
 # Current Handoff
 
-## Status (2026-08-23 cross-project repair stopped at old-candidate READY authorization gate)
+## Status (2026-08-24 cross-project capture repair implemented; product candidate freeze in progress)
+
+The approved cross-project capture-chain repair is implemented offline. The
+product now has persistence-bound ingress ACKs, a bounded FIFO content retry
+queue, re-entrant single-flight initialization, exact documentId-only recovery,
+closed recovery status/errors, canonical endpoint enforcement/reset, Chrome 106
+minimum capability, and `unlimitedStorage` without removing storage-rejection
+handling. Unknown custom loopback endpoints remain blocked; no App API or
+database migration was added.
+
+The authoritative pre-freeze `npm run quality:gate` exited 0 with root
+`2550/1`, App E2E `25/25`, extension unit `1660/1660`, extension E2E `54/1`,
+and production static generation `20/20`. Lint, migration, curriculum,
+typecheck, privacy (`0 findings`), adapter readiness, D4 acceptance profiles,
+and exact source/dist parity pass. The default database remained exactly
+`479232` bytes with mtime `2026-07-23T15:56:38.8411343Z`. A NowCoder
+worker-restart test had treated a persisted `before_request` lifecycle as a
+completed submit; its restart boundary now requires the completed 200 response
+to be durable. The focused stress run passed `30/30` without widening the
+five-second submit/status contract or adding unbounded status retries.
+
+Observer compatibility is separately frozen at
+`9cf79268840870398165974376a322095bcea602`; combined tool hash
+`EB564C529595F5F168FE1300EBCA431340135F48C21AA132829A863C0F44DF19`, profile
+hash `D35892A2FADDB8B8F4313684E96C261F6C256A3E9FEE79D34C5DB531678D6069`.
+The product commit containing this paragraph is the intended single new
+candidate; only the clean-worktree candidate validator and its external
+receipt may certify its exact SHA/dist. New-candidate READY-only browsing must
+remain stopped until the user grants a new authorization. Real actions, D4
+closeout, D5, RC, release, push, and PR remain unauthorized.
+
+Five pre-existing user-owned working-tree files remain intentionally outside
+the product candidate: `AGENTS.md`, `README.md`, `docs/architecture.md`,
+`docs/superpowers/README.md`, and the 2026-08-16 P7 failure-diagnostic plan.
+They must not be staged, reverted, or used as candidate evidence.
+
+## Prior status (2026-08-23 old-candidate READY proof passed; product repair gate opened)
 
 The user approved the master repair plan at
 `docs/superpowers/plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md`.
-Only its first offline track has run. The observer now validates closed E0
+The observer now validates closed E0
 data properties, canonical time, and safe document identity; it projects
 same-target hints from distinct refresh documents as bounded presence `0 | 1`
 and rejects a duplicate from the same document. RED was `2 failed / 49
@@ -14,12 +50,27 @@ validators, and empty product-candidate isolation diff passing. Frozen tool
 hash: `40FB0E40...CB775A9`; product candidate
 `915a98d0317148d063a3fad0e1888cb7aa74e2da` is unchanged.
 
-Execution is stopped before the old-candidate READY-only proof. No browser or
-real OJ was opened, and neither LeetCode nor NowCoder lane ran. Those browse-
-only lanes require separate authorization. Until both pass in order, the
-approved plan forbids starting the product ACK/recovery/storage/endpoint/
-browser-capability implementation. Real actions, D4 closeout, D5, RC,
-release, push, and PR remain unauthorized.
+The user separately authorized the old-candidate READY-only proof. Fresh
+LeetCode lane `p7f5-leetcode-ready-915a98d` and fresh NowCoder lane
+`p7f5-nowcoder-ready-915a98d` both returned `OBSERVER_ARMED=1`,
+`BROWSE_ONLY=1`, `READY=1`, and command-level `ACTION_AUTHORIZED=0`; both
+disposable databases remained `0/0/0`. Both receipts bind candidate
+`915a98d...`, tool hash `40FB0E40...CB775A9`, profile hash
+`D35892A2...78D6069`, the same candidate receipt, and unchanged pre/final
+exact-dist hashes. Evidence:
+`output/playwright/v4-observation/915a98d03171-leetcode-p7f5-leetcode-ready-915a98d-ready.json`
+and
+`output/playwright/v4-observation/915a98d03171-nowcoder-p7f5-nowcoder-ready-915a98d-ready.json`.
+No action authorization, click, or submission occurred, and both local
+servers were stopped. A preliminary NowCoder CLI invocation was rejected by
+local argument validation before browser/profile creation; after confirming
+no artifacts and DB `0/0/0`, the only actual NowCoder network lane passed.
+
+The old-candidate proof gate is complete, so the approved plan now permits
+offline ACK/recovery/storage/endpoint/browser-capability implementation and a
+new local candidate freeze. New-candidate READY-only browsing still requires
+separate authorization. Real actions, D4 closeout, D5, RC, release, push, and
+PR remain unauthorized.
 
 ## Status (2026-08-23 P7F4 diagnostic stopped after first browse-lane failure; user decision required)
 

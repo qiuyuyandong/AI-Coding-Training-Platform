@@ -129,8 +129,10 @@
           <strong id="lastDelivery">最近送达：暂无</strong>
         </div>
         <div class="diagnostic-row"><strong id="migrationState">正在检查旧记录…</strong></div>
+        <div class="diagnostic-row"><strong id="recoveryState">采集恢复：恢复中</strong></div>
         <div class="diagnostic-row"><strong class="error" id="lastError">阻塞原因：无</strong></div>
         <div class="diagnostic-row">
+          <button id="recoverCapture" type="button">恢复采集</button>
           <button id="retryAll" type="button">再次同步</button>
           <button id="clearOutbox" type="button">清空待同步结果</button>
           <button id="clearQuarantine" type="button">清空隔离区</button>
@@ -153,13 +155,13 @@
         <p id="pairingResult" role="status" aria-live="polite"></p>
       </section>
 
-      <details>
-        <summary>高级设置</summary>
-        <label class="field" for="captureEndpoint">
-          本地接收地址
-          <input id="captureEndpoint" type="url" />
-        </label>
-      </details>
+      <section class="panel" aria-labelledby="endpointHeading">
+        <div class="section-heading">
+          <h2 id="endpointHeading">本地接收地址</h2>
+          <p id="captureEndpoint">本地接收地址：http://localhost:3000/api/capture/attempts</p>
+        </div>
+        <button id="resetCaptureEndpoint" type="button">恢复默认地址（需重新配对）</button>
+      </section>
 
       <section class="panel characterization" aria-labelledby="characterizationHeading">
         <div class="section-heading">

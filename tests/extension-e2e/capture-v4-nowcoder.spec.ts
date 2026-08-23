@@ -197,8 +197,9 @@ test("service-worker restart after E1 and after E2 preserves the legal transitio
     await navigateReady(extensionContext, page, extensionWorker);
     await clickHint(page, extensionWorker);
     await fetchSubmit(page);
-    await expect.poll(async () => (await readFakeOjStorage(extensionWorker)).transientE1.length)
-      .toBe(1);
+    await expect.poll(async () =>
+      (await readFakeOjStorage(extensionWorker)).transientE1.some(isCompletedNowCoderSubmit))
+      .toBe(true);
 
     await stopAndReawakenFakeOjWorker(page, extensionWorker, async () => {
       await fetchStatus(page, SUBMISSION_ID);
@@ -214,11 +215,25 @@ test("service-worker restart after E1 and after E2 preserves the legal transitio
     );
     await expect.poll(async () => {
       const storage = await readRestartStorage(popup);
-      if (storage.confirmed === 1) return storage;
-      await fetchStatus(page, SUBMISSION_ID);
-      return readRestartStorage(popup);
-    })
+      return storage.e1 >= 1 || storage.confirmed === 1;
+    }).toBe(true);
+    const afterRestart = await readRestartStorage(popup);
+    if (afterRestart.confirmed === 0) await fetchStatus(page, SUBMISSION_ID);
+    await expect.poll(() => readRestartStorage(popup), { timeout: 20_000 })
       .toMatchObject({ confirmed: 1, tombstones: 0, outbox: 0 });
+    // The NowCoder submit/status contract intentionally has a five-second
+    // chronology window. Verify the post-restart status witness before waiting
+    // for the independent open-document recovery sweep, then prove that sweep
+    // also reaches ready without relaxing the capture window.
+    await expect.poll(async () => popup.evaluate(async () => {
+      const state = await chrome.runtime.sendMessage({ type: "GET_CAPTURE_STATE" });
+      const recovery = typeof state === "object" && state !== null
+        ? Reflect.get(state, "captureRecoveryStatus")
+        : undefined;
+      return typeof recovery === "object" && recovery !== null
+        ? Reflect.get(recovery, "state")
+        : undefined;
+    })).toBe("ready");
 
     harness.setResultVerdict("答案错误");
     await stopAndReawakenFakeOjWorker(page, extensionWorker, async () => {
@@ -228,7 +243,7 @@ test("service-worker restart after E1 and after E2 preserves the legal transitio
     // running. A prior successful observation is idempotent via its tombstone.
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect.poll(() => readRestartStorage(popup))
-      .toEqual({ confirmed: 0, tombstones: 1, outbox: 1 });
+      .toMatchObject({ confirmed: 0, tombstones: 1, outbox: 1 });
   } finally {
     await popup.close();
     await page.close();
@@ -441,26 +456,40 @@ async function pairExtension(
 }
 
 async function readRestartStorage(page: Page): Promise<{
+  readonly e1: number;
   readonly confirmed: number;
   readonly tombstones: number;
   readonly outbox: number;
 }> {
   return page.evaluate(async () => {
-    const stored = await chrome.storage.local.get([
+    const local = await chrome.storage.local.get([
       "confirmedSubmissions",
       "confirmedSubmissionTombstones",
       "captureOutbox",
     ]);
+    const session = await chrome.storage.session.get(["transientE1"]);
     return {
-      confirmed: Array.isArray(stored.confirmedSubmissions)
-        ? stored.confirmedSubmissions.length
+      e1: Array.isArray(session.transientE1) ? session.transientE1.length : 0,
+      confirmed: Array.isArray(local.confirmedSubmissions)
+        ? local.confirmedSubmissions.length
         : 0,
-      tombstones: Array.isArray(stored.confirmedSubmissionTombstones)
-        ? stored.confirmedSubmissionTombstones.length
+      tombstones: Array.isArray(local.confirmedSubmissionTombstones)
+        ? local.confirmedSubmissionTombstones.length
         : 0,
-      outbox: Array.isArray(stored.captureOutbox) ? stored.captureOutbox.length : 0,
+      outbox: Array.isArray(local.captureOutbox) ? local.captureOutbox.length : 0,
     };
   });
+}
+
+function isCompletedNowCoderSubmit(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const evidence = Reflect.get(value, "evidence");
+  return typeof evidence === "object" && evidence !== null
+    && Reflect.get(evidence, "platform") === "nowcoder"
+    && Reflect.get(evidence, "method") === "POST"
+    && Reflect.get(evidence, "endpointKey") === "nowcoder/submit"
+    && Reflect.get(evidence, "lifecycle") === "completed"
+    && Reflect.get(evidence, "statusCode") === 200;
 }
 
 function readPairingCode(value: unknown): string {

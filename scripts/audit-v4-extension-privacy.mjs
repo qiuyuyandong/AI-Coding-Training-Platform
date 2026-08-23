@@ -9,7 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const defaultRepoRoot = resolve(here, "..");
 
 const ALLOWED_PERMISSIONS = Object.freeze([
-  "storage", "alarms", "webRequest", "downloads", "scripting", "webNavigation",
+  "storage", "unlimitedStorage", "alarms", "webRequest", "downloads", "scripting", "webNavigation",
 ]);
 const ALLOWED_HOST_PERMISSIONS = Object.freeze([
   "http://localhost:3000/*",
@@ -70,7 +70,7 @@ const SESSION_KEYS = new Set([
   "uiHints", "transientE1", "transientPageContexts", "transientUnmatchedE3",
   "transientAmbiguityDiagnostics", "characterizationSession", "b3WitnessState",
   "contentIngressDiagnostics", "contentIngressReady", "webRequestSpikeMarkers",
-  "leetcodeEndpointDiagnostics",
+  "leetcodeEndpointDiagnostics", "captureRecoveryRetryAttempt",
 ]);
 
 function normalizePath(path) {
@@ -104,6 +104,9 @@ function auditManifest(manifest, label, findings) {
     return;
   }
   compareExactArray(manifest.permissions, ALLOWED_PERMISSIONS, `${label} permissions`, findings);
+  if (manifest.minimum_chrome_version !== "106") {
+    findings.push(`${label}: minimum_chrome_version must equal 106`);
+  }
   compareExactArray(manifest.host_permissions, ALLOWED_HOST_PERMISSIONS, `${label} host_permissions`, findings);
   const permissions = exactStringArray(manifest.permissions) ?? [];
   for (const permission of permissions) {

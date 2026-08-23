@@ -22,6 +22,12 @@ const SAFE_CAPTURE_ERRORS = new Set([
   "epoch_result_surface_unchanged",
   "verdict_candidate_adapter_rejected",
   "verdict_candidate_chronology_mismatch",
+  "unsupported_capture_endpoint",
+  "unsupported_browser",
+  "capture_recovery_capacity_exceeded",
+  "capture_recovery_failed",
+  "initialization_failed",
+  "persistence_failed",
 ]);
 
 const SAFE_CAPTURE_ERROR_PATTERNS: readonly RegExp[] = [

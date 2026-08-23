@@ -8,7 +8,6 @@ import {
 } from "./attemptCapture";
 
 export const SUBMISSION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
-export const CAPTURE_STORAGE_RESERVE_BYTES = 256 * 1024;
 
 export type CaptureOutboxItem = {
   readonly id: string;
@@ -212,19 +211,6 @@ export function buildCaptureAttemptBundle(
       },
     ],
   });
-}
-
-export function estimateCaptureBytes(value: unknown): number {
-  return new TextEncoder().encode(JSON.stringify(value)).byteLength;
-}
-
-export function canPersistCaptureBytes(input: {
-  readonly quotaBytes: number;
-  readonly bytesInUse: number;
-  readonly estimatedWriteBytes: number;
-}): boolean {
-  return input.bytesInUse + input.estimatedWriteBytes
-    <= input.quotaBytes - CAPTURE_STORAGE_RESERVE_BYTES;
 }
 
 export function retryQuarantined(

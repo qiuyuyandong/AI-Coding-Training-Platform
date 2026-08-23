@@ -8,11 +8,15 @@ import {
   detectVerdictObservationFromDocument,
   isExactSubmissionResultPage,
 } from "@/extension/src/platforms";
-import { isVerdictCandidateMessage } from "@/extension/src/attemptCapture";
+import {
+  isVerdictCandidateMessage,
+  type VerdictCandidateMessage,
+} from "@/extension/src/attemptCapture";
 import {
   isEligibleUiHint,
   isUiHintMessage,
   isVisibleSeededSubmitControl,
+  type UiHintMessage,
 } from "@/extension/src/uiHint";
 import {
   createExtensionContextGuard,
@@ -20,9 +24,21 @@ import {
   settleExtensionOperation,
 } from "@/extension/src/extensionOperation";
 import { bootstrapContentRuntime } from "@/extension/src/contentBootstrap";
-import { isExactNowCoderResultUrl } from "@/extension/src/contentIngress";
+import { createCaptureIngressQueue } from "@/extension/src/captureIngressReliability";
+import { isCaptureContentScriptUrl } from "@/extension/src/captureRecovery";
 
 const NAVIGATION_POLL_MS = 500;
+
+type CaptureIngressMessage = UiHintMessage | VerdictCandidateMessage;
+
+const captureIngressQueue = createCaptureIngressQueue<CaptureIngressMessage>({
+  send: (message) => chrome.runtime.sendMessage(message),
+  wait: (milliseconds) => new Promise((resolve) => { window.setTimeout(resolve, milliseconds); }),
+  isContextInvalidated: isExtensionContextInvalidatedError,
+  onDeliveryBlocked: () => {
+    console.error("[capture-v4] capture ingress remained blocked");
+  },
+});
 
 void bootstrapContentRuntime({
   isolatedGlobal: globalThis,
@@ -224,7 +240,7 @@ function sendContentRuntimeReady(): void {
   } catch {
     return;
   }
-  if (!isExactNowCoderResultUrl(current)) return;
+  if (!isCaptureContentScriptUrl(current.toString())) return;
   void settleExtensionOperation(
     () => chrome.runtime.sendMessage({
       type: "CONTENT_RUNTIME_READY",
@@ -248,14 +264,9 @@ function forwardMessages(messages: readonly unknown[]): void {
       isUiHintMessage(message) ||
       isVerdictCandidateMessage(message)
     ) {
-      void settleExtensionOperation(
-        () => chrome.runtime.sendMessage(message),
-        (error) =>
-          reportContentRuntimeError(
-            "[capture-v4] runtime message was not delivered",
-            error,
-          ),
-      );
+      if (!captureIngressQueue.enqueue(message)) {
+        console.error("[capture-v4] capture ingress queue is unavailable");
+      }
     }
   }
 }

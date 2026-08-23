@@ -196,6 +196,7 @@ export type IngressDiagnosticCode =
   | "url_rejected"
   | "frame_rejected"
   | "tab_id_invalid"
+  | "document_id_missing"
   | "injection_failed"
   | "duplicate_injection";
 
@@ -203,7 +204,7 @@ export interface InjectEffect {
   readonly type: "inject";
   readonly tabId: number;
   readonly frameId: number;
-  readonly documentId: string | undefined;
+  readonly documentId: string;
   readonly url: URL;
 }
 
@@ -211,7 +212,7 @@ export interface ReadyRecordEffect {
   readonly type: "ready_record";
   readonly tabId: number;
   readonly frameId: number;
-  readonly documentId: string | undefined;
+  readonly documentId: string;
 }
 
 export interface IgnoredEffect {
@@ -244,7 +245,7 @@ export type IngressEffect =
 interface TransientEntry {
   readonly tabId: number;
   readonly frameId: number;
-  readonly documentId: string | undefined;
+  readonly documentId: string;
   readonly url: URL;
 }
 
@@ -253,7 +254,7 @@ const MAX_TRANSIENT_ENTRIES = 100;
 export interface IngressCoordinatorState {
   /**
    * Documents that have been committed but not yet completed.
- * Key: documentId when available, else synthesized from tabId:frameId.
+ * Key: Chrome-owned documentId. Frame-only fallback is forbidden.
    */
   readonly committed: ReadonlyMap<string, TransientEntry>;
   /**
@@ -283,10 +284,8 @@ export const INITIAL_STATE: IngressCoordinatorState = {
 // Pure reducer
 // ---------------------------------------------------------------------------
 
-function documentKey(tabId: number, frameId: number, documentId: string | undefined): string {
-  return documentId !== undefined
-    ? documentId
-    : `tab=${tabId}:frame=${frameId}`;
+function documentKey(documentId: string): string {
+  return documentId;
 }
 
 function evictOldestEntry(map: Map<string, TransientEntry>): Map<string, TransientEntry> {
@@ -317,8 +316,7 @@ function boundedSet(values: ReadonlySet<string>): Set<string> {
  * Rules (plan lines 235-258):
  * - accept only the exact result-route gate
  * - accept only top frame (`frameId === 0`)
- * - prefer `documentId` targeting when Chrome supplies it
- * - otherwise target only `tabId` and frame `0`
+ * - require Chrome-owned `documentId` targeting
  * - never use `allFrames`
  * - committed → records eligible navigation but does NOT inject
  * - completed → injects once only if the committed document is still
@@ -351,6 +349,9 @@ export function reduceIngress(
       if (tabId < 0) {
         return { state, effects: [{ type: "ignored", reason: "tab_id_invalid" }] };
       }
+      if (typeof documentId !== "string" || documentId.length === 0) {
+        return { state, effects: [{ type: "ignored", reason: "document_id_missing" }] };
+      }
 
       // Rule: exact URL gate
       if (!isExactNowCoderResultUrl(url)) {
@@ -358,7 +359,7 @@ export function reduceIngress(
       }
 
       // Record the committed eligible navigation.
-      const key = documentKey(tabId, frameId, documentId);
+      const key = documentKey(documentId);
       const nextCommitted = evictOldestEntry(new Map(state.committed));
       nextCommitted.delete(key);
       nextCommitted.set(key, { tabId, frameId, documentId, url });
@@ -380,13 +381,16 @@ export function reduceIngress(
       if (tabId < 0) {
         return { state, effects: [{ type: "ignored", reason: "tab_id_invalid" }] };
       }
+      if (typeof documentId !== "string" || documentId.length === 0) {
+        return { state, effects: [{ type: "ignored", reason: "document_id_missing" }] };
+      }
 
       // Rule: exact URL gate (eligibility must persist)
       if (!isExactNowCoderResultUrl(url)) {
         return { state, effects: [{ type: "ignored", reason: "url_rejected" }] };
       }
 
-      const key = documentKey(tabId, frameId, documentId);
+      const key = documentKey(documentId);
 
       // Rule: injects once only if the committed document is still eligible
       // and has not announced readiness.
@@ -427,13 +431,16 @@ export function reduceIngress(
       if (tabId < 0) {
         return { state, effects: [{ type: "ignored", reason: "tab_id_invalid" }] };
       }
+      if (typeof documentId !== "string" || documentId.length === 0) {
+        return { state, effects: [{ type: "ignored", reason: "document_id_missing" }] };
+      }
 
       // Rule: exact URL gate
       if (!isExactNowCoderResultUrl(url)) {
         return { state, effects: [{ type: "ignored", reason: "url_rejected" }] };
       }
 
-      const key = documentKey(tabId, frameId, documentId);
+      const key = documentKey(documentId);
 
       // Rule: immediate injection if the document has no ready record.
       if (state.ready.has(key)) {
@@ -474,8 +481,11 @@ export function reduceIngress(
       if (tabId < 0) {
         return { state, effects: [{ type: "ignored", reason: "tab_id_invalid" }] };
       }
+      if (typeof documentId !== "string" || documentId.length === 0) {
+        return { state, effects: [{ type: "ignored", reason: "document_id_missing" }] };
+      }
 
-      const key = documentKey(tabId, frameId, documentId);
+      const key = documentKey(documentId);
 
       // Idempotent: already ready is a no-op.
       if (state.ready.has(key)) {
@@ -496,15 +506,18 @@ export function reduceIngress(
     }
 
     case "injection_result": {
-      const { tabId, frameId, documentId, success } = input;
+      const { tabId, documentId, success } = input;
 
       // Rule: tabId >= 0
       if (tabId < 0) {
         return { state, effects: [{ type: "ignored", reason: "tab_id_invalid" }] };
       }
+      if (typeof documentId !== "string" || documentId.length === 0) {
+        return { state, effects: [{ type: "ignored", reason: "document_id_missing" }] };
+      }
 
       if (!success) {
-        const key = documentKey(tabId, frameId, documentId);
+        const key = documentKey(documentId);
         // Remove from injected so a later retry could inject again.
         const nextInjected = new Set(state.injected);
         nextInjected.delete(key);

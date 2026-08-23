@@ -1787,6 +1787,7 @@ interface FakeChrome {
     readonly onErrorOccurred: { readonly addListener: (...args: readonly unknown[]) => void };
   };
   readonly webNavigation: {
+    readonly getAllFrames: (details: { readonly tabId: number }) => Promise<readonly chrome.webNavigation.GetAllFrameResultDetails[] | null>;
     readonly onCommitted: { readonly addListener: (...args: readonly unknown[]) => void };
     readonly onCompleted: { readonly addListener: (...args: readonly unknown[]) => void };
     readonly onHistoryStateUpdated: { readonly addListener: (...args: readonly unknown[]) => void };
@@ -1797,6 +1798,7 @@ interface FakeChrome {
   };
   readonly tabs: {
     readonly query: (...args: readonly unknown[]) => Promise<readonly chrome.tabs.Tab[]>;
+    readonly sendMessage: (...args: readonly unknown[]) => Promise<unknown>;
   };
   // Diagnostic helpers.
   readonly getAlarm: (name: string) => chrome.alarms.Alarm | undefined;
@@ -1900,6 +1902,7 @@ function createFakeChrome(
       onErrorOccurred: { addListener: () => undefined },
     },
     webNavigation: {
+      getAllFrames: async () => [],
       onCommitted: { addListener: () => undefined },
       onCompleted: { addListener: () => undefined },
       onHistoryStateUpdated: { addListener: () => undefined },
@@ -1910,6 +1913,7 @@ function createFakeChrome(
     },
     tabs: {
       query: async () => [],
+      sendMessage: async () => undefined,
     },
     getAlarm: (name) => alarms.get(name),
     alarmCreateCalls,
@@ -2014,7 +2018,7 @@ describe("background.ts expireCaptureUiHints alarm wiring", () => {
 
     // Send a UI hint through the runtime message listener. The handler
     // schedules `applyOrchestratorEvent` on the SerializedWorkExecutor and
-    // returns false (synchronous ack).
+    // keeps the response channel open until persistence completes.
     const hintObservedAt = new Date().toISOString();
     const hintMessage = {
       type: "UI_HINT_OBSERVED",
@@ -2031,8 +2035,9 @@ describe("background.ts expireCaptureUiHints alarm wiring", () => {
     expect(fake.messageListeners).toHaveLength(1);
     const messageListener = fake.messageListeners[0];
     if (messageListener === undefined) throw new Error("message listener missing");
-    const returned = messageListener(hintMessage, sender, () => undefined);
-    expect(returned).toBe(false);
+    let ingressAck: unknown;
+    const returned = messageListener(hintMessage, sender, (response) => { ingressAck = response; });
+    expect(returned).toBe(true);
     await pumpMicrotasks();
 
     // The apply must have written the hint to session storage and scheduled
@@ -2040,6 +2045,7 @@ describe("background.ts expireCaptureUiHints alarm wiring", () => {
     const sessionAfterApply = await fake.storage.session.get(["uiHints"]);
     expect(Array.isArray(sessionAfterApply.uiHints)).toBe(true);
     expect((sessionAfterApply.uiHints as readonly unknown[]).length).toBe(1);
+    expect(ingressAck).toEqual({ schemaVersion: 1, ok: true, status: "persisted" });
 
     const expectedWhen = Date.parse(hintObservedAt) + UI_HINT_TTL_MS;
     const rescheduledAlarm = fake.getAlarm("expireCaptureUiHints");
@@ -2303,6 +2309,142 @@ describe("background.ts expireCaptureUiHints alarm wiring", () => {
     expect(Array.isArray(withOther.uiHints)).toBe(true);
     expect((withOther.uiHints as readonly unknown[]).length).toBe(2);
   });
+
+  it("resets the endpoint and endpoint-bound credentials without clearing capture state", async () => {
+    const fake = createFakeChrome({
+      local: {
+        captureProtocolVersion: 4,
+        installationId: "installation_endpoint_reset",
+        captureEnabled: true,
+        captureEndpoint: "http://127.0.0.1:3001/api/capture/events?old=true",
+        captureCredential: "capture_old",
+        captureCredentialVersion: 2,
+        pairedAt: "2026-08-23T00:00:00.000Z",
+        confirmedSubmissions: [],
+        confirmedSubmissionTombstones: [],
+        captureOutbox: [],
+        captureQuarantine: [],
+        lastCaptureError: "unsupported_capture_endpoint",
+      },
+      session: {
+        uiHints: [],
+        transientE1: [],
+        transientPageContexts: [],
+        transientUnmatchedE3: [],
+        transientVerdictCandidates: [],
+        transientAmbiguityDiagnostics: [],
+      },
+    });
+    await loadBackgroundWithChrome(fake);
+    const listener = fake.messageListeners[0];
+    if (listener === undefined) throw new Error("message listener missing");
+    let response: unknown;
+    expect(listener({ type: "RESET_CAPTURE_ENDPOINT" }, {}, (value) => { response = value; }))
+      .toBe(true);
+    const responseDeadline = Date.now() + 1_000;
+    while (response === undefined && Date.now() < responseDeadline) {
+      await pumpMicrotasks();
+      await new Promise((resolve) => { setTimeout(resolve, 0); });
+    }
+
+    const local = await fake.storage.local.get([
+      "captureEndpoint", "captureCredential", "captureCredentialVersion", "pairedAt",
+      "confirmedSubmissions", "captureOutbox", "captureQuarantine", "lastCaptureError",
+    ]);
+    expect(local.captureEndpoint).toBe("http://localhost:3000/api/capture/attempts");
+    expect(local.captureCredential).toBeUndefined();
+    expect(local.captureCredentialVersion).toBeUndefined();
+    expect(local.pairedAt).toBeUndefined();
+    expect(local.confirmedSubmissions).toEqual([]);
+    expect(local.captureOutbox).toEqual([]);
+    expect(local.captureQuarantine).toEqual([]);
+    expect(local.lastCaptureError).toBeUndefined();
+    expect(response).toEqual({
+      ok: true,
+      captureRecoveryStatus: { schemaVersion: 1, state: "ready" },
+    });
+  });
+
+  it("fails closed with unsupported_browser when a required document API is missing", async () => {
+    const fake = createFakeChrome();
+    Reflect.deleteProperty(fake.webNavigation, "getAllFrames");
+    await loadBackgroundWithChrome(fake);
+    const deadline = Date.now() + 1_000;
+    let stored = await fake.storage.local.get(["lastCaptureError"]);
+    while (stored.lastCaptureError !== "unsupported_browser" && Date.now() < deadline) {
+      await pumpMicrotasks();
+      await new Promise((resolve) => { setTimeout(resolve, 0); });
+      stored = await fake.storage.local.get(["lastCaptureError"]);
+    }
+    expect(stored.lastCaptureError).toBe("unsupported_browser");
+
+    const listener = fake.messageListeners[0];
+    if (listener === undefined) throw new Error("message listener missing");
+    let response: unknown;
+    expect(listener({ type: "GET_CAPTURE_STATE" }, {}, (value) => { response = value; }))
+      .toBe(true);
+    const responseDeadline = Date.now() + 1_000;
+    while (response === undefined && Date.now() < responseDeadline) await pumpMicrotasks();
+    expect(response).toMatchObject({
+      captureRecoveryStatus: {
+        schemaVersion: 1,
+        state: "blocked",
+        error: "unsupported_browser",
+      },
+    });
+  });
+
+  it.each(["local", "session"] as const)(
+    "returns initialization_failed for a %s initialization write boundary and replays the same ingress after recovery",
+    async (areaName) => {
+      const fake = createFakeChrome();
+      const area = fake.storage[areaName];
+      const originalSet = area.set;
+      Reflect.set(area, "set", async () => { throw new Error("storage rejected"); });
+      await loadBackgroundWithChrome(fake);
+      const listener = fake.messageListeners[0];
+      if (listener === undefined) throw new Error("message listener missing");
+      const message = {
+        type: "UI_HINT_OBSERVED",
+        hint: {
+          schemaVersion: 1,
+          tier: "E0",
+          kind: "ui_hint",
+          platform: "nowcoder",
+          problemExternalId: "acm/contest/18839/1001",
+          observedAt: new Date().toISOString(),
+        },
+      } as const;
+      const sender: chrome.runtime.MessageSender = { documentId: `doc_${areaName}_failure` };
+      let failedAck: unknown;
+      expect(listener(message, sender, (value) => { failedAck = value; })).toBe(true);
+      const failedDeadline = Date.now() + 1_000;
+      while (failedAck === undefined && Date.now() < failedDeadline) await pumpMicrotasks();
+      expect(failedAck).toEqual({
+        schemaVersion: 1,
+        ok: false,
+        error: "initialization_failed",
+      });
+
+      const order: string[] = [];
+      Reflect.set(area, "set", async (items: Record<string, unknown>) => {
+        order.push("storage_set");
+        await originalSet(items);
+      });
+      let recoveredAck: unknown;
+      expect(listener(message, sender, (value) => {
+        order.push("ack");
+        recoveredAck = value;
+      })).toBe(true);
+      const recoveredDeadline = Date.now() + 1_000;
+      while (recoveredAck === undefined && Date.now() < recoveredDeadline) await pumpMicrotasks();
+      expect(recoveredAck).toEqual({ schemaVersion: 1, ok: true, status: "persisted" });
+      expect(order.at(-1)).toBe("ack");
+      expect(order).toContain("storage_set");
+      const session = await fake.storage.session.get(["uiHints"]);
+      expect(Array.isArray(session.uiHints) ? session.uiHints.length : 0).toBe(1);
+    },
+  );
 });
 
 describe("verdict candidate orchestration (Task 5)", () => {

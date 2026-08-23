@@ -1203,14 +1203,18 @@ describe("verdict candidate flow", () => {
     expect(state.finalizedCount).toBe(1);
   });
 
-  it("source code contains no setTimeout for verdict candidates", async () => {
+  it("source code contains no timer-based retry inside verdict candidate intake", async () => {
     const { readFileSync } = await import("node:fs");
     const { resolve } = await import("node:path");
     const backgroundSource = readFileSync(
       resolve(process.cwd(), "extension/src/background.ts"),
       "utf8",
     );
-    expect(backgroundSource).not.toMatch(/setTimeout/);
+    const candidateStart = backgroundSource.indexOf("if (isVerdictCandidateMessage(message))");
+    const candidateEnd = backgroundSource.indexOf("if (isActionMessage(message))", candidateStart);
+    expect(candidateStart).toBeGreaterThan(-1);
+    expect(candidateEnd).toBeGreaterThan(candidateStart);
+    expect(backgroundSource.slice(candidateStart, candidateEnd)).not.toMatch(/setTimeout/);
     expect(backgroundSource).not.toMatch(/VERDICT_CANDIDATE_RETRY/);
     expect(backgroundSource).not.toMatch(/pendingVerdictCandidateRecheck/);
   });

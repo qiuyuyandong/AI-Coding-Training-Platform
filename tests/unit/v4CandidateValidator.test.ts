@@ -129,6 +129,30 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("work/reports/raw-nowcoder-transcript.json").kind).toBe("forbidden");
   });
 
+  it("owns the cross-project recovery runtime and tests without absorbing observation tooling", () => {
+    const recoveryPaths = [
+      "docs/superpowers/plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md",
+      "extension/src/captureIngressReliability.ts",
+      "extension/src/captureRecovery.ts",
+      "extension/src/contentBootstrap.ts",
+      "extension/src/contentIngress.ts",
+      "extension/src/initializationController.ts",
+      "extension/src/pairing.ts",
+      "extension/src/popup.html",
+      "extension/src/serializedWork.ts",
+      "tests/unit/extensionCaptureIngressReliability.test.ts",
+      "tests/unit/extensionCaptureRecovery.test.ts",
+      "tests/unit/extensionContentIngress.test.ts",
+      "tests/unit/extensionInitializationController.test.ts",
+      "tests/unit/extensionManifestCapabilities.test.ts",
+      "tests/unit/extensionSerializedWork.test.ts",
+    ] as const;
+
+    expect(validateCandidatePaths([...recoveryPaths]).failedChecks).toEqual([]);
+    expect(classifyCandidatePath("scripts/v4-live-observation-observer.mjs").kind).toBe("unknown");
+    expect(classifyCandidatePath("tests/unit/v4LiveObservationObserver.test.ts").kind).toBe("unknown");
+  });
+
   it("keeps the root quality gate isolated from ignored Git worktrees", () => {
     const source = readFileSync(resolve(process.cwd(), "vitest.config.ts"), "utf8");
     expect(source).toContain('".worktrees/**"');

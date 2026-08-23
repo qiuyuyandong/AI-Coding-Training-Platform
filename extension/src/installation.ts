@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   DEFAULT_CAPTURE_ENDPOINT,
+  captureEndpointStatus,
   readCaptureEndpoint,
 } from "./captureTransport";
 import { CaptureProvenanceLevelSchema } from "@/lib/domain/captureCredential";
@@ -124,7 +125,13 @@ export function planExtensionInitialization(
   const pendingSubmissionIntents = Array.isArray(stored.pendingSubmissionIntents)
     ? stored.pendingSubmissionIntents
     : [];
-  const lastCaptureError = safeStoredCaptureError(stored.lastCaptureError);
+  const endpoint = captureEndpointStatus(stored.captureEndpoint ?? DEFAULT_CAPTURE_ENDPOINT);
+  const storedCaptureError = safeStoredCaptureError(stored.lastCaptureError);
+  const lastCaptureError = endpoint.status === "unsupported"
+    ? "unsupported_capture_endpoint"
+    : storedCaptureError === "unsupported_capture_endpoint"
+      ? undefined
+      : storedCaptureError;
   const v4ClickIntentMigration = isV4
     ? readV4ClickIntentMigration(stored.v4ClickIntentMigration)
     : isV3
@@ -141,9 +148,7 @@ export function planExtensionInitialization(
     installationId,
     captureCredential: readNonemptyString(stored.captureCredential),
     captureEnabled: stored.captureEnabled !== false,
-    captureEndpoint: readCaptureEndpoint(
-      stored.captureEndpoint ?? DEFAULT_CAPTURE_ENDPOINT,
-    ),
+    captureEndpoint: readCaptureEndpoint(endpoint.endpoint),
     captureProtocolVersion: CAPTURE_PROTOCOL_VERSION,
     transientSessionEvidence: isV4 ? readTransientSessionEvidenceState(stored) : undefined,
     confirmedSubmissions: confirmed.confirmed,

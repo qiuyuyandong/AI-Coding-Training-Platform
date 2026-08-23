@@ -154,6 +154,32 @@ describe("capture outbox drain", () => {
       .toBe("阻塞原因：ACK 身份不匹配：invalid response");
   });
 
+  it("retains and blocks an outbox item when the configured endpoint is unsupported", async () => {
+    const first = item("one");
+    const storage = fakeStorage({ captureOutbox: [first], captureQuarantine: [] });
+    let requestCount = 0;
+    const dependencies = {
+      readState: storage.readState,
+      send: async () => {
+        requestCount += 1;
+        return { status: "endpoint_error" as const, error: "unsupported_capture_endpoint" as const };
+      },
+      persist: async (plan: CaptureOutboxPlan) => {
+        await persistCaptureOutboxPlan(storage, plan);
+      },
+    };
+
+    expect(await drainCaptureOutbox(dependencies))
+      .toEqual({ reason: "global_blocked", processed: 1 });
+    expect(requestCount).toBe(1);
+    expect(storage.values.captureOutbox).toEqual([first]);
+    expect(storage.values.captureQuarantine).toEqual([]);
+    expect(storage.values.lastCaptureError).toBe("unsupported_capture_endpoint");
+    expect(await drainCaptureOutbox(dependencies))
+      .toEqual({ reason: "global_blocked", processed: 1 });
+    expect(requestCount).toBe(2);
+  });
+
   it("persists manual retry reset before allowing another request", async () => {
     const blocked = {
       ...item("one"),

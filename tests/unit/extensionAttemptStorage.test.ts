@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCaptureAttemptBundle,
-  canPersistCaptureBytes,
   consumeVerdictCandidate,
   expireSubmissionIntents,
   recordSubmissionIntent,
@@ -76,10 +75,4 @@ describe("attempt storage", () => {
       .toBe("expired");
   });
 
-  it("reserves capacity and never relies on silent truncation", () => {
-    expect(canPersistCaptureBytes({ quotaBytes: 1024 * 1024, bytesInUse: 0, estimatedWriteBytes: 1 }))
-      .toBe(true);
-    expect(canPersistCaptureBytes({ quotaBytes: 1024 * 1024, bytesInUse: 800 * 1024, estimatedWriteBytes: 1 }))
-      .toBe(false);
-  });
 });

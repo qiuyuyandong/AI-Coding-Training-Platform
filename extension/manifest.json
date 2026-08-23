@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
+  "minimum_chrome_version": "106",
   "name": "Unified OJ Capture",
   "version": "0.1.0",
   "description": "Detects user-visible OJ training events and sends them to the local training app.",
-  "permissions": ["storage", "alarms", "webRequest", "downloads", "scripting", "webNavigation"],
+  "permissions": ["storage", "unlimitedStorage", "alarms", "webRequest", "downloads", "scripting", "webNavigation"],
   "host_permissions": [
     "http://localhost:3000/*",
     "https://leetcode.com/*",
