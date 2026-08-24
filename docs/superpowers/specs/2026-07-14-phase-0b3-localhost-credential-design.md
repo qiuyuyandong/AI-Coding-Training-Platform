@@ -1,5 +1,12 @@
 # Phase 0B3 Localhost Credential Design
 
+> Historical status (superseded for local V0/V1): ADR 0004 and the approved
+> Local Vault / exact-extension-Origin revision replace this visible pairing
+> code and long-lived bearer design for all forward V0/V1 work. The text below
+> remains unchanged as an implementation-history record. Phase 7 cloud account,
+> synchronization, and server authentication decisions are not covered by this
+> supersession.
+
 **Status:** Implemented and verified on 2026-07-14
 
 **Outcome:** Only a deliberately paired Chrome extension installation can write capture events to the localhost application, and the owner can rotate or revoke that installation from `/settings`.
