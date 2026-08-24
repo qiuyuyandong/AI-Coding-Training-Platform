@@ -48,14 +48,15 @@ export const IGNORED_SESSION_KEYS = Object.freeze([
 
 export const IGNORED_LOCAL_KEYS = Object.freeze([
   "installationId",
-  "captureCredential",
-  "captureCredentialVersion",
+  "captureCapability",
+  "captureCapabilityVersion",
+  "captureConnectionStatus",
+  "connectedAt",
   "captureEnabled",
   "captureEndpoint",
   "captureProtocolVersion",
   "lastDeliveredAttemptId",
   "lastDeliveredAttemptStatus",
-  "pairedAt",
   "v4ClickIntentMigration",
   "discardedPreBundleEventCount",
   "preBundleQueueDiscardedAt",
@@ -134,7 +135,7 @@ const SAFE_CAPTURE_ERRORS = new Set([
 const SAFE_CAPTURE_ERROR_PATTERNS = Object.freeze([
   /^HTTP [1-5][0-9]{2}$/u,
   /^Isolated result: HTTP [1-5][0-9]{2}$/u,
-  /^Pairing required: HTTP 401$/u,
+  /^Capability rejected: HTTP 401$/u,
   /^Origin rejected: HTTP 403$/u,
   /^Network unavailable: Network request failed$/u,
 ]);
@@ -157,6 +158,27 @@ const CANDIDATE_ARTIFACT_KEYS = new Set([
   "content.js",
   "popup.js",
   "main-world-bridge.js",
+]);
+const CONNECTION_RECEIPT_KEYS = new Set([
+  "schemaVersion",
+  "candidateSha",
+  "platform",
+  "profileIdentity",
+  "databaseIdentity",
+  "vaultConfigIdentity",
+  "extensionId",
+  "installationIdentity",
+  "captureCapabilityVersion",
+  "candidateReceiptHash",
+  "artifactHashes",
+  "database",
+  "connection",
+  "preparedAt",
+]);
+const ZERO_DATABASE_KEYS = new Set([
+  "captureEvents",
+  "trainingSessions",
+  "trainingAttempts",
 ]);
 
 const objectValue = (value) => typeof value === "object" && value !== null;
@@ -303,6 +325,49 @@ export function validateCandidateReceipt(value, expected) {
     if (typeof receiptHash !== "string" || !/^[A-F0-9]{64}$/u.test(receiptHash)
       || receiptHash !== expectedHash) {
       return { ok: false, reason: "observer_candidate_receipt_rejected" };
+    }
+  }
+  return { ok: true };
+}
+
+export function validateReadyConnectionReceipt(value, expected) {
+  if (!exactDataSnapshotKeys(value, CONNECTION_RECEIPT_KEYS)
+    || value.schemaVersion !== 1
+    || value.connection !== "connected"
+    || !canonicalIso(value.preparedAt)
+    || !/^[a-f0-9]{40}$/u.test(value.candidateSha)
+    || !/^(?:leetcode|nowcoder)$/u.test(value.platform)
+    || !/^[A-F0-9]{64}$/u.test(value.profileIdentity)
+    || !/^[A-F0-9]{64}$/u.test(value.databaseIdentity)
+    || !/^[A-F0-9]{64}$/u.test(value.vaultConfigIdentity)
+    || !/^[a-p]{32}$/u.test(value.extensionId)
+    || !/^[A-F0-9]{64}$/u.test(value.installationIdentity)
+    || !Number.isInteger(value.captureCapabilityVersion)
+    || value.captureCapabilityVersion < 1
+    || !/^[A-F0-9]{64}$/u.test(value.candidateReceiptHash)
+    || !exactDataSnapshotKeys(value.artifactHashes, CANDIDATE_ARTIFACT_KEYS)
+    || !exactDataSnapshotKeys(value.database, ZERO_DATABASE_KEYS)
+    || ![...ZERO_DATABASE_KEYS].every((key) => value.database[key] === 0)
+    || !objectValue(expected)) {
+    return { ok: false, reason: "observer_connection_receipt_rejected" };
+  }
+  for (const key of [
+    "candidateSha",
+    "platform",
+    "profileIdentity",
+    "databaseIdentity",
+    "vaultConfigIdentity",
+    "extensionId",
+    "candidateReceiptHash",
+  ]) {
+    if (value[key] !== expected[key]) {
+      return { ok: false, reason: "observer_connection_receipt_rejected" };
+    }
+  }
+  for (const key of CANDIDATE_ARTIFACT_KEYS) {
+    if (typeof value.artifactHashes[key] !== "string"
+      || value.artifactHashes[key] !== expected.artifactHashes?.[key]) {
+      return { ok: false, reason: "observer_connection_receipt_rejected" };
     }
   }
   return { ok: true };
@@ -1243,7 +1308,7 @@ export function persistentObserverEntrypoint(configuration) {
     || (typeof value === "string" && (safeCaptureErrors.has(value)
       || /^HTTP [1-5][0-9]{2}$/u.test(value)
       || /^Isolated result: HTTP [1-5][0-9]{2}$/u.test(value)
-      || /^Pairing required: HTTP 401$/u.test(value)
+      || /^Capability rejected: HTTP 401$/u.test(value)
       || /^Origin rejected: HTTP 403$/u.test(value)
       || /^Network unavailable: Network request failed$/u.test(value)));
   const knownPlatforms = new Set(["leetcode", "nowcoder", "luogu", "codeforces", "atcoder"]);

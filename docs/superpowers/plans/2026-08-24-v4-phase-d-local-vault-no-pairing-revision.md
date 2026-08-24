@@ -536,3 +536,29 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
 - 证据：
   `work/reports/v4-phase-d-local-vault-d4-route-h-installation-2026-08-25.md`。
 - D5 是下一且唯一可执行阶段；D7、真实 OJ、push、PR、RC 和 release 仍未授权。
+
+## 18. Revision 2 D5 执行结果（2026-08-25）
+
+- READY 工具收敛为显式两步：先以 `--prepare-connection=true` 创建 fresh 固定
+  profile，只打开 localhost settings 完成 Route H 一击连接并证明 disposable DB
+  `0/0/0`；后续 READY 必须复用同一 profile 和严格收据。
+- 收据绑定 candidate、五个 exact-dist 哈希、candidate receipt 哈希、extension ID、
+  canonical profile/database/Vault-config identity、installation identity hash 和
+  capability version；任一漂移均在 OJ 导航前失败关闭。
+- runner/observer 不读取、复制或输出 raw capability。扩展独占其生成和存储；工具
+  只验证公开连接状态及 Vault 外配置文件的预期存在性。
+- observer 只忽略当前 Route H 公共键；旧 `captureCredential`、
+  `captureCredentialVersion`、`pairedAt` 不再豁免，遗留键漂移会失败关闭。
+- acceptance profile/validator、候选路径白名单和用户文档均完成对齐。候选验证改为
+  检查 `6c0e1d7..candidate` 的完整累计路径，保留分阶段提交下的显式边界。
+- 聚焦 `138/138`、lint、typecheck、extension check `1671/1671`、隐私审计
+  `0 findings`、acceptance-profile validator 和 adapter-readiness validator
+  全部通过；默认数据库 size/mtime/hash 不变。
+- 冻结 observation-tool hash：
+  `309B3772EF23D28699841F66648FEC107E5D62CE8694F083AF5E157157A22C35`；
+  acceptance-profile hash：
+  `D8C348F13AE302166D0DDF4514FC5108CAAE39CBFA2D056A298A4CE4A6693225`。
+- 证据：
+  `work/reports/v4-phase-d-local-vault-d5-ready-contract-2026-08-25.md`。
+- D6 全量离线终门与新候选冻结是下一且唯一授权阶段；D7、OJ 导航、真实动作、
+  RC、release、push 和 PR 仍未授权。

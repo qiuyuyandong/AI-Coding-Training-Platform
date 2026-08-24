@@ -9,6 +9,7 @@ declare module "*/scripts/v4-live-observation-observer.mjs" {
   export const EXACT_SESSION_SNAPSHOT_KEYS: readonly string[];
   export function isCanonicalDescendant(parent: string, child: string): boolean;
   export function validateCandidateReceipt(value: unknown, expected: Readonly<Record<string, unknown>>): Readonly<{ ok: boolean; reason?: string }>;
+  export function validateReadyConnectionReceipt(value: unknown, expected: Readonly<Record<string, unknown>>): Readonly<{ ok: boolean; reason?: string }>;
   export function createObservationTerminalController(input: Readonly<{ closeContext: () => void | Promise<void>; rejectArmed: (error: Error) => void }>): Readonly<{ fail: (reason: string) => boolean; readonly terminal: boolean; readonly reason?: string }>;
   export function isExactObserverPageUrl(actual: string, expected: string): boolean;
   export function projectStageEvidence(state: Readonly<Record<string, unknown>>, database: Readonly<{ captureEvents: number; trainingSessions: number; trainingAttempts: number }>): Readonly<{ ok: boolean; value?: Readonly<Record<string, unknown>>; reason?: string }>;

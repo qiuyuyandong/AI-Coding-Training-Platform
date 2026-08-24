@@ -76,9 +76,9 @@ loads exact `extension/dist`, denies external page and worker networking, and
 proves a synthetic fulfilled POST is observed before and after worker
 stop/reawaken. It does not test a real OJ protocol or automatic capture.
 
-Load `extension/dist` as an unpacked Chrome extension. Open `http://localhost:3000/settings`, create a pairing code, and paste it into the popup. The code expires after ten minutes and is consumed once. The V4 Phase 0 popup reports confirmed-only `等待判题`, `待同步结果`, and `已隔离结果` separately, together with transition, migration, and blocking diagnostics. `等待判题` remains zero because Phase 0 has no network-confirmed submission producer.
+Load `extension/dist` as an unpacked Chrome extension. Open `http://localhost:3000/settings` and click `连接扩展` once. The page receives only a 60-second challenge; the extension sends its new capability directly to the local service. The V4 popup reports the connection state plus confirmed-only `等待判题`, `待同步结果`, and `已隔离结果` separately. `等待判题` remains zero because Phase 0 has no network-confirmed submission producer.
 
-Use `/settings` to rotate or revoke credentials. Rotation creates a code scoped to that installation; paste it into the same extension to atomically replace the old credential. Revocation causes capture requests to return 401 until an explicit targeted rotation code pairs it again.
+Browser restart, extension reload, and Vault switch reuse the connection. After extension reinstall, return to `/settings` and click once; the new capability atomically replaces the old app-side hash. A rejected capability keeps the outbox intact and the popup links back to settings.
 
 Visible accepted, wrong-answer, compile-error, runtime-error, time-limit, memory-limit, and partial verdict text remains passively detectable. In Phase 0 those candidates cannot create a new bundle or training record.
 
@@ -90,7 +90,23 @@ Outbox delivery is serialized by bundle. Network errors and 401/403 preserve eve
 
 The supported domestic problem routes are `leetcode.cn/problems/<slug>`, `www.nowcoder.com/practice/<id>`, `ac.nowcoder.com/acm/problem/<id>`, and `www.luogu.com.cn/problem/<id>`. Exact result routes are also injected for passive detection: LeetCode `/problems/<slug>/submissions/<digits>/` and `/submissions/detail/<digits>/`, NowCoder `/acm/contest/view-submission?submissionId=<digits>`, and Luogu `/record/<digits>`. The NowCoder E3 ingress gate additionally requires the exact pathname without a trailing slash, an `https://` origin, no credentials, no non-default port, no hash, exactly one `submissionId` query key with `[0-9]{1,20}` decimal digits, and the top frame; the gate lives in `extension/src/contentIngress.ts:isExactNowCoderResultUrl` and the producer in `extension/src/background.ts:applyContentIngress`. LeetCode may restore `/problems/<slug>/` while retaining the selected submission-detail tab; that surface is accepted only when it is the unique visible selected tab in the first-party tabbar and contains a recognized final verdict. Duplicate identical verdict panes are collapsed, conflicts are rejected, and transient labels such as `提交详情` remain pending. Runtime checks reject malformed IDs, extra query/hash data, spoofed hosts, ambiguous anchors, and hidden or overlong title text. Sanitized `authenticated-characterization` fixtures cover LeetCode AC, NowCoder AC, and Luogu AC/Compile Error; they never certify production.
 
-On V4 initialization, authoritative V4 state and the click-intent migration audit are written before `pendingSubmissionIntents` is removed. No V3 intent becomes a confirmed submission. Existing completed outbox, quarantine, pairing, endpoint, installation, and earlier migration state is preserved. The earlier V3 migration of the pre-bundle `eventQueue` remains historical and is not rerun or reinterpreted. Neither migration modifies server records.
+### Route H READY preparation contract
+
+This describes the frozen tooling contract; it does not authorize D7 or any OJ
+navigation. For each future authorized lane, run `extension:observe:d4` once
+with the exact candidate/dist/receipt/hash arguments and
+`--prepare-connection=true`. That mode creates one fresh fixed profile, opens
+only the local settings page, performs the one-click Route H connection, proves
+the disposable database remains `0/0/0`, writes a bounded receipt under
+`.tmp/v4-ready-connection-receipts/`, closes Chrome, and exits without opening
+an OJ. The later READY invocation uses the same arguments without the flag; it
+requires the existing profile and receipt, verifies the same candidate, five
+artifact hashes, extension ID, profile/database/Vault-config identities,
+installation identity hash and capability version, and only then may navigate
+to the separately authorized browse-only target. Neither mode reads, copies or
+emits the raw capability; the extension owns its creation and storage.
+
+On V4 initialization, authoritative V4 state and the click-intent migration audit are written before `pendingSubmissionIntents` is removed. No V3 intent becomes a confirmed submission. Existing completed outbox, quarantine, endpoint, installation, and earlier migration state is preserved. Legacy visible-pairing keys are removed and never copied into the Route H capability. The earlier V3 migration of the pre-bundle `eventQueue` remains historical and is not rerun or reinterpreted. Neither migration modifies server records.
 
 ## Verification
 
@@ -186,8 +202,8 @@ The Phase B E3 ingress repair lives in
 `tests/extension-e2e/capture-v4-nowcoder-task6-real-retest.spec.ts`
 (Task 6: same-build fresh full-chain real retest). Both run with the
 production-built `extension/dist`, a brand-new Chromium user-data
-directory per test, the disposable Next server paired through
-`/api/capture/pairing-codes`, and the global-setup-managed
+directory per test, the disposable Next server connected through the Route H
+settings flow, and the global-setup-managed
 disposable SQLite at `.tmp/capture-v4-full-chain-*/`. They prove
 engineering evidence for the missing-E3 layer; NowCoder remains
 `experimental`. Run them with:
@@ -334,14 +350,14 @@ Stop the stale process before rerunning e2e. Avoid starting manual long-running 
 ### Existing completed bundles do not arrive
 
 1. Confirm the local app is reachable at `http://localhost:3000`.
-2. Confirm the popup says paired and capture is enabled. If it says pairing needs attention, create a new or targeted rotation code in `/settings` and pair again.
+2. Confirm the popup says `扩展已连接` and capture is enabled. If the connection is required or rejected, open `/settings` and click `连接扩展` once.
 3. Check the popup's `待同步结果` and `已隔离结果`; Phase 0 does not create new automatic bundles.
-4. Check `CaptureStatusPanel` only for delivery of bundles that already existed before the V4 migration.
+4. Check the problem-scoped attempt status for delivery of bundles that already existed before the V4 migration.
 5. Use the manual attempt form when a platform has no proven V4 network chain. LeetCode and NowCoder are network-`experimental`; AtCoder, Codeforces, and Luogu are network-`blocked`.
 
-Network errors are retryable. Invalid 400/413/415 responses and permanent 409 event-ID conflicts are dropped to avoid retry loops. A 401 is retained for pairing recovery. If a 409 occurs, inspect whether one producer reused an `eventId` for different event content.
+Network errors are retryable. Invalid 400/413/415 responses and permanent 409 event-ID conflicts are dropped to avoid retry loops. A 401 is retained for Route H reconnection. If a 409 occurs, inspect whether one producer reused an `eventId` for different event content.
 
-The pairing boundary assumes the local OS account and files remain trustworthy. A process that can edit the SQLite database or Chrome profile can bypass this local HTTP control; that host-compromise case is not solved by localhost bearer credentials.
+The Route H boundary assumes the local OS account and files remain trustworthy. It also deliberately accepts the narrower risk that another extension able to inject into the exact settings page may invoke the connection entrypoint. A process that can edit the OS config or Chrome profile can bypass this local HTTP control; those cases are not solved by localhost bearer capabilities.
 
 ### Sentry development issue is missing
 

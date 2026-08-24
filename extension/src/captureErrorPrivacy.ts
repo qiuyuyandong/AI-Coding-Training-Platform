@@ -33,7 +33,7 @@ const SAFE_CAPTURE_ERRORS = new Set([
 const SAFE_CAPTURE_ERROR_PATTERNS: readonly RegExp[] = [
   /^HTTP [1-5][0-9]{2}$/u,
   /^Isolated result: HTTP [1-5][0-9]{2}$/u,
-  /^Pairing required: HTTP 401$/u,
+  /^Capability rejected: HTTP 401$/u,
   /^Origin rejected: HTTP 403$/u,
   /^Network unavailable: Network request failed$/u,
 ];

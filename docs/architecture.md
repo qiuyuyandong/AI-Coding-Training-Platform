@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-08-16 (D4 `ISOLATED` minimum authorized for offline work; P0A-P2 complete; P3 next; candidate freeze, live observation, D5, RC, and release remain unauthorized)
+Last updated: 2026-08-25 (Route H D0-D5 implemented locally; D6 candidate freeze next; D7 live READY, RC, and release remain unauthorized)
 
 ## Overview
 
@@ -20,7 +20,7 @@ network-`blocked`.
 
 ```text
 Chrome MV3 extension
--> one-time pairing -> hashed installation credential
+-> one-click installation connection -> extension-only capability / app-side hash
 -> authenticated POST /api/capture/attempts
 -> one SQLite transaction: capture_events + deterministic projection
 -> training_sessions + training_attempts
@@ -157,7 +157,7 @@ through `parseSafeEvidence`. The local surface
 (`${platform}:${externalSubmissionId}` storageKey; bounded tombstones
 256 by default) carries confirmed submissions and tombstones; the
 `applyExtensionInitializationSplit` write plan is a structural diff that
-preserves durable outbox / quarantine / pairing / tombstones and only
+preserves durable outbox / quarantine / connection / tombstones and only
 re-emits keys whose value differs.
 
 ### V4 test infrastructure (Phase A closeout)
@@ -183,7 +183,7 @@ forbidden-key gate as part of A9 closeout.
 Task A10 adds `tests/extension-e2e/capture-v4-full-chain.spec.ts`, a
 smoke test that proves the disposable SQLite lifecycle + production
 extension artifact + scenario identity helpers + default-DB
-preservation. The full E2->E3->real-popup-pair->real-API->SQLite
+preservation. The full E2->E3->Route-H-connect->real-API->SQLite
 delivery probe and the worker-restart recovery probe remain out of
 Phase A scope. Task A11 integrates `npm run extension:e2e` into the
 canonical nine-stage `quality:gate` (after `extension:check` and before
@@ -195,14 +195,15 @@ reusable, idempotent bootstrap for future webServer-based integrations
 the final closeout report; see `work/reports/phase-a-final-closeout.md`.
 
 
-The service worker stores the long-lived credential in Chrome local storage;
+The service worker stores the installation capability in Chrome local storage;
 when the runtime exposes `StorageArea.setAccessLevel`, it restricts that area to
-trusted extension contexts. Older or reduced Chromium runtimes that omit the
-capability continue initialization instead of crashing. Content scripts receive
+trusted extension contexts. Older or reduced Chromium runtimes that omit that
+storage API continue initialization instead of crashing. Content scripts receive
 only installation ID, capture-enabled state, and provenance. `installationId`
-remains a logical correlation value. A separate random bearer credential
-authorizes writes and is bound to that ID by the server. Explicit web origins
-are rejected, but Origin is defense in depth rather than identity.
+remains a logical correlation value. A separate random bearer capability
+authorizes writes and is bound to that ID by the app-side hash record outside
+the Vault. Explicit web origins are rejected, but Origin is defense in depth
+rather than identity.
 
 Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with three status levels: `production`, `experimental`, `disabled`. Readiness is evidence metadata and does not branch the runtime detector. AtCoder is the sole `production` adapter; LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`. Domestic problem routes stay strict. LeetCode accepts exact `/submissions/detail/<id>` and `/problems/<slug>/submissions/<id>` routes. It also accepts the restored `/problems/<slug>/` URL as exact-result-equivalent only when the unique first-party `#submission-detail_tab` is inside the official tabbar, currently selected, visible, and exposes a recognized final verdict. The current UI's duplicate `console-result` panes are collapsed when identical and rejected when conflicting; transient detail chrome such as `提交详情` is ignored. NowCoder `view-submission?submissionId=<id>` and Luogu `/record/<id>` continue to require one unique, visible, bounded first-party problem anchor. No adapter scans the whole `body`. Authenticated characterization and the real LeetCode TLE recovery improve runtime evidence but do not bypass the public-DOM production certification gate.
 
@@ -217,19 +218,19 @@ Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (
 | `/coach` | Deterministic local Coach summary, signals, and recommendations. |
 | `/growth` | Local attempt counts, rates, distribution, and recent activity. |
 | `/compliance` | Product compliance boundaries. |
-| `/settings` | Creates one-time pairing/rotation codes and lists or revokes local extension installations. |
+| `/settings` | Shows the active Local Vault and performs one-click Route H extension connection. |
 
 ## API routes
 
 | API | Role |
 |---|---|
-| `POST /api/capture/events` | Authenticates the paired installation, validates a bounded V2 event, and atomically saves the raw event plus deterministic projection. |
-| `POST /api/capture/attempts` | Authenticates the paired installation, validates one strict completed-attempt bundle, and atomically writes all four raw events plus the final projection. |
-| `POST /api/capture/pairing-codes` | Same-origin management endpoint that creates a ten-minute new-installation or targeted rotation code. |
-| `POST /api/capture/pair` | Consumes a one-time code and returns a fresh installation credential once. |
-| `POST /api/capture/installations/:id/revoke` | Same-origin management endpoint that revokes an installation. |
-| `GET /api/capture/status` | Returns recent capture events for `CaptureStatusPanel`. |
-| `GET /api/attempts/recent` | Returns explicitly limited materialized attempts, optionally scoped by the paired `platform` and `externalId` query parameters. |
+| `POST /api/capture/connect/challenges` | Issues a same-origin, 60-second single-use connection challenge. |
+| `POST /api/capture/connect/complete` | Accepts one fixed-extension completion and stores only the capability hash outside the Vault. |
+| `POST /api/capture/connect/status` | Polls only the bounded challenge state; never returns a capability. |
+| `POST /api/capture/events` | Authenticates the Route H installation, validates a bounded V2 event, and atomically saves the raw event plus deterministic projection. |
+| `POST /api/capture/attempts` | Authenticates the Route H installation, validates one strict completed-attempt bundle, and atomically writes all four raw events plus the final projection. |
+| `GET /api/capture/status` | Returns the fixed authenticated connection/service health shape to the extension. |
+| `GET /api/attempts/recent` | Returns explicitly limited materialized attempts, optionally scoped by `platform` and `externalId` query parameters. |
 | `POST /api/attempts` | Creates one manual attempt and assigns its source on the server. |
 | `PATCH /api/attempts/:id` | Corrects whitelisted business fields with optimistic revision checking and a required reason. |
 | `GET /api/attempts/:id/corrections` | Returns lightweight scalar correction history, including void history. |
@@ -250,14 +251,14 @@ The SQLite schema is defined by migrations under `lib/db/migrations`.
 | `training_sessions` | One logical problem-page session; `ended_at` is nullable because `SESSION_ENDED` is best effort. |
 | `training_attempts` | One current attempt row. Captured rows retain session/submission identity; manual rows have no synthetic capture identity. Source, revision, and optional void metadata are stored directly. |
 | `attempt_corrections` | One scalar old/new row per actually changed field, grouped by correction ID and reason. It is audit metadata, never another attempt. |
-| `capture_installations` | Hashed credential, version, state, and audit timestamps for logical extension installations. |
-| `capture_pairing_codes` | Hashed, expiring, one-time codes optionally scoped to an installation rotation. |
 
 Raw event insertion and projection run in the same SQLite transaction. Event identity is content-sensitive: the same `eventId` and fingerprint is an idempotent replay, while the same `eventId` with a different payload is a conflict. Verdicts may arrive before submissions, multiple submissions remain distinct within one session, and a missing session-end event is valid.
 
 Migration `0003_capture_sessions_and_submissions.sql` is a deliberate V1 cutover: it drops legacy capture events and attempts while preserving problem metadata. The extension similarly discards its old V1 queue once and stores the discard timestamp and count.
 
 Migration `0004_capture_credentials.sql` preserves all V2 sessions, events, and attempts, adds credential tables, and permits both `extension_unpaired` and `extension_paired` provenance. Authentication, raw insertion, projection, and installation last-seen update share one outer transaction.
+
+Migration `0009_local_vault_extension_origin.sql` adds `extension_local`, preserves historical provenance rows unchanged, and removes the two obsolete Vault-resident credential tables. Route H authorization metadata now lives in an OS user configuration file outside every Vault and contains only a capability hash.
 
 Migration `0005_attempt_manual_corrections.sql` rebuilds only `training_attempts` to add server-owned `record_source`, optimistic `revision`, nullable capture identity for manual rows, and paired void metadata. It copies every existing V2 attempt as active `capture` data, then adds `attempt_corrections`. It does not clear sessions or raw events.
 
@@ -272,7 +273,7 @@ Migration `0005_attempt_manual_corrections.sql` rebuilds only `training_attempts
 - `lib/repositories/**` owns SQLite row mapping and persistence helpers.
 - `lib/services/captureTransition.ts` owns pure deterministic session/attempt transitions.
 - `lib/services/captureMaterializer.ts` owns the raw-event-plus-projection transaction.
-- `lib/services/captureCredentials.ts` owns pairing, rotation, revocation, authorization, and high-entropy secret hashing.
+- `lib/services/captureCapability.ts`, `lib/services/captureConnectionChallenge.ts`, and `lib/vault/captureInstallation.ts` own capability validation, single-use connection challenges, and Vault-external hash authorization.
 - `lib/services/canonicalProblemUrl.ts` owns platform-specific problem identity and canonical URL normalization.
 - `lib/services/coachAnalysis.ts` turns attempts into deterministic Coach signals and recommendations.
 - `lib/services/growthStats.ts` combines full-dataset SQL aggregates with a separately bounded recent-activity list.

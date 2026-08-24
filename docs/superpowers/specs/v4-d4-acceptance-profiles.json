@@ -2,15 +2,39 @@
   "schemaVersion": 1,
   "contractStatus": "authorized_for_offline_work_only",
   "authorizationSource": "docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md",
+  "transportAuthorizationSource": "docs/superpowers/plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md",
   "activationPrerequisites": [],
   "remainingAuthorizationGates": [
     "candidate_freeze",
-    "live_observation",
-    "d5"
+    "live_observation"
   ],
   "minimumCausalGrade": "ISOLATED",
   "directCapability": "CAPABILITY_BLOCKED",
   "aggregateCompletion": "all-active-profiles-pass-on-one-candidate",
+  "readyConnectionContract": {
+    "status": "authorized_offline_preparation_only",
+    "preparation": "fresh_profile_localhost_settings_once",
+    "requiredState": [
+      "exact_dist_and_fixed_extension_id",
+      "canonical_localhost_endpoint",
+      "active_disposable_vault_zero_database",
+      "capture_connection_connected",
+      "capture_recovery_ready",
+      "empty_waiting_outbox_quarantine"
+    ],
+    "receiptBindings": [
+      "candidate_sha",
+      "candidate_receipt_hash",
+      "exact_dist_hashes",
+      "profile_identity",
+      "database_identity",
+      "vault_config_identity",
+      "extension_id",
+      "installation_identity",
+      "capability_version"
+    ],
+    "secretPolicy": "ready_runner_never_reads_copies_or_emits_raw_capability"
+  },
   "coreInvariants": [
     "candidate_artifact_identity",
     "isolated_zero_baseline",

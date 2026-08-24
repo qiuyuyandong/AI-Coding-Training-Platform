@@ -37,14 +37,15 @@ const SESSION_KEYS = [
 
 const IGNORED_LOCAL_KEYS = [
   "installationId",
-  "captureCredential",
-  "captureCredentialVersion",
+  "captureCapability",
+  "captureCapabilityVersion",
+  "captureConnectionStatus",
+  "connectedAt",
   "captureEnabled",
   "captureEndpoint",
   "captureProtocolVersion",
   "lastDeliveredAttemptId",
   "lastDeliveredAttemptStatus",
-  "pairedAt",
   "v4ClickIntentMigration",
   "discardedPreBundleEventCount",
   "preBundleQueueDiscardedAt",
@@ -83,7 +84,11 @@ describe("V4 live observation storage-key diagnostic", () => {
 
   it("reports no rejection for a batch inside trigger or ignore lists", () => {
     expect(classify("session", { b3WitnessState: { newValue: {} } })).toEqual({ ok: true });
-    expect(classify("local", { pairedAt: { newValue: {} } })).toEqual({ ok: true });
+    expect(classify("local", { captureConnectionStatus: { newValue: {} } })).toEqual({ ok: true });
+    expect(classify("local", { pairedAt: { newValue: {} } })).toEqual({
+      ok: true,
+      rejected: { area: "local", keys: ["pairedAt"] },
+    });
     expect(classify("session", { uiHints: [], transientE1: [] })).toEqual({ ok: true });
   });
 
@@ -373,13 +378,18 @@ describe("V4 live observation storage-key diagnostic", () => {
     const runner = readFileSync("scripts/v4-live-observation.mjs", "utf8");
     expect(runner).toContain("async function assertCaptureReadyPreflight(popup)");
     expect(runner).toContain('Reflect.get(state, "captureEndpoint") !== canonicalEndpoint');
-    expect(runner).toContain('Reflect.get(state, "provenanceLevel") !== "extension_paired"');
+    expect(runner).toContain('Reflect.get(state, "provenanceLevel") !== "extension_local"');
+    expect(runner).toContain('Reflect.get(state, "captureConnectionStatus") !== "connected"');
+    expect(runner).toContain('argumentValue(args, "--prepare-connection")');
+    expect(runner).toContain("validateReadyConnectionReceipt");
+    expect(runner).toContain("connection_receipt_mismatch");
     expect(runner).toContain('Reflect.get(recovery, "state") !== "ready"');
     expect(runner).toContain('Reflect.get(state, "waitingCount") !== 0');
     expect(runner).toContain('Reflect.get(state, "outboxCount") !== 0');
     expect(runner).toContain('Reflect.get(state, "quarantineCount") !== 0');
     expect(runner).not.toContain("async function pairExtension(popup)");
     expect(runner).not.toContain("/api/capture/pairing-codes");
+    expect(runner).not.toMatch(/Reflect\.get\([^\n]+, "captureCapability"\)/u);
     const preflight = runner.indexOf("await assertCaptureReadyPreflight(popup)");
     const navigation = runner.indexOf("await platformPage.goto(startUrl");
     expect(preflight).toBeGreaterThan(-1);

@@ -34,11 +34,12 @@ describe("V4 D4 platform-specific acceptance profile validator", () => {
       contractStatus: "authorized_for_offline_work_only",
       authorizationSource:
         "docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md",
+      transportAuthorizationSource:
+        "docs/superpowers/plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md",
       activationPrerequisites: [],
       remainingAuthorizationGates: [
         "candidate_freeze",
         "live_observation",
-        "d5",
       ],
       minimumCausalGrade: "ISOLATED",
       directCapability: "CAPABILITY_BLOCKED",
@@ -53,10 +54,16 @@ describe("V4 D4 platform-specific acceptance profile validator", () => {
       "authorization source must resolve to the reviewed D4 rescue plan",
     );
 
+    const missingTransportSource = cloneProfiles();
+    missingTransportSource.transportAuthorizationSource = "docs/superpowers/plans/does-not-exist.md";
+    expect(validateV4D4AcceptanceProfiles(missingTransportSource, readiness)).toContain(
+      "transport authorization source must resolve to the approved Route H plan",
+    );
+
     const missingGate = cloneProfiles();
-    missingGate.remainingAuthorizationGates = ["candidate_freeze", "live_observation"];
+    missingGate.remainingAuthorizationGates = ["candidate_freeze"];
     expect(validateV4D4AcceptanceProfiles(missingGate, readiness)).toContain(
-      "candidate freeze, live observation, and D5 must remain separately gated",
+      "candidate freeze and live observation must remain separately gated",
     );
   });
 
@@ -102,6 +109,42 @@ describe("V4 D4 platform-specific acceptance profile validator", () => {
 
   it("locks the intervention-bounded action epoch into the core contract", () => {
     expect(profiles.coreInvariants).toContain("intervention_bounded_action_epoch");
+  });
+
+  it("locks READY to a fresh Route H preparation receipt without raw capability access", () => {
+    expect(profiles.readyConnectionContract).toEqual({
+      status: "authorized_offline_preparation_only",
+      preparation: "fresh_profile_localhost_settings_once",
+      requiredState: [
+        "exact_dist_and_fixed_extension_id",
+        "canonical_localhost_endpoint",
+        "active_disposable_vault_zero_database",
+        "capture_connection_connected",
+        "capture_recovery_ready",
+        "empty_waiting_outbox_quarantine",
+      ],
+      receiptBindings: [
+        "candidate_sha",
+        "candidate_receipt_hash",
+        "exact_dist_hashes",
+        "profile_identity",
+        "database_identity",
+        "vault_config_identity",
+        "extension_id",
+        "installation_identity",
+        "capability_version",
+      ],
+      secretPolicy: "ready_runner_never_reads_copies_or_emits_raw_capability",
+    });
+
+    const drift = cloneProfiles();
+    drift.readyConnectionContract = {
+      ...profiles.readyConnectionContract,
+      secretPolicy: "runner_reads_capability",
+    };
+    expect(validateV4D4AcceptanceProfiles(drift, readiness)).toContain(
+      "READY connection contract must match the closed Route H preparation boundary",
+    );
   });
 
   it("rejects duplicate or non-authorized platform profiles", () => {

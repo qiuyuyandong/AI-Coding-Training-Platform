@@ -22,6 +22,7 @@ import {
   projectSafeSnapshot,
   reduceObservationSnapshot,
   validateCandidateReceipt,
+  validateReadyConnectionReceipt,
   validateObservationDatabase,
   validateObservationTarget,
   validateStorageChange,
@@ -235,14 +236,15 @@ describe("V4 live observation storage observer", () => {
     ]);
     expect(IGNORED_LOCAL_KEYS).toEqual([
       "installationId",
-      "captureCredential",
-      "captureCredentialVersion",
+      "captureCapability",
+      "captureCapabilityVersion",
+      "captureConnectionStatus",
+      "connectedAt",
       "captureEnabled",
       "captureEndpoint",
       "captureProtocolVersion",
       "lastDeliveredAttemptId",
       "lastDeliveredAttemptStatus",
-      "pairedAt",
       "v4ClickIntentMigration",
       "discardedPreBundleEventCount",
       "preBundleQueueDiscardedAt",
@@ -256,8 +258,9 @@ describe("V4 live observation storage observer", () => {
   it("RED: accepts ignored-key batches by name and still rejects unknown keys", () => {
     expect(validateStorageChange("session", { b3WitnessState: { newValue: { nested: true } } }))
       .toEqual({ ok: true, keys: ["b3WitnessState"] });
-    expect(validateStorageChange("local", { pairedAt: { newValue: {} }, captureOutbox: { newValue: [] } }))
-      .toEqual({ ok: true, keys: ["pairedAt", "captureOutbox"] });
+    expect(validateStorageChange("local", { captureConnectionStatus: { newValue: {} }, captureOutbox: { newValue: [] } }))
+      .toEqual({ ok: true, keys: ["captureConnectionStatus", "captureOutbox"] });
+    expect(validateStorageChange("local", { pairedAt: { newValue: {} } }).ok).toBe(false);
     expect(validateStorageChange("session", { hostileUnknownKey: { newValue: {} } }).ok).toBe(false);
     expect(validateStorageChange("local", { captureHostileUnknown: { newValue: {} } }).ok).toBe(false);
   });
@@ -282,7 +285,7 @@ describe("V4 live observation storage observer", () => {
     expect(reads).toBe(0);
     if (result.ok) expect(result.value.session.uiHints).toBe(0);
     const localResult = applySafeStorageChange(baseline.value, "local", {
-      pairedAt: hostile,
+      captureConnectionStatus: hostile,
       captureOutbox: { newValue: [{}] },
     });
     expect(localResult.ok).toBe(true);
@@ -355,6 +358,42 @@ describe("V4 live observation storage observer", () => {
       ...receipt,
       artifactHashes: { ...artifactHashes, "popup.js": "F".repeat(64) },
     }, expected)).toEqual({ ok: false, reason: "observer_candidate_receipt_rejected" });
+  });
+
+  it("binds READY to one prepared Route H profile without carrying a raw capability", () => {
+    const artifactHashes = {
+      "manifest.json": "A".repeat(64),
+      "background.js": "B".repeat(64),
+      "content.js": "C".repeat(64),
+      "popup.js": "D".repeat(64),
+      "main-world-bridge.js": "E".repeat(64),
+    };
+    const expected = {
+      candidateSha: "a".repeat(40),
+      platform: "leetcode",
+      profileIdentity: "1".repeat(64),
+      databaseIdentity: "2".repeat(64),
+      vaultConfigIdentity: "3".repeat(64),
+      extensionId: "abcdefghijklmnopabcdefghijklmnop",
+      candidateReceiptHash: "4".repeat(64),
+      artifactHashes,
+    };
+    const receipt = {
+      schemaVersion: 1,
+      ...expected,
+      installationIdentity: "5".repeat(64),
+      captureCapabilityVersion: 1,
+      database: { captureEvents: 0, trainingSessions: 0, trainingAttempts: 0 },
+      connection: "connected",
+      preparedAt: "2026-08-25T00:00:00.000Z",
+    };
+    expect(validateReadyConnectionReceipt(receipt, expected)).toEqual({ ok: true });
+    expect(validateReadyConnectionReceipt({ ...receipt, databaseIdentity: "6".repeat(64) }, expected))
+      .toEqual({ ok: false, reason: "observer_connection_receipt_rejected" });
+    expect(validateReadyConnectionReceipt({ ...receipt, database: { ...receipt.database, captureEvents: 1 } }, expected))
+      .toEqual({ ok: false, reason: "observer_connection_receipt_rejected" });
+    expect(validateReadyConnectionReceipt({ ...receipt, rawCapability: "must-not-exist" }, expected))
+      .toEqual({ ok: false, reason: "observer_connection_receipt_rejected" });
   });
 
   it("closes the observation context exactly once on the first terminal failure", async () => {

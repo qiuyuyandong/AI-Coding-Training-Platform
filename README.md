@@ -1,22 +1,14 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-24):** The V4 Phase D cross-project capture-chain repair is
-> frozen at product candidate
-> `34916705712cac1ef2e5d8816cd8e40fa4e29ca7`. Its exact candidate validator
-> passed with root unit `2550/1`, App E2E `25/25`, extension unit `1660/1660`,
-> extension E2E `54/1`, build `20/20`, privacy `0 findings`, and an unchanged
-> default SQLite file. Observer compatibility is separately frozen at
-> `9cf79268840870398165974376a322095bcea602` with tool hash
-> `EB564C52...F44DF19`. The old candidate's fresh LeetCode and NowCoder
-> READY-only lanes both passed with `ACTION_AUTHORIZED=0` and databases
-> `0/0/0`; the new candidate's READY-only lanes still require a separate
-> authorization. Development-only Sentry exception tooling was added in
-> `6c0e1d7` under ADR 0003; it is explicit opt-in, strips messages and request/
-> user/capture data, and is inert in tests and production. D4 is not delivered;
-> D5, real actions, RC, release, push, and PR remain unauthorized. LeetCode and
-> NowCoder remain network-`experimental`; AtCoder, Codeforces, and Luogu remain
-> network-`blocked`; historical AtCoder DOM production certification is
-> unchanged.
+> **Status (2026-08-25):** Route H Local Vault engineering D0-D5 is implemented
+> locally. The app owns SQLite, the extension connects once through `/settings`,
+> and a hidden installation capability replaces the visible pairing code. The
+> default database remains unchanged. D6 full-gate validation and candidate
+> freeze are next; D7 real-site READY-only, real actions, RC, release, push, and
+> PR remain separately gated and unauthorized. The former candidate `3491670`
+> is historical evidence for the superseded paired product and cannot certify
+> Route H. LeetCode and NowCoder remain network-`experimental`; AtCoder,
+> Codeforces, and Luogu remain network-`blocked`.
 >
 > **Earlier V4 evidence (still authoritative for their own scope):**
 > V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12.
@@ -50,14 +42,14 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; V4 Phase D D1-D3 are complete, while D4 still requires contemporaneous active-policy stage evidence and D5 has not started. Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; Route H Local Vault D0-D5 is implemented and awaits D6 candidate freeze. Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 
 - a small problem-metadata catalog;
 - deep links to original OJ problem pages;
 - a Chrome extension that detects user-visible training events;
-- a paired, session- and submission-aware local capture API;
+- an installation-connected, session- and submission-aware local capture API;
 - captured and manually entered local attempts, with traceable corrections and logical voiding;
 - Coach and Growth pages that use active attempts by default;
 - a V0 **manual learning loop** (implemented; observation and acceptance pending): curriculum package 1.0.1 has 12 nodes, 12 reviewed resources, 12 mapped practice tasks (11 domestic OJ links across LeetCode.cn, Luogu and NowCoder plus one manual Git exercise), 13 prerequisite edges and 9 career summaries; a 6-prompt resumable diagnosis with starting-node override; deterministic candidate selection with semantic alternatives; an atomic completion loop that records attempt, attempt→node mapping, ability projection and successor plan; optional opt-in per-completion AI reflection (default disabled, network-denial guard, deterministic fallback). V0 introduces the `/map`, `/plan`, and `/today` pages and the underlying services, repositories, migrations 0006/0007/0008, and validators.
@@ -119,7 +111,7 @@ npm run extension:build
 
 Load `extension/dist` as an unpacked extension in Chrome. Keep the local app running at `http://localhost:3000`. The V4 Phase 0 click-ingress stopgap ensures that an exact submit click creates only a short-lived E0 hint, not waiting state or a local intent. V4 Phase A supplies the Safe Evidence boundary, pure Capture State Machine, production webRequest observer, optional MAIN bridge, and Fake OJ matrix. Later Phase B/C work adds strict experimental LeetCode and NowCoder network policies that can produce E2/E3-backed bundles; existing completed historical bundles remain deliverable through the same V3 four-event API contract. Opening, closing, navigating, running, or debugging alone does not create a pending training result.
 
-Before the first capture, open `/settings`, create a ten-minute pairing code, and paste it into the extension popup. The app stores only a hash of the long-lived credential. `/settings` can issue a targeted rotation code or revoke an installation; `installationId` remains correlation metadata and is not itself authorization.
+Before the first capture, open `/settings` and click `连接扩展`. The page receives only a 60-second single-use challenge; the extension creates the capability and sends it directly to the local completion endpoint. The raw value remains in trusted extension storage and the app stores only its SHA-256 in the OS user configuration area outside every Vault. Browser restart, extension reload, and Vault switch reuse the connection; extension reinstall requires one new click. `installationId` remains correlation metadata and is not itself authorization.
 
 ## Training Records Loop
 
@@ -174,7 +166,8 @@ attempts or edits Chrome LevelDB directly.
 The V4 stopgap migration separately removes every V3
 `pendingSubmissionIntents` record, records only the removed active count and
 migration reason/time, and never promotes one into a confirmed submission. It
-preserves completed delivery and pairing data.
+preserves completed delivery data and historical provenance; legacy visible-pairing
+storage is removed without being copied into the Route H capability.
 
 Run migrations before exercising the loop:
 

@@ -96,7 +96,102 @@ export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md",
   "work/reports/v4-phase-d-task16-leetcode-automated-observation-2026-08-10.md",
   "work/reports/v4-phase-d-task21-same-sha-automated-observations-2026-08-10.md",
+  ".gitignore",
+  "AGENTS.md",
+  "README.md",
+  "COMPLIANCE.md",
+  "app/api/capture/attempts/route.ts",
+  "app/api/capture/connect/challenges/route.ts",
+  "app/api/capture/connect/complete/route.ts",
+  "app/api/capture/connect/status/route.ts",
+  "app/api/capture/events/route.ts",
+  "app/api/capture/installations/[id]/revoke/route.ts",
+  "app/api/capture/pair/route.ts",
+  "app/api/capture/pairing-codes/route.ts",
+  "app/api/capture/status/route.ts",
+  "app/settings/CaptureConnectionSettings.tsx",
+  "app/settings/CapturePairingSettings.tsx",
+  "app/settings/page.tsx",
+  "components/CaptureStatusPanel.tsx",
+  "components/TrainingWorkspace.tsx",
+  "docs/architecture.md",
+  "docs/decisions/0004-local-vault-extension-origin-trust.md",
+  "docs/runbook.md",
+  "docs/superpowers/README.md",
+  "docs/superpowers/plans/2026-08-16-v4-phase-d-p7-failure-diagnostic-revision.md",
+  "docs/superpowers/plans/2026-08-24-development-only-sentry-error-tooling.md",
+  "docs/superpowers/plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md",
+  "docs/superpowers/plans/2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md",
+  "docs/superpowers/specs/2026-07-14-phase-0b3-localhost-credential-design.md",
+  "docs/superpowers/specs/v4-d4-acceptance-profiles.json",
+  "extension/identity.json",
+  "extension/src/captureStateMachine.ts",
+  "extension/src/localConnection.ts",
+  "lib/db/migrations.ts",
+  "lib/db/migrations/0009_local_vault_extension_origin.sql",
+  "lib/domain/captureCredential.ts",
+  "lib/extension/identity.ts",
+  "lib/http/captureRequest.ts",
+  "lib/http/captureRouteError.ts",
+  "lib/http/extensionOrigin.ts",
+  "lib/repositories/captureInstallations.ts",
+  "lib/services/captureCapability.ts",
+  "lib/services/captureConnectionChallenge.ts",
+  "lib/services/captureCredentials.ts",
+  "lib/vault/captureInstallation.ts",
+  "lib/vault/launcher.ts",
+  "lib/vault/localVault.ts",
+  "lib/vault/systemPicker.ts",
+  "next.config.ts",
+  "package.json",
+  "playwright.config.ts",
+  "playwright.extension.config.ts",
+  "playwright.origin-spike.config.ts",
+  "playwright.route-h-spike.config.ts",
+  "scripts/extension-e2e-server.mjs",
+  "scripts/local-vault.ts",
+  "scripts/v4-live-observation-observer.mjs",
+  "scripts/v4-live-observation.mjs",
+  "scripts/validate-v4-d4-acceptance-profiles.mjs",
+  "tests/e2e/capture-atcoder-problem.spec.ts",
+  "tests/e2e/capture-pairing.spec.ts",
+  "tests/e2e/captureFixtures.ts",
+  "tests/e2e/database.ts",
+  "tests/extension-e2e/capture-local-origin-spike.spec.ts",
+  "tests/extension-e2e/capture-local-route-h-production.spec.ts",
+  "tests/extension-e2e/capture-local-route-h-spike.spec.ts",
+  "tests/extension-e2e/database.ts",
+  "tests/extension-e2e/routeHConnection.ts",
+  "tests/unit/captureApi.test.ts",
+  "tests/unit/captureAttemptApi.test.ts",
+  "tests/unit/captureConnectionRoutes.test.ts",
+  "tests/unit/captureCredentials.test.ts",
+  "tests/unit/captureInstallation.test.ts",
+  "tests/unit/capturePairingSettings.test.tsx",
+  "tests/unit/captureRequest.test.ts",
+  "tests/unit/extensionIdentity.test.ts",
+  "tests/unit/extensionLocalConnection.test.ts",
+  "tests/unit/localVault.test.ts",
+  "tests/unit/localVaultMigration.test.ts",
+  "tests/unit/localVaultSettings.test.tsx",
+  "tests/unit/migrations.test.ts",
+  "tests/unit/v4D4AcceptanceProfileValidator.test.ts",
+  "tests/unit/v4LiveObservationObserver.d.ts",
+  "tests/unit/v4LiveObservationObserver.test.ts",
+  "tests/unit/v4LiveObservationStorageKeyDiagnostic.test.ts",
+  "work/reports/v4-phase-d-local-vault-d2-core-launcher-2026-08-25.md",
+  "work/reports/v4-phase-d-local-vault-d3-migration-adoption-2026-08-25.md",
+  "work/reports/v4-phase-d-local-vault-d4-route-h-installation-2026-08-25.md",
+  "work/reports/v4-phase-d-local-vault-d5-ready-contract-2026-08-25.md",
+  "work/reports/v4-phase-d-local-vault-d6-candidate-freeze-2026-08-25.md",
+  "work/reports/v4-phase-d-local-vault-p0-baseline-2026-08-24.md",
+  "work/reports/v4-phase-d-local-vault-p1-origin-spike-stop-2026-08-24.md",
+  "work/reports/v4-phase-d-local-vault-route-h-d1-spike-2026-08-25.md",
+  "work/reports/v4-phase-d-local-vault-transport-research-2026-08-24.md",
+  "work/reports/v4-phase-d-p7f6-new-candidate-ready-preflight-blocker-2026-08-24.md",
 ]);
+
+const ROUTE_H_CANDIDATE_BASE = "6c0e1d7e2184ac928f609cf94038aa00322f75e7";
 
 const GENERATED_OR_SECRET_PATH = /(?:^|\/)(?:\.tmp|test-results|playwright-report)(?:\/|$)|^extension\/dist(?:\/|$)|(?:^|\/)(?:\.env(?:\.|$)|node_modules)(?:\/|$)|(?:^|\/)(?:training-platform\.sqlite|.*\.(?:sqlite|sqlite3|db|key|pem|p12))$/iu;
 const RAW_TRANSCRIPT_PATH = /raw.*transcript|transcript.*raw/iu;
@@ -258,9 +353,9 @@ function readGitStatusPaths(cwd) {
   });
 }
 
-function readCommitPaths(cwd, sha) {
-  const result = git(["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", sha], cwd);
-  if (!result.ok) throw new Error(result.stderr.trim() || "git diff-tree failed");
+function readRouteHCandidatePaths(cwd, sha) {
+  const result = git(["diff", "--name-only", `${ROUTE_H_CANDIDATE_BASE}..${sha}`], cwd);
+  if (!result.ok) throw new Error(result.stderr.trim() || "git route H candidate diff failed");
   return result.stdout.split(/\r?\n/u).map((path) => path.trim()).filter(Boolean);
 }
 
@@ -355,6 +450,12 @@ export function validateCandidateCommit(cwd, sha) {
   const exists = git(["cat-file", "-e", `${sha}^{commit}`], cwd);
   state.check("candidate.commit-exists", exists.ok, exists.stderr.trim());
   if (!exists.ok) return state;
+  const baseExists = git(["cat-file", "-e", `${ROUTE_H_CANDIDATE_BASE}^{commit}`], cwd);
+  state.check("candidate.route-h-base-exists", baseExists.ok, baseExists.stderr.trim());
+  const descendsFromBase = baseExists.ok
+    ? git(["merge-base", "--is-ancestor", ROUTE_H_CANDIDATE_BASE, sha], cwd)
+    : { ok: false, stderr: "route H base missing" };
+  state.check("candidate.descends-from-route-h-base", descendsFromBase.ok, descendsFromBase.stderr.trim());
   const parents = git(["rev-list", "--parents", "-n", "1", sha], cwd).stdout.trim().split(/\s+/u);
   state.check("candidate.single-parent", parents.length === 2, parents);
   const identityState = validateCandidateIdentityState({
@@ -363,7 +464,7 @@ export function validateCandidateCommit(cwd, sha) {
     status: git(["status", "--porcelain", "--untracked-files=all"], cwd).stdout.trim(),
   });
   for (const check of identityState.checks) state.check(check.name, check.ok, check.detail);
-  const paths = readCommitPaths(cwd, sha);
+  const paths = baseExists.ok && descendsFromBase.ok ? readRouteHCandidatePaths(cwd, sha) : [];
   const pathState = validateCandidatePaths(paths);
   for (const check of pathState.checks) state.check(`candidate.${check.name}`, check.ok, check.detail);
   return state;
@@ -397,7 +498,7 @@ function main() {
     }
     const paths = hasPreflight
       ? readGitStatusPaths(repoRoot)
-      : readCommitPaths(repoRoot, values.candidate);
+      : readRouteHCandidatePaths(repoRoot, values.candidate);
     const pathState = validateCandidatePaths(paths);
     const state = checker();
     for (const check of pathState.checks) state.check(check.name, check.ok, check.detail);

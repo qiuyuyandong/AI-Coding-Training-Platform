@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import Database from "better-sqlite3";
@@ -20,6 +20,7 @@ import {
   projectFailureReceipt,
   reduceObservationSnapshot,
   validateCandidateReceipt,
+  validateReadyConnectionReceipt,
   validateObservationDatabase,
   validateObservationTarget,
 } from "./v4-live-observation-observer.mjs";
@@ -55,8 +56,13 @@ const OBSERVATION_TOOL_FILES = Object.freeze([
   fileURLToPath(import.meta.url),
   resolve("scripts", "v4-live-observation-observer.mjs"),
   resolve("scripts", "v4-live-observation-diagnostic.mjs"),
+  resolve("extension", "identity.json"),
 ]);
 const PROFILE_ROOT = resolve(".tmp", "v4-d4-observation-profiles");
+const CONNECTION_RECEIPT_ROOT = resolve(".tmp", "v4-ready-connection-receipts");
+const EXPECTED_EXTENSION_ID = JSON.parse(
+  readFileSync(resolve("extension", "identity.json"), "utf8"),
+).extensionId;
 
 function argumentValue(argv, name) {
   const argument = argv.find((value) => value.startsWith(`${name}=`));
@@ -131,17 +137,34 @@ function assertCandidateReceiptFile(path, expected, phase) {
   return sha256Bytes(raw);
 }
 
-function fixedProfilePath(profileId) {
+function fixedProfilePath(profileId, preparing) {
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/u.test(profileId)) {
     throw new Error("Invalid fixed disposable profile id");
   }
   mkdirSync(PROFILE_ROOT, { recursive: true });
   const profilePath = resolve(PROFILE_ROOT, profileId);
-  if (existsSync(profilePath)) {
-    throw new Error("Fixed disposable profile identity was already consumed; silent retry is forbidden");
+  if (preparing) {
+    if (existsSync(profilePath)) {
+      throw new Error("Fixed disposable profile identity was already consumed; silent retry is forbidden");
+    }
+    mkdirSync(profilePath);
+    return realpathSync.native(profilePath);
   }
-  mkdirSync(profilePath);
+  if (!existsSync(profilePath) || !lstatSync(profilePath).isDirectory()
+    || realpathSync.native(profilePath) !== profilePath) {
+    throw new Error("Prepared fixed profile is missing or non-canonical");
+  }
   return profilePath;
+}
+
+function connectionReceiptPath(profileId, preparing) {
+  mkdirSync(CONNECTION_RECEIPT_ROOT, { recursive: true });
+  const path = resolve(CONNECTION_RECEIPT_ROOT, `${profileId}.json`);
+  if (preparing && existsSync(path)) {
+    throw new Error("Connection preparation receipt already exists; silent retry is forbidden");
+  }
+  if (!preparing && !existsSync(path)) throw new Error("Connection preparation receipt is missing");
+  return path;
 }
 
 function readDatabaseCounts(dbPath) {
@@ -192,7 +215,14 @@ async function assertCaptureReadyPreflight(popup) {
     if (typeof state !== "object" || state === null) return "state_invalid";
     if (Reflect.get(state, "captureEnabled") !== true) return "capture_disabled";
     if (Reflect.get(state, "captureEndpoint") !== canonicalEndpoint) return "endpoint_invalid";
-    if (Reflect.get(state, "provenanceLevel") !== "extension_paired") return "pairing_invalid";
+    if (Reflect.get(state, "provenanceLevel") !== "extension_local") return "provenance_invalid";
+    if (Reflect.get(state, "captureConnectionStatus") !== "connected") return "connection_invalid";
+    const installationId = Reflect.get(state, "installationId");
+    const captureCapabilityVersion = Reflect.get(state, "captureCapabilityVersion");
+    if (typeof installationId !== "string" || installationId.length === 0
+      || !Number.isInteger(captureCapabilityVersion) || captureCapabilityVersion < 1) {
+      return "connection_identity_invalid";
+    }
     const recovery = Reflect.get(state, "captureRecoveryStatus");
     if (typeof recovery !== "object" || recovery === null
       || Reflect.get(recovery, "schemaVersion") !== 1
@@ -200,9 +230,78 @@ async function assertCaptureReadyPreflight(popup) {
     if (Reflect.get(state, "waitingCount") !== 0) return "waiting_not_empty";
     if (Reflect.get(state, "outboxCount") !== 0) return "outbox_not_empty";
     if (Reflect.get(state, "quarantineCount") !== 0) return "quarantine_not_empty";
-    return "ready";
+    return { installationId, captureCapabilityVersion };
   }, CANONICAL_CAPTURE_ENDPOINT);
-  if (result !== "ready") throw new Error(`Capture READY preflight rejected: ${result}`);
+  if (typeof result === "string") throw new Error(`Capture READY preflight rejected: ${result}`);
+  return result;
+}
+
+async function prepareReadyConnection(input) {
+  const worker = input.context.serviceWorkers()[0]
+    ?? await input.context.waitForEvent("serviceworker", { timeout: 20_000 });
+  const extensionId = new URL(worker.url()).hostname;
+  if (extensionId !== EXPECTED_EXTENSION_ID) throw new Error("Prepared extension ID is invalid");
+  const settings = await input.context.newPage();
+  try {
+    await settings.goto(`${LOCAL_APP_ORIGIN}/settings`, { waitUntil: "load" });
+    await settings.getByTestId("capture-connection-state").waitFor();
+    await settings.getByRole("button", { name: "连接扩展" }).click();
+    await settings.getByTestId("capture-connection-state")
+      .filter({ hasText: "扩展已连接" })
+      .waitFor({ timeout: 20_000 });
+  } finally {
+    await settings.close();
+  }
+  const popup = await input.context.newPage();
+  let ready;
+  try {
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
+    ready = await assertCaptureReadyPreflight(popup);
+  } finally {
+    await popup.close();
+  }
+  const finalDatabase = readDatabaseCounts(input.dbPath);
+  if (JSON.stringify(finalDatabase) !== JSON.stringify(input.initialCounts)) {
+    throw new Error("Connection preparation changed the disposable database");
+  }
+  if (!existsSync(resolve(input.vaultConfigPath, "capture-installation.json"))) {
+    throw new Error("Connection preparation did not create the bounded installation config");
+  }
+  const receipt = {
+    schemaVersion: 1,
+    candidateSha: input.candidateSha,
+    platform: input.platform,
+    profileIdentity: input.profileIdentity,
+    databaseIdentity: input.databaseIdentity,
+    vaultConfigIdentity: input.vaultConfigIdentity,
+    extensionId,
+    installationIdentity: sha256Bytes(ready.installationId),
+    captureCapabilityVersion: ready.captureCapabilityVersion,
+    candidateReceiptHash: input.candidateReceiptHash,
+    artifactHashes: input.artifactHashes,
+    database: finalDatabase,
+    connection: "connected",
+    preparedAt: new Date().toISOString(),
+  };
+  const validation = validateReadyConnectionReceipt(receipt, receipt);
+  if (!validation.ok) throw new Error(validation.reason);
+  writeFileSync(input.connectionReceiptPath, `${JSON.stringify(receipt, null, 2)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+  });
+  process.stdout.write(`CONNECTION_PREPARED=1\nCONNECTION_RECEIPT=${input.connectionReceiptPath}\n`);
+}
+
+function assertReadyConnectionReceiptFile(path, expected) {
+  let receipt;
+  try {
+    receipt = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    throw new Error("Connection preparation receipt is not valid JSON");
+  }
+  const validation = validateReadyConnectionReceipt(receipt, expected);
+  if (!validation.ok) throw new Error(validation.reason);
+  return receipt;
 }
 
 async function stopCharacterization(popup) {
@@ -236,6 +335,11 @@ function closedFailureVerdict(reason, failure) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const preparationArgument = argumentValue(args, "--prepare-connection");
+  if (preparationArgument !== "" && preparationArgument !== "true") {
+    throw new Error("--prepare-connection accepts only true");
+  }
+  const preparingConnection = preparationArgument === "true";
   const candidateSha = requiredArgument(args, "--candidate").toLowerCase();
   assertCandidateCommit(candidateSha);
   const expectedProfileHash = requiredSha256(args, "--profile-hash");
@@ -308,7 +412,25 @@ async function main() {
   });
   if (!databaseValidation.ok) throw new Error(databaseValidation.reason);
   await assertLocalAppReady();
-  const profilePath = fixedProfilePath(profileId);
+  const profilePath = fixedProfilePath(profileId, preparingConnection);
+  const profileIdentity = sha256Bytes(profilePath);
+  const databaseIdentity = sha256Bytes(dbPath);
+  const vaultConfigPath = resolve(dirname(dbPath), "vault-config");
+  const vaultConfigIdentity = sha256Bytes(vaultConfigPath);
+  const readyConnectionReceiptPath = connectionReceiptPath(profileId, preparingConnection);
+  const expectedReadyConnection = {
+    candidateSha,
+    platform: target.platform,
+    profileIdentity,
+    databaseIdentity,
+    vaultConfigIdentity,
+    extensionId: EXPECTED_EXTENSION_ID,
+    candidateReceiptHash,
+    artifactHashes: expectedHashes,
+  };
+  const readyConnectionReceipt = preparingConnection
+    ? undefined
+    : assertReadyConnectionReceiptFile(readyConnectionReceiptPath, expectedReadyConnection);
 
   const outputPath = resolve("output", "playwright", "v4-observation");
   mkdirSync(outputPath, { recursive: true });
@@ -321,6 +443,27 @@ async function main() {
       "--disable-features=ExtensionDisableUnsupportedDeveloper",
     ],
   });
+  if (preparingConnection) {
+    try {
+      await prepareReadyConnection({
+        context,
+        candidateSha,
+        platform: target.platform,
+        profileIdentity,
+        databaseIdentity,
+        vaultConfigPath,
+        vaultConfigIdentity,
+        dbPath,
+        initialCounts,
+        candidateReceiptHash,
+        artifactHashes: preflightHashes,
+        connectionReceiptPath: readyConnectionReceiptPath,
+      });
+    } finally {
+      await context.close().catch(() => undefined);
+    }
+    return;
+  }
   let popup;
   let platformPage;
   let stageState;
@@ -372,7 +515,7 @@ async function main() {
       schemaVersion: 2,
       note: "DIAGNOSTIC, NOT A READY RECEIPT, NOT ACCEPTANCE EVIDENCE",
       candidateSha,
-      profileIdentity: sha256Bytes(profileId),
+      profileIdentity,
       rejectedBatches: diagnosticBatches,
       stageSequence: sequence.entries,
       stageSequenceCapped: sequence.capped,
@@ -434,8 +577,8 @@ async function main() {
         schemaVersion: 3,
         platform: target.platform,
         candidateSha,
-        profileIdentity: sha256Bytes(profileId),
-        databaseIdentity: sha256Bytes(dbPath),
+        profileIdentity,
+        databaseIdentity,
         contract: {
           preAction: contractHashes,
           final: finalContractHashes,
@@ -465,8 +608,8 @@ async function main() {
         schemaVersion: 3,
         platform: target.platform,
         candidateSha,
-        profileIdentity: sha256Bytes(profileId),
-        databaseIdentity: sha256Bytes(dbPath),
+        profileIdentity,
+        databaseIdentity,
         contract: {
           preAction: contractHashes,
           final: finalContractHashes,
@@ -608,7 +751,13 @@ async function main() {
     });
     await popup.goto(observerPageUrl, { waitUntil: "domcontentloaded" });
     await stopCharacterization(popup);
-    await assertCaptureReadyPreflight(popup);
+    const readyConnection = await assertCaptureReadyPreflight(popup);
+    if (readyConnectionReceipt === undefined
+      || sha256Bytes(readyConnection.installationId) !== readyConnectionReceipt.installationIdentity
+      || readyConnection.captureCapabilityVersion !== readyConnectionReceipt.captureCapabilityVersion
+      || !existsSync(resolve(vaultConfigPath, "capture-installation.json"))) {
+      throw new Error("Capture READY preflight rejected: connection_receipt_mismatch");
+    }
 
     await popup.exposeFunction("__v4ObservationEvent", (event) => {
       eventChain = eventChain.then(() => processObserverEvent(event));

@@ -30,9 +30,9 @@ const ACTIVATION_PREREQUISITES = Object.freeze([]);
 const REMAINING_AUTHORIZATION_GATES = Object.freeze([
   "candidate_freeze",
   "live_observation",
-  "d5",
 ]);
 const AUTHORIZATION_SOURCE = "docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md";
+const TRANSPORT_AUTHORIZATION_SOURCE = "docs/superpowers/plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md";
 const PROPOSED_PLATFORMS = Object.freeze(["leetcode", "nowcoder"]);
 const DEFERRED_PLATFORMS = Object.freeze(["atcoder", "codeforces", "luogu"]);
 const FORBIDDEN_ROOT = /(?:latest|highest|time[- ]?only|time window|window[- ]?only|popup[- ]?only)/iu;
@@ -60,6 +60,25 @@ const READINESS_POLICY_ALIGNMENT = Object.freeze({
   leetcode: "aligned",
   nowcoder: "aligned",
 });
+const READY_REQUIRED_STATE = Object.freeze([
+  "exact_dist_and_fixed_extension_id",
+  "canonical_localhost_endpoint",
+  "active_disposable_vault_zero_database",
+  "capture_connection_connected",
+  "capture_recovery_ready",
+  "empty_waiting_outbox_quarantine",
+]);
+const READY_RECEIPT_BINDINGS = Object.freeze([
+  "candidate_sha",
+  "candidate_receipt_hash",
+  "exact_dist_hashes",
+  "profile_identity",
+  "database_identity",
+  "vault_config_identity",
+  "extension_id",
+  "installation_identity",
+  "capability_version",
+]);
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -124,11 +143,15 @@ export function validateV4D4AcceptanceProfiles(
     || !evidencePathExists(root, document.authorizationSource)) {
     failures.push("authorization source must resolve to the reviewed D4 rescue plan");
   }
+  if (document.transportAuthorizationSource !== TRANSPORT_AUTHORIZATION_SOURCE
+    || !evidencePathExists(root, document.transportAuthorizationSource)) {
+    failures.push("transport authorization source must resolve to the approved Route H plan");
+  }
   if (!sameClosedList(document.activationPrerequisites, ACTIVATION_PREREQUISITES)) {
     failures.push("activation prerequisites must be empty after P0A completion");
   }
   if (!sameClosedList(document.remainingAuthorizationGates, REMAINING_AUTHORIZATION_GATES)) {
-    failures.push("candidate freeze, live observation, and D5 must remain separately gated");
+    failures.push("candidate freeze and live observation must remain separately gated");
   }
   if (document.minimumCausalGrade !== "ISOLATED") {
     failures.push("authorized minimum causal grade must be ISOLATED");
@@ -141,6 +164,15 @@ export function validateV4D4AcceptanceProfiles(
   }
   if (!sameClosedList(document.coreInvariants, CORE_INVARIANTS)) {
     failures.push("core invariants must match the closed D4 contract");
+  }
+  const connection = document.readyConnectionContract;
+  if (!isRecord(connection)
+    || connection.status !== "authorized_offline_preparation_only"
+    || connection.preparation !== "fresh_profile_localhost_settings_once"
+    || !sameClosedList(connection.requiredState, READY_REQUIRED_STATE)
+    || !sameClosedList(connection.receiptBindings, READY_RECEIPT_BINDINGS)
+    || connection.secretPolicy !== "ready_runner_never_reads_copies_or_emits_raw_capability") {
+    failures.push("READY connection contract must match the closed Route H preparation boundary");
   }
 
   const readiness = readinessStatuses(readinessDocument);

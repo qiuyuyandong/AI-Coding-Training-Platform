@@ -46,7 +46,7 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("training-platform.sqlite").kind).toBe("forbidden");
   });
 
-  it("owns the reviewed Revision 5 exact-submit repair without widening to the live harness", () => {
+  it("owns the reviewed Revision 5 repair and the later Route H READY harness", () => {
     for (const path of [
       "extension/src/adapters/leetcode/network.ts",
       "extension/src/background.ts",
@@ -62,11 +62,11 @@ describe("V4 candidate validator", () => {
         reason: "explicit-task-path",
       });
     }
-    expect(classifyCandidatePath("scripts/v4-live-observation.mjs").kind).toBe("unknown");
-    expect(classifyCandidatePath("scripts/v4-live-observation-observer.mjs").kind).toBe("unknown");
+    expect(classifyCandidatePath("scripts/v4-live-observation.mjs").kind).toBe("candidate");
+    expect(classifyCandidatePath("scripts/v4-live-observation-observer.mjs").kind).toBe("candidate");
   });
 
-  it("owns the D4 result-root runtime and focused tests without absorbing acceptance tooling", () => {
+  it("owns the D4 result-root runtime and the Route H acceptance tooling", () => {
     for (const path of [
       "extension/src/submitEpochReplay.ts",
       "extension/src/submissionControl.ts",
@@ -87,7 +87,7 @@ describe("V4 candidate validator", () => {
       "scripts/v4-live-observation-observer.mjs",
       "scripts/validate-v4-d4-acceptance-profiles.mjs",
     ]) {
-      expect(classifyCandidatePath(path).kind).toBe("unknown");
+      expect(classifyCandidatePath(path).kind).toBe("candidate");
     }
   });
 
@@ -129,7 +129,7 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("work/reports/raw-nowcoder-transcript.json").kind).toBe("forbidden");
   });
 
-  it("owns the cross-project recovery runtime and tests without absorbing observation tooling", () => {
+  it("owns the cross-project recovery runtime, tests, and revised observation tooling", () => {
     const recoveryPaths = [
       "docs/superpowers/plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md",
       "extension/src/captureIngressReliability.ts",
@@ -149,8 +149,8 @@ describe("V4 candidate validator", () => {
     ] as const;
 
     expect(validateCandidatePaths([...recoveryPaths]).failedChecks).toEqual([]);
-    expect(classifyCandidatePath("scripts/v4-live-observation-observer.mjs").kind).toBe("unknown");
-    expect(classifyCandidatePath("tests/unit/v4LiveObservationObserver.test.ts").kind).toBe("unknown");
+    expect(classifyCandidatePath("scripts/v4-live-observation-observer.mjs").kind).toBe("candidate");
+    expect(classifyCandidatePath("tests/unit/v4LiveObservationObserver.test.ts").kind).toBe("candidate");
   });
 
   it("keeps the root quality gate isolated from ignored Git worktrees", () => {
@@ -211,6 +211,8 @@ describe("V4 candidate validator", () => {
     expect(source).toContain("const gateEvidence = runQualityGate(repoRoot);");
     expect(source).toContain("validateCandidateState(buildCliState(repoRoot, values, gateEvidence))");
     expect(source).toContain("const postGateIdentity = validateCandidateCommit(repoRoot, values.candidate);");
+    expect(source).toContain('const ROUTE_H_CANDIDATE_BASE = "6c0e1d7e2184ac928f609cf94038aa00322f75e7"');
+    expect(source).toContain("readRouteHCandidatePaths(repoRoot, values.candidate)");
   });
 
   it.each([

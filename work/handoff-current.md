@@ -1,6 +1,53 @@
 # Current Handoff
 
-## Status (2026-08-25 Route H D3 PASS; D4 is next)
+## Status (2026-08-25 Route H D5 PASS; D6 candidate freeze is next)
+
+The approved Route H installation-level Local Vault revision has completed D0
+through D5 on `feature/v1-followup`. D0 froze the decision and threat boundary;
+D1 proved the fixed-extension installation channel in official Chrome for
+Testing; D2 added the dependency-free Local Vault launcher; D3 migrated new
+capture provenance to `extension_local`; and D4 replaced visible pairing with
+the one-click, 60-second challenge and hidden 256-bit installation capability.
+The D4 product integration is commit `7dbbfc3`.
+
+D5 now closes the offline READY preparation contract without granting D7. A
+future separately authorized lane must first invoke the observation runner with
+`--prepare-connection=true`. Preparation creates one fresh fixed profile, opens
+only localhost settings, performs the Route H connection, proves its disposable
+database is `0/0/0`, and writes a bounded connection receipt. The later READY
+run must reuse that exact profile and receipt and match the candidate, all five
+exact-dist hashes, candidate-receipt hash, extension ID, canonical profile,
+database and Vault-config identities, installation-identity hash and capability
+version before any OJ navigation is possible. Neither mode reads, copies or
+emits the raw capability.
+
+The observer now ignores only the current public Route H installation fields;
+legacy `captureCredential`, `captureCredentialVersion` and `pairedAt` changes
+fail closed. The D4 acceptance profile and validator encode the new preparation
+contract, and the immutable-candidate validator classifies the complete Route H
+change range from `6c0e1d7` so the approved phased commits cannot evade the
+candidate path boundary. User-facing README, compliance, architecture and
+runbook documents describe the same one-click lifecycle and reconnect path.
+
+D5 focused validation passed `138/138`; lint, root typecheck, extension check
+`1671/1671`, privacy audit `0 findings`, acceptance-profile validation and
+adapter-readiness validation all pass. Frozen D5 observation-tool hash is
+`309B3772EF23D28699841F66648FEC107E5D62CE8694F083AF5E157157A22C35`; acceptance
+profile hash is
+`D8C348F13AE302166D0DDF4514FC5108CAAE39CBFA2D056A298A4CE4A6693225`.
+No OJ page, browser READY lane, real action, default SQLite migration, push or
+PR ran. Evidence is
+`work/reports/v4-phase-d-local-vault-d5-ready-contract-2026-08-25.md`.
+
+Candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` remains immutable historical
+evidence for the superseded paired product and cannot certify Route H. D6 is the
+next and only authorized action: run the full offline gates, freeze a new
+immutable candidate, exact dist and receipt, then stop. D7 LeetCode followed by
+NowCoder READY-only still requires a fresh explicit authorization bound to the
+new SHA and hashes; real actions, D4 delivery adjudication, RC, release, push and
+PR remain stopped.
+
+## Prior status (2026-08-25 Route H D3 PASS; D4 is next)
 
 The user confirmed the product defaults that supersede the proposed two-stage
 fresh-profile pairing repair: keep Next.js + localhost as the SQLite owner for

@@ -99,9 +99,9 @@ The browser extension is local-first and user-controlled:
 - capture can be disabled from the popup;
 - queued events stay in Chrome local storage until sent to the local app;
 - invalid events and permanent event-ID conflicts are dropped after a 400/409/413/415 response to avoid retry loops;
-- authentication failures retain queued events so the owner can re-pair without losing evidence;
+- authentication failures retain queued events so the owner can reconnect without losing evidence;
 - `installationId` is a logical correlation value, not a user identity or credential; a separate random credential authorizes local writes;
-- the long-lived credential is stored only in trusted extension contexts, while the app stores its hash;
+- the installation capability is stored only in trusted extension contexts, while the app stores only its hash outside every Vault;
 - no cookies, session tokens, passwords, or hidden platform data are read or uploaded;
 - commercial platform full statements remain out of scope unless explicitly licensed or manually entered by the user.
 - content-script host access is limited to declared OJ hosts and route logic accepts only supported problem paths; authenticated pages are used only through the learner's visible browser session;
@@ -147,7 +147,7 @@ Verdict capture keeps using the browser session without extracting the browser s
 
 SPA observation uses URL/browser lifecycle signals and visible DOM mutations only; it does not patch page code, read hidden routing state, or add Chrome navigation permissions. Extension unit tests cover SPA decisions, while Playwright validates the downstream event sequence without claiming to load the unpacked MV3 extension.
 
-Authenticated localhost transport uses a deliberate one-time pairing code, a hashed install-scoped bearer credential, and owner-controlled rotation/revocation. Explicit web origins, non-JSON media types, and bodies over 64 KiB are rejected. `Origin` is only defense in depth, and host filesystem/browser-profile compromise remains outside this local boundary. `installationId` is still correlation metadata rather than security identity.
+Authenticated localhost transport uses one settings-page click, a 60-second single-use challenge, and an install-scoped 256-bit bearer capability. The raw capability stays in trusted extension storage; the app keeps only its hash in OS user configuration outside the active Vault. Missing, wrong, or stale Bearer authorization is rejected before capture-body parsing or SQLite access. Exact localhost host and extension Origin checks remain defense in depth, not extension identity. The accepted boundary does not claim to defeat a malicious extension that can inject into the allowed settings page; host filesystem/browser-profile compromise also remains outside this local boundary. `installationId` is correlation metadata rather than authorization.
 
 ## Phase 0D CI and Quality Gate Databases
 
