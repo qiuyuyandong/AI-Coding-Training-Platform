@@ -36,7 +36,25 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-24 capture candidate frozen; new READY pending):**
+> **Current status (2026-08-25 Route H D6 candidate frozen; D7 unauthorized):**
+> The approved installation-level Local Vault revision is offline-complete at
+> D6. Immutable Route H candidate
+> `0c23fcacf18d2fe4113d803504e638c1aab887d3` passed the exact validator with
+> root `2599/1`, App E2E `24/24`, extension `1671/1671`, extension E2E `55/1`,
+> build `20/20`, privacy `0 findings`, readiness/profile PASS and preserved
+> default-database metadata. Exact dist is
+> `.tmp/v4-route-h-exact-dist-0c23fca`; receipt is
+> `.tmp/v4-route-h-candidate-receipt-0c23fca.json` with SHA-256
+> `4EDA9DDD9FFB4311EDEA32B0D60DFEA34D54D07766E1490C02DB4B04582F9AEE`.
+> Observation-tool hash is `309B3772...22C35`; acceptance-profile hash is
+> `D8C348F1...3225`. Route H removes visible pairing, keeps the raw hidden
+> installation capability only in trusted extension storage, stores only its
+> hash outside each Vault, and preserves historical provenance while writing new
+> capture as `extension_local`. No OJ or READY lane ran. D7 requires a fresh
+> separate authorization for sequential LeetCode then NowCoder READY-only;
+> real actions, D4 delivery adjudication, RC, release, push and PR remain stopped.
+>
+> **Prior status (2026-08-24 capture candidate frozen; new READY pending):**
 > The cross-project capture-chain repair is frozen at immutable product
 > candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7`; exact validation passed
 > with root `2550/1`, App E2E `25/25`, extension `1660/1660`, extension E2E

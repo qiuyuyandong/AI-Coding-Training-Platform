@@ -1,6 +1,63 @@
 # Current Handoff
 
-## Status (2026-08-25 Route H D5 PASS; D6 candidate freeze is next)
+## Status (2026-08-25 Route H D6 PASS; D7 requires separate authorization)
+
+The approved Route H installation-level Local Vault revision is offline-complete
+through D6 on `feature/v1-followup`. Immutable product candidate
+`0c23fcacf18d2fe4113d803504e638c1aab887d3` passed the exact candidate validator.
+Its exact production extension is `.tmp/v4-route-h-exact-dist-0c23fca`; strict
+receipt is `.tmp/v4-route-h-candidate-receipt-0c23fca.json`, receipt SHA-256
+`4EDA9DDD9FFB4311EDEA32B0D60DFEA34D54D07766E1490C02DB4B04582F9AEE`.
+
+The pre-freeze quality gate and candidate-bound quality gate both passed with
+root unit `2599/1`, App E2E `24/24`, extension unit `1671/1671`, extension E2E
+`55/1`, production build `20/20`, privacy `0 findings`, D4 acceptance-profile
+PASS and adapter-readiness PASS. Candidate ancestry, cumulative Route H path
+allowlist, HEAD identity, clean worktree and default-database preservation all
+passed. The default database remains `479232` bytes, mtime
+`2026-07-23T15:56:38.8411343Z`, SHA-256
+`2485DBEA8E9C9CF2F073BC6C9BA4AA0A5261DC3744DDA7592A2890BC554666C3`.
+
+Exact-dist hashes are:
+
+- `manifest.json`:
+  `DE980FDBBE42EE293C154435716FCE7B5AF384BFB435BACD774AFFD17FB76B8F`
+- `background.js`:
+  `30866672C557BFF1DB878988A81A12193A6FC36E4E7CAAEE87C45601A68452EB`
+- `content.js`:
+  `FF56222167EFB0904AC50F2175BFD24C1C2711E9966E879A8099427C16339D8D`
+- `popup.js`:
+  `2AA3FC47953AEC4505D89736DEA93F49E226BE817ADEEE024B1A35D917AB06E1`
+- `main-world-bridge.js`:
+  `4D89A80F0351295EE1C0CD173BE107080983868D18510D028854695EACEE3943`
+
+Route H keeps Next.js as the sole SQLite owner and replaces visible pairing with
+one localhost settings click, a 60-second single-use challenge and a hidden
+256-bit installation capability. The raw value remains only in trusted
+extension storage, while the app retains only its hash outside every Vault.
+Restart, reload and Vault switch reuse the installation; reinstall rotates it
+and requires one reconnect click. New capture provenance is `extension_local`;
+historical paired/unpaired data remains historical and unchanged.
+
+D5's two-step READY preparation contract is frozen with observation-tool hash
+`309B3772EF23D28699841F66648FEC107E5D62CE8694F083AF5E157157A22C35` and
+acceptance-profile hash
+`D8C348F13AE302166D0DDF4514FC5108CAAE39CBFA2D056A298A4CE4A6693225`.
+It first prepares a fresh fixed profile through localhost only, then requires
+that exact profile and bounded receipt before any later authorized OJ
+navigation. The runner never reads or emits the raw capability.
+
+No OJ page, READY lane or real action ran during Route H D0-D6. Candidate
+`34916705712cac1ef2e5d8816cd8e40fa4e29ca7` remains immutable historical
+evidence for the superseded paired product and cannot certify Route H. The next
+possible action is D7, but it requires a fresh explicit authorization bound to
+the new candidate, exact dist, receipt and frozen tool/profile hashes. It must
+run LeetCode first and stop on failure; only a passing first lane may proceed to
+NowCoder. Real actions, D4 delivery adjudication, RC, release, push and PR remain
+stopped. Evidence is
+`work/reports/v4-phase-d-local-vault-d6-candidate-freeze-2026-08-25.md`.
+
+## Prior status (2026-08-25 Route H D5 PASS; D6 candidate freeze is next)
 
 The approved Route H installation-level Local Vault revision has completed D0
 through D5 on `feature/v1-followup`. D0 froze the decision and threat boundary;

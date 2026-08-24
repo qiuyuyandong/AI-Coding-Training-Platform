@@ -1,14 +1,17 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-25):** Route H Local Vault engineering D0-D5 is implemented
-> locally. The app owns SQLite, the extension connects once through `/settings`,
-> and a hidden installation capability replaces the visible pairing code. The
-> default database remains unchanged. D6 full-gate validation and candidate
-> freeze are next; D7 real-site READY-only, real actions, RC, release, push, and
-> PR remain separately gated and unauthorized. The former candidate `3491670`
-> is historical evidence for the superseded paired product and cannot certify
-> Route H. LeetCode and NowCoder remain network-`experimental`; AtCoder,
-> Codeforces, and Luogu remain network-`blocked`.
+> **Status (2026-08-25):** Route H Local Vault engineering D0-D6 is complete
+> locally. Immutable candidate `0c23fcacf18d2fe4113d803504e638c1aab887d3`
+> passed the exact candidate validator with root `2599/1`, App E2E `24/24`,
+> extension `1671/1671`, extension E2E `55/1`, build `20/20`, privacy
+> `0 findings`, readiness PASS and preserved default-database metadata. The app
+> owns SQLite, the extension connects once through `/settings`, and a hidden
+> installation capability replaces the visible pairing code. D7 real-site
+> READY-only, real actions, RC, release, push, and PR remain separately gated
+> and unauthorized. The former candidate `3491670` is historical evidence for
+> the superseded paired product and cannot certify Route H. LeetCode and
+> NowCoder remain network-`experimental`; AtCoder, Codeforces, and Luogu remain
+> network-`blocked`.
 >
 > **Earlier V4 evidence (still authoritative for their own scope):**
 > V4 infrastructure engineering PASS (scope-reduced) for Phase A Tasks A0-A12.

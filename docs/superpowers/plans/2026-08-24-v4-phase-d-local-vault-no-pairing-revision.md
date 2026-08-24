@@ -562,3 +562,29 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
   `work/reports/v4-phase-d-local-vault-d5-ready-contract-2026-08-25.md`。
 - D6 全量离线终门与新候选冻结是下一且唯一授权阶段；D7、OJ 导航、真实动作、
   RC、release、push 和 PR 仍未授权。
+
+## 19. Revision 2 D6 执行结果（2026-08-25）
+
+- Route H 新产品候选冻结为
+  `0c23fcacf18d2fe4113d803504e638c1aab887d3`；旧 `3491670` 仅保留为旧配对
+  产品历史证据，不能重新标记。
+- 候选前 `npm run quality:gate` 与候选绑定验证器内的真实 quality gate 均通过：
+  root `2599/1`、App E2E `24/24`、extension `1671/1671`、extension E2E
+  `55/1`、build `20/20`、privacy `0 findings`、acceptance profile PASS、
+  adapter readiness PASS。
+- `node scripts/validate-v4-candidate.mjs --candidate 0c23fcacf18d2fe4113d803504e638c1aab887d3`
+  返回 `V4 candidate commit PASS`；HEAD/clean/commit replay、Route H 累计路径
+  白名单、secret/generated/raw-transcript 排除和默认数据库不变均通过。
+- exact dist：`.tmp/v4-route-h-exact-dist-0c23fca`；strict receipt：
+  `.tmp/v4-route-h-candidate-receipt-0c23fca.json`；receipt SHA-256：
+  `4EDA9DDD9FFB4311EDEA32B0D60DFEA34D54D07766E1490C02DB4B04582F9AEE`。
+- 五个产物哈希分别为 manifest `DE980FDB...FB76B8F`、background
+  `30866672...68452EB`、content `FF562221...6339D8D`、popup
+  `2AA3FC47...7AB06E1`、bridge `4D89A80F...CEE3943`；完整值见 D6 报告和
+  candidate receipt。
+- 默认数据库仍为 `479232` bytes / `2026-07-23T15:56:38.8411343Z` /
+  `2485DBEA...54666C3`。没有 OJ、READY lane、真实动作、push 或 PR。
+- 证据：
+  `work/reports/v4-phase-d-local-vault-d6-candidate-freeze-2026-08-25.md`。
+- D0-D6 授权范围已全部完成并停止。D7 必须由用户基于新 SHA、exact dist、
+  receipt、tool/profile hashes 另行授权；LeetCode 首失败仍必须阻止 NowCoder。
