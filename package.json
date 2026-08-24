@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "local": "tsx scripts/local-vault.ts serve",
+    "vault:create": "tsx scripts/local-vault.ts create",
+    "vault:switch": "tsx scripts/local-vault.ts switch",
+    "vault:adopt": "tsx scripts/local-vault.ts adopt",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

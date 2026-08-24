@@ -474,3 +474,21 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
 - 证据：
   `work/reports/v4-phase-d-local-vault-route-h-d1-spike-2026-08-25.md`。
 - D1 硬停止门已通过；D2 是下一且唯一可执行阶段。
+
+## 15. Revision 2 D2 执行结果（2026-08-25）
+
+- 新增无第三方依赖的 Local Vault 核心、系统选择器和单一 launcher；四个 npm
+  入口为 `local`、`vault:create`、`vault:switch`、`vault:adopt`。
+- Vault descriptor、活动 pointer 和绝对路径/realpath/file-type/SQLite
+  完整性边界已实现；symlink/junction、collision、未知版本、相对路径和被占用的
+  localhost:3000 均失败关闭。取消选择零写入，停服后才能切换。
+- 旧库采用只复制并迁移目标临时副本，复制前后核对 hash，保留历史表行数，并
+  再次证明源 size/mtime/hash 不变；不提供 move、overwrite 或自动删除。
+- `/settings` 已成为只读 Local Vault 状态页，不提供运行中切库 API；可见配对码
+  组件和对应 UI/E2E 测试已删除。旧认证 API/表仍留到 D4/D3 按阶段移除。
+- 验证：聚焦 `17/17`；lint PASS；typecheck PASS；root unit
+  `2590/1`；App E2E `24/24`；build `20/20`。默认数据库 size/mtime/hash
+  不变，无新增依赖。
+- 证据：
+  `work/reports/v4-phase-d-local-vault-d2-core-launcher-2026-08-25.md`。
+- D3 是下一且唯一可执行阶段；D7 和所有真实 OJ 动作仍未授权。

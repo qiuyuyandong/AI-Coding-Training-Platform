@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-25 Route H D1 PASS; D2 is next)
+## Status (2026-08-25 Route H D2 PASS; D3 is next)
 
 The user confirmed the product defaults that supersede the proposed two-stage
 fresh-profile pairing repair: keep Next.js + localhost as the SQLite owner for
@@ -38,11 +38,23 @@ direct extension-to-extension rejection all passed. Chromium 138 was not used.
 The default database was preserved. Evidence is
 `work/reports/v4-phase-d-local-vault-route-h-d1-spike-2026-08-25.md`.
 
+Route H D2 is complete. The dependency-free Local Vault core now creates,
+validates, activates, switches and source-preservingly adopts real Vault
+directories; rejects relative/link/junction/collision/unknown-version/integrity
+failures; stores one atomic OS-config pointer; and launches Next.js through a
+non-shell child only after the localhost:3000 stopped-service gate. Native
+system pickers have explicit cancel/unavailable outcomes and never select cwd.
+`/settings` is a read-only Vault status page with no runtime switch API. Focused
+tests passed `17/17`; root unit `2590/1`, App E2E `24/24`, and build `20/20`
+passed with the default database preserved. Evidence:
+`work/reports/v4-phase-d-local-vault-d2-core-launcher-2026-08-25.md`.
+
 Candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` remains immutable historical
 evidence for the paired product, but it cannot certify the revised contract.
 Its READY-only authorization does not transfer to a future candidate. The next
-required action is D2 Vault core and launcher implementation. Real OJ browsing,
-actions, D7, RC, release, push, and PR remain stopped.
+required action is D3 forward migration `0009` and exhaustive every-prefix /
+source-preservation adoption proof. Real OJ browsing, actions, D7, RC, release,
+push, and PR remain stopped.
 
 ## Prior status (2026-08-24 new-candidate READY preflight blocked before browser launch)
 
