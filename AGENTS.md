@@ -455,6 +455,10 @@ For browser smoke QA, Playwright owns the server lifecycle; do not start a separ
 - Do not read cookies, session tokens, hidden platform data, localStorage tokens, passwords, or full commercial problem statements.
 - Do not add external LLM, analytics, sync, or third-party API calls for attempts, verdicts, code, reflections, or capture data without a new explicit design decision.
 - Capture and analysis remain local-only by default.
+- ADR 0003 permits only explicitly enabled local-development Sentry exception
+  projection. It sends no original message, request/user/database/OJ/capture
+  data, Replay, logs or traces and is inert in test/production. Production
+  service monitoring still requires a cloud-phase ADR.
 
 These are current implementation boundaries, not a permanent rejection of the approved cloud target. Future implementation must follow the active Phase plan and ADR; do not introduce cloud/AI behavior merely because it appears in the product vision.
 

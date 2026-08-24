@@ -23,6 +23,38 @@ npm run dev
 
 Open `http://localhost:3000`. The default local capture target is also `http://localhost:3000/api/capture/events`.
 
+### Optional development-only Sentry exceptions
+
+Ordinary development remains local and requires no Sentry configuration. To
+reproduce an unhandled browser and/or Next.js Node.js runtime exception under
+the closed ADR 0003 boundary, set the development DSN and current full Git SHA
+in the current PowerShell process before `npm run dev`:
+
+```powershell
+$devSentryDsn = '<development-project-ingest-dsn>'
+$env:GIT_MASTER = '1'
+$devSentrySha = git rev-parse HEAD
+$env:SENTRY_DEV_ENABLED = '1'
+$env:SENTRY_DEV_DSN = $devSentryDsn
+$env:SENTRY_DEV_RELEASE = $devSentrySha
+$env:NEXT_PUBLIC_SENTRY_DEV_ENABLED = '1'
+$env:NEXT_PUBLIC_SENTRY_DEV_DSN = $devSentryDsn
+$env:NEXT_PUBLIC_SENTRY_DEV_RELEASE = $devSentrySha
+npm run dev
+```
+
+Enable only the server variables when browser capture is unnecessary. The
+gate rejects production/test mode, non-literal flags, non-Sentry HTTPS DSNs
+and non-40-character releases. Do not add these values to tracked files;
+`.env.example` documents names only. No sample-error page or API exists: use a
+natural local runtime failure that is already being diagnosed.
+
+For Codex issue inspection, authenticate the Sentry MCP connection or set a
+separate local `SENTRY_AUTH_TOKEN` with only `org:read`, `project:read` and
+`event:read`. Never paste the token into chat and never reuse a build-plugin
+source-map token. Query only `environment:development`. Issue status and
+assignment changes remain manual and outside this workflow.
+
 Open a scoped `/training` URL to use the manual fallback. The form creates one `Manual entry`; its source cannot be supplied by the browser. The Training attempt panel can correct the six whitelisted business fields when a reason is provided. If another write has advanced the revision, refresh the current values and reapply the intended correction rather than overwriting it. Use `Void attempt` for a bad record; repeating the same void request is safe and does not append another correction.
 
 ## Browser extension
@@ -310,6 +342,20 @@ Stop the stale process before rerunning e2e. Avoid starting manual long-running 
 Network errors are retryable. Invalid 400/413/415 responses and permanent 409 event-ID conflicts are dropped to avoid retry loops. A 401 is retained for pairing recovery. If a 409 occurs, inspect whether one producer reused an `eventId` for different event content.
 
 The pairing boundary assumes the local OS account and files remain trustworthy. A process that can edit the SQLite database or Chrome profile can bypass this local HTTP control; that host-compromise case is not solved by localhost bearer credentials.
+
+### Sentry development issue is missing
+
+1. Confirm `NODE_ENV` is `development`, the selected side's enable flag is
+   exactly `1`, the DSN is an HTTPS `*.sentry.io` ingest DSN and the release is
+   the current full 40-character Git SHA.
+2. Confirm the failure is an unhandled runtime exception. Compile, lint, test
+   and build failures are intentionally not sent.
+3. Confirm MCP uses a read-only credential; HTTP 403 from the Issues API means
+   the token lacks read scopes even if source-map upload credentials exist.
+4. Expect the original message, request and user context to be absent. Diagnose
+   from exception type and sanitized stack, then reproduce locally.
+5. Do not enable Replay, logs, tracing or request collection to make an issue
+   easier to inspect; change of that boundary requires a new ADR.
 
 If passive verdict detection appears stale, inspect both the current URL and the selected result tab before changing verdict aliases. For LeetCode, `/problems/<slug>/submissions/<id>/` and `/submissions/detail/<id>/` are exact result forms, while a restored `/problems/<slug>/` is valid only with the selected semantic submission-detail surface. A generic `提交详情` label is non-final, not `Other Failure`. Inspect the content-script and service-worker consoles for `[capture-v4]` messages. The popup's action status distinguishes a received control action from a completed sync; `待同步结果` reaches zero only after a matching ACK for an existing completed bundle. If `chrome://extensions` reports a startup error, reload the current `extension/dist`; the service worker capability-checks optional `StorageArea.setAccessLevel`, and every popup/content fire-and-forget operation handles rejected Promises. Adapter DOM status does not enable V4 network capture: AtCoder remains the sole production DOM adapter, while its independent V4 network status is `blocked`; LeetCode and NowCoder are network-`experimental`, and Codeforces/Luogu are network-`blocked`.
 

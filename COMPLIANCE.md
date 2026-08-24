@@ -68,6 +68,22 @@ task-scoped, selected and previewed by the learner, screened for secrets, and
 optional; structured build/test results and manual fallback remain available
 without raw code.
 
+## Development-only error tooling
+
+Sentry is permitted only when a developer explicitly enables a local
+`development` run under ADR 0003. The closed projection may send one exception
+type, a fixed message, a validated Git SHA and bounded repository-relative
+stack coordinates. It removes request and URL data, headers, cookies, users,
+breadcrumbs, contexts, extras, tags, original exception messages, source
+context, local variables, database information and every OJ/capture field.
+
+Replay, logs, traces, sessions, client reports, source-map upload, tunnels,
+public test-error routes and automatic production monitors remain disabled.
+Compile, lint, test and build output stays local. Production/service monitoring
+is not authorized before its cloud-phase ADR. A Sentry source-map upload token
+must never be reused for read access; MCP/API inspection uses a separate
+read-only credential and never mutates issues automatically.
+
 Not allowed in the current implementation:
 
 - bypass login, captcha, paywalls, anti-bot systems, or access controls;

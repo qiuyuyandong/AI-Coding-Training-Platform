@@ -86,6 +86,11 @@ with RC evidence at
 
 This directory contains both active product planning and historical implementation records. Phase numbers were reused during early prototype work, so use this index before executing a plan.
 
+The independently authorized development-tool plan is
+[`plans/2026-08-24-development-only-sentry-error-tooling.md`](plans/2026-08-24-development-only-sentry-error-tooling.md).
+It permits only opt-in local runtime exception projection and does not change
+the Phase D product candidate or authorize production service monitoring.
+
 ## Current authority and target hierarchy
 
 1. [`../../IDEA.md`](../../IDEA.md) — product definition, adopted decisions, V0/V0.5/V1/Public Beta scope.

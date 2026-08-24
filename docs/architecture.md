@@ -30,7 +30,23 @@ Manual Training form
 -> same-origin POST /api/attempts
 -> training_attempts(record_source = manual)
 -> /training, /coach, /growth
+
+Explicit local developer activation
+-> browser/server unhandled runtime exception
+-> closed development-only event projection
+-> Sentry environment=development + validated Git SHA
+-> read-only issue inspection -> local repair -> quality gate
 ```
+
+`lib/observability/sentryDev.ts` is the sole Sentry data boundary. It requires
+development mode, a literal enable flag, an approved ingest DSN and a full Git
+SHA. It projects only exception type plus bounded repository-relative stack
+coordinates and replaces the original message with fixed text. Client and
+Node.js initialization live in `instrumentation-client.ts`,
+`instrumentation.ts` and `sentry.server.config.ts`; production and test
+execution leave them inert. `next.config.ts` has no Sentry wrapper, source-map
+upload, tunnel or automatic monitor. This developer channel never consumes
+SQLite, extension or capture state and is not service observability.
 
 The V4 Phase 0 extension detects supported problem pages and visible verdict
 state without treating a click as a submission fact. A trusted, visible,

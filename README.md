@@ -85,6 +85,8 @@ The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem s
 - `docs/superpowers/README.md` distinguishes active plans from historical Phase-numbered prototype documents.
 - `docs/architecture.md` explains the current app, extension, API, SQLite, and Coach/Growth flow.
 - `docs/runbook.md` contains setup, verification, and troubleshooting steps.
+- `docs/decisions/0003-development-only-sentry-error-tooling.md` defines the
+  opt-in development exception boundary; it is not production monitoring.
 - `DESIGN.md` defines the quiet slate/white UI system used by app pages and panels.
 - `COMPLIANCE.md` documents local-first privacy and platform-boundary rules.
 
@@ -110,6 +112,16 @@ npm run quality:gate
 `npm run lint` runs the strict ESLint flat config (`eslint . --max-warnings=0`). `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run extension:e2e` runs the new bundled-Chromium Playwright lane that loads the exact production `extension/dist` (Fake OJ matrix + A10 full-chain smoke). `npm run quality:gate` runs lint, a disposable migration, curriculum validation, unit tests, typecheck, E2E, extension parity, extension E2E, and production build in that order using an OS-temporary database and is the safe all-in-one gate. Use it instead of running individual commands when you want one reproducible verification.
 
 `npm run e2e` creates a freshly migrated database at `.tmp/playwright/training-platform.sqlite`, starts and stops its own Next.js server, and removes the disposable database afterward. It never reuses a server on port 3000 and never writes to the default `training-platform.sqlite`. `npm run extension:e2e` writes only to `.tmp/playwright-extension/` (its own disposable SQLite under `.tmp/capture-v4-full-chain-*/`) and is forbidden from opening the default `training-platform.sqlite`.
+
+### Optional development error tooling
+
+Sentry is available only for deliberately enabled local browser and Next.js
+server runtime exceptions. It is disabled by default and in every test or
+production build. It does not collect Replay, logs, traces, requests, URLs,
+headers, cookies, users, database data, OJ capture data, exception messages or
+source context. See `docs/runbook.md` for the local activation command. Compile,
+lint, test and build errors continue to use the commands above rather than
+Sentry.
 
 ## Browser Extension
 
