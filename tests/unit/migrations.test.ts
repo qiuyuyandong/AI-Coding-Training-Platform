@@ -86,6 +86,35 @@ describe("applyMigrations", () => {
     }
   });
 
+  it("restores foreign-key enforcement when a marked table rebuild fails", () => {
+    const directory = makeTempDir("migration-foreign-key-rebuild-failure-");
+    const migrationsDir = join(directory, "migrations");
+    const db = new Database(join(directory, "test.sqlite"));
+    mkdirSync(migrationsDir);
+    writeFileSync(join(migrationsDir, "0001_base.sql"), `
+      CREATE TABLE parent (id TEXT PRIMARY KEY);
+      CREATE TABLE child (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL REFERENCES parent(id));
+      INSERT INTO parent VALUES ('parent_1');
+      INSERT INTO child VALUES ('child_1', 'parent_1');
+    `, "utf8");
+    writeFileSync(join(migrationsDir, "0002_broken_rebuild.sql"), `-- codex-migration: foreign-keys-off
+      DROP TABLE parent;
+      CREATE TABLE parent (id TEXT PRIMARY KEY);
+    `, "utf8");
+
+    try {
+      db.pragma("foreign_keys = ON");
+      expect(() => applyMigrations(db, { migrationsDir, now: fixedMigrationTime }))
+        .toThrow(/foreign_key_check failed/u);
+      expect(db.pragma("foreign_keys", { simple: true })).toBe(1);
+      expect(countRows(db, "parent")).toBe(1);
+      expect(countRows(db, "child")).toBe(1);
+      expect(appliedMigrationIds(db)).toEqual(["0001_base.sql"]);
+    } finally {
+      db.close();
+    }
+  });
+
   it("cuts synthetic V1 capture data over to an empty V2 schema", () => {
     const directory = makeTempDir("migration-v2-cutover-");
     const oldMigrationsDir = join(directory, "old-migrations");
@@ -175,7 +204,7 @@ describe("applyMigrations", () => {
     }
   });
 
-  it("preserves V2 capture rows while adding paired provenance and credentials", () => {
+  it("preserves V2 capture rows while adding local provenance and removing Vault credentials", () => {
     const directory = makeTempDir("migration-credentials-");
     const oldMigrationsDir = join(directory, "old-migrations");
     const db = new Database(join(directory, "test.sqlite"));
@@ -238,7 +267,8 @@ describe("applyMigrations", () => {
       expect(countRows(db, "training_sessions")).toBe(1);
       expect(countRows(db, "capture_events")).toBe(1);
       expect(countRows(db, "training_attempts")).toBe(1);
-      expect(countRows(db, "capture_installations")).toBe(0);
+      expect(tableExists(db, "capture_installations")).toBe(false);
+      expect(tableExists(db, "capture_pairing_codes")).toBe(false);
       expect(
         db.prepare<[], { readonly table: string }>(
           "PRAGMA foreign_key_list(training_attempts)",
@@ -254,6 +284,18 @@ describe("applyMigrations", () => {
           'https://leetcode.com/problems/3sum/', 'extension_paired',
           '2026-07-14T00:02:00.000Z', NULL, NULL,
           '2026-07-14T00:02:00.000Z', '2026-07-14T00:02:00.000Z'
+        )
+      `).run()).not.toThrow();
+      expect(() => db.prepare(`
+        INSERT INTO training_sessions (
+          id, installation_id, platform, problem_external_id, problem_title,
+          canonical_url, provenance_level, started_at, ended_at, end_reason,
+          created_at, updated_at
+        ) VALUES (
+          'session_local', 'installation_3', 'leetcode', 'four-sum', '4Sum',
+          'https://leetcode.com/problems/4sum/', 'extension_local',
+          '2026-07-14T00:03:00.000Z', NULL, NULL,
+          '2026-07-14T00:03:00.000Z', '2026-07-14T00:03:00.000Z'
         )
       `).run()).not.toThrow();
     } finally {
@@ -397,6 +439,12 @@ function countRows(db: Database.Database, table: string): number {
     .get()?.count ?? 0;
 }
 
+function tableExists(db: Database.Database, table: string): boolean {
+  return db.prepare<string, { readonly name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+  ).get(table) !== undefined;
+}
+
 function repositoryMigrationNames(): readonly string[] {
   return readdirSync(join(process.cwd(), "lib", "db", "migrations"))
     .filter((name) => name.endsWith(".sql"))
@@ -424,4 +472,8 @@ function appliedMigrationIds(db: Database.Database): readonly string[] {
     )
     .all()
     .map((row) => row.id);
+}
+
+function fixedMigrationTime(): string {
+  return "2026-07-11T00:00:00.000Z";
 }

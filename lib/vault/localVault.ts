@@ -221,6 +221,7 @@ export function adoptLegacyDatabase(
     readonly now?: () => string;
     readonly createId?: () => string;
     readonly migrate?: (database: Database.Database) => void;
+    readonly copySource?: (sourcePath: string, targetPath: string) => void;
   } = {},
 ): AdoptVaultResult {
   const canonicalSource = requireSafeRegularFile(sourcePath, "Source database");
@@ -254,7 +255,7 @@ export function adoptLegacyDatabase(
   let databaseCommitted = false;
   let descriptorCommitted = false;
   try {
-    copyFileSync(canonicalSource, temporaryDatabasePath, constants.COPYFILE_EXCL);
+    (options.copySource ?? copySourceExclusive)(canonicalSource, temporaryDatabasePath);
     if (snapshotFile(temporaryDatabasePath).sha256 !== sourceBefore.sha256) {
       throw new LocalVaultError("The copied database hash does not match the source");
     }
@@ -320,11 +321,19 @@ function validateSqliteDatabase(databasePath: string): void {
   }
 }
 
+function copySourceExclusive(sourcePath: string, targetPath: string): void {
+  copyFileSync(sourcePath, targetPath, constants.COPYFILE_EXCL);
+}
+
 function readTableCounts(databasePath: string): ReadonlyMap<string, number> {
   const database = new Database(databasePath, { readonly: true, fileMustExist: true });
   try {
     const tables = database.prepare<[], { readonly name: string }>(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name <> 'schema_migrations' ORDER BY name",
+      `SELECT name FROM sqlite_master
+       WHERE type = 'table'
+         AND name NOT LIKE 'sqlite_%'
+         AND name NOT IN ('schema_migrations', 'capture_installations', 'capture_pairing_codes')
+       ORDER BY name`,
     ).all();
     return new Map(tables.map(({ name }) => {
       const escapedName = name.replaceAll('"', '""');

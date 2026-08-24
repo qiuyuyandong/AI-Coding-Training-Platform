@@ -6,6 +6,8 @@ type MigrationRow = {
   readonly id: string;
 };
 
+const FOREIGN_KEYS_OFF_MARKER = "-- codex-migration: foreign-keys-off";
+
 export type MigrationOptions = {
   readonly migrationsDir?: string;
   readonly now?: () => string;
@@ -38,9 +40,24 @@ export function applyMigrations(
     if (applied.has(fileName)) continue;
 
     const sql = readFileSync(join(migrationsDir, fileName), "utf8");
+    const requiresForeignKeysOff = sql.startsWith(FOREIGN_KEYS_OFF_MARKER);
+    const restoreForeignKeys = requiresForeignKeysOff
+      && db.pragma("foreign_keys", { simple: true }) === 1;
     try {
+      if (requiresForeignKeysOff) {
+        if (db.inTransaction) {
+          throw new Error("foreign-keys-off migration cannot run inside an outer transaction");
+        }
+        db.pragma("foreign_keys = OFF");
+      }
       const transaction = db.transaction(() => {
         db.exec(sql);
+        if (requiresForeignKeysOff) {
+          const violations = db.prepare("PRAGMA foreign_key_check").all();
+          if (violations.length !== 0) {
+            throw new Error("foreign_key_check failed after table rebuild");
+          }
+        }
         db
           .prepare<[string, string]>(
             "INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)",
@@ -51,6 +68,8 @@ export function applyMigrations(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Migration ${fileName} failed: ${message}`, { cause: error });
+    } finally {
+      if (restoreForeignKeys) db.pragma("foreign_keys = ON");
     }
   }
 }

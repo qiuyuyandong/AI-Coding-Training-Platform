@@ -492,3 +492,25 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
 - 证据：
   `work/reports/v4-phase-d-local-vault-d2-core-launcher-2026-08-25.md`。
 - D3 是下一且唯一可执行阶段；D7 和所有真实 OJ 动作仍未授权。
+
+## 16. Revision 2 D3 执行结果（2026-08-25）
+
+- 新增前向迁移 `0009_local_vault_extension_origin.sql`，历史 0001–0008
+  文件未修改；sessions/events 的 provenance 闭合集合新增
+  `extension_local` 并逐列复制历史行。
+- 两张 Vault 内旧认证元数据表按 pairing codes → installations 顺序删除；历史
+  paired/unpaired、IDs、fingerprints、时间、attempt/correction 外键关系不改写，
+  索引、quick check 和 foreign-key check 全部恢复。
+- 迁移器仅对带固定 marker 的父表重建，在事务外暂时关闭 FK、事务内完成重建和
+  全量 `foreign_key_check`，并在 `finally` 恢复原 FK 状态；故障注入证明完整
+  回滚。
+- fresh、0008 populated、0001–0008 每个历史前缀、重复运行、采用同路径、复制
+  hash mismatch 和迁移失败全部覆盖；成功和失败路径均证明源库
+  size/mtime/SHA-256 不变。
+- 聚焦 `27/27`、lint PASS、typecheck PASS、diff check PASS；默认数据库
+  size/mtime/hash 不变。
+- D3 是不可发布的过渡提交：旧认证表已删除，遗留 pairing/capture-auth 调用必须
+  由紧接的 D4 Route H 实现替换后才能恢复仓库级产品门。
+- 证据：
+  `work/reports/v4-phase-d-local-vault-d3-migration-adoption-2026-08-25.md`。
+- D4 是下一且唯一可执行阶段；D7 和所有真实 OJ 动作仍未授权。

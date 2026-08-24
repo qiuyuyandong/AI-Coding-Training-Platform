@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-25 Route H D2 PASS; D3 is next)
+## Status (2026-08-25 Route H D3 PASS; D4 is next)
 
 The user confirmed the product defaults that supersede the proposed two-stage
 fresh-profile pairing repair: keep Next.js + localhost as the SQLite owner for
@@ -24,8 +24,8 @@ Route H D0 is complete: ADR 0004 and the Local Vault plan freeze the
 installation-level capability, Vault-external hash metadata, extension-local
 raw value, one-click reconnect after reinstall, automatic reuse across Vault
 switches, exact sender validation and Origin-as-defense-only boundary. No Route
-H production runtime, manifest, database schema or extension storage change has
-run yet.
+H production runtime, manifest, database schema or extension storage change ran
+in D0 itself.
 
 Route H D1 passed on official Chrome for Testing `151.0.7922.138` with two fresh
 profiles, fixed target ID, a separately keyed attacker extension, two disposable
@@ -49,12 +49,25 @@ tests passed `17/17`; root unit `2590/1`, App E2E `24/24`, and build `20/20`
 passed with the default database preserved. Evidence:
 `work/reports/v4-phase-d-local-vault-d2-core-launcher-2026-08-25.md`.
 
+Route H D3 is complete. Migration `0009` adds `extension_local` while preserving
+populated historical paired/unpaired sessions, events, attempts and corrections;
+drops only the two Vault-resident legacy authentication metadata tables; and
+restores indexes and all foreign keys. Fresh, populated 0008, every historical
+prefix, repeated apply, invalid FK rebuild, same-target, hash mismatch and
+migration failure paths pass `27/27` with source databases unchanged. Lint,
+typecheck and diff check pass; the default database remains unchanged. Evidence:
+`work/reports/v4-phase-d-local-vault-d3-migration-adoption-2026-08-25.md`.
+
+D3 is an intentionally non-releasable intermediate commit because legacy
+pairing/capture-auth callers still expect the tables removed by `0009`. D4 must
+now replace those callers with Vault-external Route H and remove the old API /
+repository surface before any repository-wide product gate is claimed.
+
 Candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` remains immutable historical
 evidence for the paired product, but it cannot certify the revised contract.
 Its READY-only authorization does not transfer to a future candidate. The next
-required action is D3 forward migration `0009` and exhaustive every-prefix /
-source-preservation adoption proof. Real OJ browsing, actions, D7, RC, release,
-push, and PR remain stopped.
+required action is D4 Route H product integration and legacy pairing removal.
+Real OJ browsing, actions, D7, RC, release, push, and PR remain stopped.
 
 ## Prior status (2026-08-24 new-candidate READY preflight blocked before browser launch)
 
