@@ -1,6 +1,6 @@
 # ADR 0004: Local Vault and Exact Extension-Origin Trust
 
-- Status: Accepted for local V0/V1
+- Status: Rejected by the P1 feasibility gate
 - Date: 2026-08-24
 
 ## Context
@@ -62,6 +62,13 @@ one-click localhost handshake or Native Messaging boundary. Missing Origin,
 wildcard CORS, copied credentials, or a silent return to visible pairing are not
 permitted fallbacks.
 
+The gate ran on 2026-08-24 and failed on the first fresh profile. The public
+manifest key produced the frozen extension ID and the JSON POST carried the
+exact Origin, but a real service-worker GET to the same localhost probe was
+rejected by the exact-Origin matcher. The approved contract requires both GET
+and POST to carry the exact non-missing Origin, so P2–P6 did not run. This ADR
+therefore records a rejected design, not an active authorization boundary.
+
 ## Vault ownership and safety
 
 A Vault is a real, non-reparse local directory containing the application-owned
@@ -74,11 +81,11 @@ or foreign-key errors fail closed.
 
 ## Consequences
 
-Extension reload, browser restart, and uninstall/reinstall can reconnect to the
-running local application without user-managed credentials. The local launcher
-becomes the single product entrypoint and Vault switch boundary. Safe rollback
-uses an unchanged source or another valid Vault with the corresponding older
-application; no schema down migration is introduced.
+The proposed exact-Origin-only design is not implementable under its approved
+GET/POST contract. The existing paired product remains unchanged while the user
+chooses a separately planned hidden one-click localhost handshake or Native
+Messaging boundary. Safe rollback and Vault consequences described above were
+not implemented.
 
 ## Phase 7 boundary
 

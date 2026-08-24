@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：用户已于 2026-08-24 最终批准；授权 P0–P6 仅离线实施、验证及必要本地提交。P1 失败即硬停止；P7、真实 OJ 浏览、点击、提交、推送、PR、发布均未授权。**
+**状态：P0 已完成；P1 在首个 fresh profile 的真实 localhost GET 上触发硬停止。固定 ID 与 JSON POST 精确 Origin 成立，但 GET 未满足精确 Origin 门并返回 403。P2–P6 未开始；P7、真实 OJ 浏览、点击、提交、推送、PR、发布均未授权。**
 
 **替代范围：** 本计划一旦获批并实施，将成为 V4 Phase D 后续产品修订、候选冻结和新候选 READY-only 的唯一执行入口。它取代“为新 profile 增加两阶段配对准备”的建议，并在本地 V0/V1 范围内取代 Phase 0B3 的可见配对码/长期 bearer 方案；Phase 7 云端账户、远程同步和服务端认证不受影响。
 
@@ -314,3 +314,21 @@ launcher 在操作系统用户配置目录保存一个小型、非秘密的原�
 - P1 失败时硬停止并返回，不自动选择 fallback；
 - 为 P0–P6 建立必要的本地提交及最终候选提交；
 - P7 真实站点 READY-only 必须在新 SHA 冻结后另行授权，当前不包含。
+
+## 12. 执行结果（2026-08-24）
+
+- P0 通过并已在提交 `da3991a` 固定：基线、ADR 0004、0B3 历史标记和授权记录完成，默认数据库未变化。
+- P1 冻结了公开 manifest key、期望扩展 ID
+  `oldmkbngfokmhlkjmlichccmbebipmei`、独立 ID 推导测试、精确 Origin
+  matcher 和纯 localhost Playwright spike。
+- 单测 `11/11` 与 TypeScript 检查通过。真实 Chromium 首个 fresh profile
+  中 service worker/runtime ID 与冻结 ID 一致；JSON POST 返回 `200`，证明
+  精确 Origin 分支可达；同一 worker 的 GET 返回 `403`，而探针只在 Origin
+  不精确时返回该状态，因此未满足本计划要求的 GET/POST 双方法稳定 Origin。
+- 按第 3.3 节立即停止。未测试 restart/reload/第二 fresh profile，未进入
+  P2–P6，未修改生产 manifest，未启动 Next.js，未创建或打开 SQLite，未访问
+  OJ。临时 dist/profile 已清理，端口 3000 已释放。
+- 详细证据：
+  `work/reports/v4-phase-d-local-vault-p1-origin-spike-stop-2026-08-24.md`。
+  下一步只能由用户在“隐藏的一键 localhost 握手”与 Native Messaging 之间
+  重新选择并批准新的设计/计划；不得在本计划内接受 missing Origin 或宽松 CORS。
