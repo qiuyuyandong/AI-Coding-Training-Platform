@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-25 Route H D0 complete; D1 is the next hard gate)
+## Status (2026-08-25 Route H D1 PASS; D2 is next)
 
 The user confirmed the product defaults that supersede the proposed two-stage
 fresh-profile pairing repair: keep Next.js + localhost as the SQLite owner for
@@ -20,16 +20,29 @@ switches, and requires one local “连接扩展” click only after first insta
 extension reinstall. D0–D6 offline implementation, verification and necessary
 local commits are authorized; D1 remains a first-failure hard stop.
 
-Route H D0 is complete: ADR 0004 and the Local Vault plan now freeze the
+Route H D0 is complete: ADR 0004 and the Local Vault plan freeze the
 installation-level capability, Vault-external hash metadata, extension-local
 raw value, one-click reconnect after reinstall, automatic reuse across Vault
 switches, exact sender validation and Origin-as-defense-only boundary. No Route
-H runtime, manifest, database, extension storage or browser change has run yet.
+H production runtime, manifest, database schema or extension storage change has
+run yet.
+
+Route H D1 passed on official Chrome for Testing `151.0.7922.138` with two fresh
+profiles, fixed target ID, a separately keyed attacker extension, two disposable
+SQLite Vaults and a temporary Vault-external install record. The final gate was
+`1 passed (12.1s)`: external messaging, exact sender/closed schema, 60-second
+single-use challenge, expiry/replay/concurrency rejection, page-secret absence,
+hash-only app persistence, Bearer-before-body `0/0/0`, sanitized Bundle `4/1/1`
+plus idempotent replay, restart/reload, Vault switch, reinstall rotation, and
+direct extension-to-extension rejection all passed. Chromium 138 was not used.
+The default database was preserved. Evidence is
+`work/reports/v4-phase-d-local-vault-route-h-d1-spike-2026-08-25.md`.
+
 Candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` remains immutable historical
 evidence for the paired product, but it cannot certify the revised contract.
 Its READY-only authorization does not transfer to a future candidate. The next
-required action is D0 contract reconciliation, followed by D1. Real OJ browsing,
-actions, D4/D5, RC, release, push, and PR remain stopped.
+required action is D2 Vault core and launcher implementation. Real OJ browsing,
+actions, D7, RC, release, push, and PR remain stopped.
 
 ## Prior status (2026-08-24 new-candidate READY preflight blocked before browser launch)
 

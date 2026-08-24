@@ -455,3 +455,22 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
   challenge、重装一击和 Vault 切换沿用语义已冻结；
 - 没有产品运行时、manifest、数据库、扩展 storage 或浏览器变化；
 - D1 是下一且唯一可执行阶段，失败即停。
+
+## 14. Revision 2 D1 执行结果（2026-08-25）
+
+- 使用官方 Chrome for Testing `151.0.7922.138`、两个 fresh profile、固定 ID
+  目标扩展、独立 key 的攻击者扩展、两个 disposable SQLite 和 Vault 外临时安装
+  配置完成 Route H spike；Chromium 138 未作为证据。
+- 最终权威运行 `1 passed (12.1s)`：规范 settings sender 与闭合 schema、
+  60 秒单次 challenge、过期/重放/并发失败关闭、256-bit capability、页面零
+  原值、配置仅 hash、错误/缺失 Bearer 数据库 `0/0/0`、正确 Bundle `4/1/1`
+  与幂等重放、restart/reload、Vault 切换、fresh reinstall 一击重连和其他扩展
+  直接调用拒绝全部通过。
+- 首次运行仅在全部功能断言后的 Windows 临时目录 teardown 返回 `EISDIR`；该次
+  不计证据。测试助手改用空目录专用 `rmdirSync` 后，从 fresh profiles 完整重跑
+  通过，没有放宽任何 Route H 断言。
+- 默认数据库 size/mtime/hash 保持不变；未修改生产 manifest、捕获路径、数据库
+  schema 或 extension storage；没有 OJ、真实动作、push 或 PR。
+- 证据：
+  `work/reports/v4-phase-d-local-vault-route-h-d1-spike-2026-08-25.md`。
+- D1 硬停止门已通过；D2 是下一且唯一可执行阶段。

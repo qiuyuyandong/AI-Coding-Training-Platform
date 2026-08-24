@@ -16,7 +16,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
-  rmSync,
+  rmdirSync,
   unlinkSync,
 } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -58,7 +58,7 @@ function removePath(target: string): void {
     return;
   }
   for (const entry of readdirSync(target)) removePath(resolve(target, entry));
-  rmSync(target, { recursive: false });
+  rmdirSync(target);
 }
 
 export function createDisposableDirectory(): {
