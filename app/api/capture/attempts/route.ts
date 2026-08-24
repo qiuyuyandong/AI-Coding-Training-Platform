@@ -4,60 +4,70 @@ import { CaptureAttemptBundleSchema } from "@/lib/capture/attemptBundle";
 import { ingestCaptureAttemptBundle } from "@/lib/services/captureAttemptBundle";
 import { normalizeCaptureEvent } from "@/lib/services/normalizeCaptureEvent";
 import {
-  authorizeCaptureInstallation,
-  touchCaptureInstallation,
-} from "@/lib/services/captureCredentials";
-import {
-  readBearerCredential,
+  CaptureRequestError,
+  captureExtensionCorsHeaders,
+  readBearerCapability,
   readBoundedJson,
-  requireExtensionOrMissingOrigin,
+  requireCanonicalLocalCaptureHost,
+  requireExactCaptureExtensionOrigin,
 } from "@/lib/http/captureRequest";
 import {
   captureAttemptAckResponse,
   captureRouteErrorResponse,
 } from "@/lib/http/captureRouteError";
+import {
+  authorizeLocalCaptureCapability,
+  CaptureCapabilityAuthenticationError,
+  touchLocalCaptureInstallation,
+} from "@/lib/vault/captureInstallation";
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    requireExtensionOrMissingOrigin(request);
-    const credential = readBearerCredential(request);
+    requireCanonicalLocalCaptureHost(request);
+    requireExactCaptureExtensionOrigin(request);
+    const capability = readBearerCapability(request);
+    const installation = authorizeLocalCaptureCapability(capability);
     const parsedBody = CaptureAttemptBundleSchema.safeParse(await readBoundedJson(request));
     if (!parsedBody.success) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Invalid capture attempt bundle",
-          issues: parsedBody.error.issues,
-        },
-        { status: 400 },
-      );
+      return captureRouteErrorResponse(new CaptureRequestError(
+        400,
+        "Invalid capture attempt bundle",
+      ));
     }
     const normalizedEvents = parsedBody.data.events.map(normalizeCaptureEvent);
     const bundle = CaptureAttemptBundleSchema.parse({
       ...parsedBody.data,
       events: normalizedEvents,
     });
+    if (
+      bundle.events[0].installationId !== installation.installationId
+      || bundle.events[0].provenanceLevel !== "extension_local"
+    ) {
+      throw new CaptureCapabilityAuthenticationError();
+    }
 
+    const receivedAt = new Date().toISOString();
+    touchLocalCaptureInstallation(bundle.events[0].installationId, { now: () => receivedAt });
     const db = openDatabase();
     try {
-      const receivedAt = new Date().toISOString();
-      const ack = db.transaction(() => {
-        authorizeCaptureInstallation(
-          db,
-          credential,
-          bundle.events[0].installationId,
-        );
-        const ingested = ingestCaptureAttemptBundle(db, bundle, {
-          now: () => receivedAt,
-        });
-        touchCaptureInstallation(db, bundle.events[0].installationId, receivedAt);
-        return ingested;
-      })();
+      const ack = ingestCaptureAttemptBundle(db, bundle, { now: () => receivedAt });
       return captureAttemptAckResponse(ack);
     } finally {
       db.close();
     }
   } catch (error) {
     return captureRouteErrorResponse(error);
+  }
+}
+
+export function OPTIONS(request: Request): NextResponse {
+  try {
+    requireCanonicalLocalCaptureHost(request);
+    requireExactCaptureExtensionOrigin(request);
+    return new NextResponse(null, { status: 204, headers: captureExtensionCorsHeaders() });
+  } catch (error) {
+    return captureRouteErrorResponse(error instanceof Error
+      ? error
+      : new CaptureRequestError(403, "Request origin is not allowed"));
   }
 }

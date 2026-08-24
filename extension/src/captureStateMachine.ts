@@ -354,7 +354,7 @@ const DEFAULT_NOW_PROVIDER: CaptureNowProvider = () => new Date(0).toISOString()
 const DEFAULT_PARSER_VERSION = "v4-capture-state-machine@1";
 const DEFAULT_ADAPTER_VERSION = "v4-adapter@1";
 const DEFAULT_INSTALLATION_ID = "v4-installation";
-const DEFAULT_PROVENANCE_LEVEL: CaptureProvenanceLevel = "extension_unpaired";
+const DEFAULT_PROVENANCE_LEVEL: CaptureProvenanceLevel = "extension_local";
 const DEFAULT_PROBLEM_TITLE = "Captured problem";
 
 // ---------------------------------------------------------------------------

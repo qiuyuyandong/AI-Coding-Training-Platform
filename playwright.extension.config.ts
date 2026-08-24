@@ -5,6 +5,10 @@ const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: "./tests/extension-e2e",
+  testIgnore: [
+    "capture-local-origin-spike.spec.ts",
+    "capture-local-route-h-spike.spec.ts",
+  ],
   globalSetup: "./tests/extension-e2e/global-setup.ts",
   globalTeardown: "./tests/extension-e2e/global-teardown.ts",
   workers: 1,

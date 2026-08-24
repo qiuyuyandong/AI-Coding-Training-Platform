@@ -158,7 +158,7 @@ export function planOutboxAfterFlush(
   }
   if (result.status === "network_error" || result.status === 401 || result.status === 403) {
     const prefix = result.status === 401
-      ? "Pairing required"
+      ? "Capability rejected"
       : result.status === 403
         ? "Origin rejected"
         : "Network unavailable";

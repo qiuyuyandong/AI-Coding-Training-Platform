@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import {
   CaptureConflictError,
 } from "@/lib/services/captureTransition";
-import {
-  CaptureCredentialAuthenticationError,
-} from "@/lib/services/captureCredentials";
+import { CaptureCapabilityAuthenticationError } from "@/lib/vault/captureInstallation";
 import { CanonicalProblemUrlError } from "@/lib/services/canonicalProblemUrl";
 import {
   CaptureAttemptAck,
@@ -12,6 +10,7 @@ import {
 } from "@/lib/capture/attemptBundle";
 import {
   CaptureRequestError,
+  captureExtensionCorsHeaders,
 } from "@/lib/http/captureRequest";
 
 /**
@@ -22,38 +21,47 @@ import {
  */
 export function captureRouteErrorResponse(error: unknown): NextResponse {
   if (error instanceof CaptureRequestError) {
-    return NextResponse.json(
+    return withCaptureExtensionCors(NextResponse.json(
       { ok: false, error: error.message },
       { status: error.status },
-    );
+    ));
   }
-  if (error instanceof CaptureCredentialAuthenticationError) {
-    return NextResponse.json(
+  if (
+    error instanceof CaptureCapabilityAuthenticationError
+  ) {
+    return withCaptureExtensionCors(NextResponse.json(
       { ok: false, error: error.message },
       { status: 401 },
-    );
+    ));
   }
   if (error instanceof CanonicalProblemUrlError) {
-    return NextResponse.json(
+    return withCaptureExtensionCors(NextResponse.json(
       { ok: false, error: error.message },
       { status: 400 },
-    );
+    ));
   }
   if (error instanceof CaptureConflictError) {
-    return NextResponse.json(
+    return withCaptureExtensionCors(NextResponse.json(
       { ok: false, error: error.message },
       { status: 409 },
-    );
+    ));
   }
-  return NextResponse.json(
+  return withCaptureExtensionCors(NextResponse.json(
     {
       ok: false,
-      error: error instanceof Error ? error.message : "Failed to save capture event",
+      error: "Failed to save capture event",
     },
     { status: 500 },
-  );
+  ));
 }
 
 export function captureAttemptAckResponse(ack: CaptureAttemptAck): NextResponse {
-  return NextResponse.json(CaptureAttemptAckSchema.parse(ack));
+  return withCaptureExtensionCors(NextResponse.json(CaptureAttemptAckSchema.parse(ack)));
+}
+
+export function withCaptureExtensionCors(response: NextResponse): NextResponse {
+  for (const [name, value] of Object.entries(captureExtensionCorsHeaders())) {
+    response.headers.set(name, value);
+  }
+  return response;
 }

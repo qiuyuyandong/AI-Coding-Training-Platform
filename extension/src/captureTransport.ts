@@ -52,10 +52,10 @@ export function captureAttemptEndpoint(value: unknown): string | undefined {
   return endpoint.status === "supported" ? DEFAULT_CAPTURE_ENDPOINT : undefined;
 }
 
-export function captureRequestHeaders(credential: unknown): Record<string, string> {
+export function captureRequestHeaders(capability: unknown): Record<string, string> {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (typeof credential === "string" && credential.startsWith("capture_")) {
-    headers.authorization = `Bearer ${credential}`;
+  if (typeof capability === "string" && /^capture_[A-Za-z0-9_-]{43}$/u.test(capability)) {
+    headers.authorization = `Bearer ${capability}`;
   }
   return headers;
 }
@@ -63,7 +63,7 @@ export function captureRequestHeaders(credential: unknown): Record<string, strin
 export async function postCaptureAttemptBundle(input: {
   readonly bundle: CaptureAttemptBundle;
   readonly endpoint: unknown;
-  readonly credential: unknown;
+  readonly capability: unknown;
   readonly fetchImpl?: typeof fetch;
 }): Promise<CaptureAttemptFlushResult> {
   const fetchImpl = input.fetchImpl ?? fetch;
@@ -74,7 +74,7 @@ export async function postCaptureAttemptBundle(input: {
   try {
     const response = await fetchImpl(endpoint, {
       method: "POST",
-      headers: captureRequestHeaders(input.credential),
+      headers: captureRequestHeaders(input.capability),
       body: JSON.stringify(input.bundle),
     });
     if (response.ok) {

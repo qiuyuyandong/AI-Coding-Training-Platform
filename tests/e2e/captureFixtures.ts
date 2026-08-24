@@ -2,7 +2,11 @@ import type { APIRequestContext } from "@playwright/test";
 import type { CaptureEvent } from "../../lib/capture/protocol";
 import type { CaptureAttemptBundle } from "../../lib/capture/attemptBundle";
 import type { Platform } from "../../extension/src/platforms";
-import { E2E_CAPTURE_CREDENTIAL } from "./database";
+import {
+  E2E_CAPTURE_CAPABILITY,
+  E2E_CAPTURE_INSTALLATION_ID,
+} from "./database";
+import { CAPTURE_EXTENSION_ORIGIN } from "../../lib/extension/identity";
 
 export type CaptureProblemFixture = {
   readonly captureSessionId: string;
@@ -46,11 +50,11 @@ export function captureEvent(
     schemaVersion: 2 as const,
     id: input.eventId,
     captureSessionId: problem.captureSessionId,
-    installationId: "installation_e2e",
+    installationId: E2E_CAPTURE_INSTALLATION_ID,
     adapterVersion: "e2e@0.2.0",
     parserVersion: "e2e-visible-verdict@0.2.0",
     pageOrigin: new URL(problem.canonicalUrl).origin,
-    provenanceLevel: "extension_paired" as const,
+    provenanceLevel: "extension_local" as const,
     platform: problem.platform,
     problemExternalId: problem.problemExternalId,
     problemTitle: problem.problemTitle,
@@ -139,7 +143,10 @@ export async function postCaptureAttempt(
 ) {
   return request.post("/api/capture/attempts", {
     data: bundle,
-    headers: { authorization: `Bearer ${E2E_CAPTURE_CREDENTIAL}` },
+    headers: {
+      authorization: `Bearer ${E2E_CAPTURE_CAPABILITY}`,
+      origin: CAPTURE_EXTENSION_ORIGIN,
+    },
   });
 }
 
@@ -150,7 +157,10 @@ export async function postCaptureEvents(
   for (const event of events) {
     const response = await request.post("/api/capture/events", {
       data: event,
-      headers: { authorization: `Bearer ${E2E_CAPTURE_CREDENTIAL}` },
+      headers: {
+        authorization: `Bearer ${E2E_CAPTURE_CAPABILITY}`,
+        origin: CAPTURE_EXTENSION_ORIGIN,
+      },
     });
     if (!response.ok()) {
       throw new Error(

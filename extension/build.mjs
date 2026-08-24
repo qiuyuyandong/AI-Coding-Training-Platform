@@ -1,11 +1,23 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { build } from "esbuild";
 
 const root = process.cwd();
 const extensionDir = join(root, "extension");
 const outdir = join(extensionDir, "dist");
+const manifestPath = join(extensionDir, "manifest.json");
+const identityPath = join(extensionDir, "identity.json");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const identity = JSON.parse(readFileSync(identityPath, "utf8"));
+if (manifest.key !== identity.manifestKey) {
+  throw new Error("Extension manifest key does not match the frozen identity");
+}
+if (JSON.stringify(manifest.externally_connectable) !== JSON.stringify({
+  matches: ["http://localhost/*"],
+})) {
+  throw new Error("Extension external messaging must be limited to localhost pages");
+}
 const sourceBuildSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 // D1 update-like tests build a second traceable artifact without modifying
 // generated files after esbuild completes. Normal builds always use HEAD.
@@ -48,5 +60,5 @@ await build({
   logLevel: "info",
 });
 
-copyFileSync(join(extensionDir, "manifest.json"), join(outdir, "manifest.json"));
+copyFileSync(manifestPath, join(outdir, "manifest.json"));
 copyFileSync(join(extensionDir, "src", "popup.html"), join(outdir, "popup.html"));

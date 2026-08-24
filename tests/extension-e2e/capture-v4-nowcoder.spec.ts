@@ -29,6 +29,7 @@ import {
   stopAndReawakenFakeOjWorker,
 } from "./fakeOj";
 import { readDatabaseCounts } from "./database";
+import { connectRouteHExtension } from "./routeHConnection";
 
 const SUBMISSION_ID = "84257293";
 const OTHER_SUBMISSION_ID = "84257999";
@@ -253,14 +254,13 @@ test("service-worker restart after E1 and after E2 preserves the legal transitio
 test("judging -> matching final delivers one ACK, one attempt, and four events", async ({
   extensionContext,
   extensionWorker,
-  extensionId,
 }) => {
   const harness = await installNowCoderRoutes(extensionContext);
   const page = await extensionContext.newPage();
   const dbPath = readFileSync(DB_PATH_FILE, "utf8").trim();
   const before = readDatabaseCounts(dbPath);
   try {
-    await pairExtension(extensionContext, extensionWorker, extensionId);
+    await connectRouteHExtension(extensionContext, extensionWorker);
     await confirmSubmission(extensionContext, page, extensionWorker, SUBMISSION_ID);
 
     harness.setResultVerdict(null);
@@ -426,35 +426,6 @@ async function confirmSubmission(
   await pollUntilStorageMatches(worker, (snapshot) => snapshot.confirmedSubmissions.length === 1);
 }
 
-async function pairExtension(
-  context: BrowserContext,
-  worker: Worker,
-  extensionId: string,
-): Promise<void> {
-  const codeResponse = await fetch("http://localhost:3000/api/capture/pairing-codes", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: "http://localhost:3000",
-    },
-    body: "{}",
-  });
-  const body: unknown = await codeResponse.json();
-  const code = readPairingCode(body);
-  const popup = await context.newPage();
-  try {
-    await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
-    await popup.locator("#pairingCode").fill(code);
-    await popup.locator("#pairButton").click();
-    await expect.poll(async () => worker.evaluate(async () => {
-      const stored = await chrome.storage.local.get(["captureCredential"]);
-      return typeof stored.captureCredential === "string";
-    })).toBe(true);
-  } finally {
-    await popup.close();
-  }
-}
-
 async function readRestartStorage(page: Page): Promise<{
   readonly e1: number;
   readonly confirmed: number;
@@ -490,13 +461,4 @@ function isCompletedNowCoderSubmit(value: unknown): boolean {
     && Reflect.get(evidence, "endpointKey") === "nowcoder/submit"
     && Reflect.get(evidence, "lifecycle") === "completed"
     && Reflect.get(evidence, "statusCode") === 200;
-}
-
-function readPairingCode(value: unknown): string {
-  if (typeof value !== "object" || value === null) throw new Error("Pairing response is not an object");
-  const code = Reflect.get(value, "code");
-  if (Reflect.get(value, "ok") !== true || typeof code !== "string" || code.length === 0) {
-    throw new Error("Pairing response did not contain a code");
-  }
-  return code;
 }

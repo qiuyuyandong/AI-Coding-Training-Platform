@@ -1,5 +1,4 @@
 import { AttemptStatusPanel } from "./AttemptStatusPanel";
-import { CaptureStatusPanel } from "./CaptureStatusPanel";
 import { ManualAttemptPanel } from "./ManualAttemptPanel";
 import { PlatformSchema } from "@/lib/domain/source";
 import {
@@ -41,7 +40,6 @@ export function TrainingWorkspace({ platform, externalId, title }: TrainingWorks
         problemTitle={displayTitle}
         canonicalUrl={url}
       />
-      <CaptureStatusPanel />
       <AttemptStatusPanel platform={platform} externalId={externalId} />
     </>
   );

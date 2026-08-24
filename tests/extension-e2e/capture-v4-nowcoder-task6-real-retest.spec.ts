@@ -15,7 +15,7 @@
  *
  * Preconditions (verified by Task 0-4 + Task 5 on the same SHA):
  *   - fresh profile (no prior extension state)
- *   - disposable SQLite paired via fetch('/api/capture/pairing-codes')
+ *   - disposable SQLite connected through the Route H settings flow
  *   - browse-only waiting remains zero before submit
  *
  * Required public evidence:
@@ -39,6 +39,7 @@ import {
   readFakeOjStorage,
 } from "./fakeOj";
 import { readDatabaseCounts } from "./database";
+import { connectRouteHExtension } from "./routeHConnection";
 
 const DB_PATH_FILE = resolve(process.cwd(), ".tmp", "server-db-path.txt");
 
@@ -48,7 +49,6 @@ const OTHER_SUBMISSION_ID = "84257999";
 test("Task 6: same-build full-chain real retest delivers one bundle and one training attempt", async ({
   extensionContext,
   extensionWorker,
-  extensionId,
 }) => {
   const observed: string[] = [];
   let resultVerdict: string | null = null;
@@ -88,8 +88,8 @@ test("Task 6: same-build full-chain real retest delivers one bundle and one trai
   const before = readDatabaseCounts(dbPath);
   const page = await extensionContext.newPage();
   try {
-    // Pair the fresh extension with the disposable local app.
-    await pairExtension(extensionContext, extensionWorker, extensionId);
+    // Connect the fresh extension with the disposable local app.
+    await connectRouteHExtension(extensionContext, extensionWorker);
 
     // Browse list -> problem before submit. The visibility-seeded E0 fires
     // for the visible exact submit control; waiting must remain zero.
@@ -201,42 +201,4 @@ function resultHtml(verdict: string | null): string {
     "<a href=\"/acm/contest/18839/1001\">problem</a>",
     verdict === null ? "" : `<div class=\"coder-cont-legend\">${verdict}</div>`,
   ].join("");
-}
-
-async function pairExtension(
-  context: import("@playwright/test").BrowserContext,
-  worker: import("@playwright/test").Worker,
-  extensionId: string,
-): Promise<void> {
-  const codeResponse = await fetch("http://localhost:3000/api/capture/pairing-codes", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: "http://localhost:3000",
-    },
-    body: "{}",
-  });
-  const body: unknown = await codeResponse.json();
-  const code = readPairingCode(body);
-  const popup = await context.newPage();
-  try {
-    await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
-    await popup.locator("#pairingCode").fill(code);
-    await popup.locator("#pairButton").click();
-    await expect.poll(async () => worker.evaluate(async () => {
-      const stored = await chrome.storage.local.get(["captureCredential"]);
-      return typeof stored.captureCredential === "string";
-    })).toBe(true);
-  } finally {
-    await popup.close();
-  }
-}
-
-function readPairingCode(value: unknown): string {
-  if (typeof value !== "object" || value === null) throw new Error("Pairing response is not an object");
-  const code = Reflect.get(value, "code");
-  if (Reflect.get(value, "ok") !== true || typeof code !== "string" || code.length === 0) {
-    throw new Error("Pairing response did not contain a code");
-  }
-  return code;
 }

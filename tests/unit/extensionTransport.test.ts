@@ -20,6 +20,7 @@ const bundle = buildCaptureAttemptBundle(intent, {
   verdict: "Accepted", observedAt: "2026-07-21T00:01:00.000Z",
   transitionEvidence: "exact_result_document",
 }, "extension_paired");
+const capability = `capture_${"A".repeat(43)}`;
 
 describe("capture attempt transport", () => {
   it("uses one canonical attempts endpoint and migrates only the exact legacy default", () => {
@@ -37,17 +38,17 @@ describe("capture attempt transport", () => {
       .toBe(DEFAULT_CAPTURE_ENDPOINT);
   });
 
-  it("never sends a bundle or credential to a configured remote OJ origin", async () => {
+  it("never sends a bundle or capability to a configured remote OJ origin", async () => {
     const fetchImpl = vi.fn(async () => new Response("", { status: 500 }));
     await postCaptureAttemptBundle({
       bundle,
       endpoint: "https://leetcode.com/api/capture/events",
-      credential: "capture_secret",
+      capability,
       fetchImpl,
     });
     expect(fetchImpl).toHaveBeenCalledWith(
       "http://localhost:3000/api/capture/attempts",
-      expect.objectContaining({ headers: expect.objectContaining({ authorization: "Bearer capture_secret" }) }),
+      expect.objectContaining({ headers: expect.objectContaining({ authorization: `Bearer ${capability}` }) }),
     );
   });
 
@@ -56,7 +57,7 @@ describe("capture attempt transport", () => {
     expect(await postCaptureAttemptBundle({
       bundle,
       endpoint: "http://127.0.0.1:3001/api/capture/events",
-      credential: "capture_secret",
+      capability,
       fetchImpl,
     })).toEqual({ status: "endpoint_error", error: "unsupported_capture_endpoint" });
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -67,7 +68,7 @@ describe("capture attempt transport", () => {
       ok: true, bundleId: bundle.bundleId, captureSessionId: "session_1",
       attemptId: "attempt_1", attemptStatus: "passed", replayed: false,
     }), { status: 200, headers: { "content-type": "application/json" } }));
-    expect(await postCaptureAttemptBundle({ bundle, endpoint: undefined, credential: "capture_secret", fetchImpl }))
+    expect(await postCaptureAttemptBundle({ bundle, endpoint: undefined, capability, fetchImpl }))
       .toMatchObject({ status: 200, ack: { bundleId: bundle.bundleId } });
   });
 
@@ -77,7 +78,7 @@ describe("capture attempt transport", () => {
       attemptId: "attempt_1", attemptStatus: "passed", replayed: true,
     }), { status: 200, headers: { "content-type": "application/json" } }));
     expect(await postCaptureAttemptBundle({
-      bundle, endpoint: undefined, credential: "capture_secret", fetchImpl,
+      bundle, endpoint: undefined, capability, fetchImpl,
     })).toEqual({
       status: "ack_error",
       error: "ACK mismatch: bundle identity",
@@ -90,11 +91,11 @@ describe("capture attempt transport", () => {
     }), { status: 400 });
     const json = vi.spyOn(response, "json");
     const bad = vi.fn(async () => response);
-    expect(await postCaptureAttemptBundle({ bundle, endpoint: undefined, credential: undefined, fetchImpl: bad }))
+    expect(await postCaptureAttemptBundle({ bundle, endpoint: undefined, capability: undefined, fetchImpl: bad }))
       .toEqual({ status: 400, error: "HTTP 400" });
     expect(json).not.toHaveBeenCalled();
     const offline = vi.fn(async () => { throw new Error("token=secret"); });
-    expect(await postCaptureAttemptBundle({ bundle, endpoint: undefined, credential: undefined, fetchImpl: offline }))
+    expect(await postCaptureAttemptBundle({ bundle, endpoint: undefined, capability: undefined, fetchImpl: offline }))
       .toEqual({ status: "network_error", error: "Network request failed" });
   });
 });

@@ -11,12 +11,12 @@ import {
   type CaptureRuntimeContext,
 } from "./installation";
 import {
-  isPairCaptureInstallationMessage,
-  pairingEndpointFromCaptureEndpoint,
-  parsePairCaptureApiResponse,
-  type PairCaptureInstallationMessage,
-  type PairCaptureResult,
-} from "./pairing";
+  completeLocalCaptureConnection,
+  createExtensionCaptureCapability,
+  probeLocalCaptureConnection,
+  readExternalCaptureConnectionRequest,
+  type CaptureConnectionStatus,
+} from "./localConnection";
 import {
   drainCaptureOutbox,
   persistCaptureOutboxPlan,
@@ -487,10 +487,12 @@ const executor = createSerializedWorkExecutor(ensureCaptureBackgroundInitialized
   );
 });
 
-void ensureCaptureBackgroundInitialized().catch((error: unknown) => {
-  void error;
-  void blockCaptureRecovery("initialization_failed", true);
-});
+void ensureCaptureBackgroundInitialized()
+  .then(refreshCaptureConnectionStatus)
+  .catch((error: unknown) => {
+    void error;
+    void blockCaptureRecovery("initialization_failed", true);
+  });
 
 function toIngressUrl(rawUrl: string): URL | undefined {
   try {
@@ -1283,6 +1285,7 @@ chrome.runtime.onInstalled.addListener(() => {
   // even an empty-session install wakes up with a periodic prune driver.
   void ensurePruneAlarmSlot();
   void ensureCaptureBackgroundInitialized().then(async () => {
+    await refreshCaptureConnectionStatus();
     await scheduleUiHintCleanupAlarmFromSession();
     await scheduleCharacterizationExpiry(await characterizationController.getSession());
     await requestCaptureRecovery();
@@ -1305,11 +1308,48 @@ chrome.runtime.onStartup.addListener(() => {
     characterizationProductionGuard = session.active && session.platform !== ""
       ? session.platform
       : null;
+    await refreshCaptureConnectionStatus();
     await flushOutbox();
     await scheduleUiHintCleanupAlarmFromSession();
     await scheduleCharacterizationExpiry(session);
     await requestCaptureRecovery();
   });
+});
+
+chrome.runtime.onMessageExternal.addListener((message: unknown, sender, sendResponse) => {
+  const request = readExternalCaptureConnectionRequest(message, sender.url);
+  if (request === undefined) return false;
+  executor.schedule(async () => {
+    const state = await trustedLocalStorage.get(["installationId"]);
+    if (typeof state.installationId !== "string" || state.installationId.length === 0) {
+      sendResponse({ ok: false });
+      return;
+    }
+    const capability = createExtensionCaptureCapability();
+    try {
+      const completed = await completeLocalCaptureConnection({
+        request,
+        installationId: state.installationId,
+        capability,
+      });
+      await trustedLocalStorage.set({
+        captureCapability: capability,
+        captureCapabilityVersion: completed.credentialVersion,
+        connectedAt: new Date().toISOString(),
+        captureConnectionStatus: "connected",
+      });
+      await removeLegacyPairingStorage();
+      await clearConnectionError();
+      await refreshCachedSnapshot();
+      await flushOutbox();
+      sendResponse({ ok: true });
+    } catch {
+      await trustedLocalStorage.set({ captureConnectionStatus: "capability_rejected" });
+      await refreshCachedSnapshot();
+      sendResponse({ ok: false });
+    }
+  }, () => sendResponse({ ok: false }));
+  return true;
 });
 
 function scheduleCaptureIngressAck(
@@ -1377,12 +1417,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
   if (isCaptureStateRequest(message)) {
     void respondCaptureState(sendResponse);
-    return true;
-  }
-  if (isPairCaptureInstallationMessage(message)) {
-    executor.schedule(async () => {
-      sendResponse(await pairCaptureInstallation(message));
-    });
     return true;
   }
   if (isMainWorldRelayMessage(message, sender)) {
@@ -1964,12 +1998,20 @@ function flushOutbox(): Promise<void> {
   const drain = drainCaptureOutbox({
     readState: readOutboxState,
     send: async (item) => {
-      const stored = await trustedLocalStorage.get(["captureEndpoint", "captureCredential"]);
-      return postCaptureAttemptBundle({
+      const stored = await trustedLocalStorage.get(["captureEndpoint", "captureCapability"]);
+      if (!isCaptureCapability(stored.captureCapability)) {
+        await setCaptureConnectionStatus("connection_required");
+        return { status: 401 as const, error: "HTTP 401" };
+      }
+      const result = await postCaptureAttemptBundle({
         bundle: item.bundle,
         endpoint: stored.captureEndpoint,
-        credential: stored.captureCredential,
+        capability: stored.captureCapability,
       });
+      if (result.status === 200) await setCaptureConnectionStatus("connected");
+      if (result.status === 401) await setCaptureConnectionStatus("capability_rejected");
+      if (result.status === "network_error") await setCaptureConnectionStatus("service_unreachable");
+      return result;
     },
     persist: persistOutboxPlan,
   }).then(async (outcome) => {
@@ -1998,54 +2040,53 @@ async function persistOutboxPlan(plan: CaptureOutboxPlan): Promise<void> {
 
 async function readRuntimeContext(): Promise<CaptureRuntimeContext> {
   const stored = await trustedLocalStorage.get([
-    "installationId", "captureEnabled", "captureCredential",
+    "installationId", "captureEnabled",
   ]);
   return runtimeContextFromStored(stored);
 }
 
-async function pairCaptureInstallation(
-  message: PairCaptureInstallationMessage,
-): Promise<PairCaptureResult> {
-  const state = await trustedLocalStorage.get(["captureEndpoint", "installationId"]);
-  if (typeof state.installationId !== "string" || state.installationId.length === 0) {
-    return { ok: false, error: "Extension installation is not initialized" };
+async function refreshCaptureConnectionStatus(): Promise<void> {
+  const stored = await trustedLocalStorage.get([
+    "captureCapability", "captureConnectionStatus",
+  ]);
+  const next: CaptureConnectionStatus = isCaptureCapability(stored.captureCapability)
+    ? await probeLocalCaptureConnection(stored.captureCapability)
+    : "connection_required";
+  if (stored.captureConnectionStatus !== next) {
+    await trustedLocalStorage.set({ captureConnectionStatus: next });
+    cachedSnapshot = undefined;
   }
-  try {
-    const pairingEndpoint = pairingEndpointFromCaptureEndpoint(state.captureEndpoint);
-    if (pairingEndpoint === undefined) {
-      await blockCaptureRecovery("unsupported_capture_endpoint", false);
-      return { ok: false, error: "unsupported_capture_endpoint" };
-    }
-    const response = await fetch(pairingEndpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code: message.code, installationId: state.installationId }),
-    });
-    if (!response.ok) return { ok: false, error: `Pairing request rejected (HTTP ${response.status})` };
-    const body: unknown = await response.json();
-    const paired = parsePairCaptureApiResponse(body, state.installationId);
-    await trustedLocalStorage.set({
-      captureCredential: paired.credential,
-      captureCredentialVersion: paired.credentialVersion,
-      pairedAt: new Date().toISOString(),
-    });
+}
+
+async function setCaptureConnectionStatus(status: CaptureConnectionStatus): Promise<void> {
+  const stored = await trustedLocalStorage.get(["captureConnectionStatus"]);
+  if (stored.captureConnectionStatus === status) return;
+  await trustedLocalStorage.set({ captureConnectionStatus: status });
+  cachedSnapshot = undefined;
+}
+
+async function clearConnectionError(): Promise<void> {
+  const stored = await trustedLocalStorage.get(["lastCaptureError"]);
+  if (typeof stored.lastCaptureError === "string"
+    && (stored.lastCaptureError.startsWith("Connection required:")
+      || stored.lastCaptureError.startsWith("Capability rejected:"))) {
     await trustedLocalStorage.remove("lastCaptureError");
-    await refreshCachedSnapshot();
-    await flushOutbox();
-    return { ok: true, installationId: paired.installationId, credentialVersion: paired.credentialVersion };
-  } catch (error) {
-    void error;
-    return { ok: false, error: "Pairing failed" };
   }
+}
+
+async function removeLegacyPairingStorage(): Promise<void> {
+  await trustedLocalStorage.remove("captureCredential");
+  await trustedLocalStorage.remove("captureCredentialVersion");
+  await trustedLocalStorage.remove("pairedAt");
+}
+
+function isCaptureCapability(value: unknown): value is string {
+  return typeof value === "string" && /^capture_[A-Za-z0-9_-]{43}$/u.test(value);
 }
 
 async function resetCanonicalCaptureEndpoint(): Promise<void> {
   const stored = await trustedLocalStorage.get(["lastCaptureError"]);
-  // Remove endpoint-bound authority first. If a later write fails, the old
-  // custom endpoint remains safely unpaired and cannot send.
-  await trustedLocalStorage.remove("captureCredential");
-  await trustedLocalStorage.remove("captureCredentialVersion");
-  await trustedLocalStorage.remove("pairedAt");
+  await removeLegacyPairingStorage();
   await trustedLocalStorage.set({ captureEndpoint: DEFAULT_CAPTURE_ENDPOINT });
   if (stored.lastCaptureError === "unsupported_capture_endpoint") {
     await trustedLocalStorage.remove("lastCaptureError");

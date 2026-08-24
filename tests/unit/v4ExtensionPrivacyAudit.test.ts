@@ -26,6 +26,7 @@ const approvedManifest = {
     "https://codeforces.com/*",
     "https://atcoder.jp/*",
   ],
+  externally_connectable: { matches: ["http://localhost/*"] },
   content_scripts: [{ matches: ["https://leetcode.com/problems/*"], js: ["content.js"] }],
   web_accessible_resources: [{
     resources: ["main-world-bridge.js"],
@@ -263,6 +264,16 @@ describe("V4 extension privacy audit", () => {
     }));
     expect(findings.some((finding) => finding.includes("host_permissions"))).toBe(true);
     expect(findings.some((finding) => finding.includes("test-only path"))).toBe(true);
+  });
+
+  it("rejects any external messaging scope beyond the canonical localhost app", () => {
+    const findings = auditV4ExtensionPrivacy(input({
+      sourceManifest: {
+        ...approvedManifest,
+        externally_connectable: { matches: ["http://localhost/*", "https://example.com/*"] },
+      },
+    }));
+    expect(findings.some((finding) => finding.includes("externally_connectable"))).toBe(true);
   });
 
   it("rejects remote manifest fields and extra target artifacts", () => {

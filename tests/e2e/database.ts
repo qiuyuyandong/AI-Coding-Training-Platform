@@ -8,14 +8,16 @@ import {
 import { isAbsolute, relative, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { applyMigrations } from "../../lib/db/migrations";
-import { hashCaptureSecret } from "../../lib/services/captureCredentials";
-import { saveCaptureInstallation } from "../../lib/repositories/captureInstallations";
+import { rotateLocalCaptureInstallation } from "../../lib/vault/captureInstallation";
 
 const WORKSPACE_TEMP_ROOT = resolve(process.cwd(), ".tmp");
 
 export const E2E_ROOT = resolve(WORKSPACE_TEMP_ROOT, "playwright");
 export const E2E_DB_PATH = resolve(E2E_ROOT, "training-platform.sqlite");
-export const E2E_CAPTURE_CREDENTIAL = "capture_e2e_fixed_credential";
+export const E2E_VAULT_CONFIG_DIR = resolve(E2E_ROOT, "config");
+export const E2E_CAPTURE_CAPABILITY = `capture_${"E".repeat(43)}`;
+export const E2E_CAPTURE_INSTALLATION_ID =
+  "installation_44444444-4444-4444-8444-444444444444";
 
 function assertSafeE2eRoot(): void {
   const relativePath = relative(WORKSPACE_TEMP_ROOT, E2E_ROOT);
@@ -65,12 +67,12 @@ export function prepareE2eDatabase(): void {
   const db = new Database(E2E_DB_PATH);
   try {
     applyMigrations(db, { now: () => "2026-07-11T00:00:00.000Z" });
-    saveCaptureInstallation(db, {
-      installationId: "installation_e2e",
-      credentialHash: hashCaptureSecret(E2E_CAPTURE_CREDENTIAL),
-      credentialVersion: 1,
-      status: "active",
-      createdAt: "2026-07-11T00:00:00.000Z",
+    rotateLocalCaptureInstallation({
+      installationId: E2E_CAPTURE_INSTALLATION_ID,
+      capability: E2E_CAPTURE_CAPABILITY,
+    }, {
+      configDirectory: E2E_VAULT_CONFIG_DIR,
+      now: () => "2026-07-11T00:00:00.000Z",
     });
   } finally {
     db.close();

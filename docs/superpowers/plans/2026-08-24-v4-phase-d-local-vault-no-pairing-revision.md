@@ -514,3 +514,25 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
 - 证据：
   `work/reports/v4-phase-d-local-vault-d3-migration-adoption-2026-08-25.md`。
 - D4 是下一且唯一可执行阶段；D7 和所有真实 OJ 动作仍未授权。
+
+## 17. Revision 2 D4 执行结果（2026-08-25）
+
+- 可见六码配对、旧 pairing API/repository/service、扩展 pairing 模块和配对 UI
+  已从可达产品面删除；新的 `/settings` 一键连接只向页面暴露单次 challenge。
+- 固定 ID 扩展生成 256-bit capability 并直接完成 challenge；原值只存
+  `chrome.storage.local`，Vault 外配置仅存 SHA-256。首次安装/重装需要一次点击，
+  restart/reload/Vault 切换沿用，遗留 credential 只删除、不复制。
+- status/events/attempts 在解析 capture body 或打开 SQLite 前验证规范 host、固定
+  extension Origin 和 Bearer；错误/缺失/旧 capability 均 `401`、DB `0/0/0`，
+  正确 Bundle 保持事务写入与幂等 ACK。
+- 新 provenance 恒为 `extension_local`；历史 paired/unpaired 行和完成 outbox
+  兼容保留。popup 收敛为四态状态与打开设置页，不再处理可见码。
+- 验证：root unit `2597/1`、App E2E `24/24`、extension unit `1671/1671`、
+  extension E2E `55/1`、lint/typecheck/build PASS、隐私审计 `0 findings`；默认
+  数据库 size/mtime/hash 不变，无新增依赖。
+- 两条独占 localhost:3000 的冻结 spike 保留为独立证据并从共享 webServer 套件
+  排除；exact production Route H、NowCoder full chain 和 D1 upgrade/restart 均在
+  共享套件通过。
+- 证据：
+  `work/reports/v4-phase-d-local-vault-d4-route-h-installation-2026-08-25.md`。
+- D5 是下一且唯一可执行阶段；D7、真实 OJ、push、PR、RC 和 release 仍未授权。

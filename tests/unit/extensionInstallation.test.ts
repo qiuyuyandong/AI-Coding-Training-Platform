@@ -98,7 +98,7 @@ describe("planExtensionInitialization V4", () => {
     expect(plan.shouldRemovePendingSubmissionIntents).toBe(true);
   });
 
-  it("preserves durable V3 delivery, pairing, and endpoint values", () => {
+  it("preserves durable V3 delivery but discards legacy pairing authority", () => {
     const captureOutbox = [outboxItem("preserved")];
     const captureQuarantine = [{
       id: captureOutbox[0].id,
@@ -120,13 +120,14 @@ describe("planExtensionInitialization V4", () => {
 
     expect(plan).toMatchObject({
       installationId: "installation_existing",
-      captureCredential: "credential_existing",
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox,
       captureQuarantine,
       discardedPreBundleEventCount: 32,
       preBundleQueueDiscardedAt: "2026-07-20T00:00:00.000Z",
     });
+    expect(plan.captureCapability).toBeUndefined();
+    expect(plan.shouldRemoveLegacyPairingState).toBe(true);
   });
 
   it("migrates only the exact legacy default endpoint", () => {
@@ -145,7 +146,8 @@ describe("planExtensionInitialization V4", () => {
       captureCredential: "capture_old",
     }, options);
     expect(plan.captureEndpoint).toBe("http://127.0.0.1:3001/api/capture/events?old=true");
-    expect(plan.captureCredential).toBe("capture_old");
+    expect(plan.captureCapability).toBeUndefined();
+    expect(plan.shouldRemoveLegacyPairingState).toBe(true);
     expect(plan.lastCaptureError).toBe("unsupported_capture_endpoint");
   });
 
@@ -321,7 +323,7 @@ describe("planExtensionInitialization V4", () => {
     expect(plan.captureOutbox).toEqual([]);
   });
 
-  it("preserves capture settings and reports pairing provenance", () => {
+  it("preserves capture settings and reports installation-local provenance", () => {
     const paired = planExtensionInitialization({
       captureCredential: "capture_secret",
       captureEnabled: false,
@@ -330,7 +332,7 @@ describe("planExtensionInitialization V4", () => {
     expect(runtimeContextFromPlan(paired)).toEqual({
       installationId: "installation_new",
       captureEnabled: false,
-      provenanceLevel: "extension_paired",
+      provenanceLevel: "extension_local",
     });
   });
   it("carries V4 transient and confirmed state across idempotent migration", () => {
@@ -359,7 +361,9 @@ describe("planExtensionInitialization local/session split", () => {
     const plan = planExtensionInitialization({
       captureProtocolVersion: 4,
       installationId: "installation_existing",
-      captureCredential: "paired",
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 2,
+      captureConnectionStatus: "connected",
       captureOutbox: [{ id: "durable" }],
       captureQuarantine: [{ id: "q" }],
       confirmedSubmissions: [{ schemaVersion: 1, status: "confirmed", platform: "atcoder", problemExternalId: "abc_a", externalSubmissionId: "42", confirmedAt: options.now, storageKey: "atcoder:42", lastE3At: options.now }],
@@ -372,13 +376,13 @@ describe("planExtensionInitialization local/session split", () => {
     const session = extensionInitializationSessionStorage(plan);
     expect(local).toHaveProperty("captureOutbox");
     expect(local).toHaveProperty("captureQuarantine");
-    expect(local).toHaveProperty("captureCredential");
+    expect(local).toHaveProperty("captureCapability");
     expect(local).not.toHaveProperty("uiHints");
     expect(local).not.toHaveProperty("transientE1");
     expect(session).toHaveProperty("uiHints");
     expect(session).toHaveProperty("transientE1");
     expect(session).not.toHaveProperty("captureOutbox");
-    expect(session).not.toHaveProperty("captureCredential");
+    expect(session).not.toHaveProperty("captureCapability");
   });
 
   it("LOCAL_INITIALIZATION_KEYS and SESSION_INITIALIZATION_KEYS do not overlap", () => {
@@ -395,7 +399,9 @@ describe("applyExtensionInitializationSplit", () => {
     const stored = {
       captureProtocolVersion: 4,
       installationId: "installation_existing",
-      captureCredential: "paired",
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 1,
+      captureConnectionStatus: "connected",
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox: [{ id: "durable" }],
       captureQuarantine: [{ id: "q" }],
@@ -417,17 +423,19 @@ describe("applyExtensionInitializationSplit", () => {
     const localWriteKeys = Object.keys(spy.localSpy.writes[0] ?? {});
     expect(localWriteKeys).toContain("captureProtocolVersion");
     expect(localWriteKeys).toContain("captureOutbox");
-    expect(localWriteKeys).toContain("captureCredential");
+    expect(localWriteKeys).toContain("captureCapability");
     const sessionWriteKeys = Object.keys(spy.sessionSpy.writes[0] ?? {});
     expect(sessionWriteKeys).not.toContain("captureOutbox");
-    expect(sessionWriteKeys).not.toContain("captureCredential");
+    expect(sessionWriteKeys).not.toContain("captureCapability");
   });
 
-  it("does not rewrite captureOutbox / captureQuarantine / captureCredential when only transient/tombstone state changes", async () => {
+  it("does not rewrite outbox, quarantine, or capability when only transient state changes", async () => {
     const existing = {
       captureProtocolVersion: 4,
       installationId: "installation_existing",
-      captureCredential: "paired",
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 1,
+      captureConnectionStatus: "connected",
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox: [{ id: "durable_outbox" }],
        captureQuarantine: [],
@@ -467,7 +475,7 @@ describe("applyExtensionInitializationSplit", () => {
     const localWriteKeys = spy.localSpy.writes.flatMap((w) => Object.keys(w));
     expect(localWriteKeys).not.toContain("captureOutbox");
     expect(localWriteKeys).not.toContain("captureQuarantine");
-    expect(localWriteKeys).not.toContain("captureCredential");
+    expect(localWriteKeys).not.toContain("captureCapability");
     // Legacy keys "outbox" / "quarantine" cleanup is still issued by the apply
     expect(spy.localSpy.removes).toEqual(["outbox", "quarantine"]);
     expect(spy.sessionSpy.writes.length).toBe(1);
@@ -477,7 +485,9 @@ describe("applyExtensionInitializationSplit", () => {
     const localStored = {
       captureProtocolVersion: 4,
       installationId: "installation_existing",
-      captureCredential: "paired",
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 2,
+      captureConnectionStatus: "connected",
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox: [{ id: "durable" }],
        captureQuarantine: [{ id: "q" }],
@@ -495,7 +505,8 @@ describe("applyExtensionInitializationSplit", () => {
     const plan = planExtensionInitialization(mergedAfterRestart, options);
     expect(plan.captureOutbox).toEqual([{ id: "durable" }]);
     expect(plan.captureQuarantine).toEqual([{ id: "q", error: "malformed retained bundle" }]);
-    expect(plan.captureCredential).toBe("paired");
+    expect(plan.captureCapability).toBe(`capture_${"A".repeat(43)}`);
+    expect(plan.captureConnectionStatus).toBe("connected");
     expect(plan.confirmedSubmissions).toHaveLength(1);
     expect(plan.confirmedSubmissionTombstones).toHaveLength(1);
     expect(plan.transientSessionEvidence?.requestLifecycles).toEqual([]);
@@ -505,7 +516,9 @@ describe("applyExtensionInitializationSplit", () => {
     const existing = {
       captureProtocolVersion: 4,
       installationId: "installation_existing",
-      captureCredential: "paired",
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 1,
+      captureConnectionStatus: "connected",
       captureOutbox: [],
       captureQuarantine: [],
       confirmedSubmissions: [],
@@ -519,7 +532,9 @@ describe("applyExtensionInitializationSplit", () => {
     const planInput = {
       captureProtocolVersion: 4,
       installationId: "installation_existing",
-      captureCredential: "paired",
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 1,
+      captureConnectionStatus: "connected",
       captureOutbox: [],
       captureQuarantine: [],
       confirmedSubmissions: [],
@@ -544,7 +559,9 @@ describe("applyExtensionInitializationSplit", () => {
     const existing = {
       captureProtocolVersion: 4,
       installationId: "installation_existing",
-      captureCredential: "paired",
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 1,
+      captureConnectionStatus: "connected",
       captureEnabled: true,
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox: [{ id: "durable" }],
@@ -605,7 +622,7 @@ describe("applyExtensionInitializationSplit", () => {
     expect(mergedWrite).toHaveProperty("confirmedSubmissions");
     expect(mergedWrite).toHaveProperty("confirmedSubmissionTombstones");
     expect(mergedWrite).not.toHaveProperty("captureOutbox");
-    expect(mergedWrite).not.toHaveProperty("captureCredential");
+    expect(mergedWrite).not.toHaveProperty("captureCapability");
   });
 });
 

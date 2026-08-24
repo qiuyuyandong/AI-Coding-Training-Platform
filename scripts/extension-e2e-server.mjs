@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 
 const workspaceRoot = resolve(process.cwd());
@@ -17,10 +17,15 @@ if (bootstrap.status !== 0 || !existsSync(pathFile)) {
 
 const dbPath = readFileSync(pathFile, "utf8").trim();
 if (dbPath.length === 0) throw new Error("Extension E2E database path is empty");
+const vaultConfigDirectory = resolve(dirname(dbPath), "vault-config");
 
 const server = spawn(process.execPath, [nextCli, "dev"], {
   cwd: workspaceRoot,
-  env: { ...process.env, TRAINING_DB_PATH: dbPath },
+  env: {
+    ...process.env,
+    TRAINING_DB_PATH: dbPath,
+    TRAINING_VAULT_CONFIG_DIR: vaultConfigDirectory,
+  },
   stdio: "inherit",
   windowsHide: true,
 });

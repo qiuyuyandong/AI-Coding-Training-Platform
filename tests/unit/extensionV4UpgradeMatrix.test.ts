@@ -822,6 +822,9 @@ describe("Phase D D1 V4 upgrade matrix", () => {
     expect(first.persistence.localRemovals).toEqual([
       "pendingSubmissionIntents",
       "eventQueue",
+      "captureCredential",
+      "captureCredentialVersion",
+      "pairedAt",
       "outbox",
       "quarantine",
     ]);

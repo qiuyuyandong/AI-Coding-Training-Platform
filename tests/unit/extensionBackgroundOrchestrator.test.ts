@@ -579,7 +579,9 @@ describe("background orchestrator", () => {
     const initial: Record<string, unknown> = {
       captureProtocolVersion: 4,
       installationId: "installation_existing",
-      captureCredential: "paired",
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 1,
+      captureConnectionStatus: "connected",
       captureEnabled: true,
       captureEndpoint: "http://localhost:3000/api/capture/attempts",
       captureOutbox: [],
@@ -598,8 +600,9 @@ describe("background orchestrator", () => {
     // DOES see matches prior storage and therefore is omitted from the diff.
     const durableKeys = [
       "installationId",
-      "captureCredential",
-      "captureCredentialVersion",
+      "captureCapability",
+      "captureCapabilityVersion",
+      "captureConnectionStatus",
       "captureEnabled",
       "captureEndpoint",
       "captureProtocolVersion",
@@ -1778,6 +1781,7 @@ interface FakeChrome {
     readonly onInstalled: { readonly addListener: (cb: FakeInstalledListener) => void };
     readonly onStartup: { readonly addListener: (cb: FakeStartupListener) => void };
     readonly onMessage: { readonly addListener: (cb: FakeMessageListener) => void };
+    readonly onMessageExternal: { readonly addListener: (cb: FakeMessageListener) => void };
   };
   readonly webRequest: {
     readonly onBeforeRequest: { readonly addListener: (...args: readonly unknown[]) => void };
@@ -1893,6 +1897,7 @@ function createFakeChrome(
       // module captures them at module-load time via the real chrome API.
       onStartup: { addListener: (cb) => { startupListeners.push(cb); } },
       onMessage: { addListener: (cb) => { messageListeners.push(cb); } },
+      onMessageExternal: { addListener: () => undefined },
     },
     webRequest: {
       onBeforeRequest: { addListener: () => undefined },

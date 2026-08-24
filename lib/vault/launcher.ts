@@ -34,7 +34,7 @@ type ExecuteOptions = Readonly<{
   pick?: (kind: "directory" | "sqlite") => PickerResult;
   assertPortAvailable?: () => Promise<void>;
   chooseInitialCommand?: () => Promise<Exclude<VaultCommand, "serve">>;
-  startApplication?: (vault: ValidatedVault) => Promise<number>;
+  startApplication?: (vault: ValidatedVault, configDirectory: string) => Promise<number>;
 }>;
 
 export function parseVaultArguments(args: readonly string[]): ParsedVaultArguments {
@@ -82,7 +82,7 @@ export async function executeVaultCommand(
     const active = readActiveVault(configDirectory);
     if (active !== null && input.vaultPath === undefined && input.sourcePath === undefined) {
       await checkPort();
-      return { status: "exited", exitCode: await start(active) };
+      return { status: "exited", exitCode: await start(active, configDirectory) };
     }
     command = input.sourcePath !== undefined
       ? "adopt"
@@ -120,7 +120,7 @@ export async function executeVaultCommand(
   }
 
   if (input.command === "serve") {
-    return { status: "exited", exitCode: await start(vault) };
+    return { status: "exited", exitCode: await start(vault, configDirectory) };
   }
   return { status: "configured", vault };
 }
@@ -142,7 +142,10 @@ export async function assertLocalPortAvailable(): Promise<void> {
   });
 }
 
-export async function startLocalApplication(vault: ValidatedVault): Promise<number> {
+export async function startLocalApplication(
+  vault: ValidatedVault,
+  configDirectory = resolveVaultConfigDirectory(),
+): Promise<number> {
   const nextCli = resolve(process.cwd(), "node_modules", "next", "dist", "bin", "next");
   const child = spawn(process.execPath, [
     nextCli,
@@ -158,6 +161,7 @@ export async function startLocalApplication(vault: ValidatedVault): Promise<numb
       TRAINING_DB_PATH: vault.databasePath,
       TRAINING_VAULT_PATH: vault.vaultPath,
       TRAINING_VAULT_ID: vault.descriptor.vaultId,
+      TRAINING_VAULT_CONFIG_DIR: configDirectory,
     },
     shell: false,
     stdio: "inherit",

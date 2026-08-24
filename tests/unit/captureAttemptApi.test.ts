@@ -17,22 +17,22 @@ import {
   ingestCaptureAttemptBundle,
 } from "@/lib/services/captureAttemptBundle";
 import {
-  issueCapturePairingCode,
-  pairCaptureInstallation,
-  revokeCaptureInstallation,
-} from "@/lib/services/captureCredentials";
+  createCaptureCapability,
+} from "@/lib/services/captureCapability";
+import { CAPTURE_EXTENSION_ORIGIN } from "@/lib/extension/identity";
+import { rotateLocalCaptureInstallation } from "@/lib/vault/captureInstallation";
 
 let tempDir = "";
-let captureCredential = "";
+let captureCapability = "";
 
 const baseEvent = {
   schemaVersion: 2 as const,
   captureSessionId: "session_bundle_api_1",
-  installationId: "installation_bundle_api_1",
+  installationId: "installation_33333333-3333-4333-8333-333333333333",
   adapterVersion: "atomic-bundle@0.1.0",
   parserVersion: "atomic-bundle@0.1.0",
   pageOrigin: "https://leetcode.com",
-  provenanceLevel: "extension_paired" as const,
+  provenanceLevel: "extension_local" as const,
   platform: "leetcode" as const,
   problemExternalId: "two-sum",
   problemTitle: "Two Sum",
@@ -42,14 +42,15 @@ const baseEvent = {
 beforeEach(() => {
   tempDir = mkdtempSync(join(tmpdir(), "capture-bundle-api-"));
   process.env.TRAINING_DB_PATH = join(tempDir, "test.sqlite");
+  process.env.TRAINING_VAULT_CONFIG_DIR = join(tempDir, "config");
   const db = openDatabase();
   try {
     applyMigrations(db, { now: () => "2026-07-14T00:00:00.000Z" });
-    const pairing = issueCapturePairingCode(db);
-    captureCredential = pairCaptureInstallation(db, {
-      code: pairing.code,
+    captureCapability = createCaptureCapability();
+    rotateLocalCaptureInstallation({
+      capability: captureCapability,
       installationId: baseEvent.installationId,
-    }).credential;
+    });
   } finally {
     db.close();
   }
@@ -57,6 +58,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete process.env.TRAINING_DB_PATH;
+  delete process.env.TRAINING_VAULT_CONFIG_DIR;
   rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -213,20 +215,21 @@ describe("ingestCaptureAttemptBundle", () => {
 function requestWithBody(
   body: unknown,
   options: {
-    readonly credential?: string | null;
+    readonly capability?: string | null;
     readonly contentType?: string;
-    readonly origin?: string;
+    readonly origin?: string | null;
   } = {},
 ): Request {
-  const credential = options.credential === undefined ? captureCredential : options.credential;
+  const capability = options.capability === undefined ? captureCapability : options.capability;
   const headers = new Headers({
     "content-type": options.contentType ?? "application/json",
   });
-  if (credential !== null) {
-    headers.set("authorization", `Bearer ${credential}`);
+  if (capability !== null) {
+    headers.set("authorization", `Bearer ${capability}`);
   }
-  if (options.origin !== undefined) headers.set("origin", options.origin);
-  return new Request("http://localhost/api/capture/attempts", {
+  const origin = options.origin === undefined ? CAPTURE_EXTENSION_ORIGIN : options.origin;
+  if (origin !== null) headers.set("origin", origin);
+  return new Request("http://localhost:3000/api/capture/attempts", {
     method: "POST",
     headers,
     body: JSON.stringify(body),
@@ -234,25 +237,25 @@ function requestWithBody(
 }
 
 describe("POST /api/capture/attempts", () => {
-  it("rejects missing, mismatched, and revoked credentials without writing", async () => {
+  it("rejects missing, mismatched, and rotated capabilities without writing", async () => {
     const { POST } = await import("@/app/api/capture/attempts/route");
     const bundle = attemptBundle({ submissionId: "submission_attempts_1" });
-    const missing = await POST(requestWithBody(bundle, { credential: null }));
+    const missing = await POST(requestWithBody(bundle, { capability: null }));
     const mismatch = await POST(requestWithBody(bundle, {
-      credential: "capture_neighbor_unrelated",
+      capability: `capture_${"B".repeat(43)}`,
     }));
 
-    const db = openDatabase();
-    try {
-      revokeCaptureInstallation(db, baseEvent.installationId);
-    } finally {
-      db.close();
-    }
-    const revoked = await POST(requestWithBody(bundle));
+    const oldCapability = captureCapability;
+    captureCapability = createCaptureCapability();
+    rotateLocalCaptureInstallation({
+      capability: captureCapability,
+      installationId: baseEvent.installationId,
+    });
+    const rotated = await POST(requestWithBody(bundle, { capability: oldCapability }));
 
     expect(missing.status).toBe(401);
     expect(mismatch.status).toBe(401);
-    expect(revoked.status).toBe(401);
+    expect(rotated.status).toBe(401);
     const verification = openDatabase();
     try {
       expect(rowCount(verification, "capture_events")).toBe(0);

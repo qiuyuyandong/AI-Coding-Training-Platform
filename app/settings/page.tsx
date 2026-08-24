@@ -1,11 +1,16 @@
 import React from "react";
 
+import { CaptureConnectionSettings } from "./CaptureConnectionSettings";
+import { CAPTURE_EXTENSION_ID } from "@/lib/extension/identity";
+import { readLocalCaptureInstallation } from "@/lib/vault/captureInstallation";
+
 export const dynamic = "force-dynamic";
 
 export default function SettingsPage() {
   const vaultPath = process.env.TRAINING_VAULT_PATH;
   const vaultId = process.env.TRAINING_VAULT_ID;
   const launchedWithVault = vaultPath !== undefined && vaultId !== undefined;
+  const captureConnectionState = readCaptureConnectionState();
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <p className="text-xs uppercase tracking-wide text-slate-500">Local data</p>
@@ -41,6 +46,11 @@ export default function SettingsPage() {
         )}
       </section>
 
+      <CaptureConnectionSettings
+        extensionId={CAPTURE_EXTENSION_ID}
+        initialState={captureConnectionState}
+      />
+
       <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">切换方式</h2>
         <p className="mt-2 text-sm text-slate-600">
@@ -52,4 +62,12 @@ export default function SettingsPage() {
       </section>
     </main>
   );
+}
+
+function readCaptureConnectionState(): "connected" | "connection_required" | "capability_rejected" {
+  try {
+    return readLocalCaptureInstallation() === null ? "connection_required" : "connected";
+  } catch {
+    return "capability_rejected";
+  }
 }

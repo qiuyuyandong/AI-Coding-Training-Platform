@@ -44,6 +44,7 @@ import {
   verifyDefaultDatabaseUntouched,
 } from "./database";
 import { EXTENSION_DIST } from "./fixtures";
+import { connectRouteHExtension } from "./routeHConnection";
 
 test.setTimeout(240_000);
 
@@ -114,28 +115,30 @@ type ExtensionPageRef = {
 
 type ReplayPayload = Readonly<{
   readonly body: string;
-  readonly credential: string;
+  readonly capability: string;
   readonly bundleId: string;
   readonly eventCount: number;
 }>;
 
 type DurableMetadata = Readonly<{
   readonly installationId: string | undefined;
-  readonly captureCredential: string | undefined;
-  readonly captureCredentialVersion: number | undefined;
+  readonly captureCapability: string | undefined;
+  readonly captureCapabilityVersion: number | undefined;
+  readonly captureConnectionStatus: string | undefined;
   readonly captureProtocolVersion: number | undefined;
   readonly captureEndpoint: string | undefined;
-  readonly pairedAt: string | undefined;
+  readonly connectedAt: string | undefined;
 }>;
 
 type DurableCaptureSnapshot = Readonly<{
   readonly installationId: string | undefined;
-  readonly captureCredential: string | undefined;
-  readonly captureCredentialVersion: number | undefined;
+  readonly captureCapability: string | undefined;
+  readonly captureCapabilityVersion: number | undefined;
+  readonly captureConnectionStatus: string | undefined;
   readonly captureEnabled: boolean | undefined;
   readonly captureEndpoint: string | undefined;
   readonly captureProtocolVersion: number | undefined;
-  readonly pairedAt: string | undefined;
+  readonly connectedAt: string | undefined;
   readonly lastCaptureError: string | undefined;
   readonly lastSuccessfulCaptureAt: string | undefined;
   readonly lastDeliveredAttemptId: string | undefined;
@@ -283,7 +286,7 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
 
   const page = await extensionContext.newPage();
   try {
-    await pairExtension(extensionContext, liveWorker, extensionId);
+    await connectRouteHExtension(extensionContext, liveWorker);
     await recordAction("browse-only before submit", liveWorker, async () => {
       await page.goto(NOWCODER_B7_LIST_URL, { waitUntil: "domcontentloaded" });
       await page.goto(NOWCODER_B7_PROBLEM_URL, { waitUntil: "domcontentloaded" });
@@ -373,10 +376,10 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
     expect(retainedOutbox.captureOutbox).toHaveLength(1);
     expect(retainedOutbox.confirmedSubmissionTombstones).toHaveLength(1);
     const replayPayload = await controllerPage().evaluate(async (): Promise<ReplayPayload | null> => {
-      const stored = await chrome.storage.local.get(["captureOutbox", "captureCredential"]);
+      const stored = await chrome.storage.local.get(["captureOutbox", "captureCapability"]);
       const outbox = stored.captureOutbox;
-      const credential = stored.captureCredential;
-      if (!Array.isArray(outbox) || outbox.length !== 1 || typeof credential !== "string") return null;
+      const capability = stored.captureCapability;
+      if (!Array.isArray(outbox) || outbox.length !== 1 || typeof capability !== "string") return null;
       const first = outbox[0];
       if (typeof first !== "object" || first === null) return null;
       const bundle = Reflect.get(first, "bundle");
@@ -385,7 +388,7 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
       const events = Reflect.get(bundle, "events");
       if (typeof bundleId !== "string" || !Array.isArray(events)) return null;
       const body = JSON.stringify(bundle);
-      return body === undefined ? null : { body, credential, bundleId, eventCount: events.length };
+      return body === undefined ? null : { body, capability, bundleId, eventCount: events.length };
     });
     if (replayPayload === null) throw new Error("D1 retained outbox replay payload is missing");
 
@@ -406,11 +409,12 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
     expect(metadataBeforeDelivery).toBeDefined();
     const metadataAfterDelivery = await readDurableMetadataFromPage(controllerPage());
     expect(metadataAfterDelivery.installationId).toBe(metadataBeforeDelivery?.installationId);
-    expect(metadataAfterDelivery.captureCredential).toBe(metadataBeforeDelivery?.captureCredential);
-    expect(metadataAfterDelivery.captureCredentialVersion)
-      .toBe(metadataBeforeDelivery?.captureCredentialVersion);
+    expect(metadataAfterDelivery.captureCapability).toBe(metadataBeforeDelivery?.captureCapability);
+    expect(metadataAfterDelivery.captureCapabilityVersion)
+      .toBe(metadataBeforeDelivery?.captureCapabilityVersion);
+    expect(metadataAfterDelivery.captureConnectionStatus).toBe("connected");
     expect(metadataAfterDelivery.captureProtocolVersion).toBe(metadataBeforeDelivery?.captureProtocolVersion);
-    expect(metadataAfterDelivery.pairedAt).toBe(metadataBeforeDelivery?.pairedAt);
+    expect(metadataAfterDelivery.connectedAt).toBe(metadataBeforeDelivery?.connectedAt);
     expect(metadataAfterDelivery.captureEndpoint).toBe(CAPTURE_ENDPOINT);
     expect(replayPayload.eventCount).toBe(4);
 
@@ -418,7 +422,7 @@ test("D1 exact-dist chain survives E1/E2/E3/outbox worker restarts and replays o
     const replay = await fetch(CAPTURE_ENDPOINT, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${replayPayload.credential}`,
+        authorization: `Bearer ${replayPayload.capability}`,
         "content-type": "application/json",
         origin: `chrome-extension://${extensionId}`,
       },
@@ -677,7 +681,7 @@ test("D1 browser restart after E1 clears transient state and after E2 retains du
       resultVerdict = next;
     }, () => resultVerdict);
     let page = await context.newPage();
-    await pairExtension(context, worker, extensionId);
+    await connectRouteHExtension(context, worker);
     await submitFakeNowCoder(page);
     await expect.poll(async () =>
       hasCompletedE1(await readFakeOjStorageEventually(context, workerUrl)),
@@ -817,6 +821,10 @@ test("D1 exact-dist profiles migrate V2 and V3 storage without LevelDB access", 
         expect(raw.local).not.toHaveProperty("eventQueue");
         expect(raw.local).not.toHaveProperty("outbox");
         expect(raw.local).not.toHaveProperty("quarantine");
+        expect(raw.local).not.toHaveProperty("captureCredential");
+        expect(raw.local).not.toHaveProperty("captureCredentialVersion");
+        expect(raw.local).not.toHaveProperty("pairedAt");
+        expect(raw.local.captureConnectionStatus).toBe("connection_required");
         if (scenario.version === 2) {
           expect(raw.local.discardedPreBundleEventCount).toBe(2);
           expect(typeof raw.local.preBundleQueueDiscardedAt).toBe("string");
@@ -1069,7 +1077,7 @@ async function seedLifecycleState(worker: Worker): Promise<void> {
       adapterVersion: "v4-nowcoder-network-1",
       parserVersion: "v4-nowcoder-network-1",
       pageOrigin: "https://ac.nowcoder.com",
-      provenanceLevel: "extension_paired",
+      provenanceLevel: "extension_local",
       platform: "nowcoder",
       problemExternalId: "acm/contest/18839/1001",
       problemTitle: "D1 lifecycle",
@@ -1122,8 +1130,10 @@ async function seedLifecycleState(worker: Worker): Promise<void> {
     await chrome.storage.local.set({
       captureProtocolVersion: 4,
       installationId: "d1-lifecycle-installation",
-      captureCredential: "d1-lifecycle-credential",
-      captureCredentialVersion: 1,
+      captureCapability: `capture_${"A".repeat(43)}`,
+      captureCapabilityVersion: 1,
+      captureConnectionStatus: "connected",
+      connectedAt: now,
       captureEnabled: true,
       captureEndpoint: "http://127.0.0.1:9/api/capture/events",
       confirmedSubmissions: [{
@@ -1146,7 +1156,6 @@ async function seedLifecycleState(worker: Worker): Promise<void> {
          ...quarantine,
          item: { ...quarantine.item, attempts: 3, automaticRetryBlocked: true },
        }],
-      pairedAt: now,
       unknownLocalSentinel: "d1-local-unknown",
     });
     await chrome.storage.session.set({
@@ -1380,11 +1389,12 @@ async function readDurableMetadataFromPage(page: Page): Promise<DurableMetadata>
   return page.evaluate(async (): Promise<DurableMetadata> => {
     const stored = await chrome.storage.local.get([
       "installationId",
-      "captureCredential",
-      "captureCredentialVersion",
+      "captureCapability",
+      "captureCapabilityVersion",
+      "captureConnectionStatus",
       "captureProtocolVersion",
       "captureEndpoint",
-      "pairedAt",
+      "connectedAt",
     ]);
     const stringValue = (value: unknown): string | undefined =>
       typeof value === "string" ? value : undefined;
@@ -1392,11 +1402,12 @@ async function readDurableMetadataFromPage(page: Page): Promise<DurableMetadata>
       typeof value === "number" ? value : undefined;
     return {
       installationId: stringValue(stored.installationId),
-      captureCredential: stringValue(stored.captureCredential),
-      captureCredentialVersion: numberValue(stored.captureCredentialVersion),
+      captureCapability: stringValue(stored.captureCapability),
+      captureCapabilityVersion: numberValue(stored.captureCapabilityVersion),
+      captureConnectionStatus: stringValue(stored.captureConnectionStatus),
       captureProtocolVersion: numberValue(stored.captureProtocolVersion),
       captureEndpoint: stringValue(stored.captureEndpoint),
-      pairedAt: stringValue(stored.pairedAt),
+      connectedAt: stringValue(stored.connectedAt),
     };
   });
 }
@@ -1404,12 +1415,13 @@ async function readDurableMetadataFromPage(page: Page): Promise<DurableMetadata>
 async function readDurableCaptureSnapshotInExtensionContext(): Promise<DurableCaptureSnapshot> {
     const stored = await chrome.storage.local.get([
       "installationId",
-      "captureCredential",
-      "captureCredentialVersion",
+      "captureCapability",
+      "captureCapabilityVersion",
+      "captureConnectionStatus",
       "captureEnabled",
       "captureEndpoint",
       "captureProtocolVersion",
-      "pairedAt",
+      "connectedAt",
       "lastCaptureError",
       "lastSuccessfulCaptureAt",
       "lastDeliveredAttemptId",
@@ -1428,12 +1440,13 @@ async function readDurableCaptureSnapshotInExtensionContext(): Promise<DurableCa
     const list = (value: unknown): readonly unknown[] => Array.isArray(value) ? value : [];
     return {
       installationId: stringValue(stored.installationId),
-      captureCredential: stringValue(stored.captureCredential),
-      captureCredentialVersion: numberValue(stored.captureCredentialVersion),
+      captureCapability: stringValue(stored.captureCapability),
+      captureCapabilityVersion: numberValue(stored.captureCapabilityVersion),
+      captureConnectionStatus: stringValue(stored.captureConnectionStatus),
       captureEnabled: booleanValue(stored.captureEnabled),
       captureEndpoint: stringValue(stored.captureEndpoint),
       captureProtocolVersion: numberValue(stored.captureProtocolVersion),
-      pairedAt: stringValue(stored.pairedAt),
+      connectedAt: stringValue(stored.connectedAt),
       lastCaptureError: stringValue(stored.lastCaptureError),
       lastSuccessfulCaptureAt: stringValue(stored.lastSuccessfulCaptureAt),
       lastDeliveredAttemptId: stringValue(stored.lastDeliveredAttemptId),
@@ -1471,11 +1484,11 @@ async function readDurableCaptureSnapshotEventually(
 function durableIdentity(snapshot: DurableCaptureSnapshot): Readonly<Record<string, unknown>> {
   return {
     installationId: snapshot.installationId,
-    captureCredential: snapshot.captureCredential,
-    captureCredentialVersion: snapshot.captureCredentialVersion,
+    captureCapability: snapshot.captureCapability,
+    captureCapabilityVersion: snapshot.captureCapabilityVersion,
     captureEndpoint: snapshot.captureEndpoint,
     captureProtocolVersion: snapshot.captureProtocolVersion,
-    pairedAt: snapshot.pairedAt,
+    connectedAt: snapshot.connectedAt,
     lastSuccessfulCaptureAt: snapshot.lastSuccessfulCaptureAt,
     lastDeliveredAttemptId: snapshot.lastDeliveredAttemptId,
     lastDeliveredAttemptStatus: snapshot.lastDeliveredAttemptStatus,
@@ -1733,41 +1746,6 @@ function resultHtml(verdict: string | null): string {
     "<a href=\"/acm/contest/18839/1001\">problem</a>",
     verdict === null ? "" : `<div class=\"coder-cont-legend\">${verdict}</div>`,
   ].join("");
-}
-
-async function pairExtension(
-  context: BrowserContext,
-  worker: Worker,
-  extensionId: string,
-): Promise<void> {
-  const response = await fetch("http://localhost:3000/api/capture/pairing-codes", {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: "http://localhost:3000" },
-    body: "{}",
-  });
-  const body: unknown = await response.json();
-  const code = readPairingCode(body);
-  const popup = await context.newPage();
-  try {
-    await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
-    await popup.locator("#pairingCode").fill(code);
-    await popup.locator("#pairButton").click();
-    await expect.poll(async () => worker.evaluate(async () => {
-      const stored = await chrome.storage.local.get(["captureCredential"]);
-      return typeof stored.captureCredential === "string";
-    })).toBe(true);
-  } finally {
-    await popup.close();
-  }
-}
-
-function readPairingCode(value: unknown): string {
-  if (typeof value !== "object" || value === null) throw new Error("Pairing response is not an object");
-  const code = Reflect.get(value, "code");
-  if (Reflect.get(value, "ok") !== true || typeof code !== "string" || code.length === 0) {
-    throw new Error("Pairing response did not contain a code");
-  }
-  return code;
 }
 
 function readDbPath(): string {

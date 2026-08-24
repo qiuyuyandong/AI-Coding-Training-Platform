@@ -19,6 +19,10 @@ import {
   sanitizeCaptureOutboxRecords,
   sanitizeCaptureQuarantineRecords,
 } from "./captureErrorPrivacy";
+import {
+  readCaptureConnectionStatus,
+  type CaptureConnectionStatus,
+} from "./localConnection";
 
 export const CAPTURE_PROTOCOL_VERSION = 4 as const;
 
@@ -40,7 +44,10 @@ export type CaptureRuntimeContext = z.infer<typeof CaptureRuntimeContextSchema>;
 
 export type ExtensionInitializationPlan = {
   readonly installationId: string;
-  readonly captureCredential?: string;
+  readonly captureCapability?: string;
+  readonly captureCapabilityVersion?: number;
+  readonly connectedAt?: string;
+  readonly captureConnectionStatus: CaptureConnectionStatus;
   readonly captureEnabled: boolean;
   readonly captureEndpoint: string;
   readonly captureProtocolVersion: 4;
@@ -56,6 +63,7 @@ export type ExtensionInitializationPlan = {
   readonly shouldRemoveLegacyEventQueue: boolean;
   readonly shouldRemovePendingSubmissionIntents: boolean;
   readonly shouldRemoveLastCaptureError: boolean;
+  readonly shouldRemoveLegacyPairingState: boolean;
 };
 
 /**
@@ -72,7 +80,7 @@ export type ExtensionInitializationStorage = {
 
 /**
  * Split storage surface: separates chrome.storage.local (durable delivery,
- * pairing, E2 confirmed, tombstones, V4 audit) from chrome.storage.session
+ * capability, E2 confirmed, tombstones, V4 audit) from chrome.storage.session
  * (transient E0/E1/E3/diagnostic evidence). The apply function reads prior
  * state from each area, computes a per-area diff, and writes only keys whose
  * value differs from the prior read.
@@ -146,7 +154,13 @@ export function planExtensionInitialization(
   const confirmed = isV4 ? readConfirmedSubmissionState(stored) : { confirmed: [], tombstones: [] };
   const base = {
     installationId,
-    captureCredential: readNonemptyString(stored.captureCredential),
+    captureCapability: readValidCaptureCapability(stored.captureCapability),
+    captureCapabilityVersion: readPositiveInteger(stored.captureCapabilityVersion),
+    connectedAt: readNonemptyString(stored.connectedAt),
+    captureConnectionStatus: readCaptureConnectionStatus(
+      stored.captureConnectionStatus,
+      readValidCaptureCapability(stored.captureCapability) !== undefined,
+    ),
     captureEnabled: stored.captureEnabled !== false,
     captureEndpoint: readCaptureEndpoint(endpoint.endpoint),
     captureProtocolVersion: CAPTURE_PROTOCOL_VERSION,
@@ -166,6 +180,9 @@ export function planExtensionInitialization(
     shouldRemovePendingSubmissionIntents: Object.hasOwn(stored, "pendingSubmissionIntents"),
     shouldRemoveLastCaptureError: Object.hasOwn(stored, "lastCaptureError")
       && lastCaptureError === undefined,
+    shouldRemoveLegacyPairingState: Object.hasOwn(stored, "captureCredential")
+      || Object.hasOwn(stored, "captureCredentialVersion")
+      || Object.hasOwn(stored, "pairedAt"),
   };
   return preBundleQueueDiscardedAt === undefined
     ? base
@@ -188,9 +205,14 @@ export function extensionInitializationLocalStorage(
 ): Record<string, unknown> {
   return {
     installationId: plan.installationId,
-    ...(plan.captureCredential === undefined
+    ...(plan.captureCapability === undefined
       ? {}
-      : { captureCredential: plan.captureCredential }),
+      : { captureCapability: plan.captureCapability }),
+    ...(plan.captureCapabilityVersion === undefined
+      ? {}
+      : { captureCapabilityVersion: plan.captureCapabilityVersion }),
+    ...(plan.connectedAt === undefined ? {} : { connectedAt: plan.connectedAt }),
+    captureConnectionStatus: plan.captureConnectionStatus,
     captureEnabled: plan.captureEnabled,
     captureEndpoint: plan.captureEndpoint,
     captureProtocolVersion: plan.captureProtocolVersion,
@@ -247,7 +269,13 @@ export function extensionInitializationStorage(
  */
 export const LOCAL_INITIALIZATION_KEYS: readonly string[] = [
   "installationId",
+  "captureCapability",
+  "captureCapabilityVersion",
+  "connectedAt",
+  "captureConnectionStatus",
   "captureCredential",
+  "captureCredentialVersion",
+  "pairedAt",
   "captureEnabled",
   "captureEndpoint",
   "captureProtocolVersion",
@@ -293,13 +321,18 @@ export async function applyExtensionInitialization(
   }
   if (plan.shouldRemoveLastCaptureError) await storage.remove("lastCaptureError");
   if (plan.shouldRemoveLegacyEventQueue) await storage.remove("eventQueue");
+  if (plan.shouldRemoveLegacyPairingState) {
+    await storage.remove("captureCredential");
+    await storage.remove("captureCredentialVersion");
+    await storage.remove("pairedAt");
+  }
   await storage.remove("outbox");
   await storage.remove("quarantine");
 }
 
 /**
  * Split-aware apply: writes transient evidence to chrome.storage.session and
- * durable delivery / pairing / confirmed / tombstones to chrome.storage.local.
+ * durable delivery / capability / confirmed / tombstones to chrome.storage.local.
  * Reads prior state from each area, computes a per-area diff, and writes only
  * keys whose plan value differs from the prior read. The local diff preserves
  * an existing confirmedSubmissionTombstones array when the caller forgot to
@@ -330,6 +363,11 @@ export async function applyExtensionInitializationSplit(
   }
   if (plan.shouldRemoveLastCaptureError) await storage.local.remove("lastCaptureError");
   if (plan.shouldRemoveLegacyEventQueue) await storage.local.remove("eventQueue");
+  if (plan.shouldRemoveLegacyPairingState) {
+    await storage.local.remove("captureCredential");
+    await storage.local.remove("captureCredentialVersion");
+    await storage.local.remove("pairedAt");
+  }
   await storage.local.remove("outbox");
   await storage.local.remove("quarantine");
 }
@@ -389,9 +427,7 @@ export function runtimeContextFromPlan(
   return {
     installationId: plan.installationId,
     captureEnabled: plan.captureEnabled,
-    provenanceLevel: plan.captureCredential === undefined
-      ? "extension_unpaired"
-      : "extension_paired",
+    provenanceLevel: "extension_local",
   };
 }
 
@@ -401,9 +437,7 @@ export function runtimeContextFromStored(
   return CaptureRuntimeContextSchema.parse({
     installationId: stored.installationId,
     captureEnabled: stored.captureEnabled !== false,
-    provenanceLevel: readNonemptyString(stored.captureCredential) === undefined
-      ? "extension_unpaired"
-      : "extension_paired",
+    provenanceLevel: "extension_local",
   });
 }
 
@@ -413,6 +447,16 @@ function readNonnegativeInteger(value: unknown): number {
 
 function readNonemptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function readPositiveInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function readValidCaptureCapability(value: unknown): string | undefined {
+  return typeof value === "string" && /^capture_[A-Za-z0-9_-]{43}$/u.test(value)
+    ? value
+    : undefined;
 }
 
 function readV4ClickIntentMigration(value: unknown): V4ClickIntentMigration | undefined {

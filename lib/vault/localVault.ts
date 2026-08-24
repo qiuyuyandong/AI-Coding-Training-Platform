@@ -177,32 +177,18 @@ export function writeActiveVaultPointer(
   configDirectory = resolveVaultConfigDirectory(),
 ): string {
   const validated = validateVault(vault.vaultPath);
-  const safeConfigDirectory = ensureSafeConfigDirectory(configDirectory);
-  const configPath = join(safeConfigDirectory, VAULT_CONFIG_NAME);
-  if (pathEntryExists(configPath)) requireSafeRegularFile(configPath, "Vault pointer");
-  const temporaryPath = join(safeConfigDirectory, `.vault-${randomUUID()}.tmp`);
-  try {
-    writeJsonExclusive(temporaryPath, {
-      version: 1,
-      activeVaultPath: validated.vaultPath,
-    });
-    renameSync(temporaryPath, configPath);
-  } catch (error) {
-    removeOwnedRegularFile(temporaryPath);
-    throw toVaultError("Could not update the active Vault pointer", error);
-  }
-  return configPath;
+  return writeLocalConfigJson(VAULT_CONFIG_NAME, {
+    version: 1,
+    activeVaultPath: validated.vaultPath,
+  }, configDirectory);
 }
 
 export function readActiveVault(
   configDirectory = resolveVaultConfigDirectory(),
 ): ValidatedVault | null {
-  if (!pathEntryExists(configDirectory)) return null;
-  const safeConfigDirectory = requireSafeDirectory(configDirectory, "Vault config directory");
-  const configPath = join(safeConfigDirectory, VAULT_CONFIG_NAME);
-  if (!pathEntryExists(configPath)) return null;
-  requireSafeRegularFile(configPath, "Vault pointer");
-  const pointer = ActiveVaultPointerSchema.parse(readBoundedJson(configPath));
+  const stored = readLocalConfigJson(VAULT_CONFIG_NAME, configDirectory);
+  if (stored === null) return null;
+  const pointer = ActiveVaultPointerSchema.parse(stored);
   if (!isAbsolute(pointer.activeVaultPath)) {
     throw new LocalVaultError("The active Vault pointer must contain an absolute path");
   }
@@ -211,6 +197,48 @@ export function readActiveVault(
     throw new LocalVaultError("The active Vault pointer is not canonical");
   }
   return vault;
+}
+
+export function resolveRuntimeVaultConfigDirectory(): string {
+  const configured = process.env.TRAINING_VAULT_CONFIG_DIR;
+  if (configured === undefined) return resolveVaultConfigDirectory();
+  if (!isAbsolute(configured)) {
+    throw new LocalVaultError("TRAINING_VAULT_CONFIG_DIR must be an absolute path");
+  }
+  return normalize(configured);
+}
+
+export function readLocalConfigJson(
+  fileName: string,
+  configDirectory = resolveRuntimeVaultConfigDirectory(),
+): unknown | null {
+  requireConfigFileName(fileName);
+  if (!pathEntryExists(configDirectory)) return null;
+  const safeConfigDirectory = requireSafeDirectory(configDirectory, "Vault config directory");
+  const configPath = join(safeConfigDirectory, fileName);
+  if (!pathEntryExists(configPath)) return null;
+  requireSafeRegularFile(configPath, "Local config file");
+  return readBoundedJson(configPath);
+}
+
+export function writeLocalConfigJson(
+  fileName: string,
+  value: unknown,
+  configDirectory = resolveRuntimeVaultConfigDirectory(),
+): string {
+  requireConfigFileName(fileName);
+  const safeConfigDirectory = ensureSafeConfigDirectory(configDirectory);
+  const configPath = join(safeConfigDirectory, fileName);
+  if (pathEntryExists(configPath)) requireSafeRegularFile(configPath, "Local config file");
+  const temporaryPath = join(safeConfigDirectory, `.${fileName}-${randomUUID()}.tmp`);
+  try {
+    writeJsonExclusive(temporaryPath, value);
+    renameSync(temporaryPath, configPath);
+  } catch (error) {
+    removeOwnedRegularFile(temporaryPath);
+    throw toVaultError(`Could not update ${fileName}`, error);
+  }
+  return configPath;
 }
 
 export function adoptLegacyDatabase(
@@ -366,6 +394,12 @@ function ensureSafeConfigDirectory(configDirectory: string): string {
     mkdirSync(configDirectory, { recursive: true });
   }
   return requireSafeDirectory(configDirectory, "Vault config directory");
+}
+
+function requireConfigFileName(fileName: string): void {
+  if (!/^[a-z][a-z0-9-]*\.json$/u.test(fileName) || basename(fileName) !== fileName) {
+    throw new LocalVaultError("Local config file name is invalid");
+  }
 }
 
 function findExistingAncestor(requestedPath: string): string {

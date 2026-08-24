@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  pairingResultText,
-  pairingSuccessText,
+  presentConnectionStatus,
   presentPopupState,
   presentCaptureRecoveryStatus,
-  requestPairing,
   runButtonAction,
   deliverCharacterizationExport,
   isCharacterizationExportDocument,
@@ -98,22 +96,11 @@ describe("extension popup presenter", () => {
     }).pendingText).toBe("等待判题 0");
   });
 
-  it("does not expose credential versions", () => {
-    expect(pairingSuccessText(1)).toBe("已配对");
-    expect(pairingSuccessText(2)).toBe("已配对 · 凭证已轮换");
-    expect(pairingResultText(2)).toBe("凭证已轮换");
-  });
-
-  it("returns a user-visible error when pairing messaging rejects", async () => {
-    const result = await requestPairing(
-      async () => { throw new Error("配对服务暂不可用"); },
-      "PAIR-1234",
-    );
-    expect(result).toEqual({ ok: false, text: "配对失败" });
-    await expect(requestPairing(
-      async () => ({ ok: false, error: "token=secret; source code" }),
-      "PAIR-1234",
-    )).resolves.toEqual({ ok: false, text: "配对失败" });
+  it("renders only the closed installation connection states", () => {
+    expect(presentConnectionStatus("connected")).toBe("已连接本地应用");
+    expect(presentConnectionStatus("connection_required")).toBe("需要从本地设置页连接");
+    expect(presentConnectionStatus("service_unreachable")).toBe("本地服务不可达");
+    expect(presentConnectionStatus("capability_rejected")).toBe("连接已失效");
   });
 
   it("keeps visible button feedback until an action settles", async () => {

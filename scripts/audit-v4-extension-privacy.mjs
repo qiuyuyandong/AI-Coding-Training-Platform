@@ -59,7 +59,8 @@ const TARGET_FILES = Object.freeze([
   "extension/dist/popup.js.map",
 ]);
 const LOCAL_KEYS = new Set([
-  "installationId", "captureCredential", "captureCredentialVersion", "captureEnabled",
+  "installationId", "captureCapability", "captureCapabilityVersion", "captureConnectionStatus",
+  "connectedAt", "captureCredential", "captureCredentialVersion", "captureEnabled",
   "captureEndpoint", "captureProtocolVersion", "confirmedSubmissions",
   "confirmedSubmissionTombstones", "captureOutbox", "captureQuarantine", "lastCaptureError",
   "lastSuccessfulCaptureAt", "lastDeliveredAttemptId", "lastDeliveredAttemptStatus", "pairedAt",
@@ -119,8 +120,13 @@ function auditManifest(manifest, label, findings) {
   if (manifest.optional_permissions !== undefined || manifest.optional_host_permissions !== undefined) {
     findings.push(`${label}: optional permission surfaces are not approved`);
   }
-  if (manifest.devtools_page !== undefined || manifest.externally_connectable !== undefined) {
-    findings.push(`${label}: DevTools and external connection surfaces are forbidden`);
+  if (manifest.devtools_page !== undefined) {
+    findings.push(`${label}: DevTools surface is forbidden`);
+  }
+  if (JSON.stringify(manifest.externally_connectable) !== JSON.stringify({
+    matches: ["http://localhost/*"],
+  })) {
+    findings.push(`${label}: externally_connectable must contain only the canonical localhost app`);
   }
   const contentScripts = Array.isArray(manifest.content_scripts) ? manifest.content_scripts : [];
   for (const entry of contentScripts) {
@@ -149,7 +155,8 @@ function findUnapprovedManifestUrls(value, path, label, findings) {
     const joined = path.join(".");
     const approvedLocation = joined === "host_permissions"
       || /^content_scripts\.\d+\.matches$/u.test(joined)
-      || /^web_accessible_resources\.\d+\.matches$/u.test(joined);
+      || /^web_accessible_resources\.\d+\.matches$/u.test(joined)
+      || /^externally_connectable\.matches$/u.test(joined);
     if (!approvedLocation) findings.push(`${label}: remote manifest URL at ${joined}`);
     return;
   }

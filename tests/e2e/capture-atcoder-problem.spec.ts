@@ -113,7 +113,7 @@ test("AtCoder capture events project into the local training attempt with exact 
     if (session === undefined) throw new Error("AtCoder session row was not returned");
 
     expect(session.id).toBe(atcoderProblem.captureSessionId);
-    expect(session.installation_id).toBe("installation_e2e");
+    expect(session.installation_id).toBe("installation_44444444-4444-4444-8444-444444444444");
     expect(session.platform).toBe("atcoder");
     expect(session.problem_external_id).toBe("agc040_d");
     expect(session.problem_title).toBe("D - Balance Beam");

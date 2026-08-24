@@ -8,13 +8,17 @@ import { CaptureAttemptBundleSchema } from "@/lib/capture/attemptBundle";
 import { DEFAULT_CAPTURE_ENDPOINT } from "./captureTransport";
 import { safeQuarantineSummary, safeStoredCaptureError } from "./captureErrorPrivacy";
 import type { CaptureRecoveryStatus } from "./captureRecovery";
+import {
+  LOCAL_CAPTURE_SETTINGS_URL,
+  type CaptureConnectionStatus,
+} from "./localConnection";
 
 const DEFAULT_ENDPOINT = DEFAULT_CAPTURE_ENDPOINT;
 const BUTTON_FEEDBACK_MS = 180;
 const POPUP_STORAGE_KEYS = [
   "captureEnabled", "captureEndpoint", "confirmedSubmissions", "captureOutbox",
   "captureQuarantine", "lastCaptureError", "lastSuccessfulCaptureAt",
-  "lastDeliveredAttemptStatus", "captureCredential", "captureCredentialVersion",
+  "lastDeliveredAttemptStatus", "captureConnectionStatus",
   "v4ClickIntentMigration",
 ] as const;
 
@@ -28,7 +32,7 @@ export type PopupPresentation = {
   readonly blockingReasonText: string;
   readonly migrationText: string;
   readonly transitionText: string;
-  readonly pairingStateText: string;
+  readonly connectionStateText: string;
   readonly recoveryText: string;
   readonly quarantineDetails: readonly string[];
 };
@@ -55,8 +59,7 @@ export function presentPopupState(value: unknown): PopupPresentation {
   const removedClickIntents = readNonnegativeInteger(
     readField(migration, "removedActiveIntentCount"),
   );
-  const paired = typeof readField(value, "captureCredential") === "string";
-  const credentialVersion = readPositiveInteger(readField(value, "captureCredentialVersion"));
+  const connectionStatus = readConnectionStatus(readField(value, "captureConnectionStatus"));
   const malformedOutboxDetails = outbox
     .map(classifyOutboxEntry)
     .filter((entry) => entry.summary.length > 0);
@@ -74,9 +77,7 @@ export function presentPopupState(value: unknown): PopupPresentation {
       ? "未发现点击创建的等待记录"
       : `已移除未经服务器确认的等待记录 ${removedClickIntents} 条`,
     transitionText: "网络确认采集尚未启用",
-    pairingStateText: error?.startsWith("Pairing required:") === true
-      ? "配对需要处理"
-      : paired ? pairingSuccessText(credentialVersion) : "未配对",
+    connectionStateText: presentConnectionStatus(connectionStatus),
     recoveryText: presentCaptureRecoveryStatus(readField(value, "captureRecoveryStatus")),
     quarantineDetails: quarantine
       .map(classifyQuarantineEntry)
@@ -149,13 +150,11 @@ function classifyOutboxEntry(value: unknown): QuarantineEntryPresentation {
   };
 }
 
-export function pairingSuccessText(credentialVersion: number | undefined): string {
-  return credentialVersion !== undefined && credentialVersion > 1
-    ? "已配对 · 凭证已轮换" : "已配对";
-}
-
-export function pairingResultText(credentialVersion: number): string {
-  return credentialVersion > 1 ? "凭证已轮换" : "已配对";
+export function presentConnectionStatus(status: CaptureConnectionStatus): string {
+  if (status === "connected") return "已连接本地应用";
+  if (status === "service_unreachable") return "本地服务不可达";
+  if (status === "capability_rejected") return "连接已失效";
+  return "需要从本地设置页连接";
 }
 
 const CAPTURE_RECOVERY_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
@@ -188,10 +187,8 @@ export function initializePopup(): void {
   enabled?.addEventListener("change", () => runPopupOperation(
     () => chrome.runtime.sendMessage({ type: "SET_CAPTURE_ENABLED", enabled: enabled.checked }),
   ));
-  document.querySelector("#pairingForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const button = document.querySelector<HTMLButtonElement>("#pairButton");
-    if (button !== null) runPopupButton(button, "配对", pairInstallation);
+  document.querySelector("#openConnectionSettings")?.addEventListener("click", () => {
+    runPopupOperation(() => chrome.tabs.create({ url: LOCAL_CAPTURE_SETTINGS_URL }));
   });
   bindAction("#retryAll", { type: "RETRY_CAPTURE_OUTBOX" });
   bindAction("#recoverCapture", { type: "RETRY_CAPTURE_RECOVERY" });
@@ -259,9 +256,7 @@ export function renderOrchestratorSnapshot(
     ? "未发现点击创建的等待记录"
     : `已移除未经服务器确认的等待记录 ${state.migrationRemovedActiveIntentCount} 条`);
   setText("#transitionState", "网络确认采集尚未启用");
-  setText("#pairingState", state.provenanceLevel === "extension_paired"
-    ? pairingSuccessText(state.captureCredentialVersion)
-    : "未配对");
+  setText("#connectionState", presentConnectionStatus(state.captureConnectionStatus));
   setText("#status", state.captureEnabled ? "本地采集已开启" : "本地采集已暂停");
   setText("#recoveryState", presentCaptureRecoveryStatus(state.captureRecoveryStatus));
   setText("#captureEndpoint", `本地接收地址：${state.captureEndpoint}`);
@@ -279,7 +274,7 @@ function renderLegacyPresentation(presentation: PopupPresentation, stored: unkno
   setText("#lastError", presentation.blockingReasonText);
   setText("#migrationState", presentation.migrationText);
   setText("#transitionState", presentation.transitionText);
-  setText("#pairingState", presentation.pairingStateText);
+  setText("#connectionState", presentation.connectionStateText);
   setText("#status", presentation.captureEnabled ? "本地采集已开启" : "本地采集已暂停");
   setText("#recoveryState", presentation.recoveryText);
   setText("#captureEndpoint", `本地接收地址：${presentation.endpoint}`);
@@ -293,58 +288,6 @@ function renderLegacyPresentation(presentation: PopupPresentation, stored: unkno
       .filter((entry) => entry.summary.length > 0);
     renderQuarantine(details, [...quarantine, ...malformedOutbox]);
   }
-}
-
-async function pairInstallation(): Promise<void> {
-  const input = document.querySelector<HTMLInputElement>("#pairingCode");
-  const resultNode = document.querySelector("#pairingResult");
-  const code = input?.value.trim();
-  if (code === undefined || code.length === 0) return;
-  const result = await requestPairing(
-    (message) => chrome.runtime.sendMessage(message),
-    code,
-  );
-  if (result.ok) {
-    if (input !== null) input.value = "";
-    if (resultNode !== null) resultNode.textContent = result.text;
-  } else if (resultNode !== null) {
-    resultNode.textContent = result.text;
-  }
-}
-
-export async function requestPairing(
-  sendMessage: (message: { readonly type: "PAIR_CAPTURE_INSTALLATION"; readonly code: string }) => Promise<unknown>,
-  code: string,
-): Promise<
-  | { readonly ok: true; readonly text: string }
-  | { readonly ok: false; readonly text: string }
-> {
-  try {
-    const result = await sendMessage({ type: "PAIR_CAPTURE_INSTALLATION", code });
-    if (isSuccessfulPairResult(result)) {
-      return { ok: true, text: pairingResultText(result.credentialVersion) };
-    }
-    return {
-      ok: false,
-      text: safePairingError(readField(result, "error")),
-    };
-  } catch (error) {
-    void error;
-    return {
-      ok: false,
-      text: "配对失败",
-    };
-  }
-}
-
-function safePairingError(value: unknown): string {
-  if (value === "Extension installation is not initialized") return "扩展尚未初始化";
-  if (value === "Pairing failed") return "配对失败";
-  if (value === "unsupported_capture_endpoint") return "采集地址不受支持，请恢复默认地址";
-  if (typeof value === "string" && /^Pairing request rejected \(HTTP [1-5][0-9]{2}\)$/u.test(value)) {
-    return "配对请求被拒绝";
-  }
-  return "配对失败";
 }
 
 function bindAction(selector: string, message: Record<string, string>): void {
@@ -509,15 +452,12 @@ function readArray(value: unknown): readonly unknown[] { return Array.isArray(va
 function readNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
-function readPositiveInteger(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
-}
 function readNonnegativeInteger(value: unknown): number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
 }
 function localizeCaptureError(error: string): string {
   const prefixes: ReadonlyArray<readonly [string, string]> = [
-    ["Pairing required:", "需要重新配对："], ["Origin rejected:", "请求来源被拒绝："],
+    ["Capability rejected:", "连接已失效："], ["Origin rejected:", "请求来源被拒绝："],
     ["Network unavailable:", "网络不可用："], ["Isolated result:", "结果已隔离："],
     ["ACK mismatch:", "ACK 身份不匹配："],
     ["Storage capacity reached:", "本地存储空间不足："],
@@ -525,9 +465,10 @@ function localizeCaptureError(error: string): string {
   const match = prefixes.find(([prefix]) => error.startsWith(prefix));
   return match === undefined ? error : `${match[1]}${error.slice(match[0].length).trim()}`;
 }
-function isSuccessfulPairResult(value: unknown): value is { readonly ok: true; readonly credentialVersion: number } {
-  return typeof value === "object" && value !== null && "ok" in value && value.ok === true
-    && "credentialVersion" in value && typeof value.credentialVersion === "number";
+function readConnectionStatus(value: unknown): CaptureConnectionStatus {
+  if (value === "connected" || value === "service_unreachable"
+    || value === "capability_rejected") return value;
+  return "connection_required";
 }
 
 // ---------------------------------------------------------------------------

@@ -52,7 +52,7 @@
       .diagnostic-row strong { display: block; font-size: 12px; font-weight: 700; }
       .meta { margin-top: 4px; color: #68758a; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
       .error { color: #9f2d2d; }
-      .pairing { padding: 12px; }
+      .connection { padding: 12px; }
       .section-heading {
         display: flex;
         align-items: baseline;
@@ -60,7 +60,7 @@
         gap: 10px;
       }
       h2 { font-size: 13px; }
-      #pairingState { color: #526176; font-size: 11px; }
+      #connectionState { color: #526176; font-size: 11px; }
       form { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
       label.field { color: #526176; font-size: 11px; }
       input[type="url"], input[type="text"] {
@@ -91,7 +91,6 @@
       button:disabled { cursor: wait; opacity: .5; }
       button:active, button.is-pressed { background: #64748b; }
       #actionResult { min-height: 16px; margin-top: 7px; color: #526176; font-size: 11px; }
-      #pairingResult { min-height: 16px; margin-top: 7px; color: #526176; font-size: 11px; }
       details { margin-top: 10px; }
       summary { color: #64748b; font-size: 11px; cursor: pointer; }
       details .field { display: block; margin-top: 8px; }
@@ -140,19 +139,13 @@
         </div>
       </section>
 
-      <section class="panel pairing" aria-labelledby="pairingHeading">
+      <section class="panel connection" aria-labelledby="connectionHeading">
         <div class="section-heading">
-          <h2 id="pairingHeading">本地配对</h2>
-          <p id="pairingState">未配对</p>
+          <h2 id="connectionHeading">本地连接</h2>
+          <p id="connectionState">需要从本地设置页连接</p>
         </div>
-        <form id="pairingForm">
-          <label class="field" for="pairingCode">
-            一次性配对码
-            <input id="pairingCode" type="text" required autocomplete="off" />
-          </label>
-          <button id="pairButton" type="submit">配对</button>
-        </form>
-        <p id="pairingResult" role="status" aria-live="polite"></p>
+        <p class="meta">连接密钥只在扩展与本机应用之间传递，页面不会读取或显示。</p>
+        <button id="openConnectionSettings" type="button">打开本地设置页</button>
       </section>
 
       <section class="panel" aria-labelledby="endpointHeading">
@@ -160,7 +153,7 @@
           <h2 id="endpointHeading">本地接收地址</h2>
           <p id="captureEndpoint">本地接收地址：http://localhost:3000/api/capture/attempts</p>
         </div>
-        <button id="resetCaptureEndpoint" type="button">恢复默认地址（需重新配对）</button>
+        <button id="resetCaptureEndpoint" type="button">恢复默认地址</button>
       </section>
 
       <section class="panel characterization" aria-labelledby="characterizationHeading">

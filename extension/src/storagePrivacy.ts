@@ -2,6 +2,10 @@ export type CaptureStorageAreaName = "local" | "session";
 
 export const APPROVED_LOCAL_STORAGE_KEYS: readonly string[] = Object.freeze([
   "installationId",
+  "captureCapability",
+  "captureCapabilityVersion",
+  "captureConnectionStatus",
+  "connectedAt",
   "captureCredential",
   "captureCredentialVersion",
   "captureEnabled",

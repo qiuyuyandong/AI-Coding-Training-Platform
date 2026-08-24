@@ -1,3 +1,6 @@
+import { CAPTURE_EXTENSION_ORIGIN } from "@/lib/extension/identity";
+import { CAPTURE_CAPABILITY_PATTERN } from "@/lib/services/captureCapability";
+
 export const MAX_CAPTURE_JSON_BYTES = 64 * 1024;
 
 export class CaptureRequestError extends Error {
@@ -75,29 +78,42 @@ export function requireSameOrigin(request: Request): void {
   }
 }
 
-export function requireExtensionOrMissingOrigin(request: Request): void {
-  const origin = request.headers.get("origin");
-  if (origin === null) return;
-  try {
-    const parsed = new URL(origin);
-    if (
-      parsed.protocol === "chrome-extension:"
-      && /^[a-p]{32}$/.test(parsed.hostname)
-      && parsed.pathname === ""
-    ) {
-      return;
-    }
-  } catch (error) {
-    if (!(error instanceof TypeError)) throw error;
+export function requireCanonicalLocalCaptureHost(request: Request): void {
+  const url = new URL(request.url);
+  if (
+    url.protocol !== "http:"
+    || url.hostname !== "localhost"
+    || url.port !== "3000"
+    || url.username !== ""
+    || url.password !== ""
+  ) {
+    throw new CaptureRequestError(403, "Capture host is not allowed");
   }
-  throw new CaptureRequestError(403, "Request origin is not allowed");
 }
 
-export function readBearerCredential(request: Request): string {
-  const authorization = request.headers.get("authorization");
-  const match = authorization?.match(/^Bearer (capture_[A-Za-z0-9_-]+)$/);
-  if (match?.[1] === undefined) {
-    throw new CaptureRequestError(401, "Capture credential is not authorized");
+export function requireExactCaptureExtensionOrigin(request: Request): void {
+  if (request.headers.get("origin") !== CAPTURE_EXTENSION_ORIGIN) {
+    throw new CaptureRequestError(403, "Request origin is not allowed");
   }
-  return match[1];
+}
+
+export function readBearerCapability(request: Request): string {
+  const authorization = request.headers.get("authorization");
+  const credential = authorization?.startsWith("Bearer ") === true
+    ? authorization.slice("Bearer ".length)
+    : undefined;
+  if (credential === undefined || !CAPTURE_CAPABILITY_PATTERN.test(credential)) {
+    throw new CaptureRequestError(401, "Capture capability is not authorized");
+  }
+  return credential;
+}
+
+export function captureExtensionCorsHeaders(): Readonly<Record<string, string>> {
+  return {
+    "Access-Control-Allow-Origin": CAPTURE_EXTENSION_ORIGIN,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Max-Age": "600",
+    Vary: "Origin",
+  };
 }

@@ -13,7 +13,7 @@ import { chromium, expect, test, type BrowserContext, type Page, type Worker } f
 
 import identity from "../../extension/identity.json";
 import { CaptureAttemptBundleSchema, type CaptureAttemptBundle } from "../../lib/capture/attemptBundle";
-import { hashCaptureSecret } from "../../lib/services/captureCredentials";
+import { hashCaptureCapability } from "../../lib/services/captureCapability";
 import { ingestCaptureAttemptBundle } from "../../lib/services/captureAttemptBundle";
 import {
   createDisposableDirectory,
@@ -498,7 +498,7 @@ function expectConfigContainsOnlyHash(
     schemaVersion: 1,
     installationId: installation.installationId,
     credentialVersion: expectedVersion,
-    credentialHash: hashCaptureSecret(installation.capability),
+    credentialHash: hashCaptureCapability(installation.capability),
   });
   expect(Object.keys(parsed).sort()).toEqual([
     "createdAt",
@@ -769,7 +769,7 @@ async function handleCompletion(
     schemaVersion: 1,
     installationId: body.installationId,
     credentialVersion: (previous?.credentialVersion ?? 0) + 1,
-    credentialHash: hashCaptureSecret(body.capability),
+    credentialHash: hashCaptureCapability(body.capability),
     createdAt: previous?.createdAt ?? now,
     ...(previous === null ? {} : { rotatedAt: now }),
   };
@@ -793,7 +793,7 @@ async function handleCapture(
   if (
     config === null
     || credential === null
-    || !safeHashEquals(config.credentialHash, hashCaptureSecret(credential))
+    || !safeHashEquals(config.credentialHash, hashCaptureCapability(credential))
   ) {
     writeJson(response, 401, { error: "capture_unauthorized" }, corsHeaders());
     return;

@@ -107,6 +107,10 @@ import {
 
 const LOCAL_KEYS = [
   "installationId",
+  "captureCapability",
+  "captureCapabilityVersion",
+  "connectedAt",
+  "captureConnectionStatus",
   "captureCredential",
   "captureCredentialVersion",
   "captureEnabled",
@@ -145,7 +149,12 @@ const FLUSH_OUTBOX_WORK_ID = "flush_outbox";
 // Public types
 // ---------------------------------------------------------------------------
 
-export type OrchestratorProvenanceLevel = "extension_paired" | "extension_unpaired";
+export type OrchestratorProvenanceLevel = "extension_local";
+export type OrchestratorCaptureConnectionStatus =
+  | "connected"
+  | "connection_required"
+  | "service_unreachable"
+  | "capability_rejected";
 
 export type OrchestratorUserAction =
   | { readonly type: "SET_CAPTURE_ENABLED"; readonly enabled: boolean }
@@ -214,7 +223,8 @@ export type OrchestratorState = Readonly<{
   readonly installationId: string;
   readonly captureEnabled: boolean;
   readonly captureEndpoint: string;
-  readonly captureCredentialVersion?: number;
+  readonly captureCapabilityVersion?: number;
+  readonly captureConnectionStatus: OrchestratorCaptureConnectionStatus;
   readonly provenanceLevel: OrchestratorProvenanceLevel;
   readonly waiting: boolean;
   readonly waitingCount: number;
@@ -379,11 +389,14 @@ function deriveState(
   const captureEndpoint = typeof local.captureEndpoint === "string" && local.captureEndpoint.length > 0
     ? local.captureEndpoint
     : "http://localhost:3000/api/capture/attempts";
-  const captureCredentialVersion = readPositiveInteger(local.captureCredentialVersion);
-  const captureCredential = readNonemptyString(local.captureCredential);
-  const provenanceLevel: OrchestratorProvenanceLevel = captureCredential === undefined
-    ? "extension_unpaired"
-    : "extension_paired";
+  const captureCapabilityVersion = readPositiveInteger(local.captureCapabilityVersion);
+  const hasCapability = /^capture_[A-Za-z0-9_-]{43}$/u.test(
+    readNonemptyString(local.captureCapability) ?? "",
+  );
+  const captureConnectionStatus: OrchestratorCaptureConnectionStatus = !hasCapability
+    ? "connection_required"
+    : readCaptureConnectionStatus(local.captureConnectionStatus);
+  const provenanceLevel: OrchestratorProvenanceLevel = "extension_local";
 
   const outbox = readOutbox(local.captureOutbox);
   const malformedOutbox = readMalformedOutboxRecords(local.captureOutbox);
@@ -410,7 +423,8 @@ function deriveState(
     installationId,
     captureEnabled,
     captureEndpoint,
-    ...(captureCredentialVersion !== undefined ? { captureCredentialVersion } : {}),
+    ...(captureCapabilityVersion !== undefined ? { captureCapabilityVersion } : {}),
+    captureConnectionStatus,
     provenanceLevel,
     waiting,
     waitingCount,
@@ -1309,9 +1323,7 @@ function handleE3Recorded(
     problemExternalId: confirmed.problemExternalId,
   };
   const installationId = readNonemptyString(local.installationId) ?? "v4-installation";
-  const provenanceLevel: OrchestratorProvenanceLevel = readNonemptyString(local.captureCredential) === undefined
-    ? "extension_unpaired"
-    : "extension_paired";
+  const provenanceLevel: OrchestratorProvenanceLevel = "extension_local";
   const metadata = {
     installationId,
     captureSessionId: effectiveLifecycle.evidence.documentId,
@@ -1961,6 +1973,9 @@ function computeInitializationDiff(
   if (plan.shouldRemovePendingSubmissionIntents) localRemovals.push("pendingSubmissionIntents");
   if (plan.shouldRemoveLastCaptureError) localRemovals.push("lastCaptureError");
   if (plan.shouldRemoveLegacyEventQueue) localRemovals.push("eventQueue");
+  if (plan.shouldRemoveLegacyPairingState) {
+    localRemovals.push("captureCredential", "captureCredentialVersion", "pairedAt");
+  }
   // `applyExtensionInitializationSplit` always issues these legacy cleanups;
   // the orchestrator only records them in the diff when the key is present
   // in the prior read so a truly no-op install (e.g. re-installation on a
@@ -1973,6 +1988,12 @@ function computeInitializationDiff(
     sessionWrites,
     sessionRemovals: [],
   };
+}
+
+function readCaptureConnectionStatus(value: unknown): OrchestratorCaptureConnectionStatus {
+  if (value === "connected" || value === "capability_rejected"
+    || value === "connection_required" || value === "service_unreachable") return value;
+  return "service_unreachable";
 }
 
 /**

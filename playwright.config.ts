@@ -1,10 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
-import { E2E_DB_PATH } from "./tests/e2e/database";
+import { E2E_DB_PATH, E2E_VAULT_CONFIG_DIR } from "./tests/e2e/database";
 
 const PORT = 3000;
 const BASE_URL = `http://localhost:${PORT}`;
 
 process.env.TRAINING_DB_PATH = E2E_DB_PATH;
+process.env.TRAINING_VAULT_CONFIG_DIR = E2E_VAULT_CONFIG_DIR;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -31,6 +32,7 @@ export default defineConfig({
     command: `npm run e2e:prepare && npm run build && npm run start -- -p ${PORT}`,
     env: {
       TRAINING_DB_PATH: E2E_DB_PATH,
+      TRAINING_VAULT_CONFIG_DIR: E2E_VAULT_CONFIG_DIR,
     },
     url: BASE_URL,
     reuseExistingServer: false,

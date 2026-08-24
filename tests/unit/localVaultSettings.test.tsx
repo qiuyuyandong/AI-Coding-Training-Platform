@@ -19,7 +19,9 @@ describe("Local Vault settings page", () => {
     render(<SettingsPage />);
     expect(screen.getByRole("heading", { name: "Local Vault" })).toBeTruthy();
     expect(screen.getByText(/未由 Local Vault launcher 启动/u)).toBeTruthy();
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByRole("button", { name: "连接扩展" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /切换 Vault/u })).toBeNull();
+    expect(screen.queryByText(/配对码/u)).toBeNull();
   });
 
   it("shows only the launcher-provided Vault identity and path", () => {
