@@ -153,16 +153,19 @@ P0A C0 alignment completed through
 [`plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`](plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md)
 and its template-derived
 [`plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`](plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md).
-P1 offline RED/GREEN, P2 NowCoder non-regression, P3 observer-contract
-repair, P4 independent plan/tool review (`APPROVE`, no HIGH/MEDIUM), P5
-candidate freeze, P6 READY-only preflight (both lanes), and P7 platform
-observations (both lanes executed once and failed closed) are complete; the
-immutable candidate is `62e57096c29babe8370c3ad98f6bfe57a1a997f9` and the
-exact D3 validator PASSED. D4 is not delivered; P8 closeout is unmet. Live
-observation and D5
-F1-F4 remain separately gated. Formal V0 observation remains blocked; V0.5
-stays out of scope. The total product target is **Phase 7 / Public Beta hosted
-SaaS**.
+P1-P7 and their F1 repair history remain evidence for their own candidates.
+The active repair entry is now
+[`plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md`](plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md):
+observer compatibility is frozen at `9cf7926`, and the repaired immutable
+product candidate is `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` with exact
+D3 PASS, exact dist, receipt and preserved default database. Old-candidate
+LeetCode and NowCoder READY-only lanes passed without action; new-candidate
+READY-only remains separately gated. Development-only Sentry exception tooling
+is governed independently by ADR 0003 and the
+[`2026-08-24 plan`](plans/2026-08-24-development-only-sentry-error-tooling.md);
+it does not amend the frozen extension candidate. D4, D5, real actions, formal
+V0 observation, RC, release and V0.5 remain stopped. The total product target
+is **Phase 7 / Public Beta hosted SaaS**.
 
 ## Completed Phase 0 records
 

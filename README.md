@@ -1,34 +1,20 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-16):** The user accepted `ISOLATED` as the replacement V4
-> Phase D D4 minimum; P0A C0 alignment and P1 LeetCode offline RED/GREEN are complete on
-> `feature/v1-followup`. LeetCode readiness now documents the bounded
-> ActionEpoch/result-root policy; REST and GraphQL are optional corroboration,
-> while conflicts, baseline replay, multiple actions, and multiple eligible IDs
-> fail closed. Focused `248/248`, extension `1615/1615`, extension E2E `53/1`,
-> both contract CLIs, typecheck, targeted lint, and privacy audit pass. P2
-> NowCoder non-regression also passes focused `504/504` with zero NowCoder
-> production diff. P3 observer-contract repair passes `43/43` with privacy
-> `0 findings`, binds LeetCode E2 to one exact result/check stable ID, closes
-> the observation context on the first terminal failure, and received an
-> `APPROVE` independent tool review. P4 independent plan/tool review returned
-> `APPROVE` with no HIGH/MEDIUM after Build ran the four offline
-> verifications. P5 froze the immutable candidate
-> `62e57096c29babe8370c3ad98f6bfe57a1a997f9` with an exact D3 validator PASS
-> and exact dist `.tmp/p5-exact-dist-62e5709`. P6 then completed both
-> READY-only lanes: LeetCode passed on the frozen tool; NowCoder first failed
-> closed on the approved session key `b3WitnessState`, the bounded diagnostic
-> pinned it, the user authorized the full closed ignore-list, and the fresh
-> NowCoder READY lane passed (`READY=1`, DB `0/0/0`) with the refrozen tool
-> hash `F0183DC7...D40911`. P7 then ran exactly one action per lane: both
-> lanes failed closed (LeetCode `verdict_candidate_chronology_mismatch`
-> `PROFILE_UNRESOLVED`; NowCoder `observer_stage_rejected`
-> `OBSERVER_INVALID`), DBs `0/0/0`, no retry. D4 is not delivered; P8
-> closeout is unmet. Live
-> observation, D5/F1-F4, RC, release, push, and PR remain unauthorized.
-> Historical Route A observations remain evidence for their own runs and are
-> not reclassified under the new contract. LeetCode and NowCoder remain
-> network-`experimental`; AtCoder, Codeforces, and Luogu remain
+> **Status (2026-08-24):** The V4 Phase D cross-project capture-chain repair is
+> frozen at product candidate
+> `34916705712cac1ef2e5d8816cd8e40fa4e29ca7`. Its exact candidate validator
+> passed with root unit `2550/1`, App E2E `25/25`, extension unit `1660/1660`,
+> extension E2E `54/1`, build `20/20`, privacy `0 findings`, and an unchanged
+> default SQLite file. Observer compatibility is separately frozen at
+> `9cf79268840870398165974376a322095bcea602` with tool hash
+> `EB564C52...F44DF19`. The old candidate's fresh LeetCode and NowCoder
+> READY-only lanes both passed with `ACTION_AUTHORIZED=0` and databases
+> `0/0/0`; the new candidate's READY-only lanes still require a separate
+> authorization. Development-only Sentry exception tooling was added in
+> `6c0e1d7` under ADR 0003; it is explicit opt-in, strips messages and request/
+> user/capture data, and is inert in tests and production. D4 is not delivered;
+> D5, real actions, RC, release, push, and PR remain unauthorized. LeetCode and
+> NowCoder remain network-`experimental`; AtCoder, Codeforces, and Luogu remain
 > network-`blocked`; historical AtCoder DOM production certification is
 > unchanged.
 >

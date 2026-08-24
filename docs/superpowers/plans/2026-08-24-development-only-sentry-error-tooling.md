@@ -1,6 +1,6 @@
 # Development-only Sentry Error Tooling Plan
 
-**Status:** `implemented_uncommitted`
+**Status:** `implemented_committed`
 
 **Authority:** On 2026-08-24 the user confirmed that Sentry is a developer tool
 for local Next.js browser/server runtime exceptions only. Compile, lint, test,
@@ -91,4 +91,6 @@ Implemented on 2026-08-24 in the isolated worktree
   tracing, tunnel, wizard example route, hard-coded DSN, or auth token.
 - Default SQLite remained `479232` bytes with UTC mtime
   `2026-07-23T15:56:38.8411343Z` before and after the gate.
-- No commit, push, PR, deployment, issue mutation, or test event was created.
+- Implementation commit: `6c0e1d7` (`chore(dev): add privacy-safe Sentry error tooling`). No push, PR, deployment, issue mutation, or test event was created.
+- A post-commit read-only inspection retry on 2026-08-24 could not query Issues: the current thread exposed no Sentry MCP tool and no read-scoped `SENTRY_AUTH_TOKEN`. This does not affect the disabled-by-default runtime boundary, but Sentry-side issue health remains unverified.
+- Final knowledge-cleanup verification reran the Sentry boundary `13/13`, typecheck, forbidden-surface scan, App E2E `25/25`, extension check `1660/1660`, extension E2E `54/1`, and production build `20/20`; all of those commands exited `0`. Two full `npm run quality:gate` attempts exposed unrelated resource/timing flakes (first: temporary Git `inflate: out of memory` plus a 5-second privacy-audit timeout; second: an extension alarm test timeout followed by duplicate-listener contamination). Their exact focused reruns passed `60/60` and `65/65`, and the later authoritative component gates above passed without code changes. The default database remained `479232` bytes with unchanged mtime throughout; the full wrapper itself did not obtain a new exit-0 run during cleanup.

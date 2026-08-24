@@ -6,7 +6,7 @@ Last updated: 2026-08-16 (D4 `ISOLATED` minimum authorized for offline work; P0A
 
 The app is a local-first unified OJ training memory system. It opens original problem pages through deep links, receives user-visible browser capture events from a user-installed extension, stores local training records in SQLite, and renders deterministic Coach/Growth insights from those records.
 
-This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. Accounts, cloud sync, hosted AI, editor-agnostic project evidence, and multi-tenant storage are not implemented today. The product does not plan editor activity or workspace-footprint monitoring.
+This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. As of 2026-08-24, accounts, cloud sync, hosted AI, editor-agnostic project evidence, and multi-tenant storage are not implemented. The product does not plan editor activity or workspace-footprint monitoring.
 
 Phase D now uses the user-authorized `ISOLATED` contract for future offline
 work. Historical same-SHA deliveries and the Route A closeout remain factual
@@ -519,10 +519,34 @@ evidence only, not RC, acceptance, or release.
   confirmed. Independent D3 review returned `APPROVE` with no HIGH or
   MEDIUM findings.
 
-P1 offline RED/GREEN, P2 NowCoder non-regression, P3 observer-contract
+### Cross-project capture-chain repair (2026-08-24)
+
+The active immutable product candidate is
+`34916705712cac1ef2e5d8816cd8e40fa4e29ca7`. It adds persistence-bound ingress
+ACKs, a bounded in-memory FIFO retry queue, re-entrant single-flight
+initialization, documentId-only recovery, canonical endpoint enforcement,
+closed recovery status/errors, Chrome 106 minimum capability and
+`unlimitedStorage` without weakening storage rejection handling. The exact
+candidate validator passes with root `2550/1`, App E2E `25/25`, extension unit
+`1660/1660`, extension E2E `54/1`, build `20/20`, privacy `0 findings`,
+readiness PASS and preserved default SQLite metadata. Exact dist is
+`.tmp/p7f6-exact-dist-3491670`; receipt is
+`.tmp/p7f6-candidate-receipt-3491670.json`.
+
+Observer compatibility remains a separate commit (`9cf7926`) and tool hash
+(`EB564C52...F44DF19`). Old-candidate LeetCode and NowCoder READY-only lanes
+passed without action and with databases `0/0/0`; the new candidate has not
+run either READY-only lane. D4 remains incomplete until a newly authorized,
+sequential LeetCode-then-NowCoder READY-only gate passes. Development-only
+Sentry tooling in later commit `6c0e1d7` is outside the extension candidate
+and governed by ADR 0003.
+
+The following P1-F1 paragraph is retained as historical evidence for the
+superseded `62e5709` and `915a98d` candidates. P1 offline RED/GREEN, P2 NowCoder non-regression, P3 observer-contract
 repair, P4 independent plan/tool review, P5 candidate freeze, P6
-READY-only preflight (both lanes), and P7 platform observations (both lanes
-executed once and failed closed) are complete.
+READY-only preflight (both lanes), P7 platform observations (both lanes
+executed once and failed closed), and the F1 diagnostic revision are
+complete.
 P3 binds
 LeetCode E2 to one exact result/check stable ID, closes the observation
 context on the first terminal failure, and binds the candidate receipt to the
@@ -536,8 +560,12 @@ both READY-only lanes: LeetCode passed on the frozen tool, and NowCoder
 passed after the closed ignore-list fix (trigger ∪ approved non-trigger
 keys, values never read) and tool-hash refreeze. P7 then ran one action per
 lane on the frozen candidate; both lanes failed closed (LeetCode
-`verdict_candidate_chronology_mismatch`, NowCoder `observer_stage_rejected`),
-so D4 is not delivered and P8 closeout is unmet. P2 made no
+`verdict_candidate_chronology_mismatch`, NowCoder `observer_stage_rejected`).
+The user authorized the F1 diagnostic revision and product fix
+(visibility-seeded E0 + dedup); the new immutable candidate
+`915a98d0317148d063a3fad0e1888cb7aa74e2da` passed exact D3 with exact dist
+`.tmp/p7-f1-exact-dist-915a98d`, and both fresh READY lanes passed. New
+single-action authorizations are not granted. P2 made no
 NowCoder production change. D4 live observations and D5 F1-F4 still require
 their own gates. The candidate is not pushed, not a PR, and is not RC,
 acceptance, or release.

@@ -2,7 +2,7 @@
 
 **状态：已获批；仅授权离线实施、验证及必要的本地冻结提交。真实 OJ 浏览、点击、提交、推送、PR、发布均未授权。**
 
-**执行状态（2026-08-24）：观察器修复、旧候选双通道 READY-only 证明和产品离线修复均已完成；产品预冻结质量门全绿，正在创建并校验新的单一产品候选。新候选 READY-only 仍需新的单独授权。**
+**执行状态（2026-08-24）：观察器修复、旧候选双通道 READY-only 证明、产品离线修复和新候选冻结均已完成。新候选 `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` 已通过 exact 候选校验；新候选 READY-only 仍需新的单独授权。**
 
 ## 摘要
 
@@ -120,3 +120,13 @@
 - Extension E2E 压力运行暴露 NowCoder worker-restart 测试只等待 `transientE1.length === 1`，可能在提交仍处于 `before_request` 时就终止 worker；后续状态 E1 虽被观察到，确认器仍正确拒绝未完成的提交生命周期。重启切点改为提交 E1 的 `completed + 200` 已持久化，并继续在确认后验证恢复 READY；定向压力复验 `30/30`，未增加无界请求重试或放宽五秒产品时间窗。
 - 独立终检：扩展隐私审计 `0 findings`、adapter readiness `PASS`、D4 acceptance profiles `PASS`；未新增外部遥测、Sentry SDK、第三方网络、`tabs`、`activeTab`、`<all_urls>`、原始页面数据或持久化内容队列。
 - 默认 `training-platform.sqlite` 在最终质量门前后均为 `479232` bytes，mtime 均为 `2026-07-23T15:56:38.8411343Z`。新候选 exact dist、五项哈希和 receipt 仅由候选校验器在干净隔离工作树中生成。
+
+## 新产品候选冻结记录（2026-08-24）
+
+- 单一产品候选提交：`34916705712cac1ef2e5d8816cd8e40fa4e29ca7`（`fix(v4): harden capture chain recovery`），父提交为观察工具兼容性提交 `9cf7926`；候选自身不包含观察器差异。
+- `node scripts/validate-v4-candidate.mjs --candidate 34916705712cac1ef2e5d8816cd8e40fa4e29ca7` 退出 `0`，输出 `V4 candidate commit PASS`。
+- exact dist：`.tmp/p7f6-exact-dist-3491670`；receipt：`.tmp/p7f6-candidate-receipt-3491670.json`；receipt SHA-256 为 `986EC5E4456BA60AC9918CB105691F2A8D70BC76FCB02375D09F75EF9630E1EE`。
+- 五项 exact-dist 哈希：manifest `45F7CF9C...D605CC`、background `41347B02...D6064`、content `7BD8D441...EF324`、popup `9C1431DB...B7025`、main-world bridge `390E1440...DF5B`；十个 dist 文件逐字节一致。
+- exact 候选门确认 root `2550/1`、App E2E `25/25`、extension unit `1660/1660`、extension E2E `54/1`、build `20/20`、privacy `0 findings`、readiness PASS，且默认数据库元数据保持不变。
+- 后续提交 `6c0e1d7` 仅增加 ADR-0003 约束的开发态 Sentry 异常工具，不修改或重新标记该 extension 候选；它不构成新候选 READY 证据。
+- 新候选 LeetCode → NowCoder READY-only 仍必须获得一次新的、命名候选与平台范围的授权；未授权真实点击或提交。

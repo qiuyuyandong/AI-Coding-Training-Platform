@@ -1,6 +1,36 @@
 # Current Handoff
 
-## Status (2026-08-24 cross-project capture repair implemented; product candidate freeze in progress)
+## Status (2026-08-24 candidate frozen; development Sentry committed; new READY pending)
+
+The cross-project capture-chain repair is frozen at immutable product candidate
+`34916705712cac1ef2e5d8816cd8e40fa4e29ca7`. Exact validation returned `V4
+candidate commit PASS`: root `2550/1`, App E2E `25/25`, extension unit
+`1660/1660`, extension E2E `54/1`, build `20/20`, privacy `0 findings`,
+readiness PASS, and preserved default SQLite metadata. Exact dist is
+`.tmp/p7f6-exact-dist-3491670`; receipt is
+`.tmp/p7f6-candidate-receipt-3491670.json`. Observer compatibility is
+separately frozen at `9cf79268840870398165974376a322095bcea602`, tool hash
+`EB564C529595F5F168FE1300EBCA431340135F48C21AA132829A863C0F44DF19`.
+
+Old-candidate LeetCode and NowCoder READY-only lanes passed with
+`ACTION_AUTHORIZED=0` and DB `0/0/0`. The new candidate has not run either
+READY-only lane; a new authorization must name candidate `3491670` and the
+sequential LeetCode-then-NowCoder scope. Real actions remain unauthorized.
+
+Commit `6c0e1d7` adds development-only Sentry exception tooling under ADR 0003.
+It requires explicit local development flags, projects only a fixed exception
+message plus bounded repository-relative stack coordinates, disables Replay,
+logs, traces and request/user/capture data, and is inert in tests/production.
+Focused tests pass `13/13`; the implementation commit's full quality gate was
+root `2563/1`, App E2E `25/25`, extension `1660/1660`, extension E2E `54/1`,
+build `20/20`. Current-thread Sentry issue inspection is still unavailable:
+no authenticated MCP tool or read-scoped environment token is exposed. No test
+event, issue mutation, push, PR or deployment occurred.
+
+D4 is not delivered. D5, F1-F4, RC, release, formal V0 observation and V0.5
+remain stopped.
+
+## Prior status (2026-08-24 cross-project capture repair implemented; product candidate freeze in progress)
 
 The approved cross-project capture-chain repair is implemented offline. The
 product now has persistence-bound ingress ACKs, a bounded FIFO content retry

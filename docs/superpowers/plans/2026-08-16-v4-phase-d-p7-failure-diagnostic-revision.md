@@ -297,5 +297,81 @@ independent review → D3 re-freeze of a NEW candidate → exact dist/five
 hashes → fresh READY lanes (both platforms) → new single-action
 authorizations (one per lane).
 
+### F1 execution record (2026-08-16, user approved)
+
+- RED: `5 failed / 22 passed` (visibility helper, runtime method, wiring,
+  E0-dedup coverage). GREEN closed them.
+- The Fake OJ E2E contract required three follow-up corrections, each
+  diagnosed from the failing suite: (1) the click must not mint a second
+  hint/epoch when the visibility seed already reported the control —
+  NowCoder confirmation requires exactly one problem candidate; (2) the
+  seed can be dropped while an active characterization isolates ingress, so
+  the click always reports and the background dedups identical E0 hints per
+  (platform, problem, document, TTL); (3) the LeetCode runtime dedups
+  ActionEpoch creation per problem inside the TTL window so seed+click
+  never produces two epochs. The submit-epoch control tests were aligned to
+  the new invariant.
+- Final verification: extension unit `1622/1622`, extension E2E
+  `53 passed / 1 known harness skip` (the four affected specs `49/49` +
+  skip), typecheck, targeted ESLint, privacy `0 findings`, both contract
+  CLIs PASS.
+
+### New candidate freeze (2026-08-16)
+
+The F1 chain invalidates candidate `62e5709`. New commits on
+`feature/v1-followup` (parent `d826291`): `b705df5` (seed), `c366de4`
+(test-contract alignment), `786a96c` (dedup), `915a98d` (submit-epoch test
+alignment). Immutable new candidate commit:
+`915a98d0317148d063a3fad0e1888cb7aa74e2da`.
+
+Exact D3 validator:
+
+```text
+node scripts/validate-v4-candidate.mjs --candidate 915a98d0317148d063a3fad0e1888cb7aa74e2da
+  exit 0 — V4 candidate commit PASS
+```
+
+Inside the gate: lint, db:migrate, curriculum validation, root unit
+`2505 passed / 1 skipped`, typecheck, app E2E `25/25`, extension unit
+`1622/1622`, extension E2E `53 passed / 1 known harness skip`, production
+build `20/20`, privacy `0 findings`, readiness PASS, and post-gate identity
+replay PASS. Default database metadata preserved (`479232` /
+`2026-07-23T15:56:38`).
+
+Exact dist frozen at `.tmp/p7-f1-exact-dist-915a98d`:
+
+```text
+manifest.json         A85C3275D559BD46AAA034FEEA9B14EAFECFC6F56341713B2AFB8B024E2B3E64
+background.js         AFC7F5A41DD9B267C4C065EB4306929B1CBF50759EB4805E320106CE7C168D24
+content.js            E757372F26282D06782B53EF1A994189209D6B07FF3A7B1245BAD6590B3D09E1
+popup.js              12B1514A2B5C6D6DEB31E84A8A910C540B815013CF1676C95EAFBC9A25171924
+main-world-bridge.js  4D89A80F0351295EE1C0CD173BE107080983868D18510D028854695EACEE3943
+```
+
+Candidate receipt: `.tmp/p7-f1-candidate-receipt-915a98d.json`. The
+observation tool hash remains `0D7B9517...E8B245` and the acceptance-profile
+hash remains `D35892A2...D6069` (unchanged).
+
+Fresh READY lanes (browse-only, no action, new profiles/databases):
+
+- LeetCode: `READY=1`, `ACTION_AUTHORIZED=0`, DB `0/0/0`; evidence
+  `output/playwright/v4-observation/915a98d03171-leetcode-p7f1-leetcode-ready-915a98d-ready.json`.
+- NowCoder: `READY=1`, `ACTION_AUTHORIZED=0`, DB `0/0/0`; evidence
+  `output/playwright/v4-observation/915a98d03171-nowcoder-p7f1-nowcoder-ready-915a98d-ready.json`.
+
+Next: new single-action authorizations (one per lane, naming the platform,
+target, and candidate `915a98d0317148d063a3fad0e1888cb7aa74e2da`) require a
+separate user decision.
+
+### Superseded execution direction (2026-08-24)
+
+The cross-project capture-chain repair plan
+`docs/superpowers/plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md`
+supersedes the action-next wording above. Observer compatibility is frozen at
+`9cf7926`; the current immutable product candidate is
+`34916705712cac1ef2e5d8816cd8e40fa4e29ca7` with exact candidate PASS. No
+single-action authorization exists. The only next live gate is a separately
+authorized, sequential new-candidate READY-only run (LeetCode then NowCoder),
+with `ACTION_AUTHORIZED=0` and stop on first failure.
 
 

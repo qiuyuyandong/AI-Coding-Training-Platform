@@ -18,47 +18,14 @@
    * 工作区是否干净。
    * 是否已提交、是否已推送，禁止含糊表达。
 
-3. **阶段定位**
+3. **当前可用程度**
 
-   * 已完成阶段。
-   * 当前所处阶段。
-   * 下一阶段。
-   * 产品长期目标。
-   * 明确区分版本号与工程 Phase，禁止混用。
-
-4. **当前可用程度**
-
-
-5. **主要变更**
+4. **主要变更**
 
    * 按产品行为或工程结果归纳，而不是机械罗列修改文件。
    * 重点说明修复了什么真实问题、调整了什么范围、删除了什么过时设计。
 
-6. **验证证据**
-
-   * 写明实际运行的权威命令。
-   * 报告测试、类型检查、lint、构建、迁移和 E2E 的真实结果。
-   * 使用具体数字，例如“764 个单元测试通过、1 个跳过”。
-   * 没有运行的检查必须写明“未运行”，禁止推断为通过。
-   * 如果验证失败，说明失败阶段、影响范围和共同根因。
-
-7. **剩余工作**
-
-   * 只列真正未完成的当前任务。
-   * 区分：
-
-     * 可以立即执行的工程任务
-     * 必须等待真实时间、外部参与者或用户决定的任务
-     * 未来版本范围
-   * 不得把历史计划中的空复选框直接视为当前待办。
-
-8. **约束与未执行事项**
-
-   * 说明哪些事情刻意没有执行及其原因。
-   * 例如：没有伪造观察记录、没有提前提交、没有运行最终整理流程、没有修改用户数据。
-   * 如果因仓库规则或用户指令停止，明确指出停止条件。
-
-9. **下一步**
+5. **下一步**
 
    * 给出当前唯一合理的下一动作。
    * 如果下一步需要用户授权、真实观察或外部输入，应明确说明。
@@ -69,54 +36,70 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-16 P7 completion):** The user explicitly accepted
+> **Current status (2026-08-24 capture candidate frozen; new READY pending):**
+> The cross-project capture-chain repair is frozen at immutable product
+> candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7`; exact validation passed
+> with root `2550/1`, App E2E `25/25`, extension `1660/1660`, extension E2E
+> `54/1`, build `20/20`, privacy `0 findings`, readiness PASS, and preserved
+> default-database metadata. Exact dist is `.tmp/p7f6-exact-dist-3491670` and
+> receipt is `.tmp/p7f6-candidate-receipt-3491670.json`. Observer compatibility
+> is separately frozen at `9cf79268840870398165974376a322095bcea602`, tool hash
+> `EB564C529595F5F168FE1300EBCA431340135F48C21AA132829A863C0F44DF19`.
+> Old-candidate LeetCode and NowCoder READY-only lanes passed with
+> `ACTION_AUTHORIZED=0` and DB `0/0/0`; new-candidate READY-only still requires
+> separate authorization. Commit `6c0e1d7` adds ADR-0003 development-only
+> Sentry exception tooling after the candidate: explicit local opt-in, minimal
+> fixed-message/stack-coordinate projection, no Replay/logs/traces/request/user/
+> OJ/capture data, and inert test/production behavior. Current-thread read-only
+> Sentry issue inspection remains unavailable because neither an authenticated
+> MCP tool nor a read-scoped environment token is exposed. D4 is not delivered;
+> D5, real actions, RC, release, push, and PR remain stopped.
+>
+> **Prior status (2026-08-23 P7F4 diagnostic stopped):** The user authorized
+> `docs/superpowers/plans/2026-08-23-v4-phase-d-p7f3-observer-rejection-diagnostic.md`.
+> The harness-only diagnostic change passed RED (`2 failed / 64 passed`) then
+> GREEN/final focused `66/66`, typecheck, targeted lint, syntax, privacy `0
+> findings`, both contract validators, and empty candidate-isolation diff.
+> Ponytail review returned `Lean already. Ship.`; Sentry read-only querying was
+> unavailable because no local token/org/project is configured, and no SDK was
+> added. Frozen observation-tool hash: `9E3880AC...E89E8CB`; product candidate
+> `915a98d0317148d063a3fad0e1888cb7aa74e2da` and its exact dist/receipt/hashes
+> are unchanged. The fresh LeetCode browse-only lane
+> `p7f4-leetcode-diagnostic-915a98d` failed closed before READY with exact
+> diagnostic root `e0_cardinality_exceeded` at `browse_only`, action count `0`,
+> DB `0/0/0`, and no click/submission. The stop gate prevented the NowCoder
+> lane from running. Static tracing identifies an observer/product scope
+> mismatch: production retains one E0 per document for 30 seconds, while the
+> observer counts same-problem E0 across refresh documents and rejects `e0 >
+> 1`. The recommended observer-only bounded-presence projection fix is not
+> authorized. D4/P8/D5, real actions, RC, release, push, and PR remain stopped.
+>
+> **Prior status (2026-08-16 F1 complete):** The user explicitly accepted
 > `ISOLATED` as the replacement D4 minimum and authorized P0A C0 readiness
 > alignment. Revision 4 of
 > `docs/superpowers/plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`
 > is now `authorized_for_offline_work_only`; the LeetCode readiness matcher/E2
 > policy, D4 profile, validator, architecture, and adapter-design amendment are
-> aligned. P1 implements the LeetCode ActionEpoch/result-root branch and passes
-> focused `248/248`, extension `1615/1615`, extension E2E `53/1`, typecheck,
-> targeted ESLint, both contract CLIs, and privacy audit with `0 findings`. P2
-> preserves the exact NowCoder pilot with focused `504/504`, extension
-> `1615/1615`, and extension E2E `53/1`; no NowCoder production file changed.
-> P3 then closed the observer contract: LeetCode E2 binds exactly one
-> result/check stable ID to the confirmed identity, first failure closes the
-> context once, the candidate receipt binds SHA/dist/five hashes, and raw
-> exception text never enters evidence; observer `43/43`, privacy `0
-> findings`, contract CLIs, syntax, typecheck, and lint PASS, and the final
-> tool review returned `APPROVE` with no HIGH/MEDIUM. P4 then independently
-> reviewed all five contracts and returned conditional PASS; Build ran the
-> four required offline verifications (4/4 hashes match, focused `77/77`,
-> both CLIs + privacy PASS, extension diff = exactly six P1 LeetCode files),
-> so the retained verdict is `APPROVE` with no HIGH/MEDIUM and one deferred
-> non-blocking advisory. P5 then froze the immutable candidate
-> `62e57096c29babe8370c3ad98f6bfe57a1a997f9` on parent `6e3fb6f`; exact D3
-> `V4 candidate commit PASS` (root `2478/1`, app E2E `25/25`, extension
-> `1615/1615`, extension E2E `53/1`, build `20/20`, privacy `0 findings`,
-> readiness PASS); exact dist `.tmp/p5-exact-dist-62e5709`; default DB
-> metadata preserved; receipt
-> `work/reports/v4-phase-d-p5-candidate-freeze-2026-08-16.md`. P6 then ran
-> both READY-only lanes: LeetCode passed on the frozen tool; NowCoder first
-> failed closed on the approved session key `b3WitnessState`, a bounded
-> key-name diagnostic pinned it exactly, and the user authorized the full
-> closed ignore-list (trigger ∪ 16 local + 3 session ignored keys; values
-> never read; unknown keys still fail closed). The fix passed RED/GREEN
-> (`60/60` focused), privacy `0 findings`, both CLIs, and a focused review
-> with no HIGH findings; the tool hash was refrozen to `F0183DC7...D40911`,
-> and the fresh NowCoder READY lane then passed with `READY=1` and DB
-> `0/0/0`. P6 is complete for both lanes. P7 then ran exactly one action per
-> lane on the frozen candidate: the LeetCode lane failed closed with
-> `verdict_candidate_chronology_mismatch` (`PROFILE_UNRESOLVED`, browse_only)
-> and the NowCoder lane failed closed with `observer_stage_rejected`
-> (`OBSERVER_INVALID`, browse_only); both DBs remained `0/0/0`, no retry
-> occurred, and both single-action authorizations are consumed. D4 is NOT
-> delivered; P8 closeout is unmet, and any repair, new candidate, or further
-> live attempt requires a new reviewed plan revision and its own user
-> authorization. Live observation, D5/F1-F4, RC, release, push, and PR
-> remain separately gated and unauthorized. Historical Route A facts remain
-> authoritative for their own runs and cannot satisfy or be relabelled under
-> the new contract.
+> aligned. P0A-P7 executed per the canonical plan: P7 ran one action per lane
+> on candidate `62e5709` and both lanes failed closed (LeetCode
+> `verdict_candidate_chronology_mismatch` `PROFILE_UNRESOLVED`; NowCoder
+> `observer_stage_rejected` `OBSERVER_INVALID`); D4 was not delivered. The
+> user then authorized the diagnostic revision
+> `docs/superpowers/plans/2026-08-16-v4-phase-d-p7-failure-diagnostic-revision.md`
+> and approved the F1 product fix: visibility-seeded E0 hints for the exact
+> submit controls, background dedup per (platform, problem, document, TTL),
+> and LeetCode epoch dedup per problem within TTL. The F1 chain invalidated
+> candidate `62e5709` and froze the new immutable candidate
+> `915a98d0317148d063a3fad0e1888cb7aa74e2da` (D3 `V4 candidate commit PASS`;
+> root `2505/1`, app E2E `25/25`, extension `1622/1622`, extension E2E
+> `53/1`, build `20/20`, privacy `0 findings`, readiness PASS); exact dist
+> `.tmp/p7-f1-exact-dist-915a98d`; receipt
+> `.tmp/p7-f1-candidate-receipt-915a98d.json`; both fresh READY lanes passed
+> with `READY=1` and DB `0/0/0`. New single-action authorizations (one per
+> lane) require a separate user decision.
+> Live observation, D5/F1-F4, RC, release, push, and PR remain separately
+> gated and unauthorized. Historical Route A facts remain authoritative for
+> their own runs and cannot satisfy or be relabelled under the new contract.
 >
 > **Historical status (2026-08-14 Route A closeout):** **V4 Phase D D1-D3 are
 > complete on the frozen Revision 5 engineering candidate; D4 is incomplete
@@ -399,7 +382,7 @@
 
 ## V0 manual learning loop (implemented; validation pending)
 
-The V0 vertical slice and V3 repair at implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688` pass the automated quality gate, bounded recovery, and a user-confirmed fresh natural LeetCode submission. Frozen SHAs `c587bfbcce2eab108a1c98455b2e6b481f71b290` and `894162b264124eed7315a116cae73b8e11d717b8` are defective and are not current implementation candidates. The repaired build is **not yet an accepted release**: formal observations and same-SHA F1–F4 remain pending. The following surface exists in code today and is exercised by the offline-core Playwright gate:
+The V0 vertical slice and V3 repair at implementation commit `2f4f5d895ea8d965fb64d19dc784ca5514480688` pass the automated quality gate, bounded recovery, and a user-confirmed fresh natural LeetCode submission. Frozen SHAs `c587bfbcce2eab108a1c98455b2e6b481f71b290` and `894162b264124eed7315a116cae73b8e11d717b8` are defective and are not current implementation candidates. The repaired build is **not yet an accepted release**: formal observations and same-SHA F1–F4 remain pending. The following surface exists in the current code and is exercised by the offline-core Playwright gate:
 
 - Curriculum catalog: `content/tracks/software-development-foundations-v1/` (12 published nodes, 13 prerequisite edges, 12 reviewed resources, 12 practice mappings) and `content/careers/career-directions-v1.json` (9 career summaries). Migration 0006 adds the catalog tables; the CLI scripts `validate-curriculum.mjs` and `check-curriculum-links.mjs` gate the package.
 - Learner and plan persistence: migration 0007 adds `learner_profiles`, `learner_goals`, `diagnostic_sessions`, `diagnostic_responses`, `learner_node_baselines`, `learning_plans`, `daily_plan_snapshots`, `plan_items`, `task_feedback`, `plan_revision_events`.
@@ -472,7 +455,18 @@ These are current implementation boundaries, not a permanent rejection of the ap
 
 ## Current handoff
 
-- P0A contract alignment and P1 LeetCode offline RED/GREEN completed on 2026-08-16 after explicit user
+- Current immutable capture candidate:
+  `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` (exact validator PASS; root
+  `2550/1`, App E2E `25/25`, extension `1660/1660`, extension E2E `54/1`,
+  build `20/20`, privacy `0 findings`, default database preserved). Exact dist
+  is `.tmp/p7f6-exact-dist-3491670`; receipt is
+  `.tmp/p7f6-candidate-receipt-3491670.json`. Observer compatibility is
+  `9cf7926`, tool hash `EB564C52...F44DF19`. New-candidate READY-only has not
+  run and needs a fresh sequential LeetCode/NowCoder authorization. ADR-0003
+  development Sentry tooling is committed separately at `6c0e1d7`, default
+  off and inert in test/production. D4, real actions, D5, RC, release, push
+  and PR remain stopped.
+- Historical P0A contract alignment and P1 LeetCode offline RED/GREEN completed on 2026-08-16 after explicit user
   acceptance of `ISOLATED` as the replacement D4 minimum. The machine contract
   is `authorized_for_offline_work_only`; LeetCode remains network-`experimental`.
   The canonical plan is
@@ -481,8 +475,10 @@ These are current implementation boundaries, not a permanent rejection of the ap
   `docs/superpowers/plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`.
   P2 NowCoder non-regression, P3 observer contract, P4 independent
   plan/tool review, P5 candidate freeze, P6 READY-only preflight (both
-  lanes), and P7 platform observations (both lanes executed once and failed
-  closed) are complete; D4 is not delivered and P8 closeout is unmet. Live
+  lanes), P7 platform observations (both lanes executed once and failed
+  closed), and the F1 diagnostic revision with the new candidate
+  `915a98d0317148d063a3fad0e1888cb7aa74e2da` (D3 PASS, both lanes READY)
+  are complete; new single-action authorizations are not granted. Live
   observation, D5,
   F1-F4, RC, release, push, and PR are not authorized.
 - Revision 5 exact-submit repair is frozen at candidate
