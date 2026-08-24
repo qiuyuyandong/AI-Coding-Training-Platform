@@ -1,6 +1,62 @@
 # Current Handoff
 
-## Status (2026-08-24 candidate frozen; development Sentry committed; new READY pending)
+## Status (2026-08-25 Route H installation-level approved; offline implementation pending)
+
+The user confirmed the product defaults that supersede the proposed two-stage
+fresh-profile pairing repair: keep Next.js + localhost as the SQLite owner for
+V0/V1; treat local host processes as inside the local trust boundary; allow a
+Vault switch to restart the app; remove the user-visible pairing code and
+long-lived bearer; select/create/switch Vault folders through a local OS picker
+with an absolute-path CLI fallback; never auto-move or delete the current
+database; and write new provenance as `extension_local` while preserving
+historical `extension_unpaired` / `extension_paired` values.
+
+The exact-Origin-only plan failed closed at P1 and has been superseded by the
+approved Route H installation-level decision in
+`docs/superpowers/plans/2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`.
+The user accepts the narrower malicious-extension boundary. A hidden capability
+is stored outside the Vault in the OS user configuration area, survives Vault
+switches, and requires one local “连接扩展” click only after first install or
+extension reinstall. D0–D6 offline implementation, verification and necessary
+local commits are authorized; D1 remains a first-failure hard stop.
+
+No Route H runtime, manifest, database, extension storage or browser change has
+run yet.
+Candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` remains immutable historical
+evidence for the paired product, but it cannot certify the revised contract.
+Its READY-only authorization does not transfer to a future candidate. The next
+required action is D0 contract reconciliation, followed by D1. Real OJ browsing,
+actions, D4/D5, RC, release, push, and PR remain stopped.
+
+## Prior status (2026-08-24 new-candidate READY preflight blocked before browser launch)
+
+The user explicitly authorized sequential new-candidate READY-only validation
+for candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7`, LeetCode first and
+NowCoder second, with no action authorization and stop on first failure. Static
+pre-execution reconciliation found an unsatisfiable harness precondition before
+either live lane could safely start: `fixedProfilePath` rejects every existing
+profile and creates a fresh empty profile, while the runner immediately requires
+that same profile to be `extension_paired` before platform navigation. Commit
+`9cf7926` deliberately removed the in-runner pairing path, and its focused test
+requires both `pairExtension` and `/api/capture/pairing-codes` to remain absent.
+
+Candidate, receipt, exact-dist, profile, and tool hashes all match the frozen
+values. The intended LeetCode identity `p7f6-leetcode-ready-3491670`, its
+database directory, evidence, and diagnostic do not exist; `.tmp/server-db-path.txt`
+does not exist; port 3000 is free. No server, browser, OJ navigation, pairing,
+database migration, click, submission, or retry ran, so neither lane identity
+was consumed and NowCoder was not prepared. Default SQLite metadata remains
+`479232` bytes / `2026-07-23T15:56:38.8411343Z`.
+
+The safe next decision is whether to approve an observer-only plan revision
+that separates fresh-profile local pairing/preparation from the read-only READY
+preflight and binds the prepared profile/database identity in a bounded receipt.
+Do not weaken READY to accept an unpaired extension and do not copy or reuse an
+old profile or credential. Evidence:
+`work/reports/v4-phase-d-p7f6-new-candidate-ready-preflight-blocker-2026-08-24.md`.
+Real actions, D4 closeout, D5, RC, release, push, and PR remain unauthorized.
+
+## Prior status (2026-08-24 candidate frozen; development Sentry committed; new READY pending)
 
 The cross-project capture-chain repair is frozen at immutable product candidate
 `34916705712cac1ef2e5d8816cd8e40fa4e29ca7`. Exact validation returned `V4

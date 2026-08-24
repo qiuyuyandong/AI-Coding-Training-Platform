@@ -1,8 +1,8 @@
 # V4 Phase D 全项目捕获链路可靠性修复计划
 
-**状态：已获批；仅授权离线实施、验证及必要的本地冻结提交。真实 OJ 浏览、点击、提交、推送、PR、发布均未授权。**
+**状态：本计划既有离线实施、验证及候选冻结已完成；用户曾授权候选 `3491670` 的 LeetCode → NowCoder READY-only，但该执行在浏览器启动前被配对前置矛盾阻断。后续已批准 Local Vault + Route H-安装级修订；真实浏览、点击、提交、动作授权、推送、PR、发布仍未授权。**
 
-**执行状态（2026-08-24）：观察器修复、旧候选双通道 READY-only 证明、产品离线修复和新候选冻结均已完成。新候选 `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` 已通过 exact 候选校验；新候选 READY-only 仍需新的单独授权。**
+**执行状态（2026-08-25）：观察器修复、旧候选双通道 READY-only 证明、产品离线修复和候选 `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` 冻结均已完成。新候选 READY-only 未启动。exact-Origin-only P1 已失败关闭；用户随后批准 Route H-安装级及其 D0–D6 离线实施、本地提交和 D1 首失败即停门。**
 
 ## 摘要
 
@@ -129,4 +129,21 @@
 - 五项 exact-dist 哈希：manifest `45F7CF9C...D605CC`、background `41347B02...D6064`、content `7BD8D441...EF324`、popup `9C1431DB...B7025`、main-world bridge `390E1440...DF5B`；十个 dist 文件逐字节一致。
 - exact 候选门确认 root `2550/1`、App E2E `25/25`、extension unit `1660/1660`、extension E2E `54/1`、build `20/20`、privacy `0 findings`、readiness PASS，且默认数据库元数据保持不变。
 - 后续提交 `6c0e1d7` 仅增加 ADR-0003 约束的开发态 Sentry 异常工具，不修改或重新标记该 extension 候选；它不构成新候选 READY 证据。
-- 新候选 LeetCode → NowCoder READY-only 仍必须获得一次新的、命名候选与平台范围的授权；未授权真实点击或提交。
+- 新候选 LeetCode → NowCoder READY-only 原本要求一次新的、命名候选与平台范围的授权；该授权已在后续用户指令中满足，实际预执行状态见下一节。真实点击或提交仍未授权。
+
+## 新候选 READY-only 预执行阻断（2026-08-24）
+
+- 用户已明确授权按候选 `34916705712cac1ef2e5d8816cd8e40fa4e29ca7`、LeetCode → NowCoder、首失败即停的范围执行 READY-only；真实点击、提交和 `--authorize-action` 仍未授权。
+- 资产预检通过：候选对象存在；观察工具相对冻结提交 `9cf7926` 无差异，组合哈希为 `EB564C529595F5F168FE1300EBCA431340135F48C21AA132829A863C0F44DF19`；acceptance profile 哈希为 `D35892A2FADDB8B8F4313684E96C261F6C256A3E9FEE79D34C5DB531678D6069`；receipt 哈希为 `986EC5E4456BA60AC9918CB105691F2A8D70BC76FCB02375D09F75EF9630E1EE`；五项 exact-dist 哈希与 receipt 全部一致。
+- 当前 runner 在 `fixedProfilePath` 中要求目标 profile 不得已经存在并立即创建空目录，随后在平台导航之前调用 `assertCaptureReadyPreflight`，而该检查要求 `provenanceLevel === extension_paired`。兼容性提交 `9cf7926` 同时删除了 runner 内的配对步骤，聚焦测试还明确要求 runner 不包含 `pairExtension` 或 `/api/capture/pairing-codes`。因此一个合规全新 profile 无法在当前单次调用中满足配对前置条件。
+- 未烧掉通道身份：拟用 LeetCode profile/database `p7f6-leetcode-ready-3491670`、READY 证据和 storage-key 诊断均不存在；根 pointer 不存在，端口 3000 未监听。未启动 Next.js、Chromium 或 OJ 导航，NowCoder 未准备或运行。
+- 默认 `training-platform.sqlite` 仅做元数据读取，仍为 `479232` bytes，mtime `2026-07-23T15:56:38.8411343Z`。没有点击、提交、配对、API 写入、数据库迁移、重试、候选修改、提交或推送。
+- 详细证据见 `work/reports/v4-phase-d-p7f6-new-candidate-ready-preflight-blocker-2026-08-24.md`。当时提出的“两阶段 profile 配对准备”建议已被后续产品决策取代；不得再沿该建议修补 runner，也不得通过放宽为未配对 READY 或复制旧 profile/凭证绕过。
+
+## 后续产品方向修订（2026-08-24）
+
+- 用户确认 V0/V1 保留 Next.js + localhost，由本地应用而非扩展直接持有 SQLite；本机进程处于本地信任边界内，重点防御普通网页和其他扩展。
+- 用户确认取消可见配对码：扩展使用 manifest `key` 固定 ID，服务端只接受精确 `chrome-extension://<id>` Origin；该前提必须先通过零 OJ、零数据库写入的真实 Chrome localhost spike，失败即停止并返回用户选择 fallback。
+- 用户通过 launcher 的 OS 文件夹选择器创建/切换 Local Vault，CLI 绝对路径作为 fallback；切换允许重启应用。现有数据库只允许显式“复制 + 校验后采用”，源文件永不自动移动或删除。
+- 新事件使用 `extension_local`，历史 `extension_unpaired` / `extension_paired` 保持原值；实施时新增前向迁移 `0009`，不改历史 `0004`。
+- 完整修订计划为 `docs/superpowers/plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md`。该计划尚待用户最终拍板，当前不授权实施或本地提交；候选 `3491670` 在代码改变前仍是不可变历史候选，但不能证明修订后的产品契约，其 READY-only 授权也不得转移给未来候选。
