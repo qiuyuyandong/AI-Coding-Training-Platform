@@ -1,6 +1,6 @@
 # Current Handoff
 
-## Status (2026-08-25 Route H installation-level approved; offline implementation pending)
+## Status (2026-08-25 Route H D0 complete; D1 is the next hard gate)
 
 The user confirmed the product defaults that supersede the proposed two-stage
 fresh-profile pairing repair: keep Next.js + localhost as the SQLite owner for
@@ -20,8 +20,11 @@ switches, and requires one local “连接扩展” click only after first insta
 extension reinstall. D0–D6 offline implementation, verification and necessary
 local commits are authorized; D1 remains a first-failure hard stop.
 
-No Route H runtime, manifest, database, extension storage or browser change has
-run yet.
+Route H D0 is complete: ADR 0004 and the Local Vault plan now freeze the
+installation-level capability, Vault-external hash metadata, extension-local
+raw value, one-click reconnect after reinstall, automatic reuse across Vault
+switches, exact sender validation and Origin-as-defense-only boundary. No Route
+H runtime, manifest, database, extension storage or browser change has run yet.
 Candidate `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` remains immutable historical
 evidence for the paired product, but it cannot certify the revised contract.
 Its READY-only authorization does not transfer to a future candidate. The next

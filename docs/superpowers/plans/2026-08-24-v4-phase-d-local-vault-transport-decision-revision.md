@@ -104,5 +104,15 @@ Route N 必须证明：
 
 - 已批准：Route H-安装级；D0–D6 离线实施、验证与必要本地提交。
 - D1 是首失败即停的真实 Chrome 151、零 OJ、disposable SQLite 门；失败不得进入 D2。
-- 未批准：Route N、真实 OJ、动作授权、D4/D5、RC、发布、push 与 PR。
+- 未批准：Route N、真实 OJ、动作授权、V4 acceptance D4 交付及其后 D5、
+  RC、发布、push 与 PR。
 - 不得把 exact Origin、自定义公开 Header 或缺失 Origin 重新提升为身份认证。
+
+## 6. D0 执行结果（2026-08-25）
+
+- ADR 0004 已修订为 Route H 安装级 capability 决策，保留历史 P1 失败事实；
+- 原 Local Vault 计划已增加 Revision 2 规范优先级、D0–D8 映射和 D1 硬停止门；
+- capability 的 Vault 外 hash、extension-local 原值、重装一击、Vault 切换沿用、
+  challenge 和 Bearer 语义已冻结；
+- 本阶段没有运行时、manifest、SQLite、extension storage 或浏览器变化；
+- 下一阶段只能是 D1；D1 失败不得进入 D2。
