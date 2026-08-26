@@ -1,6 +1,46 @@
 # Current Handoff
 
-## Status (2026-08-25 Route H D6 PASS; D7 requires separate authorization)
+## Status (2026-08-26 Route H D7 READY-only PASS; actions remain unauthorized)
+
+The user explicitly authorized D7 for immutable Route H candidate
+`0c23fcacf18d2fe4113d803504e638c1aab887d3`. The two lanes ran sequentially
+under the frozen exact dist, candidate receipt, observation-tool hash
+`309B3772EF23D28699841F66648FEC107E5D62CE8694F083AF5E157157A22C35` and
+acceptance-profile hash
+`D8C348F13AE302166D0DDF4514FC5108CAAE39CBFA2D056A298A4CE4A6693225`.
+
+LeetCode ran first with fresh identity
+`d7-route-h-leetcode-ready-0c23fca`, target `merge-two-sorted-lists`. Its
+localhost-only Route H connection preparation passed with DB `0/0/0`; the
+subsequent real-site lane returned `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`,
+`READY=1`, `ACTION_AUTHORIZED=0`. Evidence is
+`output/playwright/v4-observation/0c23fcacf18d-leetcode-d7-route-h-leetcode-ready-0c23fca-ready.json`,
+SHA-256 `F1396D21859569EB952F410546D16D4A3D57904431FD84E09D211B1F6C1F0601`.
+Its bounded connection receipt SHA-256 is
+`031D87A20E6B54EB22230B79B3112C7CCCDD95ECC32793DCBE56FFA5D7892E55`.
+
+Only after LeetCode passed, NowCoder ran with fresh identity
+`d7-route-h-nowcoder-ready-0c23fca`, target `acm/contest/18839/1001`. Its
+localhost-only preparation and real-site lane returned the same four markers
+and DB `0/0/0`. Evidence is
+`output/playwright/v4-observation/0c23fcacf18d-nowcoder-d7-route-h-nowcoder-ready-0c23fca-ready.json`,
+SHA-256 `74A626BB5C7F0E7F04A1D782521E2F8BAFD829583664988A9CB7AE79C764A7C0`.
+Its connection receipt SHA-256 is
+`42882E744075B13225CF4A3B9680092A8F53648E3D721E38A6B699D817C75F55`.
+
+Both evidence payloads are schema 3 `ready_only` / `browse_only`, retain
+baseline and final DB `0/0/0`, and report no DOM, cookie, source-code, problem-
+statement, response-body, header or query retention. No action authorization,
+submit-control click, submission, capture event, training session or attempt
+occurred. The root DB pointer was removed, localhost:3000 is free, and the
+default database remains unchanged. Evidence report:
+`work/reports/v4-phase-d-local-vault-d7-ready-only-2026-08-26.md`.
+
+D7 completion does not deliver D4 and does not authorize D8. The next possible
+action is a separate user decision on a tightly named real-action protocol.
+RC, release, V0.5, push and PR remain stopped.
+
+## Prior status (2026-08-25 Route H D6 PASS; D7 requires separate authorization)
 
 The approved Route H installation-level Local Vault revision is offline-complete
 through D6 on `feature/v1-followup`. Immutable product candidate

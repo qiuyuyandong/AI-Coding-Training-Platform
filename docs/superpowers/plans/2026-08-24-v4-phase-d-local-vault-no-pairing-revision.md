@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：Revision 2 / Route H-安装级已批准。历史 P0 已完成；exact-Origin-only P1 已失败关闭。用户已授权 Route H D0–D6 离线实施、验证和必要本地提交，D1 失败即停；D7、真实 OJ 浏览、点击、提交、推送、PR、发布均未授权。**
+**状态：Revision 2 / Route H-安装级 D0–D7 已完成。历史 P0 已完成；exact-Origin-only P1 已失败关闭；Route H D0–D6 离线工程与候选冻结通过，D7 LeetCode → NowCoder READY-only 顺序通过。真实点击、提交、D4 交付裁决、推送、PR、RC 和发布均未授权。**
 
 **替代范围：** 本计划与
 `2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`
@@ -371,7 +371,7 @@ fresh profile 要求一次点击，Vault 切换无需点击；遗留可见配对
 
 任何产品、manifest、迁移、观察器契约修订都会使 `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` 对本方案失效；其既有证据只保留为旧配对产品的历史记录，不得重新标记。
 
-### D7 — 新候选 READY-only（另行授权）
+### D7 — 新候选 READY-only（已授权并完成）
 
 **前置：** 用户必须在候选 SHA、exact dist、receipt 和新工具哈希冻结后，重新明确授权该候选的 LeetCode → NowCoder READY-only。此前对 `3491670` 的授权不可转移。
 
@@ -588,3 +588,32 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
   `work/reports/v4-phase-d-local-vault-d6-candidate-freeze-2026-08-25.md`。
 - D0-D6 授权范围已全部完成并停止。D7 必须由用户基于新 SHA、exact dist、
   receipt、tool/profile hashes 另行授权；LeetCode 首失败仍必须阻止 NowCoder。
+
+## 20. Revision 2 D7 执行结果（2026-08-26）
+
+- 用户明确授权 D7；执行严格绑定候选
+  `0c23fcacf18d2fe4113d803504e638c1aab887d3`、exact dist、candidate receipt、
+  observation-tool hash `309B3772...22C35` 和 acceptance-profile hash
+  `D8C348F1...3225`。
+- LeetCode 使用 fresh identity `d7-route-h-leetcode-ready-0c23fca`，目标
+  `merge-two-sorted-lists`。localhost-only 连接准备通过，随后 READY-only 返回
+  `OBSERVER_ARMED=1 / BROWSE_ONLY=1 / READY=1 / ACTION_AUTHORIZED=0`，
+  baseline/final DB 均为 `0/0/0`。
+- LeetCode 通过后才创建 NowCoder fresh identity
+  `d7-route-h-nowcoder-ready-0c23fca`，目标 `acm/contest/18839/1001`；其准备和
+  READY-only 返回同样四个标志与 DB `0/0/0`。
+- 两份 schema 3 evidence 均为 `ready_only` / `browse_only`，且 DOM、cookie、
+  source code、problem statement、response body、headers、query retention 全部
+  为 false。没有 submit-control click、submission、capture event、session 或
+  attempt。
+- LeetCode evidence SHA-256：
+  `F1396D21859569EB952F410546D16D4A3D57904431FD84E09D211B1F6C1F0601`；
+  NowCoder evidence SHA-256：
+  `74A626BB5C7F0E7F04A1D782521E2F8BAFD829583664988A9CB7AE79C764A7C0`。
+- 两条 local server 已停止，临时 root DB pointer 已删除，端口 3000 空闲；默认
+  数据库 size/mtime/hash 不变。
+- 证据：
+  `work/reports/v4-phase-d-local-vault-d7-ready-only-2026-08-26.md`。
+- D7 完成即停止。READY-only 不证明真实动作因果与 exactly-once delivery，不能
+  自动交付 D4；D8、真实点击/提交、D4 交付裁决、RC、release、push 和 PR 均需
+  新授权。

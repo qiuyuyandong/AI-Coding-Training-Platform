@@ -36,7 +36,7 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-25 Route H D6 candidate frozen; D7 unauthorized):**
+> **Current status (2026-08-26 Route H D7 READY-only PASS; actions unauthorized):**
 > The approved installation-level Local Vault revision is offline-complete at
 > D6. Immutable Route H candidate
 > `0c23fcacf18d2fe4113d803504e638c1aab887d3` passed the exact validator with
@@ -50,9 +50,11 @@
 > `D8C348F1...3225`. Route H removes visible pairing, keeps the raw hidden
 > installation capability only in trusted extension storage, stores only its
 > hash outside each Vault, and preserves historical provenance while writing new
-> capture as `extension_local`. No OJ or READY lane ran. D7 requires a fresh
-> separate authorization for sequential LeetCode then NowCoder READY-only;
-> real actions, D4 delivery adjudication, RC, release, push and PR remain stopped.
+> capture as `extension_local`. D7 ran sequential fresh-profile READY-only on
+> LeetCode `merge-two-sorted-lists` and NowCoder `acm/contest/18839/1001`;
+> both returned `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1`,
+> `ACTION_AUTHORIZED=0` with isolated DB `0/0/0`. No click or submission ran.
+> Real actions, D4 delivery adjudication, RC, release, push and PR remain stopped.
 >
 > **Prior status (2026-08-24 capture candidate frozen; new READY pending):**
 > The cross-project capture-chain repair is frozen at immutable product
@@ -474,16 +476,15 @@ These are current implementation boundaries, not a permanent rejection of the ap
 ## Current handoff
 
 - Current immutable capture candidate:
-  `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` (exact validator PASS; root
-  `2550/1`, App E2E `25/25`, extension `1660/1660`, extension E2E `54/1`,
-  build `20/20`, privacy `0 findings`, default database preserved). Exact dist
-  is `.tmp/p7f6-exact-dist-3491670`; receipt is
-  `.tmp/p7f6-candidate-receipt-3491670.json`. Observer compatibility is
-  `9cf7926`, tool hash `EB564C52...F44DF19`. New-candidate READY-only has not
-  run and needs a fresh sequential LeetCode/NowCoder authorization. ADR-0003
-  development Sentry tooling is committed separately at `6c0e1d7`, default
-  off and inert in test/production. D4, real actions, D5, RC, release, push
-  and PR remain stopped.
+  `0c23fcacf18d2fe4113d803504e638c1aab887d3` (Route H exact validator PASS;
+  root `2599/1`, App E2E `24/24`, extension `1671/1671`, extension E2E
+  `55/1`, build `20/20`, privacy `0 findings`, default database preserved).
+  Exact dist is `.tmp/v4-route-h-exact-dist-0c23fca`; receipt is
+  `.tmp/v4-route-h-candidate-receipt-0c23fca.json`. Observation-tool hash is
+  `309B3772...22C35`; profile hash is `D8C348F1...3225`. D7 READY-only passed
+  sequentially for LeetCode and NowCoder with `ACTION_AUTHORIZED=0` and both
+  isolated databases `0/0/0`. D4 delivery, real actions, RC, release, push and
+  PR remain stopped. Candidate `3491670` is superseded historical evidence.
 - Historical P0A contract alignment and P1 LeetCode offline RED/GREEN completed on 2026-08-16 after explicit user
   acceptance of `ISOLATED` as the replacement D4 minimum. The machine contract
   is `authorized_for_offline_work_only`; LeetCode remains network-`experimental`.

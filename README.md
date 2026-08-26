@@ -7,10 +7,12 @@
 > `0 findings`, readiness PASS and preserved default-database metadata. The app
 > owns SQLite, the extension connects once through `/settings`, and a hidden
 > installation capability replaces the visible pairing code. D7 real-site
-> READY-only, real actions, RC, release, push, and PR remain separately gated
-> and unauthorized. The former candidate `3491670` is historical evidence for
-> the superseded paired product and cannot certify Route H. LeetCode and
-> NowCoder remain network-`experimental`; AtCoder, Codeforces, and Luogu remain
+> READY-only passed sequentially for LeetCode and NowCoder with
+> `ACTION_AUTHORIZED=0` and isolated databases `0/0/0`. Real actions, D4
+> delivery adjudication, RC, release, push, and PR remain separately gated and
+> unauthorized. The former candidate `3491670` is historical evidence for the
+> superseded paired product and cannot certify Route H. LeetCode and NowCoder
+> remain network-`experimental`; AtCoder, Codeforces, and Luogu remain
 > network-`blocked`.
 >
 > **Earlier V4 evidence (still authoritative for their own scope):**
