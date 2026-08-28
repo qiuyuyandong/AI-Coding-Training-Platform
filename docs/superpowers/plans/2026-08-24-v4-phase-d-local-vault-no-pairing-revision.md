@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：Revision 3 / Route H-安装级 D0–D7 已完成；首次 D8-A 已在动作前失败关闭。用户已授权 D8-A-R 根因修订，并在修订离线门通过后重新授权候选 `0c23fca` 的 LeetCode `merge-two-sorted-lists` 单动作观察。今后真实提交只允许当前远程调试 Chrome 的用户指定 `yu` profile；该绑定不读取或留存账号身份。NowCoder、额外动作、D4 交付裁决、推送、PR、RC 和发布均未授权。**
+**状态：Revision 3 / Route H-安装级 D0–D7 已完成；D8-A-R 的 R0–R3 已通过，R4 因 CDP cleanup 未释放底层 transport 而在动作前失败关闭，R5 未运行。两次 D8-A 授权均已消费。今后真实提交只允许当前远程调试 Chrome 的用户指定 `yu` profile；该绑定不读取或留存账号身份。下一步只允许在用户另行批准后修复 R4 生命周期、重冻工具哈希；NowCoder、额外动作、D4 交付裁决、推送、PR、RC 和发布均未授权。**
 
 **替代范围：** 本计划与
 `2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`
@@ -762,3 +762,26 @@ project，因此 R0 记录为 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不创建 tok
   `2485DBEA...54666C3` 未变。R4 是下一阶段；进入 R4 后任何失败都禁止 R5。
 - 证据报告：
   `work/reports/v4-phase-d-d8a-yu-chrome-root-cause-revision-2026-08-28.md`。
+
+### 22.7 R4 动作前停止结果（2026-08-28）
+
+- 新隔离身份 `d8ar-yu-leetcode-0c23fca` 的数据库迁移后为 `0/0/0`；候选、
+  exact dist、candidate receipt、`yu` profile、工具/profile 哈希和默认数据库均
+  与 R3 冻结值一致。
+- 精确 web-access proxy 完成独占交接，official Chrome 保持存活。准备模式成功
+  装载固定 ID exact extension、完成 localhost Route H 连接、验证 popup READY/零
+  队列，并输出 `CONNECTION_PREPARED=1`。连接 receipt SHA-256 为
+  `7E3DFABFBA4DBC43FF020DAE79F455EED358C2B3CD4007FED073DA5C7FB0C410`。
+- 准备命令在 terminal marker 后超过 90 秒仍未退出，因此违反 R4 的“释放独占
+  调试通道并干净结束”门。命令被人工中断，随后 proxy 恢复；READY-only 调用与
+  R5 均未启动，没有 OJ 导航、点击、提交或 NowCoder 运行，数据库保持 `0/0/0`。
+- 已证明的代码级根因：runner 的 `closeOwnedPages()` 调用 Playwright 私有
+  `browser._connection.close()`；当前锁定实现只关闭 client 状态，不关闭底层 CDP
+  WebSocket transport，Node event loop 因此保持存活。
+- 最小后续候选是改用该 `connectOverCDP` 路径的公开 `await browser.close()`，并
+  增加“runner 退出且原 Chrome PID/CDP 仍存活”的一条 lifecycle 回归；不得增加
+  browser manager、通用 CDP 层、依赖或重试框架。该修复尚未授权或实施。
+- 本次 R4 失败按 22.4 消费新的 D8-A 机会并禁止 R5。新的工具修复、R4 或真实
+  动作都必须由用户另行授权；D4、RC、release、push、PR 继续停止。
+- 证据报告：
+  `work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md`。

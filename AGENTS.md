@@ -38,7 +38,7 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-28 Route H D8-A stopped before action):**
+> **Current status (2026-08-28 Route H D8-A-R stopped at R4 before READY):**
 > The approved installation-level Local Vault revision is offline-complete at
 > D6. Immutable Route H candidate
 > `0c23fcacf18d2fe4113d803504e638c1aab887d3` passed the exact validator with
@@ -48,22 +48,30 @@
 > `.tmp/v4-route-h-exact-dist-0c23fca`; receipt is
 > `.tmp/v4-route-h-candidate-receipt-0c23fca.json` with SHA-256
 > `4EDA9DDD9FFB4311EDEA32B0D60DFEA34D54D07766E1490C02DB4B04582F9AEE`.
-> Observation-tool hash is `309B3772...22C35`; acceptance-profile hash is
-> `D8C348F1...3225`. Route H removes visible pairing, keeps the raw hidden
+> D8-A-R R0-R3 froze observation-tool hash `7C649473...CA80E` and
+> acceptance-profile hash `64455AC1...C61A9`. Route H removes visible pairing,
+> keeps the raw hidden
 > installation capability only in trusted extension storage, stores only its
 > hash outside each Vault, and preserves historical provenance while writing new
 > capture as `extension_local`. D7 ran sequential fresh-profile READY-only on
 > LeetCode `merge-two-sorted-lists` and NowCoder `acm/contest/18839/1001`;
 > both returned `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1`,
 > `ACTION_AUTHORIZED=0` with isolated DB `0/0/0`. No click or submission ran.
-> D8-A then authorized only one LeetCode action observation and prohibited
-> NowCoder. It failed closed before any observer stage or action authorization:
-> schema 3 evidence is `not_delivered`, empty stage history,
-> `observer_capture_error`, `ENVIRONMENT_BLOCKED / UNRESOLVED /
-> observer_unexpected_failure`; DB stayed `0/0/0`, and there was no click or
-> submission. Evidence SHA-256 is `A57D562...14A7F84`. The authorization is
-> consumed; no retry is authorized. D4 delivery adjudication, RC, release, push
-> and PR remain stopped.
+> The first D8-A failed before any observer stage. The user then bound all future
+> real submissions to the current remote-debug Chrome `yu` profile, authorized
+> the root-cause revision and granted one new LeetCode-only action after R4.
+> R0-R3 passed. R4 loaded the exact extension into `yu`, completed the localhost
+> Route H connection and wrote receipt SHA-256 `7E3DFABF...B0C410` at DB
+> `0/0/0`, but the preparation process did not exit after
+> `CONNECTION_PREPARED=1`. The private Playwright client close left the CDP
+> transport alive. R4 failed its clean proxy-handback gate; READY and R5 did not
+> run, no OJ page/click/submission or NowCoder run occurred, and DB stayed
+> `0/0/0`. Chrome/CDP and proxy were restored; default DB is unchanged. Both
+> D8-A authorizations are consumed. Only a separately approved offline lifecycle
+> repair and new hash freeze may proceed; any R4/real action needs new explicit
+> authorization. D4 delivery adjudication, RC, release, push and PR remain
+> stopped. Evidence report:
+> `work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md`.
 >
 > **Prior status (2026-08-24 capture candidate frozen; new READY pending):**
 > The cross-project capture-chain repair is frozen at immutable product

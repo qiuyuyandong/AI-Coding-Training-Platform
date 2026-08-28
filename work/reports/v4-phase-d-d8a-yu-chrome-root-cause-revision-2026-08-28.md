@@ -6,7 +6,13 @@ Branch: `feature/v1-followup`
 
 Product candidate: `0c23fcacf18d2fe4113d803504e638c1aab887d3`
 
-Verdict: R0-R3 PASS; R4/R5 not yet executed
+Verdict: R0-R3 PASS; R4 later failed closed before READY; R5 was not run
+
+Execution continuation: R4 successfully prepared the exact extension and
+bounded connection receipt in `yu`, but its CDP cleanup left the Node process
+alive after `CONNECTION_PREPARED=1`. The hard gate stopped before READY or any
+OJ action. See
+`work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md`.
 
 ## Authorization
 

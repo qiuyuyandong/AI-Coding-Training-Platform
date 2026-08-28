@@ -1,6 +1,47 @@
 # Current Handoff
 
-## Status (2026-08-28 Route H D8-A stopped before action; no submission)
+## Status (2026-08-28 D8-A-R stopped at R4; no READY or submission)
+
+The user bound every future real OJ submission test to the already
+remote-debugged Chrome profile identified as `yu`, authorized the D8-A-R
+root-cause revision, and granted one new LeetCode `merge-two-sorted-lists`
+action only after R4 passed. NowCoder and retries were prohibited.
+
+R0-R3 passed. The frozen observation-tool hash is
+`7C64947398D8C91D92D68BD95CC703750633AD3F908BA26365BD1891F6ECA80E`;
+the acceptance-profile hash is
+`64455AC1DE043D30C44395675D37654EED44F13B0ABF24C9FC01E31D1BEC61A9`.
+Immutable product candidate
+`0c23fcacf18d2fe4113d803504e638c1aab887d3`, its exact dist and candidate
+receipt `4EDA9DDD...F9AEE` are unchanged. Sentry was unavailable because no
+local read-only token/org/project was configured; Ponytail returned
+`Lean already. Ship.` for the narrow R0-R3 revision.
+
+R4 used new profile ID `d8ar-yu-leetcode-0c23fca` and a new disposable
+database at `0/0/0`. It handed off the exact web-access proxy, kept official
+Chrome alive, loaded the exact fixed-ID extension into `yu`, completed the
+localhost Route H connection, validated READY/zero queues and wrote connection
+receipt SHA-256
+`7E3DFABFBA4DBC43FF020DAE79F455EED358C2B3CD4007FED073DA5C7FB0C410`.
+After printing `CONNECTION_PREPARED=1`, however, the command remained live for
+more than 90 seconds. It was interrupted and the proxy restored.
+
+The code-level cause is the runner's use of private
+`browser._connection.close()`, which closes Playwright client state but not the
+underlying CDP WebSocket transport. R4 therefore failed its clean handback gate.
+READY-only and R5 were not invoked; no OJ page, submit click or submission ran,
+NowCoder was not opened, and the database stayed `0/0/0`. The server is stopped,
+root DB pointer absent, port 3000 free, Chrome/CDP alive, proxy restored and the
+default database unchanged. The exact extension remains installed in `yu`.
+
+This D8-A-R authorization is consumed. The only possible next scope is a
+separately approved offline lifecycle correction using the public CDP close
+path plus a regression that proves both runner exit and original Chrome
+survival, followed by new hashes. Any R4 or real action requires a new explicit
+authorization. D4, RC, release, V0.5, push and PR remain stopped. Evidence:
+`work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md`.
+
+## Prior status (2026-08-28 first Route H D8-A stopped before action; no submission)
 
 The user authorized exactly one LeetCode `merge-two-sorted-lists` action
 observation on immutable Route H candidate
