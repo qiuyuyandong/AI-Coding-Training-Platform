@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：Revision 2 / Route H-安装级 D0–D7 已完成；D8-A 已按单次授权尝试并在动作前失败关闭。历史 P0 已完成；exact-Origin-only P1 已失败关闭；Route H D0–D6 离线工程与候选冻结通过，D7 LeetCode → NowCoder READY-only 顺序通过。D8-A 的 LeetCode 单动作观察未到达 READY/动作授权，没有点击或提交；NowCoder 未运行。D4 交付裁决、重试、推送、PR、RC 和发布均未授权。**
+**状态：Revision 3 / Route H-安装级 D0–D7 已完成；首次 D8-A 已在动作前失败关闭。用户已授权 D8-A-R 根因修订，并在修订离线门通过后重新授权候选 `0c23fca` 的 LeetCode `merge-two-sorted-lists` 单动作观察。今后真实提交只允许当前远程调试 Chrome 的用户指定 `yu` profile；该绑定不读取或留存账号身份。NowCoder、额外动作、D4 交付裁决、推送、PR、RC 和发布均未授权。**
 
 **替代范围：** 本计划与
 `2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`
@@ -648,3 +648,90 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
   `work/reports/v4-phase-d-local-vault-d8a-leetcode-pre-action-stop-2026-08-28.md`。
 - D8-A 授权已消费并停止，不能重试，不能以本次失败交付 D4。下一步仅可先做
   离线/只读诊断并形成经审查的修订；任何新的真实动作都需要新的明确授权。
+
+## 22. Revision 3 D8-A-R 根因修订与复测授权（2026-08-28）
+
+### 22.1 授权与唯一动作边界
+
+- 用户规定：未来所有真实提交测试只走当前远程调试连接对应的 Chrome `yu`
+  profile，不再用工具新建的 fresh Chromium/Chrome profile。
+- `yu` 是用户指定的本地浏览器别名；工具只能绑定正式 Google Chrome、当前
+  DevTools endpoint 和 profile path 的 SHA-256，不读取、输出或保存 Google /
+  LeetCode 昵称、邮箱、账号 ID、cookie、token、localStorage 或其他账号数据。
+- 用户授权先完成 D8-A-R 离线修订；全部修订门通过后，授权候选
+  `0c23fcacf18d2fe4113d803504e638c1aab887d3` 在 LeetCode
+  `merge-two-sorted-lists` 上执行一次单动作观察，最多一次真实提交；无论结果
+  如何立即停止。NowCoder 明确禁止运行。
+- 任一离线门、Chrome/profile/exact-dist/extension ID、连接收据、零数据库、
+  READY 或动作前置条件失败，都消费本次执行机会并在真实动作前停止；不得静默
+  回退到 fresh profile 或自动重试。
+
+### 22.2 已确认事实与根因等级
+
+- 首次 D8-A 的 schema 3 evidence 证明：`stageHistory=[]`，最终为
+  `observer_capture_error`，没有 `OBSERVER_ARMED`、`READY`、点击或提交；数据库
+  `0/0/0`。这是动作前环境失败，不是产品候选失败。
+- 当次本地服务第一次 `/api/capture/status` 编译约 24.6 秒，runner 约 28.6 秒
+  后退出。现有 runner 只预热 `/`，扩展启动任务却同步探测
+  `/api/capture/status`；冷编译超过其 20 秒 worker/READY 窗口是最强现有因果
+  解释，但在修订验证前仍标记为 `PROBABLE`，不伪装成已证明根因。
+- runner 的顶层 `catch` 把所有动作前异常压成
+  `observer_unexpected_failure`，使证据无法区分 app warm-up、CDP、extension、
+  connection receipt 和 observer arm 阶段。这是已证明的诊断制度缺口。
+- 旧 D5/D7 合同把 READY 绑定到工具创建的 fresh profile；它与用户最新的
+  `yu` Chrome 真实动作政策冲突。当前远程调试实例是正式 Google Chrome，
+  profile path hash 为
+  `C1CF71DEEA82DD059F08A27CEA2190CF26D040108C757527AB55870B46135242`；候选固定
+  ID 扩展在检查时尚未安装。该事实要求显式 CDP exact-dist 装载门，不能假定。
+
+### 22.3 最小修订设计
+
+本修订只改观察工具、机器合同、测试和文档；冻结产品候选与 exact dist 不改：
+
+1. 在启动/连接扩展前，以无 capability 的闭合请求预热
+   `/api/capture/status`，只接受预期的认证拒绝；它不得打开默认 SQLite 或读取
+   raw capability。随后才允许扩展用其私有 capability 做真实健康探测。
+2. 从用户明确指定的 `DevToolsActivePort` 读取 localhost WebSocket endpoint，
+   拒绝非 loopback、畸形、非浏览器 endpoint；用已安装 Playwright 连接当前
+   Chrome，不启动第二个浏览器，不增加依赖。
+3. 通过 Chrome DevTools Protocol `Extensions.getExtensions` /
+   `Extensions.loadUnpacked` 装载 exact dist，要求固定 extension ID、规范 exact
+   dist 路径和启用状态一致；已有同 ID 不同路径时失败关闭，不卸载或覆盖。
+4. 通过本轮自建 `chrome://version` 页取得 profile path，仅计算并比对冻结 hash；
+   evidence/receipt 不记录原路径或账号字段。只关闭本轮自建的 settings、popup、
+   LeetCode 标签页，绝不关闭现有用户标签页、context 或 Chrome。
+5. 准备模式在同一 `yu` profile 完成一次 localhost Route H 连接并写新绑定收据；
+   动作模式复用该收据。真实动作授权只在 `OBSERVER_ARMED / BROWSE_ONLY /
+   READY / ACTION_AUTHORIZED` 全部出现后生效。
+6. 用闭合的动作前阶段码区分 `app_route_warmup`、`cdp_connect`、
+   `profile_binding`、`extension_binding`、`connection_preflight` 和
+   `observer_arm`；不得写异常消息、stack、URL query、账号或原始平台数据。
+7. CDP 动作模式以 ACK 或闭合超时结束；不再把“关闭整个浏览器 context”作为
+   停止信号。超时只写 bounded failure evidence 并关闭本轮自建页。
+
+Ponytail 裁决：复用现有 runner、observer、Playwright 和 Node 标准库；不新增
+browser manager、账号系统、依赖、重试框架或通用 CDP 抽象。
+
+### 22.4 分阶段执行与硬停止门
+
+| 阶段 | 内容 | 必须通过 | 停止条件 |
+|---|---|---|---|
+| R0 | 冻结本节、首次失败证据、`yu` profile hash 与 Sentry 可用性 | plan authority；默认 DB 不变 | 事实或授权不闭合即停 |
+| R1 | RED：机器合同与观察器测试覆盖 CDP-only action、route warm-up、profile/exact extension 绑定、owned-tab closure、闭合阶段码 | 新测试必须先失败 | RED 不落在预期缺口即停 |
+| R2 | 最小实现并 GREEN | focused tests、syntax、targeted lint、typecheck、privacy `0 findings` | 任一失败即停，不触网 |
+| R3 | 冻结新 tool/profile hashes，Ponytail 复核 | acceptance/readiness validators、diff check、secret/generated scan | 有非必要依赖/抽象或 hash 漂移即停 |
+| R4 | 当前 `yu` Chrome localhost-only 准备与 READY 前置 | official Chrome、profile hash、exact extension ID/path、收据、DB `0/0/0`、无 OJ 动作 | 任一不符即消费机会并停 |
+| R5 | 新 D8-A：LeetCode 单动作观察 | 最多一次提交；bounded evidence；最终 DB 裁决 | 无论成功失败立即停；不运行 NowCoder |
+
+Sentry 插件仅允许 GET 型只读取证。当前环境没有 `SENTRY_AUTH_TOKEN`、org 或
+project，因此 R0 记录为 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不创建 token、不发送
+事件，也不把 Sentry 作为 R1–R5 的伪门。若用户以后在本机设置只读 token，可在
+不延迟本修订的前提下补充查询；任何输出仍须去标识化且不得包含 raw stack。
+
+### 22.5 复测后的裁决
+
+- 只有同一候选、同一 exact dist、同一 `yu` profile hash 下，从单一动作得到
+  E0 → E1 → E2 → E3/outbox → ACK，且 disposable database 从 `0/0/0` 精确变为
+  `4/1/1`，才能记录该 LeetCode lane 为 delivered。
+- READY、环境失败、观察器失败、产品失败或 delivered 都在本次 D8-A-R 结束后
+  停止；不得运行 NowCoder，不得自动裁定聚合 D4、RC 或 release。
