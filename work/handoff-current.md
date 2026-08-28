@@ -1,6 +1,40 @@
 # Current Handoff
 
-## Status (2026-08-26 Route H D7 READY-only PASS; actions remain unauthorized)
+## Status (2026-08-28 Route H D8-A stopped before action; no submission)
+
+The user authorized exactly one LeetCode `merge-two-sorted-lists` action
+observation on immutable Route H candidate
+`0c23fcacf18d2fe4113d803504e638c1aab887d3`, with at most one real submission,
+an unconditional stop afterward, and no NowCoder lane. The runner reused the
+D7 fixed profile, disposable database and bounded Route H connection receipt
+and matched the exact dist, candidate receipt, observation-tool hash
+`309B3772EF23D28699841F66648FEC107E5D62CE8694F083AF5E157157A22C35` and
+acceptance-profile hash
+`D8C348F13AE302166D0DDF4514FC5108CAAE39CBFA2D056A298A4CE4A6693225`.
+
+The invocation failed closed before the observer entered any stage. It emitted
+none of `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1` or
+`ACTION_AUTHORIZED=1`; it never requested a user action and performed no click
+or submission. The schema 3 evidence reports `outcome=not_delivered`, empty
+`stageHistory`, `finalStage=observer_capture_error` and
+`ENVIRONMENT_BLOCKED / UNRESOLVED / observer_unexpected_failure`. The evidence
+file is
+`output/playwright/v4-observation/0c23fcacf18d-leetcode-d7-route-h-leetcode-ready-0c23fca-real-observation-failed.json`,
+SHA-256 `A57D562042A3F1DFBCCF07F28787AE4BC3E4A3D19FE74B1C9D3FB907914A7F84`.
+
+The LeetCode disposable database remained `0/0/0`; NowCoder was not started.
+The localhost service is stopped, the root DB pointer is absent, port 3000 is
+free, and the default database is unchanged. A cold first compile of
+`/api/capture/status` is a plausible timing clue, not an adjudicated root cause.
+Evidence report:
+`work/reports/v4-phase-d-local-vault-d8a-leetcode-pre-action-stop-2026-08-28.md`.
+
+This exact D8-A authorization is consumed. There is no automatic retry, D4 is
+not delivered, and real actions, RC, release, V0.5, push and PR remain stopped.
+The next possible work is offline/read-only diagnosis and a reviewed plan
+amendment; any new real action requires a new explicit authorization.
+
+## Prior status (2026-08-26 Route H D7 READY-only PASS; actions were unauthorized)
 
 The user explicitly authorized D7 for immutable Route H candidate
 `0c23fcacf18d2fe4113d803504e638c1aab887d3`. The two lanes ran sequentially

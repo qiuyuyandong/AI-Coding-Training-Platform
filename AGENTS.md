@@ -1,5 +1,7 @@
 请注意，将一切plan写入docs\superpowers\plans，将其作为plan的唯一入口。
 在我提出需求时，你需要不断追问我以获得更多细节与想法，防止目标跑偏。尤其在于plan指定与开发新功能时。
+
+跑牛客、力扣等真实提交测试时，不要开隔离环境，只使用Chrome的“yu”账号。
 ## 最终汇报契约
 
 完成重要开发、修复、计划执行、阶段收口、审查或发布准备任务后，最终回复必须使用中文，并提供一份基于实际证据的项目状态报告。
@@ -36,7 +38,7 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-26 Route H D7 READY-only PASS; actions unauthorized):**
+> **Current status (2026-08-28 Route H D8-A stopped before action):**
 > The approved installation-level Local Vault revision is offline-complete at
 > D6. Immutable Route H candidate
 > `0c23fcacf18d2fe4113d803504e638c1aab887d3` passed the exact validator with
@@ -54,7 +56,14 @@
 > LeetCode `merge-two-sorted-lists` and NowCoder `acm/contest/18839/1001`;
 > both returned `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1`,
 > `ACTION_AUTHORIZED=0` with isolated DB `0/0/0`. No click or submission ran.
-> Real actions, D4 delivery adjudication, RC, release, push and PR remain stopped.
+> D8-A then authorized only one LeetCode action observation and prohibited
+> NowCoder. It failed closed before any observer stage or action authorization:
+> schema 3 evidence is `not_delivered`, empty stage history,
+> `observer_capture_error`, `ENVIRONMENT_BLOCKED / UNRESOLVED /
+> observer_unexpected_failure`; DB stayed `0/0/0`, and there was no click or
+> submission. Evidence SHA-256 is `A57D562...14A7F84`. The authorization is
+> consumed; no retry is authorized. D4 delivery adjudication, RC, release, push
+> and PR remain stopped.
 >
 > **Prior status (2026-08-24 capture candidate frozen; new READY pending):**
 > The cross-project capture-chain repair is frozen at immutable product
@@ -483,8 +492,11 @@ These are current implementation boundaries, not a permanent rejection of the ap
   `.tmp/v4-route-h-candidate-receipt-0c23fca.json`. Observation-tool hash is
   `309B3772...22C35`; profile hash is `D8C348F1...3225`. D7 READY-only passed
   sequentially for LeetCode and NowCoder with `ACTION_AUTHORIZED=0` and both
-  isolated databases `0/0/0`. D4 delivery, real actions, RC, release, push and
-  PR remain stopped. Candidate `3491670` is superseded historical evidence.
+  isolated databases `0/0/0`. D8-A's LeetCode-only action attempt failed before
+  observer READY/action authorization with DB `0/0/0`; no click or submission
+  occurred and NowCoder did not run. That authorization is consumed. D4
+  delivery, further real actions, RC, release, push and PR remain stopped.
+  Candidate `3491670` is superseded historical evidence.
 - Historical P0A contract alignment and P1 LeetCode offline RED/GREEN completed on 2026-08-16 after explicit user
   acceptance of `ISOLATED` as the replacement D4 minimum. The machine contract
   is `authorized_for_offline_work_only`; LeetCode remains network-`experimental`.

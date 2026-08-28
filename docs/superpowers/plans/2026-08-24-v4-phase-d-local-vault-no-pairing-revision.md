@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：Revision 2 / Route H-安装级 D0–D7 已完成。历史 P0 已完成；exact-Origin-only P1 已失败关闭；Route H D0–D6 离线工程与候选冻结通过，D7 LeetCode → NowCoder READY-only 顺序通过。真实点击、提交、D4 交付裁决、推送、PR、RC 和发布均未授权。**
+**状态：Revision 2 / Route H-安装级 D0–D7 已完成；D8-A 已按单次授权尝试并在动作前失败关闭。历史 P0 已完成；exact-Origin-only P1 已失败关闭；Route H D0–D6 离线工程与候选冻结通过，D7 LeetCode → NowCoder READY-only 顺序通过。D8-A 的 LeetCode 单动作观察未到达 READY/动作授权，没有点击或提交；NowCoder 未运行。D4 交付裁决、重试、推送、PR、RC 和发布均未授权。**
 
 **替代范围：** 本计划与
 `2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`
@@ -617,3 +617,34 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
 - D7 完成即停止。READY-only 不证明真实动作因果与 exactly-once delivery，不能
   自动交付 D4；D8、真实点击/提交、D4 交付裁决、RC、release、push 和 PR 均需
   新授权。
+
+## 21. Revision 2 D8-A 执行结果（2026-08-28）
+
+- 用户仅授权候选 `0c23fcacf18d2fe4113d803504e638c1aab887d3` 的 LeetCode
+  `merge-two-sorted-lists` 单动作观察，最多允许一次真实提交；无论结果如何立即
+  停止，明确禁止运行 NowCoder。
+- 执行复用 D7 已准备的固定 profile、disposable database 和 Route H 连接收据，
+  并严格绑定 exact dist、candidate receipt、observation-tool hash
+  `309B3772...22C35` 与 acceptance-profile hash `D8C348F1...3225`。
+- runner 在观察器建立任何阶段前失败关闭：没有返回 `OBSERVER_ARMED=1`、
+  `BROWSE_ONLY=1`、`READY=1` 或 `ACTION_AUTHORIZED=1`，没有向用户请求动作，
+  没有 submit-control click 或真实提交。
+- schema 3 失败证据记录 `outcome=not_delivered`、空 `stageHistory`、
+  `finalStage=observer_capture_error`，裁决为
+  `ENVIRONMENT_BLOCKED / UNRESOLVED / observer_unexpected_failure`；pre-action 与
+  final 的候选、工具、profile、candidate-receipt 和五个 exact-dist 哈希一致，
+  `noRawData=true`。
+- 执行时本地服务首次 `/api/capture/status` 探测伴随约 24.6 秒冷编译，而 runner
+  约 28.6 秒后退出；这只形成“冷启动状态探测延迟可能参与失败”的诊断线索，不能
+  替代证据中的 `UNRESOLVED` 根因分类。
+- LeetCode disposable database 最终仍为 capture events / training sessions /
+  training attempts `0/0/0`。NowCoder lane 未启动；本地服务已停止，root DB
+  pointer 已删除，端口 3000 空闲，默认数据库 size/mtime/SHA-256 不变。
+- 失败证据：
+  `output/playwright/v4-observation/0c23fcacf18d-leetcode-d7-route-h-leetcode-ready-0c23fca-real-observation-failed.json`；
+  SHA-256：
+  `A57D562042A3F1DFBCCF07F28787AE4BC3E4A3D19FE74B1C9D3FB907914A7F84`。
+- 收口报告：
+  `work/reports/v4-phase-d-local-vault-d8a-leetcode-pre-action-stop-2026-08-28.md`。
+- D8-A 授权已消费并停止，不能重试，不能以本次失败交付 D4。下一步仅可先做
+  离线/只读诊断并形成经审查的修订；任何新的真实动作都需要新的明确授权。
