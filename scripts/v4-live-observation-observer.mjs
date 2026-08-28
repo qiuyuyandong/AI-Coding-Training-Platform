@@ -13,6 +13,53 @@ import { isAbsolute, relative, resolve } from "node:path";
 export const APPROVED_NOWCODER_PATH = "/acm/contest/18839/1001";
 export const BLOCKED_NOWCODER_PATH = "/acm/problem/319811";
 
+const OBSERVATION_FAILURE_PHASES = new Set([
+  "app_route_warmup",
+  "cdp_connect",
+  "profile_binding",
+  "extension_binding",
+  "connection_preflight",
+  "observer_arm",
+  "authorized_action",
+]);
+
+export function readObservationFailurePhase(value) {
+  return typeof value === "string" && OBSERVATION_FAILURE_PHASES.has(value)
+    ? value
+    : "observer_arm";
+}
+
+export function parseDevToolsActivePort(value) {
+  if (typeof value !== "string") {
+    return { ok: false, reason: "observer_cdp_endpoint_rejected" };
+  }
+  const lines = value.trim().split(/\r?\n/u);
+  const port = Number(lines[0]);
+  const path = lines[1];
+  if (lines.length !== 2 || !Number.isInteger(port) || port < 1 || port > 65_535
+    || typeof path !== "string"
+    || !/^\/devtools\/browser\/[A-Za-z0-9-]{16,128}$/u.test(path)) {
+    return { ok: false, reason: "observer_cdp_endpoint_rejected" };
+  }
+  return { ok: true, value: { endpoint: `ws://127.0.0.1:${port}${path}` } };
+}
+
+export function validateCdpExtensionBinding(extensions, expected) {
+  if (!Array.isArray(extensions) || typeof expected !== "object" || expected === null
+    || typeof expected.extensionId !== "string" || typeof expected.extensionPath !== "string") {
+    return { ok: false, reason: "observer_extension_binding_rejected" };
+  }
+  const matches = extensions.filter((extension) => (
+    typeof extension === "object" && extension !== null
+    && extension.id === expected.extensionId
+  ));
+  if (matches.length !== 1 || matches[0].enabled !== true
+    || matches[0].path !== expected.extensionPath) {
+    return { ok: false, reason: "observer_extension_binding_rejected" };
+  }
+  return { ok: true };
+}
+
 export const LOCAL_TRIGGER_KEYS = Object.freeze([
   "confirmedSubmissions",
   "confirmedSubmissionTombstones",

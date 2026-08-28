@@ -13,9 +13,10 @@
   "aggregateCompletion": "all-active-profiles-pass-on-one-candidate",
   "readyConnectionContract": {
     "status": "authorized_offline_preparation_only",
-    "preparation": "fresh_profile_localhost_settings_once",
+    "preparation": "authorized_remote_debug_profile_localhost_settings_once",
     "requiredState": [
       "exact_dist_and_fixed_extension_id",
+      "current_remote_debug_chrome_profile",
       "canonical_localhost_endpoint",
       "active_disposable_vault_zero_database",
       "capture_connection_connected",
@@ -34,6 +35,18 @@
       "capability_version"
     ],
     "secretPolicy": "ready_runner_never_reads_copies_or_emits_raw_capability"
+  },
+  "liveActionBrowserContract": {
+    "mode": "current_remote_debug_chrome_only",
+    "debugChannel": "exclusive_runner_connection_after_proxy_handoff",
+    "operatorAlias": "yu",
+    "profileIdentity": "sha256_profile_path_only",
+    "extensionBinding": "cdp_exact_dist_fixed_id_and_path",
+    "ownedTabs": "close_runner_created_tabs_only",
+    "routeWarmup": "unauthenticated_capture_status_before_extension_probe",
+    "accountDataPolicy": "never_read_or_retain_account_identity_or_credentials",
+    "authorizedAction": "leetcode_merge_two_sorted_lists_once",
+    "forbiddenPlatform": "nowcoder"
   },
   "coreInvariants": [
     "candidate_artifact_identity",

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import Database from "better-sqlite3";
@@ -18,11 +18,14 @@ import {
   persistentObserverEntrypoint,
   projectD4AcceptanceEvidence,
   projectFailureReceipt,
+  parseDevToolsActivePort,
+  readObservationFailurePhase,
   reduceObservationSnapshot,
   validateCandidateReceipt,
   validateReadyConnectionReceipt,
   validateObservationDatabase,
   validateObservationTarget,
+  validateCdpExtensionBinding,
 } from "./v4-live-observation-observer.mjs";
 import { buildStageSequence, storageKeyDiagnosticListener, validateDiagnosticOutputPath, writeDiagnosticOutputFile } from "./v4-live-observation-diagnostic.mjs";
 
@@ -209,6 +212,107 @@ async function assertLocalAppReady() {
   }
 }
 
+async function assertCaptureStatusRouteWarm() {
+  const response = await fetch(`${LOCAL_APP_ORIGIN}/api/capture/status`, {
+    redirect: "manual",
+    headers: { origin: `chrome-extension://${EXPECTED_EXTENSION_ID}` },
+  });
+  if (response.status !== 401) {
+    throw new Error("Capture status warm-up did not fail closed");
+  }
+  await response.arrayBuffer();
+}
+
+function readCdpEndpoint(activePortFile) {
+  if (!isAbsolute(activePortFile) || basename(activePortFile) !== "DevToolsActivePort"
+    || !existsSync(activePortFile)) {
+    throw new Error("observer_cdp_endpoint_rejected");
+  }
+  const stat = lstatSync(activePortFile);
+  if (!stat.isFile() || stat.size < 1 || stat.size > 512) {
+    throw new Error("observer_cdp_endpoint_rejected");
+  }
+  const parsed = parseDevToolsActivePort(readFileSync(activePortFile, "utf8"));
+  if (!parsed.ok) throw new Error(parsed.reason);
+  return parsed.value.endpoint;
+}
+
+async function openObservationBrowser(input) {
+  if (input.cdpActivePortFile === undefined) {
+    const profilePath = fixedProfilePath(input.profileId, input.preparingConnection);
+    const context = await chromium.launchPersistentContext(profilePath, {
+      channel: "chromium",
+      headless: false,
+      args: [
+        `--disable-extensions-except=${input.extensionDist}`,
+        `--load-extension=${input.extensionDist}`,
+        "--disable-features=ExtensionDisableUnsupportedDeveloper",
+      ],
+    });
+    return {
+      context,
+      profilePath,
+      cdp: false,
+      newPage: () => context.newPage(),
+      closeOwnedPages: () => context.close(),
+    };
+  }
+
+  const endpoint = readCdpEndpoint(input.cdpActivePortFile);
+  const browser = await chromium.connectOverCDP(endpoint);
+  const contexts = browser.contexts();
+  const ownedPages = new Set();
+  let browserSession;
+  const closeOwnedPages = async () => {
+    await Promise.all([...ownedPages].map((page) => page.close().catch(() => undefined)));
+    await browserSession?.detach().catch(() => undefined);
+    // ponytail: Playwright has no public CDP disconnect; close only its pinned
+    // client connection. Replace this when Playwright exposes disconnect().
+    browser._connection.close();
+  };
+  try {
+    if (contexts.length !== 1) throw new Error("observer_cdp_endpoint_rejected");
+    const context = contexts[0];
+    const newPage = async () => {
+      const page = await context.newPage();
+      ownedPages.add(page);
+      page.once("close", () => ownedPages.delete(page));
+      return page;
+    };
+    const versionPage = await newPage();
+    await versionPage.goto("chrome://version/", { waitUntil: "load" });
+    const rawProfilePath = (await versionPage.locator("#profile_path").textContent())?.trim();
+    await versionPage.close();
+    if (typeof rawProfilePath !== "string" || rawProfilePath.length === 0
+      || !existsSync(rawProfilePath)) throw new Error("observer_profile_binding_rejected");
+    const profilePath = realpathSync.native(rawProfilePath);
+    if (sha256Bytes(profilePath) !== input.expectedCdpProfileHash) {
+      throw new Error("observer_profile_binding_rejected");
+    }
+
+    browserSession = await browser.newBrowserCDPSession();
+    let installed = await browserSession.send("Extensions.getExtensions");
+    const exactPath = realpathSync.native(input.extensionDist);
+    const expected = { extensionId: EXPECTED_EXTENSION_ID, extensionPath: exactPath };
+    const sameId = installed.extensions.filter((extension) => extension.id === EXPECTED_EXTENSION_ID);
+    if (sameId.length === 0) {
+      if (!input.preparingConnection) throw new Error("observer_extension_binding_rejected");
+      const loaded = await browserSession.send("Extensions.loadUnpacked", {
+        path: exactPath,
+        enableInIncognito: false,
+      });
+      if (loaded.id !== EXPECTED_EXTENSION_ID) throw new Error("observer_extension_binding_rejected");
+      installed = await browserSession.send("Extensions.getExtensions");
+    }
+    const binding = validateCdpExtensionBinding(installed.extensions, expected);
+    if (!binding.ok) throw new Error(binding.reason);
+    return { context, profilePath, cdp: true, newPage, closeOwnedPages };
+  } catch (error) {
+    await closeOwnedPages();
+    throw error;
+  }
+}
+
 async function assertCaptureReadyPreflight(popup) {
   const result = await popup.evaluate(async (canonicalEndpoint) => {
     const state = await chrome.runtime.sendMessage({ type: "GET_CAPTURE_STATE" });
@@ -237,11 +341,9 @@ async function assertCaptureReadyPreflight(popup) {
 }
 
 async function prepareReadyConnection(input) {
-  const worker = input.context.serviceWorkers()[0]
-    ?? await input.context.waitForEvent("serviceworker", { timeout: 20_000 });
-  const extensionId = new URL(worker.url()).hostname;
+  const extensionId = input.extensionId;
   if (extensionId !== EXPECTED_EXTENSION_ID) throw new Error("Prepared extension ID is invalid");
-  const settings = await input.context.newPage();
+  const settings = await input.newPage();
   try {
     await settings.goto(`${LOCAL_APP_ORIGIN}/settings`, { waitUntil: "load" });
     await settings.getByTestId("capture-connection-state").waitFor();
@@ -252,7 +354,7 @@ async function prepareReadyConnection(input) {
   } finally {
     await settings.close();
   }
-  const popup = await input.context.newPage();
+  const popup = await input.newPage();
   let ready;
   try {
     await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: "domcontentloaded" });
@@ -396,6 +498,22 @@ async function main() {
   if (actionAuthorization.length > 0 && actionAuthorization !== expectedActionAuthorization) {
     throw new Error("Action authorization does not name the exact platform, target, and candidate");
   }
+  const executeActionArgument = argumentValue(args, "--execute-authorized-action");
+  if (executeActionArgument !== "" && executeActionArgument !== "true") {
+    throw new Error("--execute-authorized-action accepts only true");
+  }
+  const executeAuthorizedAction = executeActionArgument === "true";
+  if (executeAuthorizedAction !== (actionAuthorization.length > 0)) {
+    throw new Error("The exact action authorization and execution flag must be supplied together");
+  }
+  const cdpActivePortArgument = argumentValue(args, "--cdp-active-port-file");
+  const usingCdp = cdpActivePortArgument.length > 0;
+  if (actionAuthorization.length > 0 && !usingCdp) {
+    throw new Error("Real actions require the authorized remote-debug Chrome profile");
+  }
+  const expectedCdpProfileHash = usingCdp
+    ? requiredSha256(args, "--cdp-profile-hash")
+    : undefined;
   const dbPathFile = resolve(".tmp", "server-db-path.txt");
   if (!existsSync(dbPathFile)) {
     throw new Error("Disposable database path is missing; start the live local server first.");
@@ -411,8 +529,18 @@ async function main() {
     counts: initialCounts,
   });
   if (!databaseValidation.ok) throw new Error(databaseValidation.reason);
+  let failurePhase = "app_route_warmup";
   await assertLocalAppReady();
-  const profilePath = fixedProfilePath(profileId, preparingConnection);
+  await assertCaptureStatusRouteWarm();
+  failurePhase = "cdp_connect";
+  const observationBrowser = await openObservationBrowser({
+    profileId,
+    preparingConnection,
+    extensionDist,
+    cdpActivePortFile: usingCdp ? resolve(cdpActivePortArgument) : undefined,
+    expectedCdpProfileHash,
+  });
+  const { context, profilePath, newPage, closeOwnedPages } = observationBrowser;
   const profileIdentity = sha256Bytes(profilePath);
   const databaseIdentity = sha256Bytes(dbPath);
   const vaultConfigPath = resolve(dirname(dbPath), "vault-config");
@@ -428,25 +556,24 @@ async function main() {
     candidateReceiptHash,
     artifactHashes: expectedHashes,
   };
-  const readyConnectionReceipt = preparingConnection
-    ? undefined
-    : assertReadyConnectionReceiptFile(readyConnectionReceiptPath, expectedReadyConnection);
+  let readyConnectionReceipt;
+  try {
+    failurePhase = "connection_preflight";
+    readyConnectionReceipt = preparingConnection
+      ? undefined
+      : assertReadyConnectionReceiptFile(readyConnectionReceiptPath, expectedReadyConnection);
+  } catch (error) {
+    await closeOwnedPages().catch(() => undefined);
+    throw error;
+  }
 
   const outputPath = resolve("output", "playwright", "v4-observation");
   mkdirSync(outputPath, { recursive: true });
-  const context = await chromium.launchPersistentContext(profilePath, {
-    channel: "chromium",
-    headless: false,
-    args: [
-      `--disable-extensions-except=${extensionDist}`,
-      `--load-extension=${extensionDist}`,
-      "--disable-features=ExtensionDisableUnsupportedDeveloper",
-    ],
-  });
   if (preparingConnection) {
     try {
       await prepareReadyConnection({
-        context,
+        newPage,
+        extensionId: EXPECTED_EXTENSION_ID,
         candidateSha,
         platform: target.platform,
         profileIdentity,
@@ -460,7 +587,7 @@ async function main() {
         connectionReceiptPath: readyConnectionReceiptPath,
       });
     } finally {
-      await context.close().catch(() => undefined);
+      await closeOwnedPages().catch(() => undefined);
     }
     return;
   }
@@ -485,14 +612,17 @@ async function main() {
     rejectArmed = reject;
   });
   const terminalController = createObservationTerminalController({
-    closeContext: () => context.close(),
+    closeContext: closeOwnedPages,
     rejectArmed: (error) => {
       if (typeof rejectArmed === "function") rejectArmed(error);
     },
   });
   const terminal = (reason) => {
     if (!terminalController.terminal && failureReceipt === undefined) {
-      failureReceipt = Object.freeze({ reason });
+      failureReceipt = Object.freeze({
+        reason,
+        phase: readObservationFailurePhase(failurePhase),
+      });
     }
     return terminalController.fail(reason);
   };
@@ -739,9 +869,19 @@ async function main() {
   };
 
   try {
-    const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker", { timeout: 20_000 });
-    const extensionId = new URL(worker.url()).hostname;
-    popup = await context.newPage();
+    failurePhase = "extension_binding";
+    let extensionId = EXPECTED_EXTENSION_ID;
+    if (!observationBrowser.cdp) {
+      const worker = context.serviceWorkers().find(
+        (candidate) => new URL(candidate.url()).hostname === EXPECTED_EXTENSION_ID,
+      ) ?? await context.waitForEvent("serviceworker", {
+        predicate: (candidate) => new URL(candidate.url()).hostname === EXPECTED_EXTENSION_ID,
+        timeout: 20_000,
+      });
+      extensionId = new URL(worker.url()).hostname;
+    }
+    if (extensionId !== EXPECTED_EXTENSION_ID) throw new Error("observer_extension_binding_rejected");
+    popup = await newPage();
     popup.on("close", () => terminal("observer_page_closed"));
     const observerPageUrl = `chrome-extension://${extensionId}/popup.html`;
     popup.on("framenavigated", (frame) => {
@@ -751,6 +891,7 @@ async function main() {
     });
     await popup.goto(observerPageUrl, { waitUntil: "domcontentloaded" });
     await stopCharacterization(popup);
+    failurePhase = "connection_preflight";
     const readyConnection = await assertCaptureReadyPreflight(popup);
     if (readyConnectionReceipt === undefined
       || sha256Bytes(readyConnection.installationId) !== readyConnectionReceipt.installationIdentity
@@ -759,6 +900,7 @@ async function main() {
       throw new Error("Capture READY preflight rejected: connection_receipt_mismatch");
     }
 
+    failurePhase = "observer_arm";
     await popup.exposeFunction("__v4ObservationEvent", (event) => {
       eventChain = eventChain.then(() => processObserverEvent(event));
     });
@@ -785,7 +927,7 @@ async function main() {
       throw new Error(terminalController.reason ?? "observer_failed_before_arm");
     }
     baselineDatabase = latestDatabase ?? readDatabaseCounts(dbPath);
-    platformPage = await context.newPage();
+    platformPage = await newPage();
     await platformPage.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await sleep(Number(argumentValue(args, "--browse-ms") || "1500"));
     await eventChain;
@@ -808,10 +950,15 @@ async function main() {
       writeEvidence("ready_only", stageState.stage);
       writeDiagnosticOutput(true);
       process.stdout.write("ACTION_AUTHORIZED=0\n");
-      await context.close();
+      await closeOwnedPages();
       return;
     }
     process.stdout.write("ACTION_AUTHORIZED=1\n");
+    failurePhase = "authorized_action";
+    const submitControl = platformPage.getByRole("button", { name: "提交", exact: true });
+    await submitControl.waitFor({ state: "visible", timeout: 20_000 });
+    await submitControl.click({ timeout: 20_000 });
+    process.stdout.write("AUTHORIZED_ACTION_EXECUTED=1\n");
     const databaseMonitor = setInterval(() => {
       if (terminalController.terminal || stageState === undefined || stageState.acknowledged) return;
       const database = readDatabaseCounts(dbPath);
@@ -835,9 +982,20 @@ async function main() {
         process.stdout.write("STAGE=acknowledged\nACKNOWLEDGED=1\n");
       }
     }, 250);
-    await new Promise((complete) => context.once("close", complete));
+    const actionTimeoutMs = 120_000;
+    const actionDeadline = Date.now() + actionTimeoutMs;
+    while (!terminalController.terminal && !stageState.acknowledged
+      && Date.now() < actionDeadline) await sleep(250);
+    if (!terminalController.terminal && !stageState.acknowledged) {
+      terminal("observer_action_timeout");
+    }
     clearInterval(databaseMonitor);
     await eventChain;
+    if (stageState.acknowledged) {
+      await closeOwnedPages();
+      process.stdout.write("DELIVERED=1\n");
+      return;
+    }
     if (!stageState.acknowledged) {
       if (!failureEvidenceWritten) {
         writeEvidence("not_delivered", stageState.stage, failureReceipt);
@@ -858,13 +1016,13 @@ async function main() {
       }
     }
     writeDiagnosticOutput(true);
-    await context.close().catch(() => undefined);
+    await closeOwnedPages().catch(() => undefined);
     throw new Error(terminalController.reason ?? "observer_unexpected_failure");
   }
 }
 
 main().catch((error) => {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
-  process.stderr.write(`${message}\n`);
+  const message = error instanceof Error ? error.message : "observer_unexpected_failure";
+  process.stderr.write(`OBSERVER_ERROR=${message}\n`);
   process.exitCode = 1;
 });

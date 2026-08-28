@@ -20,7 +20,10 @@ import {
   projectStageEvidence,
   projectFailureReceipt,
   projectSafeSnapshot,
+  parseDevToolsActivePort,
+  readObservationFailurePhase,
   reduceObservationSnapshot,
+  validateCdpExtensionBinding,
   validateCandidateReceipt,
   validateReadyConnectionReceipt,
   validateObservationDatabase,
@@ -325,9 +328,61 @@ describe("V4 live observation storage observer", () => {
     expect(runnerSource).toContain("createObservationTerminalController");
     expect(runnerSource).toContain('terminal("observer_unexpected_failure")');
     expect(runnerSource).toContain('process.stderr.write("EVIDENCE_ERROR=observer_evidence_write_failed\\n")');
-    expect(runnerSource).toContain("await context.close().catch(() => undefined)");
+    expect(runnerSource).toContain("await closeOwnedPages().catch(() => undefined)");
+    expect(runnerSource).not.toContain("browser.close(");
     expect(runnerSource).not.toContain("terminal(error instanceof Error");
     expect(runnerSource).not.toContain("String(evidenceError)");
+  });
+
+  it("binds the current remote-debug Chrome endpoint and exact unpacked extension", () => {
+    expect(parseDevToolsActivePort(
+      "9222\n/devtools/browser/12345678-1234-1234-1234-123456789abc\n",
+    )).toEqual({
+      ok: true,
+      value: {
+        endpoint: "ws://127.0.0.1:9222/devtools/browser/12345678-1234-1234-1234-123456789abc",
+      },
+    });
+    expect(parseDevToolsActivePort("9222\n/devtools/page/not-browser\n"))
+      .toEqual({ ok: false, reason: "observer_cdp_endpoint_rejected" });
+    expect(parseDevToolsActivePort("70000\n/devtools/browser/12345678-1234-1234-1234-123456789abc\n"))
+      .toEqual({ ok: false, reason: "observer_cdp_endpoint_rejected" });
+
+    const expected = {
+      extensionId: "oldmkbngfokmhlkjmlichccmbebipmei",
+      extensionPath: "D:\\exact-dist",
+    };
+    expect(validateCdpExtensionBinding([
+      { id: expected.extensionId, path: expected.extensionPath, enabled: true },
+    ], expected)).toEqual({ ok: true });
+    expect(validateCdpExtensionBinding([
+      { id: expected.extensionId, path: "D:\\other-dist", enabled: true },
+    ], expected)).toEqual({ ok: false, reason: "observer_extension_binding_rejected" });
+    expect(validateCdpExtensionBinding([
+      { id: expected.extensionId, path: expected.extensionPath, enabled: false },
+    ], expected)).toEqual({ ok: false, reason: "observer_extension_binding_rejected" });
+  });
+
+  it("keeps pre-action failure phases closed and account-free", () => {
+    for (const phase of [
+      "app_route_warmup",
+      "cdp_connect",
+      "profile_binding",
+      "extension_binding",
+      "connection_preflight",
+      "observer_arm",
+      "authorized_action",
+    ]) expect(readObservationFailurePhase(phase)).toBe(phase);
+    expect(readObservationFailurePhase("https://private.example/account/yu"))
+      .toBe("observer_arm");
+
+    const runnerSource = readFileSync("scripts/v4-live-observation.mjs", "utf8");
+    expect(runnerSource).toContain("Extensions.loadUnpacked");
+    expect(runnerSource).toContain("chromium.connectOverCDP");
+    expect(runnerSource).toContain("assertCaptureStatusRouteWarm");
+    expect(runnerSource).toContain("closeOwnedPages");
+    expect(runnerSource).toContain('name: "提交", exact: true');
+    expect(runnerSource).toContain("AUTHORIZED_ACTION_EXECUTED=1");
   });
 
   it("binds the candidate SHA, exact dist path, and five hashes through one receipt", () => {

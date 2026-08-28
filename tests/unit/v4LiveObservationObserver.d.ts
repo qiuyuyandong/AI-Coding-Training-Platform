@@ -7,6 +7,15 @@ declare module "*/scripts/v4-live-observation-observer.mjs" {
   export const IGNORED_SESSION_KEYS: readonly string[];
   export const EXACT_LOCAL_SNAPSHOT_KEYS: readonly string[];
   export const EXACT_SESSION_SNAPSHOT_KEYS: readonly string[];
+  export function readObservationFailurePhase(value: unknown): string;
+  export function parseDevToolsActivePort(value: unknown): Readonly<
+    | { ok: true; value: Readonly<{ endpoint: string }> }
+    | { ok: false; reason: string }
+  >;
+  export function validateCdpExtensionBinding(
+    extensions: unknown,
+    expected: Readonly<{ extensionId: string; extensionPath: string }>,
+  ): Readonly<{ ok: boolean; reason?: string }>;
   export function isCanonicalDescendant(parent: string, child: string): boolean;
   export function validateCandidateReceipt(value: unknown, expected: Readonly<Record<string, unknown>>): Readonly<{ ok: boolean; reason?: string }>;
   export function validateReadyConnectionReceipt(value: unknown, expected: Readonly<Record<string, unknown>>): Readonly<{ ok: boolean; reason?: string }>;

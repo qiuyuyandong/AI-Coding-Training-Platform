@@ -62,6 +62,7 @@ const READINESS_POLICY_ALIGNMENT = Object.freeze({
 });
 const READY_REQUIRED_STATE = Object.freeze([
   "exact_dist_and_fixed_extension_id",
+  "current_remote_debug_chrome_profile",
   "canonical_localhost_endpoint",
   "active_disposable_vault_zero_database",
   "capture_connection_connected",
@@ -79,6 +80,18 @@ const READY_RECEIPT_BINDINGS = Object.freeze([
   "installation_identity",
   "capability_version",
 ]);
+const LIVE_ACTION_BROWSER_CONTRACT = Object.freeze({
+  mode: "current_remote_debug_chrome_only",
+  debugChannel: "exclusive_runner_connection_after_proxy_handoff",
+  operatorAlias: "yu",
+  profileIdentity: "sha256_profile_path_only",
+  extensionBinding: "cdp_exact_dist_fixed_id_and_path",
+  ownedTabs: "close_runner_created_tabs_only",
+  routeWarmup: "unauthenticated_capture_status_before_extension_probe",
+  accountDataPolicy: "never_read_or_retain_account_identity_or_credentials",
+  authorizedAction: "leetcode_merge_two_sorted_lists_once",
+  forbiddenPlatform: "nowcoder",
+});
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -168,11 +181,19 @@ export function validateV4D4AcceptanceProfiles(
   const connection = document.readyConnectionContract;
   if (!isRecord(connection)
     || connection.status !== "authorized_offline_preparation_only"
-    || connection.preparation !== "fresh_profile_localhost_settings_once"
+    || connection.preparation !== "authorized_remote_debug_profile_localhost_settings_once"
     || !sameClosedList(connection.requiredState, READY_REQUIRED_STATE)
     || !sameClosedList(connection.receiptBindings, READY_RECEIPT_BINDINGS)
     || connection.secretPolicy !== "ready_runner_never_reads_copies_or_emits_raw_capability") {
     failures.push("READY connection contract must match the closed Route H preparation boundary");
+  }
+  const browserContract = document.liveActionBrowserContract;
+  if (!isRecord(browserContract)
+    || Reflect.ownKeys(browserContract).length !== Reflect.ownKeys(LIVE_ACTION_BROWSER_CONTRACT).length
+    || !Reflect.ownKeys(LIVE_ACTION_BROWSER_CONTRACT).every(
+      (key) => browserContract[key] === LIVE_ACTION_BROWSER_CONTRACT[key],
+    )) {
+    failures.push("live action browser contract must match the authorized yu Chrome boundary");
   }
 
   const readiness = readinessStatuses(readinessDocument);

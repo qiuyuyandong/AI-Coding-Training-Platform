@@ -693,7 +693,10 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
    raw capability。随后才允许扩展用其私有 capability 做真实健康探测。
 2. 从用户明确指定的 `DevToolsActivePort` 读取 localhost WebSocket endpoint，
    拒绝非 loopback、畸形、非浏览器 endpoint；用已安装 Playwright 连接当前
-   Chrome，不启动第二个浏览器，不增加依赖。
+   Chrome，不启动第二个浏览器，不增加依赖。当前 Chrome 对并发的第二条
+   browser-level 连接返回 403，因此 R4/R5 采用显式独占交接：先停止 web-access
+   proxy，再由 runner 接管，结束后恢复 proxy；runner 本身不得查杀或拥有 proxy
+   进程生命周期。
 3. 通过 Chrome DevTools Protocol `Extensions.getExtensions` /
    `Extensions.loadUnpacked` 装载 exact dist，要求固定 extension ID、规范 exact
    dist 路径和启用状态一致；已有同 ID 不同路径时失败关闭，不卸载或覆盖。
@@ -702,7 +705,8 @@ D7 另行授权、不创建 worktree、不 push、不创建 PR。
    LeetCode 标签页，绝不关闭现有用户标签页、context 或 Chrome。
 5. 准备模式在同一 `yu` profile 完成一次 localhost Route H 连接并写新绑定收据；
    动作模式复用该收据。真实动作授权只在 `OBSERVER_ARMED / BROWSE_ONLY /
-   READY / ACTION_AUTHORIZED` 全部出现后生效。
+   READY / ACTION_AUTHORIZED` 全部出现后生效；runner 随后只对唯一可见、精确
+   文本为“提交”的 button 执行一次真实 click，不读取编辑器内容，不重试。
 6. 用闭合的动作前阶段码区分 `app_route_warmup`、`cdp_connect`、
    `profile_binding`、`extension_binding`、`connection_preflight` 和
    `observer_arm`；不得写异常消息、stack、URL query、账号或原始平台数据。
@@ -720,7 +724,7 @@ browser manager、账号系统、依赖、重试框架或通用 CDP 抽象。
 | R1 | RED：机器合同与观察器测试覆盖 CDP-only action、route warm-up、profile/exact extension 绑定、owned-tab closure、闭合阶段码 | 新测试必须先失败 | RED 不落在预期缺口即停 |
 | R2 | 最小实现并 GREEN | focused tests、syntax、targeted lint、typecheck、privacy `0 findings` | 任一失败即停，不触网 |
 | R3 | 冻结新 tool/profile hashes，Ponytail 复核 | acceptance/readiness validators、diff check、secret/generated scan | 有非必要依赖/抽象或 hash 漂移即停 |
-| R4 | 当前 `yu` Chrome localhost-only 准备与 READY 前置 | official Chrome、profile hash、exact extension ID/path、收据、DB `0/0/0`、无 OJ 动作 | 任一不符即消费机会并停 |
+| R4 | 当前 `yu` Chrome localhost-only 准备与 READY 前置 | proxy 显式交出独占调试通道；official Chrome、profile hash、exact extension ID/path、收据、DB `0/0/0`、无 OJ 动作；结束恢复 proxy | 任一不符即消费机会并停 |
 | R5 | 新 D8-A：LeetCode 单动作观察 | 最多一次提交；bounded evidence；最终 DB 裁决 | 无论成功失败立即停；不运行 NowCoder |
 
 Sentry 插件仅允许 GET 型只读取证。当前环境没有 `SENTRY_AUTH_TOKEN`、org 或
@@ -735,3 +739,26 @@ project，因此 R0 记录为 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不创建 tok
   `4/1/1`，才能记录该 LeetCode lane 为 delivered。
 - READY、环境失败、观察器失败、产品失败或 delivered 都在本次 D8-A-R 结束后
   停止；不得运行 NowCoder，不得自动裁定聚合 D4、RC 或 release。
+
+### 22.6 R0–R3 执行结果（2026-08-28）
+
+- R0 计划权威性 `3/3` PASS；Sentry 环境没有只读 token/org/project，按合同记录
+  `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，没有读取凭据或发出事件。
+- R1 RED 精确为 `4 failed / 63 passed`：缺少 CDP endpoint/parser、exact extension
+  binding、闭合 failure phases 和新 live-browser contract；旧观察器其余测试通过。
+- R2 GREEN：观察/合同/计划聚焦 `70/70`；targeted lint、syntax、typecheck、
+  acceptance/readiness validators PASS；隐私脚本 `0 findings`，隐私聚焦 `47/47`。
+- 只读 CDP 兼容性先证明并发第二连接返回 403；显式停止 proxy 后，同一 Chrome
+  独占接管通过：official `Chrome/151.0.7922.174`、protocol `1.3`、单一 context、
+  `Extensions.getExtensions` 可用；未装载或修改候选扩展。随后 proxy 已恢复。
+- Ponytail 复核：复用既有 runner、observer、Node、Playwright 和 Chrome
+  `Extensions` 域；无 package/dependency 变更，无通用 CDP 层、账号系统或重试
+  框架。结论 `Lean already. Ship.`。
+- R3 冻结 observation-tool SHA-256：
+  `7C64947398D8C91D92D68BD95CC703750633AD3F908BA26365BD1891F6ECA80E`；
+  acceptance-profile SHA-256：
+  `64455AC1DE043D30C44395675D37654EED44F13B0ABF24C9FC01E31D1BEC61A9`。
+- 产品候选、candidate receipt `4EDA9DDD...F9AEE`、exact dist 和默认数据库
+  `2485DBEA...54666C3` 未变。R4 是下一阶段；进入 R4 后任何失败都禁止 R5。
+- 证据报告：
+  `work/reports/v4-phase-d-d8a-yu-chrome-root-cause-revision-2026-08-28.md`。

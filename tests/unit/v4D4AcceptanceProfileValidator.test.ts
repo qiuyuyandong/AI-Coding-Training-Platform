@@ -111,12 +111,13 @@ describe("V4 D4 platform-specific acceptance profile validator", () => {
     expect(profiles.coreInvariants).toContain("intervention_bounded_action_epoch");
   });
 
-  it("locks READY to a fresh Route H preparation receipt without raw capability access", () => {
+  it("locks READY to the authorized remote-debug Chrome without raw capability access", () => {
     expect(profiles.readyConnectionContract).toEqual({
       status: "authorized_offline_preparation_only",
-      preparation: "fresh_profile_localhost_settings_once",
+      preparation: "authorized_remote_debug_profile_localhost_settings_once",
       requiredState: [
         "exact_dist_and_fixed_extension_id",
+        "current_remote_debug_chrome_profile",
         "canonical_localhost_endpoint",
         "active_disposable_vault_zero_database",
         "capture_connection_connected",
@@ -144,6 +145,30 @@ describe("V4 D4 platform-specific acceptance profile validator", () => {
     };
     expect(validateV4D4AcceptanceProfiles(drift, readiness)).toContain(
       "READY connection contract must match the closed Route H preparation boundary",
+    );
+  });
+
+  it("locks every real action to the user-authorized yu Chrome profile", () => {
+    expect(profiles.liveActionBrowserContract).toEqual({
+      mode: "current_remote_debug_chrome_only",
+      debugChannel: "exclusive_runner_connection_after_proxy_handoff",
+      operatorAlias: "yu",
+      profileIdentity: "sha256_profile_path_only",
+      extensionBinding: "cdp_exact_dist_fixed_id_and_path",
+      ownedTabs: "close_runner_created_tabs_only",
+      routeWarmup: "unauthenticated_capture_status_before_extension_probe",
+      accountDataPolicy: "never_read_or_retain_account_identity_or_credentials",
+      authorizedAction: "leetcode_merge_two_sorted_lists_once",
+      forbiddenPlatform: "nowcoder",
+    });
+
+    const drift = cloneProfiles();
+    drift.liveActionBrowserContract = {
+      ...profiles.liveActionBrowserContract,
+      mode: "fresh_profile_allowed",
+    };
+    expect(validateV4D4AcceptanceProfiles(drift, readiness)).toContain(
+      "live action browser contract must match the authorized yu Chrome boundary",
     );
   });
 
