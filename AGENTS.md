@@ -38,7 +38,7 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-28 Route H D8-A-R stopped at R4 before READY):**
+> **Current status (2026-08-29 Route H R4 CDP lifecycle repair PASS; no READY/action):**
 > The approved installation-level Local Vault revision is offline-complete at
 > D6. Immutable Route H candidate
 > `0c23fcacf18d2fe4113d803504e638c1aab887d3` passed the exact validator with
@@ -48,7 +48,7 @@
 > `.tmp/v4-route-h-exact-dist-0c23fca`; receipt is
 > `.tmp/v4-route-h-candidate-receipt-0c23fca.json` with SHA-256
 > `4EDA9DDD9FFB4311EDEA32B0D60DFEA34D54D07766E1490C02DB4B04582F9AEE`.
-> D8-A-R R0-R3 froze observation-tool hash `7C649473...CA80E` and
+> D8-A-R R0-R3 initially froze observation-tool hash `7C649473...CA80E` and
 > acceptance-profile hash `64455AC1...C61A9`. Route H removes visible pairing,
 > keeps the raw hidden
 > installation capability only in trusted extension storage, stores only its
@@ -66,12 +66,21 @@
 > `CONNECTION_PREPARED=1`. The private Playwright client close left the CDP
 > transport alive. R4 failed its clean proxy-handback gate; READY and R5 did not
 > run, no OJ page/click/submission or NowCoder run occurred, and DB stayed
-> `0/0/0`. Chrome/CDP and proxy were restored; default DB is unchanged. Both
-> D8-A authorizations are consumed. Only a separately approved offline lifecycle
-> repair and new hash freeze may proceed; any R4/real action needs new explicit
-> authorization. D4 delivery adjudication, RC, release, push and PR remain
-> stopped. Evidence report:
-> `work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md`.
+> `0/0/0`. The user later authorized only the minimum lifecycle repair. Commit
+> `f3c710c` now uses public `await browser.close()` and adds a regression that
+> forbids private `_connection.close()` and `context.close()` in the CDP branch.
+> RED was `1 failed / 54 passed`; GREEN was `55/55`; syntax, lint, typecheck,
+> privacy `0 findings`, acceptance/readiness validators and diff check pass.
+> A fresh localhost-only `--prepare-connection=true` run exited normally in
+> about 41 seconds while original Chrome PID `37492` and port 9222 remained
+> alive; DB stayed `0/0/0`, no OJ evidence existed, proxy was restored and the
+> default DB is unchanged. New tool hash is `CE6D4CFC...363DD`; profile,
+> candidate receipt, candidate and exact dist remain unchanged. Both D8-A
+> authorizations remain consumed. A new `yu` LeetCode READY-only run requires
+> separate authorization and must keep `ACTION_AUTHORIZED=0`; any real action
+> remains a later decision. D4 delivery adjudication, RC, release, push and PR
+> remain stopped. Evidence report:
+> `work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md`.
 >
 > **Prior status (2026-08-24 capture candidate frozen; new READY pending):**
 > The cross-project capture-chain repair is frozen at immutable product

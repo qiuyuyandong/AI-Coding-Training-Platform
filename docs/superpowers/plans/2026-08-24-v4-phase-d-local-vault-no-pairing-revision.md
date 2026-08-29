@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：Revision 3 / Route H-安装级 D0–D7 已完成；D8-A-R 的 R0–R3 已通过，R4 因 CDP cleanup 未释放底层 transport 而在动作前失败关闭，R5 未运行。两次 D8-A 授权均已消费。今后真实提交只允许当前远程调试 Chrome 的用户指定 `yu` profile；该绑定不读取或留存账号身份。下一步只允许在用户另行批准后修复 R4 生命周期、重冻工具哈希；NowCoder、额外动作、D4 交付裁决、推送、PR、RC 和发布均未授权。**
+**状态：Revision 3 / Route H-安装级 D0–D7 已完成；D8-A-R 的 R0–R3 已通过，R4 首次因 CDP transport 未释放而在动作前失败关闭，R5 未运行。用户随后批准的 R4 生命周期最小修订已通过离线门与 localhost-only 实机回归：runner 正常退出且原 `yu` Chrome 保持存活；新工具哈希为 `CE6D4CFC...363DD`。两次 D8-A 授权仍已消费，修复不恢复动作授权。下一步仅可在另行授权后运行一次 `yu` Chrome LeetCode READY-only；NowCoder、点击、提交、D4 交付裁决、推送、PR、RC 和发布均未授权。**
 
 **替代范围：** 本计划与
 `2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`
@@ -780,8 +780,35 @@ project，因此 R0 记录为 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不创建 tok
   WebSocket transport，Node event loop 因此保持存活。
 - 最小后续候选是改用该 `connectOverCDP` 路径的公开 `await browser.close()`，并
   增加“runner 退出且原 Chrome PID/CDP 仍存活”的一条 lifecycle 回归；不得增加
-  browser manager、通用 CDP 层、依赖或重试框架。该修复尚未授权或实施。
+  browser manager、通用 CDP 层、依赖或重试框架。该修复后来按 22.8 获批并完成。
 - 本次 R4 失败按 22.4 消费新的 D8-A 机会并禁止 R5。新的工具修复、R4 或真实
   动作都必须由用户另行授权；D4、RC、release、push、PR 继续停止。
 - 证据报告：
   `work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md`。
+
+### 22.8 R4 CDP 生命周期最小修订结果（2026-08-29）
+
+- 用户只授权把 CDP cleanup 从 Playwright 私有 `_connection.close()` 改为公开
+  `await browser.close()`，增加 runner 退出/原 Chrome 存活回归，完成离线验证与
+  必要本地提交；未授权 OJ READY、点击、提交或 NowCoder。
+- RED 精确为 `1 failed / 54 passed`，唯一缺口是公开 close 合同；最小实现只改
+  cleanup 三行并增加源级回归，GREEN 为 `55/55`。runner syntax、targeted lint、
+  typecheck、privacy `0 findings`、acceptance/readiness validators 和 diff check
+  全部 PASS。
+- localhost-only 实机回归使用 fresh identity `r4-lifecycle-yu-0c23fca`、新
+  disposable DB 与新 receipt；仅运行 `--prepare-connection=true`，没有 OJ 导航。
+  runner 输出 `CONNECTION_PREPARED=1` 后约 41 秒正常退出；Chrome PID 在交接前、
+  交接时、退出后均为 `37492`，9222 仍监听，无 observation runner 进程残留。
+- 隔离数据库保持 `0/0/0`，无 OJ evidence；proxy 已恢复，本地服务停止，根 DB
+  pointer 已删除，默认数据库哈希仍为 `2485DBEA...54666C3`。连接 receipt
+  SHA-256 为 `FCF972CF...92B1364`。
+- 新 observation-tool SHA-256 为
+  `CE6D4CFC0FAD5B99A1EAD342FA7EE77D4AB5690E9EFF2FC2261EF702F17363DD`；
+  acceptance-profile `64455AC1...C61A9`、candidate receipt
+  `4EDA9DDD...F9AEE`、`yu` profile hash、候选与五个 exact-dist artifacts 均不变。
+- 生命周期修复不恢复两次已消费的 D8-A，也不把 localhost preparation 冒充为
+  R4 READY。下一步必须另行授权一次 `yu` Chrome LeetCode READY-only；该次仍须
+  `ACTION_AUTHORIZED=0`，禁止 click/submission/NowCoder。真实 D8-A 必须在其通过
+  后再次独立裁决。
+- 实现提交：`f3c710c`；证据报告：
+  `work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md`。

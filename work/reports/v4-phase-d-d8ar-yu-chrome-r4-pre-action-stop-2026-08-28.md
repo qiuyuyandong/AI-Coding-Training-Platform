@@ -130,3 +130,11 @@ repair and new tool/profile hash freeze. Any subsequent R4/real-action attempt
 requires a new explicit authorization; it must still use only `yu`, target only
 LeetCode `merge-two-sorted-lists`, and prohibit NowCoder unless the user changes
 that scope.
+
+## Later lifecycle resolution
+
+On 2026-08-29 the user separately authorized only the minimum CDP lifecycle
+repair. It passed without OJ READY or action and supersedes the proposed repair
+as the next offline step. This report remains authoritative for the failed R4
+run and consumed action authorization. See
+`work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md`.

@@ -1,6 +1,6 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-28):** Route H Local Vault engineering D0-D6 is complete
+> **Status (2026-08-29):** Route H Local Vault engineering D0-D6 is complete
 > locally. Immutable candidate `0c23fcacf18d2fe4113d803504e638c1aab887d3`
 > passed the exact candidate validator with root `2599/1`, App E2E `24/24`,
 > extension `1671/1671`, extension E2E `55/1`, build `20/20`, privacy
@@ -15,8 +15,13 @@
 > user-designated remote-debug Chrome `yu` profile, and prepared the exact Route
 > H extension successfully. R4 nevertheless failed closed because its CDP
 > cleanup did not release the underlying transport, so READY and R5 were not
-> run; no click or submission occurred and NowCoder was not run. Both action
-> authorizations are consumed; retry remains gated.
+> run; no click or submission occurred and NowCoder was not run. The separately
+> approved lifecycle-only repair now uses Playwright's public CDP close path;
+> its localhost regression proved that the runner exits while the original
+> `yu` Chrome PID/CDP remains alive, with DB `0/0/0` and no OJ navigation.
+> Observation-tool hash is now `CE6D4CFC...363DD`. Both action authorizations
+> remain consumed; a new READY-only run and any later action remain separately
+> gated.
 > The former candidate `3491670` is historical evidence for the
 > superseded paired product and cannot certify Route H. LeetCode and NowCoder
 > remain network-`experimental`; AtCoder, Codeforces, and Luogu remain

@@ -14,6 +14,10 @@ alive after `CONNECTION_PREPARED=1`. The hard gate stopped before READY or any
 OJ action. See
 `work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md`.
 
+Lifecycle resolution: the separately authorized minimum repair later passed
+without OJ navigation or action; see
+`work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md`.
+
 ## Authorization
 
 The user requires every future real submission observation to use the currently

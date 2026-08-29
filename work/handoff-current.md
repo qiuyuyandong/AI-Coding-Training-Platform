@@ -1,6 +1,42 @@
 # Current Handoff
 
-## Status (2026-08-28 D8-A-R stopped at R4; no READY or submission)
+## Status (2026-08-29 R4 CDP lifecycle repair PASS; no READY or action)
+
+The user authorized only the minimum R4 lifecycle correction: replace the
+private Playwright CDP client close with the public close path, add a regression
+that forbids the private path, and prove the runner exits while the original
+`yu` Chrome remains alive. No OJ READY, click, submission or NowCoder run was
+authorized.
+
+Implementation commit `f3c710c` changes the CDP cleanup to close runner-owned
+pages, detach the browser CDP session and await public `browser.close()`. The
+source regression requires that public call and forbids private
+`_connection.close()` and `context.close()` in the CDP branch. RED was exactly
+`1 failed / 54 passed`; GREEN was `55/55`. Syntax, targeted lint, typecheck,
+privacy `0 findings`, acceptance/readiness validators and diff check passed.
+
+The localhost-only live regression used fresh identity
+`r4-lifecycle-yu-0c23fca` and a new disposable database. The runner invoked
+only `--prepare-connection=true`, printed `CONNECTION_PREPARED=1`, and exited
+normally in about 41 seconds. Chrome PID was `37492` before handoff, at handoff
+and after runner exit; port 9222 stayed live and no observation-runner process
+remained. DB stayed `0/0/0`, no OJ evidence file was created, proxy was
+restored, localhost stopped, root DB pointer removed and default DB unchanged.
+Connection receipt SHA-256 is `FCF972CF...92B1364`.
+
+New observation-tool hash is `CE6D4CFC0FAD5B99A1EAD342FA7EE77D4AB5690E9EFF2FC2261EF702F17363DD`.
+Acceptance-profile hash `64455AC1...C61A9`, candidate receipt
+`4EDA9DDD...F9AEE`, `yu` profile hash, immutable product candidate `0c23fca`
+and exact dist are unchanged.
+
+This repair does not revive either consumed D8-A authorization and does not
+count as R4 READY. The next possible action is a separately authorized `yu`
+Chrome LeetCode `merge-two-sorted-lists` READY-only run with
+`ACTION_AUTHORIZED=0`; any real action must remain a later, separate decision.
+D4, RC, release, V0.5, push and PR remain stopped. Evidence:
+`work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md`.
+
+## Prior status (2026-08-28 D8-A-R stopped at R4; no READY or submission)
 
 The user bound every future real OJ submission test to the already
 remote-debugged Chrome profile identified as `yu`, authorized the D8-A-R
