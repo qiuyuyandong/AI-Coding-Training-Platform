@@ -1,6 +1,45 @@
 # Current Handoff
 
-## Status (2026-08-29 R4 CDP lifecycle repair PASS; no READY or action)
+## Status (2026-08-29 yu Chrome LeetCode R4 READY-only PASS; no action)
+
+The user authorized exactly one `yu` Chrome READY-only observation for
+LeetCode `merge-two-sorted-lists` on immutable Route H candidate
+`0c23fcacf18d2fe4113d803504e638c1aab887d3`, requiring
+`ACTION_AUTHORIZED=0`, no click/submission, no NowCoder and an immediate stop.
+
+Preflight matched clean HEAD `64e817b`, observation-tool hash
+`CE6D4CFC0FAD5B99A1EAD342FA7EE77D4AB5690E9EFF2FC2261EF702F17363DD`,
+acceptance-profile hash `64455AC1...C61A9`, candidate receipt
+`4EDA9DDD...F9AEE`, all five exact-dist artifacts, the frozen `yu` profile hash
+and default database.
+
+Fresh identity `r4-ready-yu-leetcode-0c23fca` migrated at DB `0/0/0`.
+Localhost connection preparation printed `CONNECTION_PREPARED=1` and exited
+normally; receipt SHA-256 is `C95CD887...644CBDA`. The single READY invocation
+carried no action authorization or execution flag and returned:
+
+```text
+OBSERVER_ARMED=1
+BROWSE_ONLY=1
+READY=1
+ACTION_AUTHORIZED=0
+```
+
+Schema 3 evidence is `ready_only / browse_only`, baseline/final DB `0/0/0`,
+privacy fields all false, SHA-256 `4ABB251B...9E84CC`. Its bounded
+`facts.authorizedActions=1` is the historical field name for `target.e0`, the
+visibility-seeded exact-control readiness hint; it is not a runner action
+authorization. Submit/status/E2/E3/ACK and every DB delta are zero. There was
+no click, submission or NowCoder run.
+
+Chrome PID remained `37492`, proxy was restored, no runner remains, localhost
+is stopped, root DB pointer absent and default DB unchanged. R4 READY-only is
+complete but does not deliver D4. Any real action requires a new, separately
+named D8-A with at most one submission and an unconditional stop; real actions,
+RC, release, V0.5, push and PR remain stopped. Evidence:
+`work/reports/v4-phase-d-r4-yu-leetcode-ready-only-2026-08-29.md`.
+
+## Prior status (2026-08-29 R4 CDP lifecycle repair PASS; no READY or action)
 
 The user authorized only the minimum R4 lifecycle correction: replace the
 private Playwright CDP client close with the public close path, add a regression

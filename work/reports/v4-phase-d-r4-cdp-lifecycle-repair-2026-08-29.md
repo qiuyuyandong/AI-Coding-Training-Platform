@@ -124,3 +124,11 @@ The next separately gated action is one `yu` Chrome R4 READY-only observation
 for LeetCode `merge-two-sorted-lists`, with no action authorization, click or
 submission. A real D8-A action must remain a later, separate user decision after
 that READY-only result.
+
+## Later READY-only result
+
+The user later authorized exactly that `yu` Chrome LeetCode READY-only run. It
+passed with `ACTION_AUTHORIZED=0`, DB `0/0/0` and no click/submission. This
+report remains authoritative for the lifecycle repair; the READY evidence is
+recorded in
+`work/reports/v4-phase-d-r4-yu-leetcode-ready-only-2026-08-29.md`.

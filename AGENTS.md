@@ -38,7 +38,7 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-29 Route H R4 CDP lifecycle repair PASS; no READY/action):**
+> **Current status (2026-08-29 Route H yu Chrome R4 READY-only PASS; no action):**
 > The approved installation-level Local Vault revision is offline-complete at
 > D6. Immutable Route H candidate
 > `0c23fcacf18d2fe4113d803504e638c1aab887d3` passed the exact validator with
@@ -75,12 +75,18 @@
 > about 41 seconds while original Chrome PID `37492` and port 9222 remained
 > alive; DB stayed `0/0/0`, no OJ evidence existed, proxy was restored and the
 > default DB is unchanged. New tool hash is `CE6D4CFC...363DD`; profile,
-> candidate receipt, candidate and exact dist remain unchanged. Both D8-A
-> authorizations remain consumed. A new `yu` LeetCode READY-only run requires
-> separate authorization and must keep `ACTION_AUTHORIZED=0`; any real action
-> remains a later decision. D4 delivery adjudication, RC, release, push and PR
-> remain stopped. Evidence report:
-> `work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md`.
+> candidate receipt, candidate and exact dist remain unchanged. Both historical
+> D8-A authorizations remain consumed. The user then separately authorized one
+> `yu` Chrome LeetCode `merge-two-sorted-lists` READY-only run. Fresh identity
+> `r4-ready-yu-leetcode-0c23fca` returned `OBSERVER_ARMED=1`,
+> `BROWSE_ONLY=1`, `READY=1`, `ACTION_AUTHORIZED=0`; schema 3 evidence is
+> `ready_only / browse_only`, SHA `4ABB251B...9E84CC`, and DB remained `0/0/0`.
+> No action flag, click, submission or NowCoder run occurred. Chrome PID stayed
+> `37492`, proxy was restored, localhost stopped, root pointer removed and
+> default DB unchanged. R4 READY-only PASS does not deliver D4. Any real action
+> needs a new separately named D8-A with at most one submission and an
+> unconditional stop. RC, release, push and PR remain stopped. Evidence report:
+> `work/reports/v4-phase-d-r4-yu-leetcode-ready-only-2026-08-29.md`.
 >
 > **Prior status (2026-08-24 capture candidate frozen; new READY pending):**
 > The cross-project capture-chain repair is frozen at immutable product

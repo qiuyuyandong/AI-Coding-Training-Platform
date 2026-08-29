@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：Revision 3 / Route H-安装级 D0–D7 已完成；D8-A-R 的 R0–R3 已通过，R4 首次因 CDP transport 未释放而在动作前失败关闭，R5 未运行。用户随后批准的 R4 生命周期最小修订已通过离线门与 localhost-only 实机回归：runner 正常退出且原 `yu` Chrome 保持存活；新工具哈希为 `CE6D4CFC...363DD`。两次 D8-A 授权仍已消费，修复不恢复动作授权。下一步仅可在另行授权后运行一次 `yu` Chrome LeetCode READY-only；NowCoder、点击、提交、D4 交付裁决、推送、PR、RC 和发布均未授权。**
+**状态：Revision 3 / Route H-安装级 D0–D7 已完成；D8-A-R 的 R0–R3 与 R4 CDP 生命周期最小修订均通过。用户另行授权的一次 `yu` Chrome LeetCode `merge-two-sorted-lists` R4 READY-only 已返回 `OBSERVER_ARMED=1 / BROWSE_ONLY=1 / READY=1 / ACTION_AUTHORIZED=0`，隔离数据库保持 `0/0/0`，没有点击、提交或 NowCoder。工具哈希为 `CE6D4CFC...363DD`；候选与 exact dist 不变。两次历史 D8-A 授权仍已消费，READY-only 不恢复动作授权。下一步仅可由用户另行裁决一个新的、精确命名的 D8-A；D4 交付裁决、额外动作、推送、PR、RC 和发布均未授权。**
 
 **替代范围：** 本计划与
 `2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`
@@ -812,3 +812,35 @@ project，因此 R0 记录为 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不创建 tok
   后再次独立裁决。
 - 实现提交：`f3c710c`；证据报告：
   `work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md`。
+
+### 22.9 `yu` Chrome LeetCode R4 READY-only 结果（2026-08-29）
+
+- 用户只授权候选 `0c23fca` 在当前 `yu` Chrome 对 LeetCode
+  `merge-two-sorted-lists` 运行一次 READY-only；硬要求
+  `ACTION_AUTHORIZED=0`，禁止 click/submission/NowCoder，完成后立即停止。
+- Q0 冻结检查通过：HEAD `64e817b`、clean worktree、新工具
+  `CE6D4CFC...363DD`、profile `64455AC1...C61A9`、candidate receipt
+  `4EDA9DDD...F9AEE`、五个 exact-dist hashes、`yu` profile hash 与默认数据库
+  全部匹配。
+- fresh identity `r4-ready-yu-leetcode-0c23fca` 的数据库迁移为 `0/0/0`；
+  localhost-only connection preparation 输出 `CONNECTION_PREPARED=1` 并正常退出。
+  连接 receipt SHA-256 为 `C95CD887...644CBDA`。
+- 唯一 READY-only invocation 未携带 `--authorize-action` 或
+  `--execute-authorized-action`，输出：
+  `OBSERVER_ARMED=1 / BROWSE_ONLY=1 / READY=1 / ACTION_AUTHORIZED=0`，随后
+  runner 正常退出。没有 `ACTION_AUTHORIZED=1`、
+  `AUTHORIZED_ACTION_EXECUTED=1`、click 或 submission；NowCoder 未运行。
+- schema 3 evidence 为 `ready_only / browse_only`，baseline/final DB 都是
+  `0/0/0`，privacy boundary 全部为 false。evidence SHA-256：
+  `4ABB251B3656F75C3CFB83BA165BF980D430065F92B78780F092B73A459E84CC`。
+- evidence 的第二个 browse-only projection 中 `facts.authorizedActions=1` 是
+  当前 schema 对 `target.e0`（visibility-seeded exact-control readiness hint）的
+  历史命名，不是 runner action authorization；权威执行标记仍为
+  `ACTION_AUTHORIZED=0`，submit/status/E2/E3/ACK 与数据库 delta 全部为 0。
+- 结束后 Chrome PID 仍为 `37492`，proxy 已恢复，无 runner 残留；本地服务停止，
+  port 3000 空闲，根 DB pointer 删除，默认数据库保持
+  `2485DBEA...54666C3`。R4 READY-only PASS 不交付 D4。
+- 证据报告：
+  `work/reports/v4-phase-d-r4-yu-leetcode-ready-only-2026-08-29.md`。下一步任何
+  真实动作都必须是新的、独立授权的 D8-A，仍须最多一次提交、无论结果立即停止，
+  且明确禁止 NowCoder（除非用户改变范围）。

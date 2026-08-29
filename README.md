@@ -20,8 +20,10 @@
 > its localhost regression proved that the runner exits while the original
 > `yu` Chrome PID/CDP remains alive, with DB `0/0/0` and no OJ navigation.
 > Observation-tool hash is now `CE6D4CFC...363DD`. Both action authorizations
-> remain consumed; a new READY-only run and any later action remain separately
-> gated.
+> remain consumed. A separately authorized `yu` Chrome LeetCode READY-only run
+> then passed with `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1`,
+> `ACTION_AUTHORIZED=0` and isolated DB `0/0/0`; no click, submission or
+> NowCoder run occurred. Any later real action remains separately gated.
 > The former candidate `3491670` is historical evidence for the
 > superseded paired product and cannot certify Route H. LeetCode and NowCoder
 > remain network-`experimental`; AtCoder, Codeforces, and Luogu remain
@@ -59,7 +61,7 @@
 > gate passes; see `work/reports/v0-stabilization-2026-07-18.md`. Real
 > observations and F1-F4/user acceptance are still pending.
 
-This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; Route H Local Vault D0-D7 is complete, while D8-A-R stopped at R4 before READY or any real action and does not deliver D4. Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
+This repository currently contains an implemented **V0 local learning loop that is not accepted**. V4 Phase A and Phase C C0-C5 are engineering-complete; Route H Local Vault D0-D7 is complete, its `yu` Chrome R4 READY-only gate passes without action, and D4 remains undelivered. Phase B Tasks 0-6 close the missing-E3 ingress layer, while NowCoder remains experimental. C1 LeetCode is `V4_EXPERIMENTAL`; C2 AtCoder, C3 Codeforces, and C4 Luogu are network-`V4_BLOCKED` under their evidence-specific identity constraints. C5 closes cross-platform isolation and the reachable V3 click/pending fallback. The historical AtCoder DOM certification remains production. Formal V0 observation and replacement-RC work remain blocked. The product direction is a learning-navigation and code-growth platform.
 
 It provides:
 
