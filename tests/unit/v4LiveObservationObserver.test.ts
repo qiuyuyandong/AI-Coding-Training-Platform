@@ -329,9 +329,22 @@ describe("V4 live observation storage observer", () => {
     expect(runnerSource).toContain('terminal("observer_unexpected_failure")');
     expect(runnerSource).toContain('process.stderr.write("EVIDENCE_ERROR=observer_evidence_write_failed\\n")');
     expect(runnerSource).toContain("await closeOwnedPages().catch(() => undefined)");
-    expect(runnerSource).not.toContain("browser.close(");
     expect(runnerSource).not.toContain("terminal(error instanceof Error");
     expect(runnerSource).not.toContain("String(evidenceError)");
+  });
+
+  it("disconnects CDP through Playwright's public close path so the runner can exit", () => {
+    const runnerSource = readFileSync("scripts/v4-live-observation.mjs", "utf8");
+    const cdpConnection = runnerSource.indexOf("chromium.connectOverCDP");
+    const cleanupStart = runnerSource.indexOf("const closeOwnedPages = async () => {", cdpConnection);
+    const cleanupEnd = runnerSource.indexOf("\n  };", cleanupStart);
+    expect(cdpConnection).toBeGreaterThan(-1);
+    expect(cleanupStart).toBeGreaterThan(cdpConnection);
+    expect(cleanupEnd).toBeGreaterThan(cleanupStart);
+    const cleanupSource = runnerSource.slice(cleanupStart, cleanupEnd);
+    expect(cleanupSource).toContain("await browser.close();");
+    expect(cleanupSource).not.toContain("browser._connection.close()");
+    expect(cleanupSource).not.toContain("context.close()");
   });
 
   it("binds the current remote-debug Chrome endpoint and exact unpacked extension", () => {

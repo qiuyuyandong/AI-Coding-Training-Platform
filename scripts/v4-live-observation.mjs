@@ -266,9 +266,9 @@ async function openObservationBrowser(input) {
   const closeOwnedPages = async () => {
     await Promise.all([...ownedPages].map((page) => page.close().catch(() => undefined)));
     await browserSession?.detach().catch(() => undefined);
-    // ponytail: Playwright has no public CDP disconnect; close only its pinned
-    // client connection. Replace this when Playwright exposes disconnect().
-    browser._connection.close();
+    // For connectOverCDP, Playwright's public close releases this client's CDP
+    // transport; the live lifecycle regression requires the original Chrome to survive.
+    await browser.close();
   };
   try {
     if (contexts.length !== 1) throw new Error("observer_cdp_endpoint_rejected");
