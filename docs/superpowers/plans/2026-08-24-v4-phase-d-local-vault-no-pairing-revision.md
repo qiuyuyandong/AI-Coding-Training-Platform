@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：Revision 3 / Route H-安装级 D0–D7、D8-A-R R0–R4 与 `yu` Chrome LeetCode R4 READY-only 已完成。独立动作轮 `D8-A-2026-08-30-LC1` 已在 observer arm 前终止且动作机会已消费，没有 OJ 页面、点击、提交或 NowCoder，数据库保持 `0/0/0`。`connection_preflight` 根因已裁决并完成最小离线产品修复：status GET 仅在 Origin 明确存在时要求 fixed extension Origin，缺失 Origin 仍必须通过 canonical localhost 与 bearer capability；hostile Origin 保持 403。RED、GREEN、focused `65/65` 与第二次完整九阶段 `quality:gate` 均通过。用户已进一步授权精确提交修复、`AGENTS.md` 与全部 D8-A 证据，并基于新 commit 重冻候选和运行 exact candidate validation；该离线流程正在执行。preparation、D4、额外动作、推送、PR、RC 和发布仍未授权。**
+**状态：Revision 3 / Route H-安装级 D0–D7、D8-A-R R0–R4 与 `yu` Chrome LeetCode R4 READY-only 已完成。独立动作轮 `D8-A-2026-08-30-LC1` 已在 observer arm 前终止且动作机会已消费，没有 OJ 页面、点击、提交或 NowCoder，数据库保持 `0/0/0`。`connection_preflight` 根因的最小产品修复已提交，新冻结候选为 `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`；exact candidate validator 输出 `V4 candidate commit PASS`，root `2607/1`、App E2E `24/24`、extension `1671/1671`、extension E2E `55/1`、build PASS、privacy `0 findings`、readiness PASS。exact dist 为 `.tmp/v4-route-h-exact-dist-ee0e1f5`，strict receipt SHA-256 为 `A46B79F6...6188E7C`。旧候选 `0c23fca` 与旧 receipts 仅保留历史 provenance。preparation、D4、额外动作、推送、PR、RC 和发布仍未授权。**
 
 **替代范围：** 本计划与
 `2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`
@@ -1182,3 +1182,31 @@ project，因此 R0 记录为 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不创建 tok
 - 禁止 connection preparation、Chrome mutation、OJ、action runner、click、submission、
   NowCoder、D4 聚合、RC、release、push 与 PR。验证失败必须保留真实结果并停止，不得
   进入浏览器阶段。
+- 精确提交 `fd49a8fce87eb05ad1ef6ff8ab94b73c3e57169d`（父提交 `e6b197b`）包含
+  14 个授权路径：最小 product fix、两个测试/validator、`AGENTS.md`、唯一计划、handoff
+  与 7 份 D8-A evidence；提交后工作树 clean。
+- 首次以 `fd49a8f` 运行 exact validator 在质量门前 fail closed，仅失败
+  `paths.explicit-ownership` 与 `candidate.paths.explicit-ownership`。累计 Route H diff
+  中有 6 份已提交的 D7–R4 历史报告未登记；未运行 gate、未生成 dist/receipt。
+- 这 6 份报告随后仅以精确 path 加入 allowlist，未增加通配。validator regression
+  `22/22` 通过，累计 133 个 candidate path 全部受控；该必要 validator 收口提交为
+  `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`，它成为最终候选 SHA。
+- `node scripts/validate-v4-candidate.mjs --candidate ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`
+  在 clean HEAD 上 exit 0 并输出 `V4 candidate commit PASS`：root unit
+  `2607 passed / 1 skipped`、App E2E `24/24`、extension unit `1671/1671`、extension E2E
+  `55 passed / 1 skipped`、production build PASS、privacy `0 findings`、adapter readiness
+  PASS、candidate path/identity/post-gate identity 与默认数据库 preservation 全部通过。
+- 该次 gate 生成的 production dist 已逐字节复制为
+  `.tmp/v4-route-h-exact-dist-ee0e1f5`，共 10 个文件。strict receipt 为
+  `.tmp/v4-route-h-candidate-receipt-ee0e1f5.json`，SHA-256
+  `A46B79F64F4A9373D134EA918D67959BBECDD89172B7EB37B4DC7E4706188E7C`。
+- 五项 artifact SHA-256：manifest `DE980FDB...F76B8F`、background
+  `0311DEF0...A83264`、content `FF562221...39D8D`、popup `2AA3FC47...B06E1`、
+  main-world bridge `4D89A80F...EE3943`。background 与旧候选不同，其他四项不变；
+  receipt schema/candidate/path/hashes 和全部 10 个 frozen/current dist 文件一致。
+- 默认数据库仍为 `479232` bytes、mtime
+  `2026-07-23T15:56:38.8411343Z`、SHA-256 `2485DBEA...4666C3`；observation DB 保持
+  `0/0/0`。本轮只运行 offline Fake OJ gates，没有 current `yu` Chrome preparation、
+  OJ、click、submission 或 NowCoder。
+- 重冻报告：
+  `work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md`。

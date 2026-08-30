@@ -1,5 +1,41 @@
 # Current Handoff
 
+## Status (2026-08-30 status GET candidate refrozen; exact gate PASS)
+
+The authorized minimum status-GET repair and D8-A evidence were committed at
+`fd49a8fce87eb05ad1ef6ff8ab94b73c3e57169d`, including the explicitly requested
+`AGENTS.md` wording change. The first exact candidate attempt failed closed
+before the quality gate because six already-committed cumulative D7-R4 reports
+were not in the explicit candidate ownership list. No artifact was produced.
+
+Those six exact paths were added without a wildcard. Validator regression is
+`22/22`, and all 133 cumulative Route H candidate paths are now explicitly
+owned. The validator-only commit
+`ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0` is the new immutable product
+candidate.
+
+`node scripts/validate-v4-candidate.mjs --candidate ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`
+exited 0 with `V4 candidate commit PASS`: root unit `2607 passed / 1 skipped`,
+App E2E `24/24`, extension unit `1671/1671`, extension E2E `55 passed / 1
+skipped`, production build PASS, privacy `0 findings`, adapter readiness PASS,
+clean pre/post identity, explicit cumulative ownership and default-database
+preservation.
+
+Exact dist is `.tmp/v4-route-h-exact-dist-ee0e1f5` with 10 files. Strict
+candidate receipt is `.tmp/v4-route-h-candidate-receipt-ee0e1f5.json`, SHA-256
+`A46B79F64F4A9373D134EA918D67959BBECDD89172B7EB37B4DC7E4706188E7C`.
+Five artifact hashes are manifest `DE980FDB...F76B8F`, background
+`0311DEF0...A83264`, content `FF562221...39D8D`, popup `2AA3FC47...B06E1`, and
+main-world bridge `4D89A80F...EE3943`. All 10 frozen files are byte-identical
+to the exact-gate production dist.
+
+The default DB remains 479232 bytes at the preserved mtime/hash, and the
+observation DB remains `0/0/0`. No current-`yu` Chrome preparation, OJ page,
+action runner, click, submission or NowCoder ran. Old candidate `0c23fca` and
+its receipts are historical only. Preparation, READY/action authorization, D4,
+RC, release, push and PR remain stopped. Evidence:
+`work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md`.
+
 ## Status (2026-08-30 status GET minimal product fix offline-complete)
 
 The user authorized only the minimum product repair for the adjudicated
