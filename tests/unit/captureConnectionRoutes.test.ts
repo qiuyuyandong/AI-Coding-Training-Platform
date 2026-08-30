@@ -90,6 +90,36 @@ describe("Route H connection routes", () => {
     expect(JSON.stringify(challenge)).not.toContain(CAPABILITY);
   });
 
+  it("accepts authenticated fixed health without an Origin header", async () => {
+    const captureStatus = await connectCaptureInstallation();
+    const response = await captureStatus.GET(new Request(
+      "http://localhost:3000/api/capture/status",
+      { headers: { authorization: `Bearer ${CAPABILITY}` } },
+    ));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      schemaVersion: 1,
+      connection: "connected",
+      service: "ready",
+    });
+  });
+
+  it("rejects authenticated fixed health with an explicit hostile Origin", async () => {
+    const captureStatus = await connectCaptureInstallation();
+    const response = await captureStatus.GET(new Request(
+      "http://localhost:3000/api/capture/status",
+      {
+        headers: {
+          authorization: `Bearer ${CAPABILITY}`,
+          origin: "https://example.com",
+        },
+      },
+    ));
+
+    expect(response.status).toBe(403);
+  });
+
   it("rejects wrong origin and replay without rotating the installation", async () => {
     const challenges = await import("@/app/api/capture/connect/challenges/route");
     const complete = await import("@/app/api/capture/connect/complete/route");
@@ -207,4 +237,18 @@ async function createThroughRoute(
   const value: unknown = await response.json();
   if (!isChallenge(value)) throw new Error("Challenge response was invalid");
   return { challengeId: value.challengeId, nonce: value.nonce };
+}
+
+async function connectCaptureInstallation() {
+  const challenges = await import("@/app/api/capture/connect/challenges/route");
+  const complete = await import("@/app/api/capture/connect/complete/route");
+  const challenge = await createThroughRoute(challenges.POST);
+  const response = await complete.POST(extensionRequest("/api/capture/connect/complete", {
+    schemaVersion: 1,
+    ...challenge,
+    installationId: INSTALLATION_ID,
+    capability: CAPABILITY,
+  }));
+  expect(response.status).toBe(201);
+  return import("@/app/api/capture/status/route");
 }

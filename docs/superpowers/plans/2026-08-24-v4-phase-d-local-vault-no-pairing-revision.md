@@ -1,6 +1,6 @@
 # V4 Phase D Local Vault 与无配对码捕获边界修订计划
 
-**状态：Revision 3 / Route H-安装级 D0–D7 已完成；D8-A-R 的 R0–R3 与 R4 CDP 生命周期最小修订均通过。用户另行授权的一次 `yu` Chrome LeetCode `merge-two-sorted-lists` R4 READY-only 已返回 `OBSERVER_ARMED=1 / BROWSE_ONLY=1 / READY=1 / ACTION_AUTHORIZED=0`，隔离数据库保持 `0/0/0`，没有点击、提交或 NowCoder。工具哈希为 `CE6D4CFC...363DD`；候选与 exact dist 不变。两次历史 D8-A 授权仍已消费，READY-only 不恢复动作授权。下一步仅可由用户另行裁决一个新的、精确命名的 D8-A；D4 交付裁决、额外动作、推送、PR、RC 和发布均未授权。**
+**状态：Revision 3 / Route H-安装级 D0–D7、D8-A-R R0–R4 与 `yu` Chrome LeetCode R4 READY-only 已完成。独立动作轮 `D8-A-2026-08-30-LC1` 已在 observer arm 前终止且动作机会已消费，没有 OJ 页面、点击、提交或 NowCoder，数据库保持 `0/0/0`。`connection_preflight` 根因已裁决并完成最小离线产品修复：status GET 仅在 Origin 明确存在时要求 fixed extension Origin，缺失 Origin 仍必须通过 canonical localhost 与 bearer capability；hostile Origin 保持 403。RED、GREEN、focused `65/65` 与第二次完整九阶段 `quality:gate` 均通过。用户已进一步授权精确提交修复、`AGENTS.md` 与全部 D8-A 证据，并基于新 commit 重冻候选和运行 exact candidate validation；该离线流程正在执行。preparation、D4、额外动作、推送、PR、RC 和发布仍未授权。**
 
 **替代范围：** 本计划与
 `2026-08-24-v4-phase-d-local-vault-transport-decision-revision.md`
@@ -844,3 +844,341 @@ project，因此 R0 记录为 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不创建 tok
   `work/reports/v4-phase-d-r4-yu-leetcode-ready-only-2026-08-29.md`。下一步任何
   真实动作都必须是新的、独立授权的 D8-A，仍须最多一次提交、无论结果立即停止，
   且明确禁止 NowCoder（除非用户改变范围）。
+
+## 23. `D8-A-2026-08-30-LC1` 单动作授权与执行门
+
+### 23.1 授权边界
+
+- 用户于 2026-08-30 新批准独立动作轮 `D8-A-2026-08-30-LC1`。
+- 产品候选固定为
+  `0c23fcacf18d2fe4113d803504e638c1aab887d3`；exact dist、candidate
+  receipt、observation-tool、acceptance-profile、`yu` profile hash 和默认数据库
+  必须继续匹配 22.8–22.9 的冻结值。
+- 平台和目标固定为 LeetCode `merge-two-sorted-lists`；只能使用用户既有的当前
+  `yu` Chrome，不得启动 fresh/isolated profile，不得回退到工具创建的浏览器。
+- 只有 runner 在同一次 invocation 中依次输出 `OBSERVER_ARMED=1`、
+  `BROWSE_ONLY=1`、`READY=1`、`ACTION_AUTHORIZED=1` 后，才允许对唯一可见、
+  精确文本为“提交”的 button 执行一次 click；总提交次数上限为一，不重试。
+- 无论 delivered、产品失败、观察器失败、环境失败或超时，均立即停止并关闭仅由
+  runner 创建的页面；明确禁止 NowCoder、第二次提交、自动重试、D4 聚合裁决、
+  RC、release、push 和 PR。
+
+### 23.2 复用与裁决
+
+- 动作轮复用已通过 R4 READY-only 的 profile identity
+  `r4-ready-yu-leetcode-0c23fca`、disposable database、Route H connection
+  receipt 和零基线；不得把新建另一套 profile/receipt 冒充成同一 READY 连续性。
+- delivered 的唯一通过条件仍为：单一 click 形成闭合 E0 → E1 → E2 → E3/outbox
+  → ACK，且该 disposable database 从 `0/0/0` 精确变为 `4/1/1`。其他结果必须
+  如实写 bounded failure evidence，不得降格为成功。
+- 执行前先做只读 Q1：clean worktree、冻结 hashes、Chrome/CDP、profile、exact
+  extension、receipt、DB `0/0/0`、默认数据库、port 3000 和 proxy handoff。只有
+  全部通过才进入 action runner；Q1 尚未进入 runner 的环境缺失不消费动作机会。
+- 一旦 action runner 启动，本轮机会即被消费；后续任何失败都不得重试。
+
+### 23.3 当前暂停点（2026-08-30）
+
+- 接管时分支为 `feature/v1-followup`、HEAD `e6b197b`、工作树干净；冻结候选、
+  exact dist 和 R4 READY 报告互相一致。
+- web-access 前置检查及只读系统核对发现：当前没有 `chrome.exe` 进程，9222 与
+  3456 均无监听；默认位置的 `DevToolsActivePort` 仅为历史残留文件。
+- 未启动 localhost、未打开 LeetCode、未运行 observation runner、未提供 action
+  flag、未点击或提交，NowCoder 未运行。本次新授权尚未消费。
+- 执行暂停在外部前置：用户重新打开既有 `yu` Chrome，并在
+  `chrome://inspect/#remote-debugging` 启用 **Allow remote debugging for this
+  browser instance**。恢复后从 Q1 继续，不另行扩大授权。
+
+### 23.4 首次恢复后的 Q1 CDP 授权阻断（2026-08-30）
+
+- 用户要求继续同一 `D8-A-2026-08-30-LC1`。引用任务已读取并与本计划及当前
+  handoff 对齐；Sentry 无可调用工具且本机没有只读 token/org/project，按既有
+  合同记录 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不作为伪门。Ponytail 复核要求
+  继续复用现有 runner，不新增代码、依赖或替代流程。
+- Chrome PID `45404` 的 9222 监听与 web-access proxy 起初均就绪。静态 Q1
+  通过：候选 ancestry、工具 `CE6D4CFC...363DD`、acceptance profile
+  `64455AC1...C61A9`、candidate receipt `4EDA9DDD...F9AEE`、五个 exact-dist
+  文件、R4 connection receipt `C95CD887...644CBDA`、disposable DB `0/0/0`、
+  默认数据库与 port 3000 均匹配。两份当前任务文档只为满足 clean gate 临时存入
+  具名 stash，结束后已原样恢复并删除该 stash。
+- 精确验证并停止 web-access proxy 后，没有任何 9222 已建立客户端；但 Chrome
+  的 `/json/version` 不可读，Playwright 独占 `connectOverCDP` 先后在 30 秒和
+  120 秒超时。首次 probe 命令还有一次 stdin 参数索引错误，发生在读取 endpoint
+  文件前；该工具调用错误没有连接 Chrome。所有探针均未创建 OJ 页面。
+- 尝试恢复 web-access proxy 时同样持续等待 Chrome 的“允许”确认并最终超时；
+  未连接 proxy 进程随后已精确停止。原 Chrome PID 与 9222 监听保持存在。
+- 本轮从未启动 `scripts/v4-live-observation.mjs` action runner，从未启动 localhost，
+  未提供 `--authorize-action` / `--execute-authorized-action`，没有 LeetCode 导航、
+  click、submission、NowCoder 或新 evidence。R4 READY 证据仍是唯一匹配文件；
+  新 D8-A 机会未消费。
+- 恢复条件：用户在当前 `yu` Chrome 的
+  `chrome://inspect/#remote-debugging` 先关闭再重新开启 **Allow remote
+  debugging for this browser instance**，并接受出现的新连接确认；然后从 Q1 CDP
+  binding 继续。不得跳过该门直接运行 action runner。
+- 证据报告：
+  `work/reports/v4-phase-d-d8a-2026-08-30-q1-cdp-authorization-blocker.md`。
+
+### 23.5 第二次恢复后的 Q1 exact-extension binding 阻断（2026-08-30）
+
+- 用户重新切换 remote debugging 后要求继续同一未消费的
+  `D8-A-2026-08-30-LC1`。web-access proxy 在用户接受连接后恢复 READY；Node、
+  npx、Chrome PID `45404`、9222 和 port 3000 前置均正常。
+- 静态 Q1 再次全部通过：候选 ancestry、工具/profile hashes、candidate receipt、
+  五个 exact-dist files、R4 connection receipt、disposable DB `0/0/0`、默认
+  数据库和 root pointer 均匹配。三份本轮文档临时存入具名 stash
+  `1d3024f...c0cc6` 以满足 clean gate，停止后已原样恢复并删除 stash。
+- 精确停止 proxy 后，独占 Playwright CDP 连接成功。只读 probe 证明：official
+  Chrome、protocol `1.3`、single context、`yu` profile hash 与原 Chrome PID
+  preservation 全部 PASS；唯一 false 是 `validateCdpExtensionBinding`。
+- 该闭合 validator 只在以下任一条件下失败：固定 ID 数量不为一、目标扩展未启用，
+  或其 path 不等于 `.tmp/v4-route-h-exact-dist-0c23fca`。第一次成功连接没有保留
+  三个子布尔量；第二个 browser-level 只读诊断再次等待新连接授权并超时。恢复
+  proxy 后尝试用自建 `chrome://extensions` 页只读检查，但页面未暴露 extension
+  manager/item list，因此没有进一步细分根因，也没有读取或输出其他扩展信息。
+- proxy 最终恢复 READY，原 Chrome PID/9222 保持存活。没有自动调用
+  `Extensions.loadUnpacked`、没有启用/禁用/移除/替换扩展，也没有改写 connection
+  receipt。
+- 从未启动 action runner 或 localhost，未提供 action flags，没有 LeetCode 导航、
+  click、submission、NowCoder 或新 evidence。新 D8-A 机会仍未消费。
+- 下一步必须由用户单独裁决一个 localhost-only exact-extension binding
+  诊断/修复轮；其范围需要明确是否允许读取三个闭合子状态，以及在何种子状态下
+  允许加载、启用或替换 exact dist。未获授权前不得再次进入 Q1 或 action runner。
+- 证据报告：
+  `work/reports/v4-phase-d-d8a-2026-08-30-q1-extension-binding-blocker.md`。
+
+### 23.6 localhost-only exact-extension binding 只读诊断授权（2026-08-30）
+
+- 用户单独授权一次 localhost-only exact-extension binding 只读诊断。
+- 诊断只能调用 Chrome `Extensions.getExtensions`，最终只保留三个布尔值：固定 ID
+  数量是否恰为一、该唯一项是否启用、该唯一项路径是否等于 frozen exact dist。
+- 禁止保留或输出实际扩展路径、其他扩展 ID/名称/状态、profile/account 数据；禁止
+  `Extensions.loadUnpacked`、enable/disable、remove/replace 或任何 storage/receipt
+  写入。
+- 禁止启动 localhost、action runner、OJ 导航、click、submission 或 NowCoder。
+  无论成功失败，读取一次后立即释放 direct CDP、恢复 web-access proxy 并停止。
+- 本诊断不消费 `D8-A-2026-08-30-LC1` 动作机会，也不授权任何修复。
+- 执行结果：direct CDP 只调用一次 `Extensions.getExtensions`，返回并仅保留
+  `exactIdUnique=false / enabled=false / exactPath=false`。其中 `enabled` 与
+  `exactPath` 均以 `exactIdUnique=true` 为前提计算；第一项为 false 时，后二项不能
+  区分“没有固定 ID 项”和“存在多项”，也不能独立证明某一项已禁用或路径漂移。
+- direct CDP 已释放，原 Chrome PID `45404` 保持存活，web-access proxy 恢复
+  READY。没有实际路径、其他扩展元数据、profile/account 数据输出或保留。
+- 没有调用 `Extensions.loadUnpacked` 或任何扩展状态修改；candidate/connection
+  receipts、disposable DB、默认数据库和 R4 READY evidence 未写入。
+- localhost、action runner、LeetCode、click、submission 与 NowCoder 均未运行；
+  `D8-A-2026-08-30-LC1` 仍未消费。
+- 证据报告：
+  `work/reports/v4-phase-d-d8a-2026-08-30-extension-binding-readonly-diagnostic.md`。
+
+### 23.7 localhost-only 条件化 exact-extension preparation 授权（2026-08-30）
+
+- 用户单独授权一次条件化 preparation，只复用当前 `yu` Chrome、冻结候选
+  `0c23fcacf18d2fe4113d803504e638c1aab887d3`、exact dist
+  `.tmp/v4-route-h-exact-dist-0c23fca`、R4 identity 与 disposable DB。
+- exact-extension 分支必须保持 fail closed：只有固定 ID 完全缺失时才允许调用一次
+  `Extensions.loadUnpacked` 加载 frozen exact dist；如已存在任何同 ID 项但唯一、
+  enabled 或 exact-path binding 无效，不得加载、启用、禁用、移除或替换，并立即停止。
+- binding 有效后才允许访问 localhost `/settings` 完成 Route H 连接，并允许以同一
+  bounded schema 重写 connection receipt；成功必须再次证明 popup READY、数据库
+  `0/0/0` 与 bounded installation config。
+- 为兼容 runner 的 create-only receipt 合同，可对旧 receipt 做精确可恢复备份：只有
+  preparation 成功时保留新 receipt；任何失败都必须恢复旧 receipt 的原始字节，并
+  证明最终 SHA-256 未变。
+- 本轮禁止 OJ 页面、action flags、click、submission、NowCoder、READY-only/action
+  runner、自动重试、D4 裁决、RC、release、push 与 PR；无论成功失败，停止本地服务、
+  释放 direct CDP、恢复 proxy 后立即结束。
+- 本 preparation 不消费 `D8-A-2026-08-30-LC1`；恢复 Q1 或真实动作必须在本轮停止后
+  由用户再次明确要求。
+- 执行前 frozen candidate、tool/profile hashes、candidate receipt、五个 exact-dist
+  artifacts、`yu` profile、disposable DB `0/0/0`、默认数据库、Chrome PID `45404`、
+  9222、proxy、port 3000 与 root pointer 均通过前置核对。
+- 旧 connection receipt 以原 SHA-256 `C95CD887...644CBDA` 做同目录精确可恢复
+  备份后，受限 runner 仅携带 `--prepare-connection=true` 启动。它在约 17.6 秒内
+  输出 `CONNECTION_PREPARED=1` 并以 exit 0 正常退出。
+- runner 的闭合分支保证：固定 ID 为 0 才调用 `Extensions.loadUnpacked`；大于 0 时
+  不加载，只验证唯一、enabled、exact-path binding，无效即失败。本次成功证明最终
+  binding 有效且没有发生“既有无效同 ID 项仍被修改”的路径。结合 23.6 的
+  `exactIdUnique=false` 与期间没有本代理扩展修改，结果与“固定 ID 缺失后加载”一致；
+  runner 未保留分支标记，因此不得把这一点写成独立直接观测事实。
+- localhost 只访问 `/`、`/api/capture/status`、`/settings` 与 bounded Route H
+  connect endpoints；没有 OJ 页面。新 connection receipt 通过 schema 1/bounded
+  字段核对，SHA-256 为
+  `54076AA16C16851B0B6C06467C18CF39D856A33B2B586821A773CF15A3F7412E`；
+  旧 receipt 备份在成功核验后删除，完成授权的 bounded rewrite。
+- 停止后 disposable DB 仍为 `0/0/0`，candidate receipt 与默认数据库哈希不变；
+  Chrome PID `45404`/9222 存活，proxy 恢复 READY，port 3000 空闲，root pointer 与
+  runner 残留均不存在。未运行 READY/action runner、action flags、LeetCode、click、
+  submission 或 NowCoder；`D8-A-2026-08-30-LC1` 仍未消费。
+- 离线收口通过 D4 acceptance-profile validator、adapter-readiness validator、plan
+  authority validator、plan-authority unit `3/3` 与 `git diff --check`；匹配该 R4
+  identity 的 evidence 仍只有 2026-08-29 READY 文件，SHA-256
+  `4ABB251B...9E84CC`，本轮未改写。
+- 证据报告：
+  `work/reports/v4-phase-d-d8a-2026-08-30-conditional-extension-preparation.md`。
+
+### 23.8 用户恢复 Q1 与唯一单动作 runner（2026-08-30）
+
+- 用户在 23.7 preparation 成功并停止后明确“授权你执行下一步”，恢复同一未消费的
+  `D8-A-2026-08-30-LC1`。范围仍固定为当前 `yu` Chrome、候选
+  `0c23fcacf18d2fe4113d803504e638c1aab887d3`、LeetCode
+  `merge-two-sorted-lists`、最多一次提交、无论结果立即停止且禁止 NowCoder。
+- 先重跑完整 Q1：clean worktree、冻结 candidate/tool/profile/artifact hashes、更新后的
+  bounded connection receipt、exact CDP binding、disposable DB `0/0/0`、默认数据库、
+  Chrome/9222、port 3000、root pointer 与 proxy handoff。任何一项失败都不得启动
+  action runner，本次机会保持未消费。
+- 仅当 Q1 全过，才允许以闭合授权串
+  `leetcode:merge-two-sorted-lists:0c23fcacf18d2fe4113d803504e638c1aab887d3`
+  和 `--execute-authorized-action=true` 启动现有 runner。runner 启动即消费机会；不得
+  重试或以手工点击补偿。
+- runner 只有依次输出 `OBSERVER_ARMED=1 / BROWSE_ONLY=1 / READY=1 /
+  ACTION_AUTHORIZED=1` 后才能 click 一次精确“提交”按钮；随后只等待 bounded ACK 或
+  闭合失败/120 秒超时，并写 schema 3 evidence。
+- 无论 delivered、产品失败、观察器失败、环境失败或超时，立即关闭 runner-owned
+  页面、停止 localhost、清理 root pointer、恢复 proxy，并复核数据库、默认库、
+  Chrome 与无 NowCoder。禁止第二次动作、D4 聚合、RC、release、push 与 PR。
+- Q1 实际全部通过：工作树临时精确 stash 后 clean；candidate ancestry、工具
+  `CE6D4CFC...363DD`、profile `64455AC1...C61A9`、candidate receipt
+  `4EDA9DDD...F9AEE`、五个 exact-dist hashes、新 connection receipt
+  `54076AA1...F7412E`、DB `0/0/0`、默认数据库与无既有 action evidence 均匹配。
+  独立只读 CDP probe 返回 official Chrome、protocol 1.3、single context、`yu`
+  profile、exact extension binding 和原 Chrome 存活全部 true。
+- 唯一 action runner 随后携带闭合 authorization/execute flags 启动，本轮机会按合同
+  立即消费。runner 约 5.2 秒后 exit 1，只输出 failure evidence；没有输出
+  `OBSERVER_ARMED`、`BROWSE_ONLY`、`READY`、`ACTION_AUTHORIZED=1` 或
+  `AUTHORIZED_ACTION_EXECUTED=1`，因此没有点击或提交，也不得重试。
+- schema 3 failure evidence 为 `not_delivered / observer_capture_error`，
+  `stageHistory=[]`，`ENVIRONMENT_BLOCKED / UNRESOLVED /
+  observer_unexpected_failure / connection_preflight`，`privacyBoundary.noRawData=true`；
+  SHA-256 为
+  `344AFC12EF6374E60A4D638A2DF2EE5EE6ADD1FD2C77BE914089B69F2E7539D6`。
+- 失败发生在 platform page 创建之前；localhost 日志只有 `/` 与
+  `/api/capture/status` warm-up。成功 evidence 不存在，DB 保持 `0/0/0`，所以真实
+  提交次数为零，NowCoder 未运行。
+- 收尾后 localhost 停止、root pointer 删除、runner 无残留、Chrome PID `45404`/
+  9222 存活且 proxy READY；candidate/connection receipts、旧 READY evidence 与默认
+  数据库哈希均不变。具名 stash 已原样恢复并删除。
+- `D8-A-2026-08-30-LC1` 已终止且机会已消费；不得再用该名字执行动作。下一步只能
+  由用户另行授权 connection-preflight 的非动作根因诊断，不得直接授予新提交机会。
+- 离线收口通过 D4 acceptance-profile、adapter-readiness、plan-authority validators、
+  plan-authority unit `3/3` 与 `git diff --check`；无产品代码、runner 或候选变更。
+- 证据报告：
+  `work/reports/v4-phase-d-d8a-2026-08-30-lc1-action-terminal.md`。
+
+### 23.9 `connection_preflight` 非动作根因诊断授权（2026-08-30）
+
+- 用户在 `D8-A-2026-08-30-LC1` 终止后显式调用 Ponytail 与 Sentry 并授权根因
+  诊断。本轮只诊断 schema 3 failure 中的 `connection_preflight`，不恢复或新增任何
+  action authorization。
+- Ponytail 要求复用现有 `GET_CAPTURE_STATE` 和 receipt，不新增 runner、依赖、SDK、
+  instrumentation 或持久化诊断代码。Sentry 只允许既有认证下的只读查询；无工具或
+  `SENTRY_AUTH_TOKEN` 时记录不可用，不索取聊天中的 token，不添加联网能力。
+- 诊断可启动同一 localhost/disposable DB，并在当前 `yu` Chrome 的 exact extension
+  popup 中读取一次 bounded capture-state snapshot；只保留 runner 同构的闭合
+  preflight reason、recovery closed state/error、installation-identity match、capability-
+  version match、config existence 与 DB counts。禁止输出 raw installation capability/
+  credential、storage、其他扩展数据、profile/account 数据。
+- 禁止调用 `CHARACTERIZATION_STOP`、retry/reset、prepare/connect、storage/receipt
+  写入、action runner、OJ 导航、click、submission 或 NowCoder。popup 自身的正常
+  render 读取不视为额外诊断写入；不得打开平台页面。
+- 无论结果，关闭 owned popup/direct CDP、停止 localhost、删除 root pointer、恢复
+  proxy，并证明 DB/default DB/candidate/connection receipts/action evidence 未变。
+- 本轮只裁决根因和建议最小修复方向，不实施修复、不改 observation-tool hash、不
+  授权真实动作、D4、RC、release、push 或 PR。
+- 实际执行遵守上述边界：只启动同一 localhost/disposable DB、访问本地 warm-up
+  routes，并通过 current `yu` Chrome 的 exact extension popup 调用一次
+  `GET_CAPTURE_STATE`；未打开 OJ、未调用 action/characterization/reset/connect、未
+  点击、未提交且未运行 NowCoder。
+- bounded snapshot 的唯一失败项是 `captureConnectionStatus=service_unreachable`；
+  `captureEnabled`、canonical endpoint、`extension_local` provenance、installation
+  identity、capability version、config existence、recovery ready 与数据库三项零计数
+  均通过。它直接解释 runner 的 `connection_invalid` preflight 返回。
+- localhost 同时直接观察到 extension health probe 三次命中
+  `GET /api/capture/status` 并全部返回 HTTP 403；服务可达，因此
+  `service_unreachable` 是错误分类。status route 对 canonical localhost、exact
+  extension Origin 和 bearer capability 依次校验；capability 失败为 401，而实际
+  canonical localhost 请求为 403，故失败点裁决为 exact Origin 未满足。
+- 根因是跨层合同不一致：真实 Chrome extension `fetch` 只设置 Authorization，无法
+  显式构造浏览器受控 Origin；服务端 status GET 无条件要求 exact Origin；客户端又把
+  403 归为 `service_unreachable`。connection preparation 写入的 `connected` 会被后续
+  background refresh 覆盖，`GET_CAPTURE_STATE` 只返回该缓存状态，runner 因而在
+  observer arm 前失败。
+- Ponytail 结论是不要新建诊断机制；最小候选修复仅应使 status GET 接受缺失 Origin
+  但继续拒绝显式错误 Origin，同时保留 canonical localhost 与 bearer capability
+  强校验，并增加对应 route regression。403 的客户端分类可另作次级可观测性改进，
+  不是恢复功能的必要范围。本轮未实施任何修复。
+- Sentry plugin 无可调用 MCP，且本机没有 `SENTRY_AUTH_TOKEN`、org 或 project 配置，
+  因此记录 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`；未索取或写入凭据、未添加 SDK/依赖，
+  也未伪造远端数据。
+- 收尾后 disposable DB 仍为 `0/0/0`；candidate receipt、connection receipt、action
+  failure evidence 与默认数据库字节哈希均不变。localhost 已停止、root pointer 已
+  删除、Chrome PID `45404`/9222 存活、proxy READY、port 3000 空闲。
+- focused static regression 通过 `63/63`；本轮新增的是计划/报告证据，不含产品代码、
+  runner、候选、receipt 或 extension storage 变更。任何修复都会使冻结候选
+  `0c23fca` 失效，必须另行授权修复、重冻与 preparation；已消费的
+  `D8-A-2026-08-30-LC1` 不得重试。
+- 证据报告：
+  `work/reports/v4-phase-d-d8a-2026-08-30-connection-preflight-root-cause.md`。
+
+### 23.10 status GET 最小产品修复授权（2026-08-30）
+
+- 用户在 23.9 根因裁决后明确授权最小产品修复。本轮只允许修改
+  `app/api/capture/status/route.ts` 的 GET 路径和对应 focused route tests。
+- GET 必须在 Origin 缺失时继续执行 canonical localhost 与 bearer capability 强校验；
+  Origin 明确存在时仍必须完全等于 frozen extension Origin，否则返回 403。
+- `OPTIONS`、connect/attempt/event routes、extension probe/status 分类、runner、
+  storage、receipt、Vault schema 和 observation tooling 均不改；不得为次级可观测性
+  需求扩大实现范围。
+- 先增加两条回归测试并证明 RED：valid capability + missing Origin 在旧实现返回 403；
+  explicit hostile Origin 保持 403。随后只用一个条件分支使前者 GREEN。
+- 只运行离线 focused/full quality gates 和合同 validators。禁止 localhost real-browser
+  preparation、OJ、action runner、click、submission、NowCoder、D4 聚合、RC、release、
+  push 与 PR。
+- 产品 route 一旦修改，冻结候选 `0c23fca` 立即失效。本授权不包含 commit、候选重冻、
+  exact dist/receipt 重建、connection preparation 或任何新动作；这些必须在本轮停止后
+  另行裁决。
+- RED 在未改产品代码时精确得到 `1 failed / 5 passed`：valid capability + missing
+  Origin 的新用例实际返回 403；explicit hostile Origin 新用例保持 403。
+- 实现只把 status GET 的无条件 Origin 校验改为 `request.headers.has("origin")` 时才
+  调用既有 exact-origin guard。canonical localhost 与 bearer capability 的调用顺序、
+  `OPTIONS` 及其他 routes 完全不变。
+- GREEN 为 route tests `6/6`；连接/probe/runner focused suite 为 `65/65`。
+- 第一次九阶段 `quality:gate` 只在 extension E2E 的 Route H production case 因 worker
+  初始化竞态失败：`chrome.runtime` 尚未注入时测试 helper 读取 `.id`。该 case 未到产品
+  assertion，单独原样重跑 `1/1` 通过；没有修改 harness。
+- 第二次完整 `npm run quality:gate` exit 0：root unit `2605 passed / 1 skipped`、app E2E
+  `24/24`、extension unit `1671/1671`、extension E2E `55 passed / 1 skipped`、production
+  build PASS。唯一 root skip 仍为 Windows file-symlink capability，extension skip 仍为
+  既有 harness limitation。
+- 本轮没有修改 extension source、probe classification、runner、storage、Vault 或
+  receipt；没有 localhost real-browser preparation、OJ、click、submission 或 NowCoder。
+  默认数据库与 disposable DB 均未用作质量门数据库。
+- 冻结候选 `0c23fca` 已因未提交的 app route 变更失效；旧 exact dist/receipts 只保留
+  历史 provenance，不得作为修复后候选。下一步唯一门是另行授权 commit 与候选重冻，
+  不是直接 preparation 或真实动作。
+- 修复报告：
+  `work/reports/v4-phase-d-d8a-2026-08-30-status-get-minimal-fix.md`。
+
+### 23.11 精确提交与新候选重冻授权（2026-08-30）
+
+- 用户明确授权精确提交 23.1–23.10 的最小 product fix、测试、全部 D8-A 证据文档、
+  handoff、唯一计划和 `AGENTS.md`，随后基于该新 commit 重冻候选并运行 exact
+  candidate validation。
+- `AGENTS.md` 的唯一差异是把最终汇报的第一项改为同时说明“实现了什么东西，遇到了
+  什么问题”；用户显式要求把该差异纳入提交。
+- candidate validator 已拥有 product route、route test、`AGENTS.md`、计划和 handoff；
+  7 份新 D8-A report 尚未在显式所有权清单中。preflight 在未改 validator 时按预期仅以
+  `paths.explicit-ownership` 失败，exit 1。
+- 为执行已授权的 exact candidate gate，只允许把这 7 个精确 report path 加入
+  `CANDIDATE_ALLOWED_PATHS` 并增加逐项回归；禁止通配 report 目录或放宽 generated/
+  secret/raw-transcript 拒绝规则。
+- 提交前必须通过 candidate-validator focused tests、privacy/readiness/acceptance/plan
+  validators、`git diff --check` 与 clean staged-scope 核对。提交必须排除任何未列明
+  文件、生成 dist、数据库、profile、receipt、evidence output 或 secret。
+- 新 commit 成为候选 SHA 后，必须在 clean HEAD 上运行
+  `node scripts/validate-v4-candidate.mjs --candidate <new-sha>`；只有 exit 0 和
+  `V4 candidate commit PASS` 才允许复制该次 production `extension/dist` 到新的 exact
+  dist 并生成绑定 SHA、五项 artifact hash、默认数据库元数据的 strict receipt。
+- 本授权包含候选验证后的文档收口提交，但该收口 commit 只能修改计划、handoff 与新
+  refreeze report；产品候选仍固定在前一 commit，不得将收口提交冒充候选。
+- 禁止 connection preparation、Chrome mutation、OJ、action runner、click、submission、
+  NowCoder、D4 聚合、RC、release、push 与 PR。验证失败必须保留真实结果并停止，不得
+  进入浏览器阶段。

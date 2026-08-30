@@ -66,6 +66,24 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("scripts/v4-live-observation-observer.mjs").kind).toBe("candidate");
   });
 
+  it("owns only the seven reviewed D8-A closeout reports", () => {
+    for (const path of [
+      "work/reports/v4-phase-d-d8a-2026-08-30-conditional-extension-preparation.md",
+      "work/reports/v4-phase-d-d8a-2026-08-30-connection-preflight-root-cause.md",
+      "work/reports/v4-phase-d-d8a-2026-08-30-extension-binding-readonly-diagnostic.md",
+      "work/reports/v4-phase-d-d8a-2026-08-30-lc1-action-terminal.md",
+      "work/reports/v4-phase-d-d8a-2026-08-30-q1-cdp-authorization-blocker.md",
+      "work/reports/v4-phase-d-d8a-2026-08-30-q1-extension-binding-blocker.md",
+      "work/reports/v4-phase-d-d8a-2026-08-30-status-get-minimal-fix.md",
+    ]) {
+      expect(classifyCandidatePath(path)).toEqual({
+        kind: "candidate",
+        reason: "explicit-task-path",
+      });
+    }
+    expect(classifyCandidatePath("work/reports/unreviewed-d8a.md").kind).toBe("unknown");
+  });
+
   it("owns the D4 result-root runtime and the Route H acceptance tooling", () => {
     for (const path of [
       "extension/src/submitEpochReplay.ts",

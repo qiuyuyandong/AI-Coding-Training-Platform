@@ -1,5 +1,301 @@
 # Current Handoff
 
+## Status (2026-08-30 status GET minimal product fix offline-complete)
+
+The user authorized only the minimum product repair for the adjudicated
+`connection_preflight` root cause. The GET handler at
+`app/api/capture/status/route.ts` now applies the existing exact-extension
+Origin guard only when an Origin header is present. A request without Origin
+still must pass canonical localhost and bearer-capability authentication. An
+explicit hostile Origin still returns 403. OPTIONS, all other capture routes,
+the extension probe classifier, runner, storage, Vault and receipts are
+unchanged.
+
+Two focused route regressions were added. RED was `1 failed / 5 passed` because
+valid capability + missing Origin returned 403; the hostile-Origin case already
+returned 403. GREEN is `6/6`, and the related connection/probe/runner suite is
+`65/65`.
+
+The first full quality gate reached extension E2E and hit an initialization
+race before product assertions in the Route H production case: the test helper
+read `chrome.runtime.id` before `chrome.runtime` existed. The exact case passed
+an unchanged isolated rerun `1/1`; no harness change was made. A second complete
+nine-stage `npm run quality:gate` exited 0 with root unit `2605 passed / 1
+skipped`, app E2E `24/24`, extension unit `1671/1671`, extension E2E `55 passed
+/ 1 skipped`, and production build PASS. The skips are the existing Windows
+file-symlink capability and service-worker restart harness limitations.
+
+No real browser preparation, OJ page, action runner, click, submission or
+NowCoder ran. The default database, disposable observation DB, existing
+receipts and terminal action evidence remain outside the quality-gate database.
+`D8-A-2026-08-30-LC1` remains consumed and cannot be retried.
+
+The product working tree now differs from frozen candidate `0c23fca`, so that
+candidate and its receipts are historical only and must not authorize any
+future action. This authorization did not include commit, candidate refreeze,
+preparation, D4 aggregation, RC, release, push or PR. Evidence:
+`work/reports/v4-phase-d-d8a-2026-08-30-status-get-minimal-fix.md`.
+
+The user subsequently authorized an exact commit containing the minimum fix,
+tests, all D8-A evidence, the plan/handoff and the explicitly requested
+`AGENTS.md` wording change, followed by a new candidate refreeze and exact
+candidate validation. Seven exact D8-A report paths may be added to the
+candidate validator ownership list; no report wildcard is permitted. A
+post-validation documentation-only closeout commit is also authorized. This
+does not authorize preparation, a browser mutation, any OJ action, D4, RC,
+release, push or PR.
+
+## Status (2026-08-30 connection_preflight root cause adjudicated; no action)
+
+The user authorized a non-action root-cause diagnostic after the terminal
+`D8-A-2026-08-30-LC1` attempt. The diagnostic reused only localhost, the same
+disposable DB and one bounded `GET_CAPTURE_STATE` call through the exact
+extension popup in current `yu` Chrome. It did not open an OJ page, run an
+action/characterization/reset/connect path, click, submit or run NowCoder.
+
+The bounded snapshot showed every preflight condition passing except
+`captureConnectionStatus=service_unreachable`; the runner therefore returns
+`connection_invalid` before observer arm. During that same localhost window,
+the extension reached `GET /api/capture/status` three times and received HTTP
+403 each time. The service was reachable. The status route requires canonical
+localhost, exact extension Origin and bearer capability; capability failures
+map to 401, while these canonical localhost requests returned 403. The rejected
+condition is therefore the exact-Origin check.
+
+The root cause is adjudicated as a cross-layer status-probe contract mismatch:
+the real Chrome extension fetch supplies Authorization but cannot explicitly
+set the browser-controlled Origin expected by the route; the route rejects the
+probe, and the extension collapses every non-401/non-2xx response into
+`service_unreachable`. A later background refresh overwrites the `connected`
+state written by preparation, and `GET_CAPTURE_STATE` returns that cached
+status to the runner.
+
+Ponytail's minimum repair is confined to status GET: accept a missing Origin
+while still rejecting an explicitly wrong Origin, keep canonical localhost and
+bearer capability mandatory, and add the two focused route regressions. No fix
+was implemented. Sentry was unavailable because no callable Sentry tool or
+local read-only token/org/project configuration exists; no SDK, dependency or
+credential was added.
+
+Focused static tests pass `63/63`. Cleanup proved DB `0/0/0`, unchanged
+candidate/connection receipts, unchanged terminal action evidence and default
+DB, stopped localhost, absent root pointer, Chrome PID `45404`/9222 alive,
+proxy READY and port 3000 free. `D8-A-2026-08-30-LC1` remains consumed and may
+not be retried. Any product repair invalidates frozen candidate `0c23fca` and
+requires separate authorization, a new freeze and preparation before a newly
+named future action. Evidence:
+`work/reports/v4-phase-d-d8a-2026-08-30-connection-preflight-root-cause.md`.
+D4 aggregation, RC, release, V0.5, push and PR remain unauthorized.
+
+## Status (2026-08-30 D8-A-LC1 terminal ENVIRONMENT_BLOCKED; zero submission)
+
+The user explicitly resumed `D8-A-2026-08-30-LC1`. The scope remained current
+`yu` Chrome, candidate `0c23fcacf18d2fe4113d803504e638c1aab887d3`, LeetCode
+`merge-two-sorted-lists`, at most one submission, unconditional stop and no
+NowCoder.
+
+Q1 passed after the six active task docs were placed in exact named stash
+`c194b6f2...aad7fd7`: clean worktree, candidate ancestry, frozen tool/profile/
+candidate-receipt/five-artifact hashes, updated bounded receipt
+`54076AA1...F7412E`, DB `0/0/0`, default DB, Chrome/9222 and no prior action
+evidence all matched. The independent read-only CDP probe returned official
+Chrome, protocol 1.3, single context, frozen `yu` profile, exact extension
+binding and original Chrome preservation all true.
+
+The action runner was then launched exactly once with the closed LeetCode
+authorization and execution flag. Starting it consumed the opportunity. It
+exited 1 after about 5.2 seconds before observer arm and wrote schema 3 failure
+evidence SHA-256 `344AFC12...E7539D6`:
+
+```text
+outcome=not_delivered
+finalStage=observer_capture_error
+stageHistory=[]
+verdict=ENVIRONMENT_BLOCKED
+causalGrade=UNRESOLVED
+reason=observer_unexpected_failure
+phase=connection_preflight
+```
+
+The runner did not emit `OBSERVER_ARMED`, `BROWSE_ONLY`, `READY`,
+`ACTION_AUTHORIZED=1` or `AUTHORIZED_ACTION_EXECUTED=1`. The failure preceded
+platform-page creation; localhost saw only warm-up routes, success evidence is
+absent and DB stayed `0/0/0`. Therefore no OJ page, submit click or real
+submission occurred; NowCoder did not run. No retry is allowed.
+
+Localhost is stopped, root pointer removed, no runner remains, Chrome PID
+`45404`/9222 survived and proxy is READY. Candidate/connection receipts, R4
+READY evidence and default DB are unchanged. The stash was restored unchanged
+and dropped.
+
+`D8-A-2026-08-30-LC1` is terminally consumed. Do not grant or run another real
+action under this name. The only controlled next decision is a separately
+authorized non-action root-cause diagnostic for `connection_preflight`; the
+current evidence intentionally remains `UNRESOLVED`. Evidence:
+`work/reports/v4-phase-d-d8a-2026-08-30-lc1-action-terminal.md`.
+D4 acceptance-profile, adapter-readiness and plan-authority validators,
+plan-authority unit `3/3`, and `git diff --check` pass. No product code or
+frozen artifact changed.
+D4 aggregation, RC, release, V0.5, push and PR remain unauthorized.
+
+## Status (2026-08-30 conditional exact-extension preparation PASS; action unconsumed)
+
+The user separately authorized one localhost-only conditional preparation in
+the current `yu` Chrome. The frozen exact dist could be loaded only when the
+fixed ID was completely absent; any existing invalid same-ID binding had to
+fail closed without mutation. A successful bounded Route H connection-receipt
+rewrite was authorized. OJ pages, actions and NowCoder were prohibited.
+
+Frozen candidate/tool/profile/artifact hashes, the zero disposable database,
+default database, Chrome PID `45404`, 9222, proxy and localhost preconditions
+all matched. The old receipt was byte-preserved for failure restoration. The
+existing runner then ran once with only `--prepare-connection=true` and exited
+0 after printing `CONNECTION_PREPARED=1`.
+
+The prior diagnostic had retained `exactIdUnique=false`. The reviewed runner
+loads only when the fixed-ID count is zero; any non-zero same-ID state is left
+unchanged and must pass unique/enabled/exact-path validation. The success proves
+the final exact binding was valid and no existing invalid same-ID item was
+modified. With no intervening agent mutation, it is consistent with the
+absent-ID load branch, but the runner retained no direct branch marker and the
+handoff must not overstate that inference.
+
+The new bounded receipt SHA-256 is
+`54076AA16C16851B0B6C06467C18CF39D856A33B2B586821A773CF15A3F7412E`;
+the validated old-receipt backup was then removed. Localhost accessed only
+local readiness/settings/connect routes and was stopped. Chrome survived,
+proxy returned to READY, port 3000 is free, the root DB pointer and runner
+residue are absent, disposable DB remains `0/0/0`, and candidate/default DB
+hashes are unchanged.
+
+No READY/action runner, OJ page, action flag, click, submission, NowCoder lane
+or new action evidence ran. `D8-A-2026-08-30-LC1` remains unconsumed. Per the
+stop boundary, do not resume Q1 or the real action until the user explicitly
+continues. Evidence:
+`work/reports/v4-phase-d-d8a-2026-08-30-conditional-extension-preparation.md`.
+D4 acceptance-profile, adapter-readiness and plan-authority validators,
+plan-authority unit `3/3`, and `git diff --check` all pass. The only matching
+R4 evidence remains the unchanged READY-only file SHA-256
+`4ABB251B...9E84CC`.
+D4 aggregation, RC, release, V0.5, push and PR remain unauthorized.
+
+## Status (2026-08-30 exact-extension read-only diagnostic complete; action unconsumed)
+
+The user separately authorized one localhost-only exact-extension binding
+read-only diagnostic. It was restricted to one `Extensions.getExtensions`
+call and three retained booleans, with no extension or receipt/storage writes.
+
+The exact proxy process handed off CDP, the diagnostic connected once, and the
+only retained result was:
+
+```text
+exactIdUnique=false
+enabled=false
+exactPath=false
+```
+
+`enabled` and `exactPath` were deliberately computed only when
+`exactIdUnique=true`. Because uniqueness is false, the latter two values do not
+independently prove a disabled item or path drift, and this evidence does not
+distinguish zero fixed-ID entries from multiple entries. No count, actual path
+or other extension metadata was retained.
+
+The diagnostic detached and closed its direct CDP client. Chrome PID `45404`
+survived and the web-access proxy returned to READY. No
+`Extensions.loadUnpacked`, enable/disable, remove/replace, storage or receipt
+write occurred. No localhost, action runner, OJ page, click, submission,
+NowCoder lane or new action evidence ran. `D8-A-2026-08-30-LC1` remains
+unconsumed.
+
+Next controlled action requires a separate user decision for a conditional
+localhost-only exact-extension preparation. The safest reviewed boundary is:
+load the frozen exact dist only if the fixed ID is absent; if any fixed-ID
+entry already exists but binding remains invalid, fail closed without changing
+it. Any connection-receipt rewrite must be separately named in that approval.
+Do not rerun Q1 or start the action runner before that decision. Evidence:
+`work/reports/v4-phase-d-d8a-2026-08-30-extension-binding-readonly-diagnostic.md`.
+D4 aggregation, RC, release, V0.5, push and PR remain unauthorized.
+
+## Status (2026-08-30 D8-A-LC1 exact-extension binding blocked; action unconsumed)
+
+The user re-enabled remote debugging and continued the same unconsumed
+`D8-A-2026-08-30-LC1`. The web-access proxy reached READY and static Q1 again
+passed candidate ancestry, tool/profile hashes, candidate receipt, all five
+exact-dist artifacts, R4 connection receipt, disposable DB `0/0/0`, default DB
+preservation and a clean worktree. The three active task docs were temporarily
+stored in named stash `1d3024f...c0cc6`; they were restored unchanged and the
+stash was dropped after the stop.
+
+After exact proxy handoff, the read-only direct CDP probe connected
+successfully. Official Chrome, protocol 1.3, one context, frozen `yu` profile
+hash and original Chrome PID `45404` all matched. The only failing gate was
+`validateCdpExtensionBinding`: the fixed-ID extension was not in the unique,
+enabled, frozen-exact-dist-path state. The successful probe did not retain
+which subcondition failed. A second browser-level diagnostic required another
+Chrome authorization and timed out. A proxy-owned `chrome://extensions` page
+did not expose its manager/item list, so no other extension information was
+read. The proxy was finally restored to READY and the original Chrome remains
+alive.
+
+No extension was loaded, enabled, disabled, removed or replaced. No connection
+receipt was rewritten. No localhost server, OJ page, action runner, action
+flag, click, submission, NowCoder lane or new evidence ran. Therefore the
+action authorization remains unconsumed.
+
+Next controlled action requires a separate user decision for a localhost-only
+exact-extension binding diagnostic/repair round. The decision must state
+whether the three closed subconditions may be read and which mismatch, if any,
+may authorize loading, enabling or replacing the frozen exact dist. Do not
+rerun Q1 or start the action runner before that decision. Evidence:
+`work/reports/v4-phase-d-d8a-2026-08-30-q1-extension-binding-blocker.md`.
+D4 aggregation, RC, release, V0.5, push and PR remain unauthorized.
+
+## Status (2026-08-30 D8-A-LC1 Q1 CDP authorization blocked; action unconsumed)
+
+The user authorized a new, separately named action round
+`D8-A-2026-08-30-LC1`: immutable candidate
+`0c23fcacf18d2fe4113d803504e638c1aab887d3`, current `yu` Chrome, LeetCode
+`merge-two-sorted-lists`, at most one real submission, unconditional stop after
+any outcome and no NowCoder.
+
+The authorization and gates are frozen in section 23 of
+`docs/superpowers/plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md`.
+The action must reuse the R4 READY identity
+`r4-ready-yu-leetcode-0c23fca`, its disposable zero database and bounded Route
+H connection receipt. It may click only after the same runner emits
+`OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1` and `ACTION_AUTHORIZED=1`.
+Starting the action runner consumes the opportunity; no retry is allowed.
+
+On continuation, Chrome PID `45404`, port 9222 and the web-access proxy were
+initially present. Static Q1 passed candidate ancestry, tool/profile hashes,
+candidate receipt, all five exact-dist artifacts, the R4 connection receipt,
+disposable DB `0/0/0`, default DB preservation and port 3000. The two active
+task docs were temporarily stored in a named stash solely for the clean gate;
+they were restored unchanged and the stash was dropped after the stop.
+
+After the exact proxy process handed off the channel, Chrome did not accept a
+new exclusive CDP connection. No 9222 client remained and `/json/version` was
+unavailable; direct Playwright probes timed out at 30 and 120 seconds. Proxy
+restoration also waited for Chrome authorization and timed out, so the
+unconnected proxy process was stopped. The original Chrome PID and listener
+remain alive. One earlier probe command had an stdin argv-index mistake and
+failed before reading the endpoint; it had no browser effect.
+
+No localhost server, OJ page, action runner, action flag, click, submission,
+NowCoder lane or new evidence ran. The R4 READY evidence remains the only
+matching file, so `D8-A-2026-08-30-LC1` is not consumed. Sentry remained
+unavailable because neither a callable tool nor local read-only token/org/
+project was exposed. Ponytail kept the response to the existing runner and no
+code/dependency change.
+
+Next controlled action: in the existing `yu` Chrome, toggle off then on
+**Allow remote debugging for this browser instance** at
+`chrome://inspect/#remote-debugging` and accept the new connection prompt.
+Then rerun only the Q1 CDP binding. Do not skip directly to the action runner.
+Evidence:
+`work/reports/v4-phase-d-d8a-2026-08-30-q1-cdp-authorization-blocker.md`.
+D4 aggregation, RC, release, V0.5, push and PR remain unauthorized.
+
 ## Status (2026-08-29 yu Chrome LeetCode R4 READY-only PASS; no action)
 
 The user authorized exactly one `yu` Chrome READY-only observation for

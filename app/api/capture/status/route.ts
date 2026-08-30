@@ -15,7 +15,7 @@ import { authorizeLocalCaptureCapability } from "@/lib/vault/captureInstallation
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     requireCanonicalLocalCaptureHost(request);
-    requireExactCaptureExtensionOrigin(request);
+    if (request.headers.has("origin")) requireExactCaptureExtensionOrigin(request);
     authorizeLocalCaptureCapability(readBearerCapability(request));
     return withCaptureExtensionCors(NextResponse.json({
       schemaVersion: 1,

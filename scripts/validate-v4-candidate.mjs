@@ -188,6 +188,13 @@ export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "work/reports/v4-phase-d-local-vault-p1-origin-spike-stop-2026-08-24.md",
   "work/reports/v4-phase-d-local-vault-route-h-d1-spike-2026-08-25.md",
   "work/reports/v4-phase-d-local-vault-transport-research-2026-08-24.md",
+  "work/reports/v4-phase-d-d8a-2026-08-30-conditional-extension-preparation.md",
+  "work/reports/v4-phase-d-d8a-2026-08-30-connection-preflight-root-cause.md",
+  "work/reports/v4-phase-d-d8a-2026-08-30-extension-binding-readonly-diagnostic.md",
+  "work/reports/v4-phase-d-d8a-2026-08-30-lc1-action-terminal.md",
+  "work/reports/v4-phase-d-d8a-2026-08-30-q1-cdp-authorization-blocker.md",
+  "work/reports/v4-phase-d-d8a-2026-08-30-q1-extension-binding-blocker.md",
+  "work/reports/v4-phase-d-d8a-2026-08-30-status-get-minimal-fix.md",
   "work/reports/v4-phase-d-p7f6-new-candidate-ready-preflight-blocker-2026-08-24.md",
 ]);
 
