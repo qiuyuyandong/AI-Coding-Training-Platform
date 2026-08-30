@@ -84,6 +84,23 @@ describe("V4 candidate validator", () => {
     expect(classifyCandidatePath("work/reports/unreviewed-d8a.md").kind).toBe("unknown");
   });
 
+  it("owns only the six cumulative D7-R4 reports required by the refreeze", () => {
+    for (const path of [
+      "work/reports/v4-phase-d-d8a-yu-chrome-root-cause-revision-2026-08-28.md",
+      "work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md",
+      "work/reports/v4-phase-d-local-vault-d7-ready-only-2026-08-26.md",
+      "work/reports/v4-phase-d-local-vault-d8a-leetcode-pre-action-stop-2026-08-28.md",
+      "work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md",
+      "work/reports/v4-phase-d-r4-yu-leetcode-ready-only-2026-08-29.md",
+    ]) {
+      expect(classifyCandidatePath(path)).toEqual({
+        kind: "candidate",
+        reason: "explicit-task-path",
+      });
+    }
+    expect(classifyCandidatePath("work/reports/unreviewed-r4.md").kind).toBe("unknown");
+  });
+
   it("owns the D4 result-root runtime and the Route H acceptance tooling", () => {
     for (const path of [
       "extension/src/submitEpochReplay.ts",

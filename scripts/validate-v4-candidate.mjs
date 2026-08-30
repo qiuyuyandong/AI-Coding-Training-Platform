@@ -195,7 +195,13 @@ export const CANDIDATE_ALLOWED_PATHS = Object.freeze([
   "work/reports/v4-phase-d-d8a-2026-08-30-q1-cdp-authorization-blocker.md",
   "work/reports/v4-phase-d-d8a-2026-08-30-q1-extension-binding-blocker.md",
   "work/reports/v4-phase-d-d8a-2026-08-30-status-get-minimal-fix.md",
+  "work/reports/v4-phase-d-d8a-yu-chrome-root-cause-revision-2026-08-28.md",
+  "work/reports/v4-phase-d-d8ar-yu-chrome-r4-pre-action-stop-2026-08-28.md",
+  "work/reports/v4-phase-d-local-vault-d7-ready-only-2026-08-26.md",
+  "work/reports/v4-phase-d-local-vault-d8a-leetcode-pre-action-stop-2026-08-28.md",
   "work/reports/v4-phase-d-p7f6-new-candidate-ready-preflight-blocker-2026-08-24.md",
+  "work/reports/v4-phase-d-r4-cdp-lifecycle-repair-2026-08-29.md",
+  "work/reports/v4-phase-d-r4-yu-leetcode-ready-only-2026-08-29.md",
 ]);
 
 const ROUTE_H_CANDIDATE_BASE = "6c0e1d7e2184ac928f609cf94038aa00322f75e7";
