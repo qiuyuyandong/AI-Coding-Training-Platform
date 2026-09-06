@@ -23,6 +23,7 @@ import {
   PLAN_GENERATOR_VERSION,
   type PlanGeneratorInput,
 } from "@/lib/services/planGenerator";
+import type { PracticeTaskRef } from "@/lib/services/candidateTaskSelector";
 import { parseLearningPlanSnapshot } from "@/lib/services/planSnapshot";
 
 type RegenerateInput = {
@@ -248,7 +249,15 @@ export function regenerateDailyPlan(
   db: Database.Database,
   input: RegenerateInput,
 ): RegeneratedPlan {
-  const generatorInput = buildGeneratorInput(db, input);
+  const baseGeneratorInput = buildGeneratorInput(db, input);
+  const dueReview = findDueReviewTask(db, input.learnerId, input.now);
+  const generatorInput: PlanGeneratorInput = {
+    ...baseGeneratorInput,
+    inputFingerprint: createHash("sha256").update(JSON.stringify({
+      base: baseGeneratorInput.inputFingerprint,
+      dueReview,
+    })).digest("hex"),
+  };
   const generated = generatePlan(generatorInput);
   const packageRow = db.prepare<[], { readonly id: string }>(
     "SELECT id FROM curriculum_packages ORDER BY installed_at DESC, id ASC LIMIT 1",
@@ -267,16 +276,27 @@ export function regenerateDailyPlan(
     { now: () => input.now },
   );
 
+  const primaryTask = dueReview?.task.taskId === generated.primary.taskId
+    ? { ...generated.primary, reasonCodes: dueReview.task.reasonCodes }
+    : generated.primary;
+  const weaknessReview = dueReview?.task.taskId === primaryTask.taskId
+    ? undefined
+    : dueReview?.task ?? generated.alternatives.weakness_review;
   const entries: ReadonlyArray<readonly [PlanItemRole, typeof generated.primary]> = [
-    ["primary", generated.primary],
-    ...(["warmup", "same_goal_alternative", "weakness_review"] as const)
+    ["primary", primaryTask],
+    ...(["weakness_review", "warmup", "same_goal_alternative"] as const)
       .flatMap((role) => {
-        const task = generated.alternatives[role];
+        const task = role === "weakness_review"
+          ? weaknessReview
+          : generated.alternatives[role];
         return task === undefined ? [] : [[role, task] as const];
       }),
   ];
   let rank = 0;
+  const includedTaskIds = new Set<string>();
   for (const [role, task] of entries) {
+    if (includedTaskIds.has(task.taskId)) continue;
+    includedTaskIds.add(task.taskId);
     const nodeId = findKnowledgeNodeIdByStableId(db, packageRow.id, task.nodeId);
     const practiceTaskId = findPracticeTaskIdByStableId(db, packageRow.id, task.taskId);
     if (nodeId === null || practiceTaskId === null) {
@@ -302,5 +322,65 @@ export function regenerateDailyPlan(
     generatorInput.inputFingerprint,
     { now: () => input.now },
   );
-  return { snapshotId: successor.id, primaryTaskStableId: generated.primary.taskId };
+  return { snapshotId: successor.id, primaryTaskStableId: primaryTask.taskId };
+}
+
+function findDueReviewTask(
+  db: Database.Database,
+  learnerId: string,
+  asOf: string,
+): { readonly reviewId: string; readonly task: PracticeTaskRef } | null {
+  type Row = {
+    readonly review_id: string;
+    readonly task_id: string;
+    readonly node_id: string;
+    readonly title: string;
+    readonly difficulty_band: string;
+  };
+  const row = db.prepare<[string, string], Row>(`
+    SELECT review.id AS review_id, task.stable_id AS task_id,
+           node.stable_id AS node_id, task.title, task.difficulty_band
+    FROM review_items review
+    JOIN practice_tasks task ON task.id = review.selected_practice_task_id
+    JOIN knowledge_nodes node ON node.id = review.node_id
+    WHERE review.learner_id = ? AND review.status = 'open' AND review.due_at <= ?
+    ORDER BY review.priority DESC, review.due_at ASC, review.id ASC
+    LIMIT 1
+  `).get(learnerId, asOf);
+  if (row !== undefined) return toNextEvidenceTask(row, "due_review");
+  const assessment = db.prepare<[string], Row>(`
+    SELECT assessment.id AS review_id, task.stable_id AS task_id,
+           node.stable_id AS node_id, task.title, task.difficulty_band
+    FROM learner_assessments assessment
+    JOIN knowledge_nodes node ON node.id = assessment.node_id
+    JOIN node_practice_mappings mapping ON mapping.node_id = assessment.node_id
+    JOIN practice_tasks task ON task.id = mapping.practice_task_id
+    WHERE assessment.learner_id = ? AND assessment.resolution = 'pending_verification'
+    ORDER BY CASE assessment.kind WHEN 'dispute' THEN 0 ELSE 1 END,
+             assessment.created_at DESC, mapping.sort_order ASC, task.id ASC
+    LIMIT 1
+  `).get(learnerId);
+  return assessment === undefined ? null : toNextEvidenceTask(assessment, "assessment_verification");
+}
+
+function toNextEvidenceTask(
+  row: {
+    readonly review_id: string;
+    readonly task_id: string;
+    readonly node_id: string;
+    readonly title: string;
+    readonly difficulty_band: string;
+  },
+  reasonCode: "due_review" | "assessment_verification",
+): { readonly reviewId: string; readonly task: PracticeTaskRef } {
+  return {
+    reviewId: row.review_id,
+    task: {
+      taskId: row.task_id,
+      nodeId: row.node_id,
+      title: row.title,
+      difficultyBand: DifficultyBandSchema.parse(row.difficulty_band),
+      reasonCodes: [reasonCode],
+    },
+  };
 }

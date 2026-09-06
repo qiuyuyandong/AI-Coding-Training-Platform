@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import {
   type EffortBoundaryMinutes,
+  type DailyMode,
   type PlanRevisionEventType,
   type SkipReasonCode,
 } from "@/lib/domain/plan";
@@ -18,6 +19,7 @@ export type ApplyFeedbackInput = {
   readonly reasonCode?: SkipReasonCode;
   readonly reasonText: string | null;
   readonly effortBoundaryMinutes?: EffortBoundaryMinutes;
+  readonly dailyMode?: DailyMode;
 };
 
 export type ApplyFeedbackResponse =
@@ -138,13 +140,16 @@ export function applyFeedback(
     || (
       input.effortBoundaryMinutes !== undefined
       && input.effortBoundaryMinutes !== currentSnapshot.effortBoundaryMinutes
-    );
+    )
+    || (input.dailyMode !== undefined && input.dailyMode !== currentSnapshot.dailyMode);
 
   const revisionEventType: PlanRevisionEventType | null = input.action === "skipped"
     ? "item_skipped"
     : input.effortBoundaryMinutes !== undefined
     && input.effortBoundaryMinutes !== currentSnapshot.effortBoundaryMinutes
     ? "effort_changed"
+    : input.dailyMode !== undefined && input.dailyMode !== currentSnapshot.dailyMode
+    ? "mode_changed"
     : null;
 
   const result = db.transaction((): ApplyFeedbackResponse => {
@@ -171,9 +176,9 @@ export function applyFeedback(
         beforeSnapshotId: currentSnapshot.id,
         localDate: currentSnapshot.localDate,
         effortBoundaryMinutes: nextEffort,
-        dailyMode: currentSnapshot.dailyMode,
+        dailyMode: input.dailyMode ?? currentSnapshot.dailyMode,
         eventType: revisionEventType,
-        inputFingerprint: `feedback:${input.action}:${input.planItemId}:${nextEffort}`,
+        inputFingerprint: `feedback:${input.action}:${input.planItemId}:${nextEffort}:${input.dailyMode ?? currentSnapshot.dailyMode}`,
         now,
         additionalRecentlySkippedTaskId:
           input.action === "skipped" ? item.practice_task_stable_id : undefined,

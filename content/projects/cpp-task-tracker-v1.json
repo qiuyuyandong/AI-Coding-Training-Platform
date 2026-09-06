@@ -1,0 +1,76 @@
+{
+  "stableId": "cpp-task-tracker",
+  "version": "1.0.0",
+  "title": "C++ Command-line Task Tracker",
+  "summary": "Grow one small task tracker from basic input and CRUD into a tested, persistent multi-file program, then handle an unfamiliar change request.",
+  "language": "C++17",
+  "milestones": [
+    {
+      "stableId": "basic-crud",
+      "title": "Basic input, output, and CRUD",
+      "outcome": "Create, list, complete, and remove in-memory tasks through a command-line menu.",
+      "unfamiliarChange": false,
+      "rubricVersion": "cpp-project-rubric-1",
+      "nodes": [
+        { "stableId": "cpp-io-types", "role": "primary" },
+        { "stableId": "cpp-control-flow-functions", "role": "supporting" }
+      ]
+    },
+    {
+      "stableId": "decompose-modules",
+      "title": "Functions, types, and modules",
+      "outcome": "Separate the task model, commands, and presentation behind small testable interfaces.",
+      "unfamiliarChange": false,
+      "rubricVersion": "cpp-project-rubric-1",
+      "nodes": [
+        { "stableId": "program-decomposition", "role": "primary" },
+        { "stableId": "cpp-containers", "role": "supporting" }
+      ]
+    },
+    {
+      "stableId": "search-priority",
+      "title": "Search, sort, and priority",
+      "outcome": "Search and order tasks, including a priority queue view with deterministic ties.",
+      "unfamiliarChange": false,
+      "rubricVersion": "cpp-project-rubric-1",
+      "nodes": [
+        { "stableId": "sorting-binary-search", "role": "primary" },
+        { "stableId": "stacks-queues", "role": "supporting" }
+      ]
+    },
+    {
+      "stableId": "persistence",
+      "title": "File persistence and recovery",
+      "outcome": "Save and restore tasks with explicit handling for missing or malformed data.",
+      "unfamiliarChange": false,
+      "rubricVersion": "cpp-project-rubric-1",
+      "nodes": [
+        { "stableId": "program-decomposition", "role": "primary" },
+        { "stableId": "debugging-testing", "role": "supporting" }
+      ]
+    },
+    {
+      "stableId": "tests-build-git",
+      "title": "Tests, build, Git, and documentation",
+      "outcome": "Provide repeatable build and test commands, boundary tests, a confirmed Git milestone, and concise usage documentation.",
+      "unfamiliarChange": false,
+      "rubricVersion": "cpp-project-rubric-1",
+      "nodes": [
+        { "stableId": "debugging-testing", "role": "primary" },
+        { "stableId": "git-build-workflow", "role": "primary" }
+      ]
+    },
+    {
+      "stableId": "recurring-tasks-change",
+      "title": "Unfamiliar change: recurring tasks",
+      "outcome": "Add recurring tasks without breaking persistence compatibility, explain the design trade-off, and prove it with tests.",
+      "unfamiliarChange": true,
+      "rubricVersion": "cpp-project-rubric-1",
+      "nodes": [
+        { "stableId": "program-decomposition", "role": "primary" },
+        { "stableId": "debugging-testing", "role": "primary" },
+        { "stableId": "git-build-workflow", "role": "supporting" }
+      ]
+    }
+  ]
+}

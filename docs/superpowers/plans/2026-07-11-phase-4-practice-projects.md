@@ -4,6 +4,14 @@
 dependencies are not complete. Do not execute this portfolio document until a
 post-V0.5 atomic plan is written and approved.
 
+**Offline implementation update (2026-09-07):** The later explicit code-only
+authorization supplied the required atomic acceleration plan and implemented
+the local project slice: shared tasks, six milestones, explicit corrected
+run/test facts, bounded artifacts, retention/deletion/export, rubric gates,
+session replacement and Phase 3 replay. Browser E2E, a real compiler/workspace,
+real OJ linkage, pilot evidence and release acceptance were intentionally not
+run. See `2026-09-07-v1-phase-1-4-offline-acceleration.md`.
+
 > **For agentic workers:** Use `superpowers:brainstorming` to freeze the first
 > project/evidence slice, `superpowers:writing-plans` for atomic tasks,
 > `superpowers:test-driven-development` during implementation, and

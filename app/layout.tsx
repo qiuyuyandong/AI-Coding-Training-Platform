@@ -2,8 +2,14 @@ import "./globals.css";
 import type { ReactNode } from "react";
 
 const links = [
+  ["Map", "/map"],
+  ["Resources", "/resources"],
+  ["Plan", "/plan"],
+  ["Today", "/today"],
   ["Problems", "/problems"],
   ["Training", "/training"],
+  ["Evidence", "/evidence"],
+  ["Projects", "/projects"],
   ["Coach", "/coach"],
   ["Growth", "/growth"],
   ["Sources", "/sources"],

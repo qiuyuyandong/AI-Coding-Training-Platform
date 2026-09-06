@@ -8,6 +8,7 @@ import {
   requireSameOrigin,
 } from "@/lib/http/captureRequest";
 import { applyFeedback } from "@/lib/api/planFeedback";
+import { DailyModeSchema } from "@/lib/domain/plan";
 
 /**
  * `POST /api/plans/items/[id]/feedback` — V0 plan-item feedback
@@ -66,6 +67,7 @@ const FeedbackBodySchema = z
     reasonCode: SkipReasonCodeSchema.optional(),
     reasonText: z.string().trim().min(1).max(2000).optional(),
     effortBoundaryMinutes: EffortBoundarySchema.optional(),
+    dailyMode: DailyModeSchema.optional(),
   })
   .strict();
 
@@ -144,6 +146,7 @@ export async function POST(
         reasonCode: body.reasonCode,
         reasonText: body.reasonText ?? null,
         effortBoundaryMinutes: body.effortBoundaryMinutes,
+        dailyMode: body.dailyMode,
       });
       if (!response.ok) {
         const status =

@@ -29,7 +29,15 @@ export const KnowledgeEdgeTypeSchema = z.enum([
 ]);
 export type KnowledgeEdgeType = z.infer<typeof KnowledgeEdgeTypeSchema>;
 
-export const PracticeKindSchema = z.enum(["oj", "manual_exercise"]);
+export const PracticeKindSchema = z.enum([
+  "oj",
+  "manual_exercise",
+  "implementation",
+  "debugging",
+  "variant",
+  "review",
+  "project_milestone",
+]);
 export type PracticeKind = z.infer<typeof PracticeKindSchema>;
 
 export const DifficultyBandSchema = z.enum([

@@ -227,10 +227,10 @@ Exit gate:
 | Phase | Capability outcome | First release that consumes it | Status | Detailed plan |
 |---|---|---|---|---|
 | 0 | Capture and analytics are safe, attributable and reproducible | Pre-V0 | Complete — 2026-07-17; AtCoder sole production adapter | [Phase 0](./2026-07-11-phase-0-reliability-baseline.md) |
-| 1 | Versioned common-foundation graph, career summaries and reviewed resources | V0 | V0 thin slice implemented; broader catalog expansion pending | [Phase 1](./2026-07-11-phase-1-curriculum-resource-catalog.md) |
-| 2 | Goal, diagnosis, bounded daily planning and replanning | V0 | V0 thin slice implemented; broader planning modes pending | [Phase 2](./2026-07-11-phase-2-goals-diagnosis-planning.md) |
-| 3 | Auditable evidence, five-level ability projection and review | V0 thin slice; V0.5 deepens | Minimal V0 ability projection implemented; full evidence/review pending | [Phase 3](./2026-07-11-phase-3-evidence-mastery-review.md) |
-| 4 | Editor-agnostic project practice, explicit run/test evidence and stage projects | V1 | Not started; future V1 work | [Phase 4](./2026-07-11-phase-4-practice-projects.md) |
+| 1 | Versioned common-foundation graph, career summaries and reviewed resources | V0 | Offline slice implemented, including Resources UI; broader catalog expansion pending | [Phase 1](./2026-07-11-phase-1-curriculum-resource-catalog.md) |
+| 2 | Goal, diagnosis, bounded daily planning and replanning | V0 | Offline slice implemented with five daily modes and review-aware replanning | [Phase 2](./2026-07-11-phase-2-goals-diagnosis-planning.md) |
+| 3 | Auditable evidence, five-level ability projection and review | V0 thin slice; V0.5 deepens | Offline evidence/review/L1-L5 implementation complete; real capture and pilot validation pending | [Phase 3](./2026-07-11-phase-3-evidence-mastery-review.md) |
+| 4 | Editor-agnostic project practice, explicit run/test evidence and stage projects | V1 | Offline project slice implemented; browser and manual toolchain validation pending | [Phase 4](./2026-07-11-phase-4-practice-projects.md) |
 | 5 | Provider-neutral default/BYOK AI coach with evidence citations | V0 experiment; V0.5/V1 deepen | V0 reflection experiment implemented; provider/BYOK/quota layer pending | [Phase 5](./2026-07-11-phase-5-byok-ai-coach.md) |
 | 6 | Windows pilot, backup/restore and heuristic calibration | Begins in V0; formal at V1 | V0 observation pending; formal V1 pilot not started | [Phase 6](./2026-07-11-phase-6-pilot-calibration.md) |
 | 7 | Accounts, cloud storage, hosted quota and public operations | Public Beta | Long-term target; entry gate not met | [Phase 7](./2026-07-13-phase-7-public-beta-cloud.md) |
@@ -259,6 +259,12 @@ flowchart TD
 
 Phase 0 is closed. Lightweight user observation is the current V0 gate; Phase 6
 is the later formal V1 pilot, not the first contact with users.
+
+The code-only Phase 1-4 acceleration executed under the explicit 2026-09-07
+authorization is recorded in
+[`2026-09-07-v1-phase-1-4-offline-acceleration.md`](./2026-09-07-v1-phase-1-4-offline-acceleration.md).
+It does not satisfy or bypass the browser, real-OJ, pilot, RC, release or cloud
+gates below.
 
 ## 8. Near-Term Execution Order
 

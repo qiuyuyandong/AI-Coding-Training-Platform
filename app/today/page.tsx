@@ -1,4 +1,5 @@
 import { EffortBoundarySelector } from "@/components/EffortBoundarySelector";
+import { DailyModeSelector } from "@/components/DailyModeSelector";
 import { PlanItemCompletionPanel } from "@/components/PlanItemCompletionPanel";
 import {
   TodayTaskPanel,
@@ -82,6 +83,12 @@ function TodayView({ payload }: { readonly payload: TodayPayload }) {
             available={EFFORT_VALUES}
           />
         </div>
+      </section>
+
+      <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="text-base font-semibold text-slate-950">今日模式</h2>
+        <p className="mt-1 text-xs text-slate-500">切换模式会保留历史快照并重新排序今日任务。</p>
+        <div className="mt-3"><DailyModeSelector planItemId={payload.primary.planItemId} current={payload.dailyMode} /></div>
       </section>
 
       <div className="mt-6">

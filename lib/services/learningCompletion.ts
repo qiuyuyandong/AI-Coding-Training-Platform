@@ -6,6 +6,7 @@ import { type AttemptResult, AttemptResultSchema } from "@/lib/domain/training";
 import { LOCAL_DEFAULT_LEARNER_ID } from "@/lib/domain/learner";
 import {
   type DailyMode,
+  DailyModeSchema,
   type PlanItemRole,
   PlanItemRoleSchema,
 } from "@/lib/domain/plan";
@@ -27,6 +28,8 @@ import {
 } from "@/lib/services/abilityProjector";
 import { explainLevel, type Explanation } from "@/lib/services/evidenceExplanation";
 import { regenerateDailyPlan } from "@/lib/services/planRegeneration";
+import { replayAttemptEvidence } from "@/lib/services/attemptEvidence";
+import { replayEvidenceAbility } from "@/lib/services/evidenceAbilityReplay";
 
 /**
  * V0 atomic plan-item completion service (Todo 15).
@@ -207,7 +210,7 @@ function loadPlanItemContext(
     practiceTaskId: item.practice_task_id,
     nodeId: item.node_id,
     role: PlanItemRoleSchema.parse(item.role),
-    dailyMode: z.enum(["learn", "practice", "recover"]).parse(item.daily_mode),
+    dailyMode: DailyModeSchema.parse(item.daily_mode),
     localDate: item.local_date,
     effortBoundaryMinutes: z.union([
       z.literal(15),
@@ -395,6 +398,8 @@ export function completePlanItem(
       createdAt: nowIso,
     });
 
+    replayAttemptEvidence(db, learnerId, attemptId);
+
     const mappingRows = listAttemptNodeMappings(db, learnerId);
     const previousSnapshots = collectPreviousSnapshots(db, learnerId);
 
@@ -463,9 +468,11 @@ export function completePlanItem(
       }
     }
 
+    replayEvidenceAbility(db, learnerId, nowIso);
+    const evidenceProjection = collectPreviousSnapshots(db, learnerId).get(context.nodeId);
     const explanation = buildExplanation(
-      projectionForNode.visibleLevel,
-      projectionForNode.confidence,
+      evidenceProjection?.visibleLevel ?? projectionForNode.visibleLevel,
+      evidenceProjection?.confidence ?? projectionForNode.confidence,
       transitionForNode,
     );
 

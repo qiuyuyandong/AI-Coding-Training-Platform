@@ -26,7 +26,7 @@ export const EffortBoundaryMinutesSchema = z.union([
 ]);
 export type EffortBoundaryMinutes = z.infer<typeof EffortBoundaryMinutesSchema>;
 
-export const DailyModeSchema = z.enum(["learn", "practice", "recover"]);
+export const DailyModeSchema = z.enum(["learn", "review", "practice", "build", "recover"]);
 export type DailyMode = z.infer<typeof DailyModeSchema>;
 
 export const PlanItemRoleSchema = z.enum([
@@ -60,6 +60,7 @@ export const PlanRevisionEventTypeSchema = z.enum([
   "goal_changed",
   "diagnosis_completed",
   "effort_changed",
+  "mode_changed",
   "item_skipped",
   "item_completed",
   "attempt_corrected",

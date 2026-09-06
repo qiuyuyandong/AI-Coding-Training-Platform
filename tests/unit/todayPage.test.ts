@@ -442,6 +442,29 @@ describe("POST /api/plans/items/[id]/feedback", () => {
     }
   });
 
+  it("creates a successor snapshot for each supported daily mode", async () => {
+    const route = await import("@/app/api/plans/items/[id]/feedback/route");
+    const response = await route.POST(
+      makeFeedbackRequest({ action: "accepted", dailyMode: "build" }),
+      { params: Promise.resolve({ id: primaryItemId }) },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { readonly snapshotId: string | null };
+    const db = openDatabase();
+    try {
+      const successor = db.prepare<[string], { readonly daily_mode: string }>(
+        "SELECT daily_mode FROM daily_plan_snapshots WHERE id = ?",
+      ).get(body.snapshotId ?? "");
+      expect(successor?.daily_mode).toBe("build");
+      const event = db.prepare<[string], { readonly event_type: string }>(
+        "SELECT event_type FROM plan_revision_events WHERE after_daily_plan_id = ?",
+      ).get(body.snapshotId ?? "");
+      expect(event?.event_type).toBe("mode_changed");
+    } finally {
+      db.close();
+    }
+  });
+
   it("does NOT create a successor snapshot when effort matches", async () => {
     const route = await import("@/app/api/plans/items/[id]/feedback/route");
     const response = await route.POST(

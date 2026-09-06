@@ -284,6 +284,8 @@ function BaselinesCard({
 
 const STAGE_LABELS: Readonly<Record<string, string>> = {
   learn: "学习",
+  review: "复习",
   practice: "练习",
+  build: "项目",
   recover: "恢复",
 };

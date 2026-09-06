@@ -38,7 +38,7 @@ export type TodayTaskPanelResourceLink = {
 
 export type TodayTaskPanelProps = {
   readonly planItemId: string;
-  readonly dailyMode: "learn" | "practice" | "recover";
+  readonly dailyMode: "learn" | "review" | "practice" | "build" | "recover";
   readonly effortBoundaryMinutes: 15 | 30 | 60 | 90;
   readonly nodeId: string;
   readonly nodeTitle: string;
@@ -52,7 +52,9 @@ export type TodayTaskPanelProps = {
 
 const DAILY_MODE_LABEL: Readonly<Record<TodayTaskPanelProps["dailyMode"], string>> = {
   learn: "学习",
+  review: "复习",
   practice: "练习",
+  build: "项目",
   recover: "恢复",
 };
 

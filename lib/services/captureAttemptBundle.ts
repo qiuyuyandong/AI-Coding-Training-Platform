@@ -11,6 +11,13 @@ import {
   type CaptureIngestResult,
   type CaptureIngestOptions,
 } from "@/lib/services/captureMaterializer";
+import { LOCAL_DEFAULT_LEARNER_ID } from "@/lib/domain/learner";
+import { getOrCreateLocalProfile } from "@/lib/repositories/learnerProfiles";
+import {
+  ensureAttemptNodeMappingsFromCatalog,
+  replayAttemptEvidence,
+} from "@/lib/services/attemptEvidence";
+import { replayEvidenceAbility } from "@/lib/services/evidenceAbilityReplay";
 
 export type CaptureAttemptBundleIngestOptions = CaptureIngestOptions;
 
@@ -50,6 +57,13 @@ export function ingestCaptureAttemptBundle(
       attemptStatus: verdictResult.attemptStatus,
       replayed,
     });
+    const now = options.now?.() ?? new Date().toISOString();
+    getOrCreateLocalProfile(db, { now: () => now });
+    ensureAttemptNodeMappingsFromCatalog(db, verdictResult.attemptId, now);
+    replayAttemptEvidence(db, LOCAL_DEFAULT_LEARNER_ID, verdictResult.attemptId, {
+      hasSubmissionSequence: true,
+    });
+    replayEvidenceAbility(db, LOCAL_DEFAULT_LEARNER_ID, now);
     return CaptureAttemptAckSchema.parse(ack);
   })();
 }

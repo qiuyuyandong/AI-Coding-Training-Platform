@@ -5,6 +5,14 @@ manual-attempt mapping, correction-aware `unassessed`/L1/L2 projection, and
 explanations. Full evidence events, code snapshots, L3–L5 verification, decay,
 and review scheduling remain future V0.5/V1 work and need a fresh delta plan.
 
+**Offline implementation update (2026-09-07):** The explicitly authorized
+code-only acceleration implements the append-only evidence model, E1-E4
+coverage, five outcomes, replay-safe L1-L5 projection, staleness, bounded
+review selection, assessment/dispute records and product views. Real capture,
+Playwright, Chrome, OJ and pilot calibration were intentionally not run, so the
+phase exit gate remains unclaimed. See
+`2026-09-07-v1-phase-1-4-offline-acceleration.md`.
+
 > **For agentic workers:** Use `superpowers:writing-plans` to expand the active slice, `superpowers:test-driven-development` during implementation, and `superpowers:verification-before-completion` at each release gate.
 
 **Goal:** Replace verdict counting with an auditable model that classifies one training session, projects `unassessed + L1–L5` capability levels, schedules verification/review, and explains every change.
