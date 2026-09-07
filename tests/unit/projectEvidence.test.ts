@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
@@ -17,6 +17,11 @@ import {
   completeProjectSessionEvidence,
   startDefaultProject,
 } from "@/lib/services/projectEvidence";
+import {
+  deleteProjectArtifactEvidence,
+  recordProjectArtifactEvidence,
+  recordProjectRunEvidence,
+} from "@/lib/services/projectEvidenceIntake";
 import { deleteStoredArtifact, storeFullArtifact } from "@/lib/services/snapshotStore";
 import { replayEvidenceAbility } from "@/lib/services/evidenceAbilityReplay";
 
@@ -238,6 +243,92 @@ describe("Phase 4 explicit project evidence", () => {
     expect(deleteStoredArtifact(directory, stored.reference)).toBe(true);
     expect(existsSync(stored.reference)).toBe(false);
   });
+
+  it("enforces the server-owned project capture mode", () => {
+    const db = openFixture();
+    const started = startDefaultProject(db, { captureMode: "minimal", now: "2026-09-07T04:00:00.000Z" });
+    expect(() => recordProjectArtifactEvidence(db, join(tmpdir(), "unused-evidence"), {
+      projectSessionId: started.sessionId,
+      kind: "snapshot",
+      purpose: "client escalation",
+      captureMode: "full",
+      relativePath: "src/main.cpp",
+      content: "int main() {}",
+      idempotencyKey: "capture-mode-escalation",
+      recordedAt: "2026-09-07T04:01:00.000Z",
+    })).toThrow(/cannot be elevated/u);
+    expect(count(db, "artifact_evidence")).toBe(0);
+  });
+
+  it("rolls back a run when its milestone status cannot be recorded", () => {
+    const db = openFixture();
+    const started = startDefaultProject(db, { captureMode: "basic", now: "2026-09-07T04:10:00.000Z" });
+    db.exec(`
+      CREATE TRIGGER fail_working_milestone BEFORE INSERT ON project_milestones
+      WHEN NEW.status = 'working' BEGIN SELECT RAISE(ABORT, 'injected milestone failure'); END;
+    `);
+    expect(() => recordProjectRunEvidence(db, {
+      projectSessionId: started.sessionId,
+      kind: "build",
+      result: "passed",
+      exitCode: 0,
+      diagnostics: null,
+      provenance: "user_entered",
+      supersedesResultId: null,
+      idempotencyKey: "rollback-run",
+      recordedAt: "2026-09-07T04:11:00.000Z",
+    })).toThrow(/injected milestone failure/u);
+    expect(count(db, "explicit_run_results")).toBe(0);
+  });
+
+  it("removes a newly written snapshot when database persistence fails", () => {
+    const db = openFixture();
+    const directory = mkdtempSync(join(tmpdir(), "phase4-compensation-"));
+    directories.push(directory);
+    const started = startDefaultProject(db, { captureMode: "full", now: "2026-09-07T04:20:00.000Z" });
+    db.exec(`CREATE TRIGGER fail_artifact BEFORE INSERT ON artifact_evidence BEGIN SELECT RAISE(ABORT, 'injected artifact failure'); END;`);
+    expect(() => recordProjectArtifactEvidence(db, directory, {
+      projectSessionId: started.sessionId,
+      kind: "snapshot",
+      purpose: "failure compensation",
+      captureMode: "full",
+      relativePath: "src/main.cpp",
+      content: "int main() { return 1; }",
+      idempotencyKey: "rollback-artifact",
+      recordedAt: "2026-09-07T04:21:00.000Z",
+    })).toThrow(/injected artifact failure/u);
+    expect(count(db, "artifact_evidence")).toBe(0);
+    expect(existsSync(directory)).toBe(true);
+    expect(readDirectoryFiles(directory)).toEqual([]);
+  });
+
+  it("restores snapshot bytes when soft deletion fails", () => {
+    const db = openFixture();
+    const directory = mkdtempSync(join(tmpdir(), "phase4-delete-compensation-"));
+    directories.push(directory);
+    const started = startDefaultProject(db, { captureMode: "full", now: "2026-09-07T04:30:00.000Z" });
+    const saved = recordProjectArtifactEvidence(db, directory, {
+      projectSessionId: started.sessionId,
+      kind: "snapshot",
+      purpose: "delete compensation",
+      captureMode: "full",
+      relativePath: "src/main.cpp",
+      content: "int main() { return 2; }",
+      idempotencyKey: "delete-artifact",
+      recordedAt: "2026-09-07T04:31:00.000Z",
+    });
+    if (saved.artifact.reference === null) throw new Error("Stored snapshot reference is missing");
+    db.exec(`CREATE TRIGGER fail_artifact_delete BEFORE UPDATE OF deleted_at ON artifact_evidence BEGIN SELECT RAISE(ABORT, 'injected delete failure'); END;`);
+    expect(() => deleteProjectArtifactEvidence(db, directory, {
+      projectSessionId: started.sessionId,
+      artifactId: saved.artifact.id,
+      deletedAt: "2026-09-07T04:32:00.000Z",
+    })).toThrow(/injected delete failure/u);
+    expect(readFileSync(saved.artifact.reference, "utf8")).toBe("int main() { return 2; }");
+    expect(db.prepare<[string], { readonly deleted_at: string | null }>(
+      "SELECT deleted_at FROM artifact_evidence WHERE id = ?",
+    ).get(saved.artifact.id)?.deleted_at).toBeNull();
+  });
 });
 
 function openFixture(): Database.Database {
@@ -260,4 +351,8 @@ function count(db: Database.Database, table: string): number {
   return db.prepare<[], { readonly count: number }>(
     `SELECT COUNT(*) AS count FROM ${table}`,
   ).get()?.count ?? 0;
+}
+
+function readDirectoryFiles(directory: string): readonly string[] {
+  return existsSync(directory) ? readdirSync(directory).sort() : [];
 }

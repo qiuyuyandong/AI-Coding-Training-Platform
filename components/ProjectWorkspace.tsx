@@ -94,7 +94,7 @@ export function ProjectWorkspace(props: ProjectWorkspaceProps) {
           </button>
         </section>
       ) : (
-        <EvidencePanel active={active} busy={busy} setBusy={setBusy} setStatus={setStatus} />
+        <EvidencePanel active={active} busy={busy} setActive={setActive} setBusy={setBusy} setStatus={setStatus} />
       )}
 
       {status.length > 0 ? <p role="status" className="mt-4 text-sm text-slate-700">{status}</p> : null}
@@ -105,11 +105,13 @@ export function ProjectWorkspace(props: ProjectWorkspaceProps) {
 function EvidencePanel({
   active,
   busy,
+  setActive,
   setBusy,
   setStatus,
 }: {
   readonly active: ActiveProject;
   readonly busy: boolean;
+  readonly setActive: (value: ActiveProject) => void;
   readonly setBusy: (value: boolean) => void;
   readonly setStatus: (value: string) => void;
 }) {
@@ -128,7 +130,7 @@ function EvidencePanel({
   });
   const [replacementReason, setReplacementReason] = useState("");
 
-  async function postEvidence(body: Readonly<Record<string, unknown>>): Promise<void> {
+  async function postEvidence(body: Readonly<Record<string, unknown>>): Promise<boolean> {
     setBusy(true);
     try {
       const response = await fetch(`/api/projects/sessions/${active.sessionId}/evidence`, {
@@ -136,10 +138,28 @@ function EvidencePanel({
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const result: { readonly ok: boolean; readonly error?: string } = await response.json();
-      setStatus(result.ok ? "证据已保存。" : result.error ?? "证据保存失败");
+      const result: {
+        readonly ok: boolean;
+        readonly error?: string;
+        readonly runResult?: ActiveProject["runResults"][number];
+        readonly artifact?: ActiveProject["artifacts"][number];
+      } = await response.json();
+      if (!result.ok) {
+        setStatus(result.error ?? "证据保存失败");
+        return false;
+      }
+      if (result.runResult !== undefined) {
+        setActive({ ...active, runResults: [result.runResult, ...active.runResults.filter((item) => item.id !== result.runResult?.id)] });
+        setSupersedesResultId("");
+      }
+      if (result.artifact !== undefined) {
+        setActive({ ...active, artifacts: [result.artifact, ...active.artifacts.filter((item) => item.id !== result.artifact?.id)] });
+      }
+      setStatus("证据已保存。");
+      return true;
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "证据保存失败");
+      setStatus(error instanceof Error ? `网络错误：${error.message}` : "网络错误：证据保存失败");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -172,8 +192,9 @@ function EvidencePanel({
   }
 
   async function deleteArtifact(artifactId: string): Promise<void> {
-    await postEvidence({ action: "delete_artifact", artifactId });
-    window.location.reload();
+    if (await postEvidence({ action: "delete_artifact", artifactId })) {
+      setActive({ ...active, artifacts: active.artifacts.filter((artifact) => artifact.id !== artifactId) });
+    }
   }
 
   async function exportEvidence(): Promise<void> {
@@ -192,6 +213,8 @@ function EvidencePanel({
       anchor.click();
       URL.revokeObjectURL(url);
       setStatus("证据元数据已导出；未包含原始快照内容或本地绝对路径。");
+    } catch (error) {
+      setStatus(error instanceof Error ? `网络错误：${error.message}` : "网络错误：导出失败");
     } finally {
       setBusy(false);
     }
@@ -209,6 +232,8 @@ function EvidencePanel({
       const result: { readonly ok: boolean; readonly error?: string } = await response.json();
       if (result.ok) window.location.reload();
       else setStatus(result.error ?? "替换会话失败");
+    } catch (error) {
+      setStatus(error instanceof Error ? `网络错误：${error.message}` : "网络错误：替换会话失败");
     } finally {
       setBusy(false);
     }

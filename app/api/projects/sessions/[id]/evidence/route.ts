@@ -8,13 +8,10 @@ import {
   requireSameOrigin,
 } from "@/lib/http/captureRequest";
 import {
-  deleteArtifactEvidence,
-  confirmProjectSessionMilestoneStatus,
-  recordArtifactEvidence,
-  recordExplicitRunResult,
-} from "@/lib/repositories/projectPractice";
-import { prepareArtifactEvidence } from "@/lib/services/artifactIntake";
-import { deleteStoredArtifact, storeFullArtifact } from "@/lib/services/snapshotStore";
+  deleteProjectArtifactEvidence,
+  recordProjectArtifactEvidence,
+  recordProjectRunEvidence,
+} from "@/lib/services/projectEvidenceIntake";
 
 const RunSchema = z.object({
   action: z.literal("run"),
@@ -56,7 +53,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     try {
       const now = new Date().toISOString();
       if (parsed.data.action === "run") {
-        const saved = recordExplicitRunResult(db, {
+        const saved = recordProjectRunEvidence(db, {
           projectSessionId: sessionId,
           kind: parsed.data.kind,
           result: parsed.data.result,
@@ -67,25 +64,19 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
           idempotencyKey: parsed.data.idempotencyKey,
           recordedAt: now,
         });
-        confirmProjectSessionMilestoneStatus(db, {
-          projectSessionId: sessionId,
-          status: parsed.data.kind === "test" && parsed.data.result === "passed" ? "tested" : "working",
-          confirmedAt: now,
-        });
         return NextResponse.json({ ok: true, ...saved });
       }
       const storageRoot = join(dirname(db.name), ".training-evidence");
       if (parsed.data.action === "delete_artifact") {
-        const row = db.prepare<[string, string], { readonly reference: string | null }>(`
-          SELECT reference FROM artifact_evidence
-          WHERE id = ? AND project_session_id = ? AND deleted_at IS NULL
-        `).get(parsed.data.artifactId, sessionId);
-        if (row === undefined) return NextResponse.json({ ok: false, error: "Artifact not found" }, { status: 404 });
-        if (row.reference !== null && row.reference.endsWith(".snapshot")) deleteStoredArtifact(storageRoot, row.reference);
-        deleteArtifactEvidence(db, parsed.data.artifactId, now);
+        const deleted = deleteProjectArtifactEvidence(db, storageRoot, {
+          projectSessionId: sessionId,
+          artifactId: parsed.data.artifactId,
+          deletedAt: now,
+        });
+        if (!deleted) return NextResponse.json({ ok: false, error: "Artifact not found" }, { status: 404 });
         return NextResponse.json({ ok: true });
       }
-      const prepared = prepareArtifactEvidence({
+      const saved = recordProjectArtifactEvidence(db, storageRoot, {
         projectSessionId: sessionId,
         kind: parsed.data.kind,
         purpose: parsed.data.purpose,
@@ -95,16 +86,6 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
         reference: parsed.data.reference,
         idempotencyKey: parsed.data.idempotencyKey,
         recordedAt: now,
-      });
-      const stored = parsed.data.captureMode === "full"
-        && (parsed.data.kind === "snapshot" || parsed.data.kind === "diff")
-        ? storeFullArtifact(storageRoot, prepared, parsed.data.content ?? "")
-        : prepared;
-      const saved = recordArtifactEvidence(db, stored);
-      confirmProjectSessionMilestoneStatus(db, {
-        projectSessionId: sessionId,
-        status: "refined",
-        confirmedAt: now,
       });
       return NextResponse.json({ ok: true, ...saved });
     } finally {
