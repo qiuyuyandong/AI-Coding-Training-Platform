@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-08-25 (Route H D0-D5 implemented locally; D6 candidate freeze next; D7 live READY, RC, and release remain unauthorized)
+Last updated: 2026-09-07 (Phase 1-4 offline evidence/project implementation added; no new Chrome, OJ, D4, RC or release evidence)
 
 ## Overview
 
@@ -202,8 +202,11 @@ storage API continue initialization instead of crashing. Content scripts receive
 only installation ID, capture-enabled state, and provenance. `installationId`
 remains a logical correlation value. A separate random bearer capability
 authorizes writes and is bound to that ID by the app-side hash record outside
-the Vault. Explicit web origins are rejected, but Origin is defense in depth
-rather than identity.
+the Vault. Explicit web origins are rejected. For the authenticated `GET
+/api/capture/status` probe, a missing `Origin` is accepted only after canonical
+localhost and bearer-capability checks; when present, it must equal the fixed
+extension Origin. `POST` capture routes and `OPTIONS` retain the exact-origin
+requirement. Origin is defense in depth rather than identity.
 
 Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (`extension/src/platforms.ts`) with three status levels: `production`, `experimental`, `disabled`. Readiness is evidence metadata and does not branch the runtime detector. AtCoder is the sole `production` adapter; LeetCode, NowCoder, Codeforces, and Luogu remain `experimental`. Domestic problem routes stay strict. LeetCode accepts exact `/submissions/detail/<id>` and `/problems/<slug>/submissions/<id>` routes. It also accepts the restored `/problems/<slug>/` URL as exact-result-equivalent only when the unique first-party `#submission-detail_tab` is inside the official tabbar, currently selected, visible, and exposes a recognized final verdict. The current UI's duplicate `console-result` panes are collapsed when identical and rejected when conflicting; transient detail chrome such as `提交详情` is ignored. NowCoder `view-submission?submissionId=<id>` and Luogu `/record/<id>` continue to require one unique, visible, bounded first-party problem anchor. No adapter scans the whole `body`. Authenticated characterization and the real LeetCode TLE recovery improve runtime evidence but do not bypass the public-DOM production certification gate.
 
@@ -213,8 +216,11 @@ Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (
 |---|---|
 | `/` | Landing navigation for the local app. |
 | `/sources` | Source registry overview. |
+| `/resources` | Reviewed learning-resource catalog with access, license and stopping guidance. |
 | `/problems` | Metadata-only problem catalog entry point. |
 | `/training` | Opens original OJ problem links and shows capture/attempt status panels. |
+| `/evidence` | E1-E4 conclusions, L1-L5 projections, timeline, snapshots, due reviews and assessments. |
+| `/projects` | Explicit editor-agnostic project sessions, run/test facts, artifacts, rubric and milestones. |
 | `/coach` | Deterministic local Coach summary, signals, and recommendations. |
 | `/growth` | Local attempt counts, rates, distribution, and recent activity. |
 | `/compliance` | Product compliance boundaries. |
@@ -229,12 +235,19 @@ Platform adapter readiness is tracked in a formal `PLATFORM_ADAPTERS` registry (
 | `POST /api/capture/connect/status` | Polls only the bounded challenge state; never returns a capability. |
 | `POST /api/capture/events` | Authenticates the Route H installation, validates a bounded V2 event, and atomically saves the raw event plus deterministic projection. |
 | `POST /api/capture/attempts` | Authenticates the Route H installation, validates one strict completed-attempt bundle, and atomically writes all four raw events plus the final projection. |
-| `GET /api/capture/status` | Returns the fixed authenticated connection/service health shape to the extension. |
+| `GET /api/capture/status` | Returns the fixed authenticated connection/service health shape; requires canonical localhost + bearer capability, and checks exact extension Origin only when an Origin header is present. |
 | `GET /api/attempts/recent` | Returns explicitly limited materialized attempts, optionally scoped by `platform` and `externalId` query parameters. |
 | `POST /api/attempts` | Creates one manual attempt and assigns its source on the server. |
 | `PATCH /api/attempts/:id` | Corrects whitelisted business fields with optimistic revision checking and a required reason. |
 | `GET /api/attempts/:id/corrections` | Returns lightweight scalar correction history, including void history. |
 | `POST /api/attempts/:id/void` | Logically voids an attempt with idempotent replay semantics. |
+| `POST /api/evidence/assessments` | Records self-rating/dispute context without directly editing ability. |
+| `POST /api/evidence/reviews/:id/complete` | Completes one open review item. |
+| `POST /api/projects` | Installs and starts the versioned local project template. |
+| `POST /api/projects/sessions/:id/evidence` | Records or corrects explicit run/test facts and selected artifacts. |
+| `POST /api/projects/sessions/:id/complete` | Applies the rubric, closes a milestone and advances the project. |
+| `POST /api/projects/sessions/:id/replace` | Cancels and replaces the current session at the same milestone. |
+| `POST /api/projects/sessions/:id/export` | Exports bounded evidence metadata without raw snapshot bytes or absolute paths. |
 | `GET /api/problems` | Lists local problem metadata. |
 | `POST /api/problems/seed` | Local development helper that seeds the small problem catalog. |
 | `GET /api/sources` | Lists local source metadata. |
@@ -251,6 +264,11 @@ The SQLite schema is defined by migrations under `lib/db/migrations`.
 | `training_sessions` | One logical problem-page session; `ended_at` is nullable because `SESSION_ENDED` is best effort. |
 | `training_attempts` | One current attempt row. Captured rows retain session/submission identity; manual rows have no synthetic capture identity. Source, revision, and optional void metadata are stored directly. |
 | `attempt_corrections` | One scalar old/new row per actually changed field, grouped by correction ID and reason. It is audit metadata, never another attempt. |
+| `learning_evidence_events`, `training_session_summaries` | Append-only facts plus deterministic outcome, E1-E4 coverage, reasons and unresolved facts. |
+| `code_snapshot_refs`, `review_items`, `learner_assessments` | Dedicated snapshot retention, bounded next-evidence work and learner context. |
+| `ability_snapshots`, `evidence_ability_transitions` | Current L1-L5 view and replay-safe evidence-cited transitions. |
+| `project_templates`, `learner_projects`, `project_practice_sessions` | Versioned project definition and explicit learner/session lifecycle. |
+| `explicit_run_results`, `artifact_evidence`, `project_milestones`, `rubric_assessments` | Correctable run facts, selected artifacts, milestone history and evidence-cited rubric. |
 
 Raw event insertion and projection run in the same SQLite transaction. Event identity is content-sensitive: the same `eventId` and fingerprint is an idempotent replay, while the same `eventId` with a different payload is a conflict. Verdicts may arrive before submissions, multiple submissions remain distinct within one session, and a missing session-end event is valid.
 
@@ -279,6 +297,12 @@ Migration `0005_attempt_manual_corrections.sql` rebuilds only `training_attempts
 - `lib/services/growthStats.ts` combines full-dataset SQL aggregates with a separately bounded recent-activity list.
 - `lib/services/manualAttempts.ts` creates manual attempts without fabricating capture sessions or submissions.
 - `lib/services/attemptCorrections.ts` validates the correction whitelist and owns transactional current-value/history writes plus idempotent voiding.
+- `lib/services/trainingOutcomeClassifier.ts`, `evidenceAbilityProjector.ts`, and
+  `evidenceAbilityReplay.ts` separate session outcomes from capability and move
+  levels one step per new evidence set.
+- `lib/services/projectEvidence.ts`, `artifactIntake.ts`, and `snapshotStore.ts`
+  own project progression, explicit artifact validation and dedicated local
+  snapshot bytes.
 - `tests/helpers/luoguFixtureMetadata.ts` owns the canonical `EvidenceTier` type, Zod fixture-metadata schema, and deterministic directory loading for the Luogu DOM fixture corpus.
 
 Pages should not duplicate Coach/Growth decision logic. They should read attempts, call the service, render the returned model, and close the database.
@@ -464,11 +488,11 @@ deliverable. `tests/unit/extensionV4Isolation.test.ts` pins owner-only request
 interpretation, platform-namespaced submission IDs, durable-state isolation,
 terminal readiness coverage, and absence of synthetic Fake OJ registry claims.
 
-## Phase D reliability, privacy, and candidate freeze (2026-08-04, D1/D2/D3 engineering complete)
+## Phase D reliability, privacy, and candidate freeze (2026-08-04 historical baseline; D1/D2/D3 engineering complete)
 
 Phase D D1, D2, and D3 candidate engineering are complete on
 `feature/v1-followup` under the standalone plan
-[`plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`](../superpowers/plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md).
+[`plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md`](superpowers/plans/2026-08-03-v4-phase-d-upgrade-restart-update-rollback-reliability.md).
 The implementation candidate is
 `509faf0e60532cf565a6a57aa796b96bc1053f38`
 (`feat(v4): harden Phase D capture reliability`); the documentation-reconciled
@@ -491,9 +515,9 @@ evidence only, not RC, acceptance, or release.
   restarts, paused retries, and disabled installs.
   `tests/extension-e2e/capture-v4-upgrade.spec.ts` exercises the
   same-build chain end-to-end. Evidence:
-  [`../../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md`](../../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md)
+  [`../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md`](../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md)
   and the user-authorized disposable Chromium observation
-  [`../../work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md`](../../work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md).
+  [`../work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md`](../work/reports/v4-phase-d-d1-c-disposable-observation-2026-08-03.md).
 - **D2 privacy/permission** — `scripts/audit-v4-extension-privacy.mjs`
   is a 35-case AST/wrapper audit that rejects every forbidden-key path
   (raw fields, body, code, headers, token, account, any depth, alias and
@@ -502,11 +526,12 @@ evidence only, not RC, acceptance, or release.
   (`tests/unit/v4ExtensionPrivacyAudit.test.ts`) and the manifest/dist
   link check pass with `0 findings`. Independent privacy review returned
   `APPROVE`. Evidence:
-  [`../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md`](../../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md).
+  [`../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md`](../work/reports/v4-phase-d-d2-privacy-permission-audit-2026-08-03.md).
 - **D3 candidate freeze** — `scripts/validate-v4-candidate.mjs` and the
-  14-case `tests/unit/v4CandidateValidator.test.ts` form the immutable
-  candidate gate. `CANDIDATE_ALLOWED_PATHS` (35 paths) is the explicit
-  task-owned whitelist; `GENERATED_OR_SECRET_PATH` and
+  22-case `tests/unit/v4CandidateValidator.test.ts` form the immutable
+  candidate gate. `CANDIDATE_ALLOWED_PATHS` is the explicit cumulative
+  task-owned whitelist (the current candidate owns 133 paths);
+  `GENERATED_OR_SECRET_PATH` and
   `RAW_TRANSCRIPT_PATH` reject generated dist, secret/env files, and raw
   transcripts; the runtime check rejects `lastCaptureError` drift and
   stale click-runtime symbols; `database.metadata-preserved` and
@@ -520,9 +545,37 @@ evidence only, not RC, acceptance, or release.
   confirmed. Independent D3 review returned `APPROVE` with no HIGH or
   MEDIUM findings.
 
-### Cross-project capture-chain repair (2026-08-24)
+### Active status-GET repair and candidate refreeze (2026-08-30)
 
-The active immutable product candidate is
+The minimum cross-layer repair for `connection_preflight` is now implemented in
+the authenticated status probe. `GET /api/capture/status` still requires the
+canonical localhost host and the installation bearer capability; it permits a
+missing `Origin` because the browser-controlled extension fetch may omit that
+header, while an explicit Origin must match the fixed extension ID. `OPTIONS`
+and capture-write routes remain exact-origin guarded. The change is limited to
+the status GET handler and focused regressions.
+
+The product fix and D8-A evidence were committed at `fd49a8f`. An initial exact
+candidate attempt failed closed before the quality gate because six cumulative
+D7-R4 reports were absent from the explicit ownership list. Those six paths
+were added individually, without a wildcard, in validator-only commit
+`ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`, which is the current immutable
+product candidate. Exact validation passed with root `2607/1`, App E2E `24/24`,
+extension unit `1671/1671`, extension E2E `55/1`, build PASS, privacy `0
+findings`, adapter readiness PASS and preserved default-database metadata.
+The exact dist is `.tmp/v4-route-h-exact-dist-ee0e1f5`; its strict receipt is
+`.tmp/v4-route-h-candidate-receipt-ee0e1f5.json` with SHA-256
+`A46B79F64F4A9373D134EA918D67959BBECDD89172B7EB37B4DC7E4706188E7C`.
+
+The previously authorized `D8-A-2026-08-30-LC1` action opportunity was
+consumed before observer arm and produced no OJ page, click, submission or
+NowCoder run. No current-`yu` preparation or action ran after the refreeze;
+D4, RC, release, push and PR remain separately stopped. Evidence is recorded in
+`work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md`.
+
+### Historical cross-project capture-chain repair (2026-08-24; superseded 2026-08-30)
+
+The superseded immutable product candidate was
 `34916705712cac1ef2e5d8816cd8e40fa4e29ca7`. It adds persistence-bound ingress
 ACKs, a bounded in-memory FIFO retry queue, re-entrant single-flight
 initialization, documentId-only recovery, canonical endpoint enforcement,
@@ -595,7 +648,7 @@ manifest change, no adapter policy change.
 
 The event-driven revival was superseded by an exact, restart-safe candidate
 coordinator (implementation `a9515a8`; plan
-[`plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`](../superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md)):
+[`plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`](superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md)):
 a bounded `TransientVerdictCandidate` slice in session storage, candidate
 registration and E2 confirmation serialized through the existing background
 orchestrator, and a pure coordinator
@@ -621,4 +674,4 @@ waiting=1, no bundle, no `POST /api/capture/attempts`, empty SQLite. Required
 before further code changes: a new RED test for same-problem repeat
 submissions with a residual result panel, then a written plan revision.
 A 10th real observation is required to confirm end-to-end delivery. Plan:
-[`plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`](../superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md).
+[`plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md`](superpowers/plans/2026-08-06-v4-phase-d-d4-e3-candidate-coordinator-repair.md).

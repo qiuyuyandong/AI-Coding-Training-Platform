@@ -124,6 +124,21 @@ Coach and Growth analysis remains local-only:
 - recommendations cite local attempt IDs as evidence and do not infer hidden platform state;
 - no external LLM, cloud analytics service, or third-party API receives attempts, verdicts, reflections, code, cookies, or platform session data.
 
+## Explicit Evidence and Project Practice
+
+- Project evidence is created only by a learner-entered result or explicitly
+  pasted, previewed artifact; the app does not scan repositories, terminals,
+  editors, environment variables, command history, saves or keystrokes.
+- `.env*`, key files, unsupported/binary paths, parent/absolute paths,
+  oversized content and secret-like values are rejected before persistence.
+- Full mode stores bounded selected bytes in a dedicated local content-addressed
+  store; basic keeps hash/shape, and minimal keeps structured results only.
+- Evidence export omits snapshot bytes and local absolute paths. Deletion marks
+  database references deleted and removes retained full bytes.
+- Self-rating and disputes remain pending context and cannot directly assign an
+  ability level. E1 results cannot create L3-L5, and project evidence reaches
+  ability only through the replayable evidence projector.
+
 ## Phase 0C2 Manual Records and Corrections
 
 - the server assigns `capture` or `manual` from the write entry point; the label is provenance metadata, not security identity;
@@ -147,7 +162,7 @@ Verdict capture keeps using the browser session without extracting the browser s
 
 SPA observation uses URL/browser lifecycle signals and visible DOM mutations only; it does not patch page code, read hidden routing state, or add Chrome navigation permissions. Extension unit tests cover SPA decisions, while Playwright validates the downstream event sequence without claiming to load the unpacked MV3 extension.
 
-Authenticated localhost transport uses one settings-page click, a 60-second single-use challenge, and an install-scoped 256-bit bearer capability. The raw capability stays in trusted extension storage; the app keeps only its hash in OS user configuration outside the active Vault. Missing, wrong, or stale Bearer authorization is rejected before capture-body parsing or SQLite access. Exact localhost host and extension Origin checks remain defense in depth, not extension identity. The accepted boundary does not claim to defeat a malicious extension that can inject into the allowed settings page; host filesystem/browser-profile compromise also remains outside this local boundary. `installationId` is correlation metadata rather than authorization.
+Authenticated localhost transport uses one settings-page click, a 60-second single-use challenge, and an install-scoped 256-bit bearer capability. The raw capability stays in trusted extension storage; the app keeps only its hash in OS user configuration outside the active Vault. Missing, wrong, or stale Bearer authorization is rejected before capture-body parsing or SQLite access. Exact localhost host checks remain mandatory. Capture-write routes and `OPTIONS` require the exact extension Origin; the authenticated `GET /api/capture/status` health probe accepts a missing Origin only after host and bearer checks, while an explicit Origin must match the fixed extension Origin. Origin remains defense in depth, not extension identity. The accepted boundary does not claim to defeat a malicious extension that can inject into the allowed settings page; host filesystem/browser-profile compromise also remains outside this local boundary. `installationId` is correlation metadata rather than authorization.
 
 ## Phase 0D CI and Quality Gate Databases
 

@@ -38,55 +38,33 @@
 
 # Agent Handoff Guide
 
-> **Current status (2026-08-29 Route H yu Chrome R4 READY-only PASS; no action):**
-> The approved installation-level Local Vault revision is offline-complete at
-> D6. Immutable Route H candidate
-> `0c23fcacf18d2fe4113d803504e638c1aab887d3` passed the exact validator with
-> root `2599/1`, App E2E `24/24`, extension `1671/1671`, extension E2E `55/1`,
-> build `20/20`, privacy `0 findings`, readiness/profile PASS and preserved
-> default-database metadata. Exact dist is
-> `.tmp/v4-route-h-exact-dist-0c23fca`; receipt is
-> `.tmp/v4-route-h-candidate-receipt-0c23fca.json` with SHA-256
-> `4EDA9DDD9FFB4311EDEA32B0D60DFEA34D54D07766E1490C02DB4B04582F9AEE`.
-> D8-A-R R0-R3 initially froze observation-tool hash `7C649473...CA80E` and
-> acceptance-profile hash `64455AC1...C61A9`. Route H removes visible pairing,
-> keeps the raw hidden
-> installation capability only in trusted extension storage, stores only its
-> hash outside each Vault, and preserves historical provenance while writing new
-> capture as `extension_local`. D7 ran sequential fresh-profile READY-only on
-> LeetCode `merge-two-sorted-lists` and NowCoder `acm/contest/18839/1001`;
-> both returned `OBSERVER_ARMED=1`, `BROWSE_ONLY=1`, `READY=1`,
-> `ACTION_AUTHORIZED=0` with isolated DB `0/0/0`. No click or submission ran.
-> The first D8-A failed before any observer stage. The user then bound all future
-> real submissions to the current remote-debug Chrome `yu` profile, authorized
-> the root-cause revision and granted one new LeetCode-only action after R4.
-> R0-R3 passed. R4 loaded the exact extension into `yu`, completed the localhost
-> Route H connection and wrote receipt SHA-256 `7E3DFABF...B0C410` at DB
-> `0/0/0`, but the preparation process did not exit after
-> `CONNECTION_PREPARED=1`. The private Playwright client close left the CDP
-> transport alive. R4 failed its clean proxy-handback gate; READY and R5 did not
-> run, no OJ page/click/submission or NowCoder run occurred, and DB stayed
-> `0/0/0`. The user later authorized only the minimum lifecycle repair. Commit
-> `f3c710c` now uses public `await browser.close()` and adds a regression that
-> forbids private `_connection.close()` and `context.close()` in the CDP branch.
-> RED was `1 failed / 54 passed`; GREEN was `55/55`; syntax, lint, typecheck,
-> privacy `0 findings`, acceptance/readiness validators and diff check pass.
-> A fresh localhost-only `--prepare-connection=true` run exited normally in
-> about 41 seconds while original Chrome PID `37492` and port 9222 remained
-> alive; DB stayed `0/0/0`, no OJ evidence existed, proxy was restored and the
-> default DB is unchanged. New tool hash is `CE6D4CFC...363DD`; profile,
-> candidate receipt, candidate and exact dist remain unchanged. Both historical
-> D8-A authorizations remain consumed. The user then separately authorized one
-> `yu` Chrome LeetCode `merge-two-sorted-lists` READY-only run. Fresh identity
-> `r4-ready-yu-leetcode-0c23fca` returned `OBSERVER_ARMED=1`,
-> `BROWSE_ONLY=1`, `READY=1`, `ACTION_AUTHORIZED=0`; schema 3 evidence is
-> `ready_only / browse_only`, SHA `4ABB251B...9E84CC`, and DB remained `0/0/0`.
-> No action flag, click, submission or NowCoder run occurred. Chrome PID stayed
-> `37492`, proxy was restored, localhost stopped, root pointer removed and
-> default DB unchanged. R4 READY-only PASS does not deliver D4. Any real action
-> needs a new separately named D8-A with at most one submission and an
-> unconditional stop. RC, release, push and PR remain stopped. Evidence report:
-> `work/reports/v4-phase-d-r4-yu-leetcode-ready-only-2026-08-29.md`.
+> **Current development status (2026-09-07):** Phase 1-4 offline acceleration
+> is committed and pushed at `c7b2c23`. The authorized continuation lives on
+> `codex/offline-theoretical-v1` and is governed by
+> `docs/superpowers/plans/2026-09-07-offline-theoretical-v1-hardening-ai-operations.md`.
+> It may harden Phase 1-4, add an observer-only native CDP relay, implement the
+> offline-tested on-demand AI contract, and add Local Vault backup/diagnostics.
+> Only `theoretical-ready` may be claimed. Real Chrome/OJ/provider/Windows,
+> pilot, RC, release and PR validation remain separate and unauthorized.
+
+> **Current status (2026-08-31; status GET refreeze evidence is dated 2026-08-30; no real action):**
+> Route H Local Vault D0-D7/R0-R4 is offline-complete. The minimum status-GET
+> repair and all D8-A evidence were committed at `fd49a8f`; the first exact
+> candidate attempt failed closed before the quality gate because six cumulative
+> D7-R4 reports were not explicitly owned. Those six paths were added one by
+> one, without a wildcard, in validator-only commit
+> `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`, the current immutable product
+> candidate. Exact validation passed with root `2607/1`, App E2E `24/24`,
+> extension `1671/1671`, extension E2E `55/1`, build PASS, privacy `0 findings`,
+> readiness PASS and preserved default-database metadata. Exact dist is
+> `.tmp/v4-route-h-exact-dist-ee0e1f5`; strict receipt SHA-256 is
+> `A46B79F64F4A9373D134EA918D67959BBECDD89172B7EB37B4DC7E4706188E7C`.
+> The previously authorized `D8-A-2026-08-30-LC1` action opportunity was
+> consumed before observer arm; no OJ page, click, submission or NowCoder run
+> occurred. No current-`yu` preparation or action ran after the refreeze. D4,
+> RC, release, push and PR remain stopped. The former candidate `0c23fca` and
+> its receipts are historical only. Evidence report:
+> `work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md`.
 >
 > **Prior status (2026-08-24 capture candidate frozen; new READY pending):**
 > The cross-project capture-chain repair is frozen at immutable product
@@ -383,7 +361,7 @@
   - Every authoritative gate command exits 0. Real platforms remain
     uncharacterized for V4 network capture; B3 later adds only a NowCoder
     browse-only navigation witness.
-- V4 Phase D D1, D2, and D3 candidate engineering (commits
+- Historical V4 Phase D D1, D2, and D3 candidate engineering baseline (commits
   `509faf0` and the documentation-reconciled `78ac9c7` / `78ac9c73`):
   - D1 reliability: `extension/src/{background,installation,popup,outboxDrain,transport,attemptStorage}.ts`
     harden upgrade/restart/pause/recovery and surface a closed
@@ -399,10 +377,11 @@
     discovers 0 findings on the candidate sources. The 68-case focused
     product privacy suite and the manifest/dist link check pass with
     `0 findings`. Independent privacy review returned `APPROVE`.
-  - D3 candidate: `scripts/validate-v4-candidate.mjs` plus the 14-case
-    `tests/unit/v4CandidateValidator.test.ts` form the immutable
-    candidate gate. `CANDIDATE_ALLOWED_PATHS` (35 paths) is the explicit
-    task-owned whitelist; `GENERATED_OR_SECRET_PATH` and
+  - D3 candidate: `scripts/validate-v4-candidate.mjs` plus the 22-case
+  `tests/unit/v4CandidateValidator.test.ts` form the immutable
+  candidate gate. `CANDIDATE_ALLOWED_PATHS` is the explicit cumulative
+  task-owned whitelist (the current candidate owns 133 paths);
+  `GENERATED_OR_SECRET_PATH` and
     `RAW_TRANSCRIPT_PATH` reject generated dist, secret/env files, and
     raw transcripts; the runtime check rejects `lastCaptureError` drift
     and stale click-runtime symbols; `database.metadata-preserved` and
@@ -508,18 +487,20 @@ These are current implementation boundaries, not a permanent rejection of the ap
 ## Current handoff
 
 - Current immutable capture candidate:
-  `0c23fcacf18d2fe4113d803504e638c1aab887d3` (Route H exact validator PASS;
-  root `2599/1`, App E2E `24/24`, extension `1671/1671`, extension E2E
-  `55/1`, build `20/20`, privacy `0 findings`, default database preserved).
-  Exact dist is `.tmp/v4-route-h-exact-dist-0c23fca`; receipt is
-  `.tmp/v4-route-h-candidate-receipt-0c23fca.json`. Observation-tool hash is
-  `309B3772...22C35`; profile hash is `D8C348F1...3225`. D7 READY-only passed
-  sequentially for LeetCode and NowCoder with `ACTION_AUTHORIZED=0` and both
-  isolated databases `0/0/0`. D8-A's LeetCode-only action attempt failed before
-  observer READY/action authorization with DB `0/0/0`; no click or submission
-  occurred and NowCoder did not run. That authorization is consumed. D4
-  delivery, further real actions, RC, release, push and PR remain stopped.
-  Candidate `3491670` is superseded historical evidence.
+  `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0` (Route H exact validator PASS;
+  root `2607/1`, App E2E `24/24`, extension `1671/1671`, extension E2E
+  `55/1`, build PASS, privacy `0 findings`, readiness PASS, default database
+  preserved). The minimum status-GET repair and all D8-A evidence were
+  committed at `fd49a8f`; the first exact candidate attempt failed closed before
+  the quality gate because six cumulative D7-R4 reports were not explicitly
+  owned. Those six exact paths were added in validator-only `ee0e1f5`, with no
+  wildcard. Exact dist is `.tmp/v4-route-h-exact-dist-ee0e1f5`; strict receipt
+  is `.tmp/v4-route-h-candidate-receipt-ee0e1f5.json`. D7/R4 READY-only passed
+  without action and the separately authorized D8-A action opportunity was
+  consumed before observer arm with DB `0/0/0`; no OJ page/click/submission or
+  NowCoder ran. No current-`yu` preparation or action ran after the refreeze.
+  D4 delivery, further real actions, RC, release, push and PR remain stopped.
+  Candidate `0c23fca` and its receipts are superseded historical evidence.
 - Historical P0A contract alignment and P1 LeetCode offline RED/GREEN completed on 2026-08-16 after explicit user
   acceptance of `ISOLATED` as the replacement D4 minimum. The machine contract
   is `authorized_for_offline_work_only`; LeetCode remains network-`experimental`.

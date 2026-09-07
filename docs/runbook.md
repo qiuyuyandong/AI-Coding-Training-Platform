@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-08-11 (V4 Phase D D1-D3 complete on immutable candidate `a911425a415db2ee374430ced62edcaa7b786866`; D4 final delivery observed but contemporaneous stage evidence incomplete; D5 stopped; no final user acceptance, RC, or release; the earlier Phase C C0-C5 and Phase C-D readiness contract remain authoritative)
+Last updated: 2026-08-31 (evidence through 2026-08-30; Route H status GET repair and D8-A evidence committed; immutable candidate `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0` exact validator PASS; D8-A action opportunity consumed before observer arm; no OJ submission, D4, RC, release, push or PR)
 
 ## Setup
 
@@ -14,6 +14,27 @@ The default development database is `training-platform.sqlite`. Set `TRAINING_DB
 Problem identities are normalized before persistence and lookup. Use the platform's external ID rather than a full URL: for example `two-sum`, `1915A`, `abc350_a`, or `P1000`. Training lookup is problem-scoped even when many newer attempts exist. Growth totals are all-time SQL aggregates, while its visible activity list is the latest five and Coach is the latest 50.
 
 Training, Growth, and Coach use active attempts by default. A voided row remains in SQLite with its reason and correction history but is excluded from those views.
+
+### Offline evidence and project practice
+
+- `/resources` lists the installed reviewed curriculum resources.
+- `/evidence` shows E1-E4 conclusions, current L1-L5 projections, due reviews,
+  snapshot references and pending self-assessment/dispute context.
+- `/today` supports learn, review, practice, build and recover modes; a due
+  review occupies at most one task slot and one primary task remains.
+- `/projects` starts the local C++ task-tracker template. Enter build/test facts
+  manually, optionally paste one bounded artifact after preview, score the
+  rubric, and confirm the milestone. Replacing a session keeps the same
+  milestone; completing one advances to the next.
+- Full artifacts store only explicitly pasted bytes in the dedicated local
+  evidence directory beside the selected database. Basic stores hash/shape;
+  minimal stores structured results. Delete removes the retained bytes and
+  marks both references deleted. Export omits snapshot bytes and absolute paths.
+
+The offline verification set is `npm run lint`, disposable `npm run db:migrate`,
+`npm run curriculum:validate`, `npm run test`, `npm run typecheck`, and a
+disposable `npm run build`. This set does not launch Chrome or establish real
+OJ/project-runtime behavior.
 
 ## Development
 
@@ -90,10 +111,17 @@ Outbox delivery is serialized by bundle. Network errors and 401/403 preserve eve
 
 The supported domestic problem routes are `leetcode.cn/problems/<slug>`, `www.nowcoder.com/practice/<id>`, `ac.nowcoder.com/acm/problem/<id>`, and `www.luogu.com.cn/problem/<id>`. Exact result routes are also injected for passive detection: LeetCode `/problems/<slug>/submissions/<digits>/` and `/submissions/detail/<digits>/`, NowCoder `/acm/contest/view-submission?submissionId=<digits>`, and Luogu `/record/<digits>`. The NowCoder E3 ingress gate additionally requires the exact pathname without a trailing slash, an `https://` origin, no credentials, no non-default port, no hash, exactly one `submissionId` query key with `[0-9]{1,20}` decimal digits, and the top frame; the gate lives in `extension/src/contentIngress.ts:isExactNowCoderResultUrl` and the producer in `extension/src/background.ts:applyContentIngress`. LeetCode may restore `/problems/<slug>/` while retaining the selected submission-detail tab; that surface is accepted only when it is the unique visible selected tab in the first-party tabbar and contains a recognized final verdict. Duplicate identical verdict panes are collapsed, conflicts are rejected, and transient labels such as `提交详情` remain pending. Runtime checks reject malformed IDs, extra query/hash data, spoofed hosts, ambiguous anchors, and hidden or overlong title text. Sanitized `authenticated-characterization` fixtures cover LeetCode AC, NowCoder AC, and Luogu AC/Compile Error; they never certify production.
 
+The authenticated `GET /api/capture/status` health probe requires canonical
+localhost and the installation bearer capability. A missing `Origin` is
+accepted for this GET only because the browser-controlled extension fetch may
+omit it; when an Origin header is present it must equal the fixed extension
+origin. `OPTIONS` and capture-write routes retain their exact-origin checks.
+
 ### Route H READY preparation contract
 
-This describes the frozen tooling contract; it does not authorize D7 or any OJ
-navigation. For each future authorized lane, run `extension:observe:d4` once
+This describes the frozen tooling contract; it does not authorize a new D8-A
+action or any OJ navigation. For each separately authorized lane, run
+`extension:observe:d4` once
 with the exact candidate/dist/receipt/hash arguments and
 `--prepare-connection=true`. That mode creates one fresh fixed profile, opens
 only the local settings page, performs the one-click Route H connection, proves
@@ -278,9 +306,10 @@ or first-party protocol change.
 
 The Phase D D3 candidate validator
 (`scripts/validate-v4-candidate.mjs`) is the gate that binds an immutable
-implementation candidate to its full quality gate result. Use it against
-the current documentation-reconciled HEAD before any D4 authorization
-decision:
+implementation candidate to its full quality gate result. The current
+immutable product candidate is `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`;
+use the validator against a clean candidate commit before any new D4
+authorization decision:
 
 ```powershell
 node scripts/validate-v4-candidate.mjs --candidate <full-sha>
@@ -296,7 +325,7 @@ any default-database `Length` / `LastWriteTimeUtc` mutation. The
 preflight mode (`--preflight`) requires an explicit `--db-length` and
 `--db-last-write-time-utc` snapshot of the developer's
 `training-platform.sqlite`; the candidate mode takes the full SHA and
-reruns the real `npm run quality:gate`. The validator's 14-case unit
+reruns the real `npm run quality:gate`. The validator's 22-case unit
 suite (`tests/unit/v4CandidateValidator.test.ts`) freezes the rejected
 inputs the same way the gate does, including the explicit `lastCaptureError`
 drift and stale click-runtime symbol checks.
@@ -308,6 +337,19 @@ short SHA returns `candidate.is-head` failure. There is no operator
 flag for the gate exit code or extension E2E count; the validator
 parses the final Extension E2E summary from the real `npm run
 quality:gate` output.
+
+The 2026-08-30 refreeze first failed closed before the quality gate because six
+cumulative D7-R4 reports were not in the explicit ownership list. The six
+paths were added individually, without a wildcard, in validator-only commit
+`ee0e1f5`. The clean candidate gate then exited 0 with root `2607/1`, App E2E
+`24/24`, extension unit `1671/1671`, extension E2E `55/1`, build PASS, privacy
+`0 findings`, adapter readiness PASS and preserved default-database metadata.
+Its exact dist is `.tmp/v4-route-h-exact-dist-ee0e1f5`; the strict receipt is
+`.tmp/v4-route-h-candidate-receipt-ee0e1f5.json` with SHA-256
+`A46B79F64F4A9373D134EA918D67959BBECDD89172B7EB37B4DC7E4706188E7C`.
+The D8-A action opportunity was already consumed before observer arm; no
+current-`yu` preparation, OJ page, click, submission or NowCoder run followed.
+See `work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md`.
 
 ## Recovery
 

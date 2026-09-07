@@ -210,8 +210,10 @@ launcher 在操作系统用户配置目录保存一个小型、非秘密的原�
 
 - `POST /api/capture/attempts`、兼容 events route 和 extension status route
   在读取 capture body、打开 SQLite 前校验 Bearer。
-- Host、method、content type、body size、CORS 与精确 extension Origin 继续
-  失败关闭；Origin mismatch 可统一拒绝，但不得作为 credential 的替代。
+- Host、method、content type 与 body size 继续失败关闭。Capture-write routes
+  和 `OPTIONS` 继续要求精确 extension Origin；authenticated status GET 只在
+  Origin 明确存在时校验该精确值，缺失 Origin 仍必须通过 canonical localhost
+  与 Bearer capability。Origin mismatch 可拒绝，但不得作为 credential 的替代。
 - 正确 Bearer + sanitized Bundle 只执行现有事务式 ingest；错误、缺失、旧
   version 或已旋转 Bearer 均零写入。
 - 浏览器页面使用同源设置端点；extension status 只返回固定协议、连接和服务
@@ -1210,3 +1212,98 @@ project，因此 R0 记录为 `SENTRY_UNAVAILABLE_NO_LOCAL_AUTH`，不创建 tok
   OJ、click、submission 或 NowCoder。
 - 重冻报告：
   `work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md`。
+
+### 23.12 新候选 exact-extension replacement preparation 授权（2026-09-01）
+
+- 用户明确授权在当前 `yu` Chrome 中卸载旧 exact dist
+  `.tmp/v4-route-h-exact-dist-0c23fca`，随后加载新候选
+  `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0` 的冻结 exact dist
+  `.tmp/v4-route-h-exact-dist-ee0e1f5`。
+- 修改前必须只读证明固定 ID `oldmkbngfokmhlkjmlichccmbebipmei` 恰好存在一项、
+  已启用且规范路径精确绑定旧 exact dist；任一条件不满足立即停止且不修改扩展。
+- 只允许删除上述唯一旧绑定并加载上述唯一新路径；加载结果与最终唯一绑定的扩展 ID
+  必须仍为固定 ID。若 ID 变化、重复、禁用或路径不精确，立即停止，不尝试其他包、
+  ID、enable/disable 或 Chrome UI 修复。
+- 卸载导致 installation identity、capture capability 或 extension storage 轮换在本轮
+  被明确允许；证据只能保留闭合判断或哈希/版本，不得输出原始 installation identity、
+  capability、credential、storage、profile/account 数据或其他扩展信息。
+- 成功绑定后只允许启动 localhost/disposable zero DB，使用现有 runner 的
+  `--prepare-connection=true` 完成 Route H 连接并写一个新候选有界 connection receipt；
+  profile/DB/receipt 使用新身份 `r5-ready-yu-leetcode-ee0e1f5`，不得覆盖旧候选 receipt。
+- 本轮禁止 READY、OJ 页面、action authorization、observer arm、click、submission、
+  NowCoder、D4 聚合、RC、release、push 与 PR。无论成功失败都关闭 runner-owned 页面、
+  停止 localhost、删除 root pointer、恢复 web-access proxy，并验证数据库零计数、默认库
+  与冻结 candidate receipt 不变后立即停止。
+- 实际执行 PASS：旧绑定在修改前满足固定 ID 唯一、启用、精确旧路径三项条件；随后
+  `Extensions.uninstall` 与 `Extensions.loadUnpacked` 各调用一次，最终固定 ID 不变且
+  唯一、启用、精确绑定新 exact dist。没有重试扩展 mutation。
+- replacement session 最后的 `/json/version` HTTP 存活探针因该端点不可用而错误退出 1；
+  它发生在新绑定全部通过之后。立即只读重连 CDP 与 PID/9222 复核均通过，因此该探针
+  不构成 Chrome 或 binding 失败，也未触发第二次卸载/加载。
+- 新身份 `r5-ready-yu-leetcode-ee0e1f5` 的 disposable DB 为 `0/0/0`。runner 只带
+  `--prepare-connection=true` 运行并 exit 0，输出 `CONNECTION_PREPARED=1`。新 receipt
+  SHA-256 为 `F6EA6D18...A9A3A5F`；固定 extension ID、candidate、candidate receipt、
+  五项 artifact、connected 与零数据库合同全部通过。
+- installation identity 与 capability version 相对旧 receipt 均发生了用户允许的轮换；
+  未保留或输出原始 identity/capability/credential/storage。旧 receipt、candidate receipt
+  与默认数据库逐字节不变。
+- 收尾后 localhost 停止、port 3000 空闲、root pointer 删除、proxy READY、Chrome PID
+  `45404`/9222 存活；没有新 READY/action evidence、OJ 页面、observer arm、click、
+  submission 或 NowCoder。证据报告：
+  `work/reports/v4-phase-d-d8a-2026-09-01-new-candidate-extension-preparation.md`。
+- 离线收口通过 D4 acceptance-profile、adapter-readiness、plan-authority validators、
+  plan-authority unit `3/3` 与 `git diff --check`；无产品代码、extension、runner、候选、
+  dependency、push 或 PR 变更。
+
+### 23.13 新候选 LeetCode R5 READY-only 授权与 CDP 阻断（2026-09-01）
+
+- 用户明确授权新候选 `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0` 的一次
+  LeetCode READY-only，要求复用 `r5-ready-yu-leetcode-ee0e1f5`、现有零数据库与
+  新 connection receipt；真实 action authorization、click、submission 与 NowCoder
+  仍未授权。
+- 运行前候选 ancestry、观察工具/acceptance-profile、candidate/connection receipts、
+  五项 exact-dist artifacts、`yu` profile、默认数据库与 R5 数据库 `0/0/0` 全部匹配；
+  该身份不存在既有 READY/action evidence。冻结 observer-contract 文件没有工作树漂移。
+- 唯一 runner invocation 未携带 `--authorize-action` 或
+  `--execute-authorized-action`。localhost 只完成 root/status warm-up；runner 在获得
+  browser context 前以 `browserType.connectOverCDP: Timeout 30000ms exceeded` exit 1。
+- 失败阶段为环境级 `CDP_CONNECT_BLOCKED`：没有打开 extension popup 或 LeetCode，
+  没有 observer arm，也没有 `OBSERVER_ARMED / BROWSE_ONLY / READY` 或 action markers；
+  没有 READY/failure evidence、click、submission 或 NowCoder。不得将其裁决为产品
+  READY failure，也未静默重试。
+- localhost 已停止、port 3000 已释放、root pointer 已删除、runner 已退出；R5 DB 仍为
+  `0/0/0`，candidate/connection receipts 与默认数据库逐字节不变，Chrome PID
+  `45404`/9222 存活。
+- web-access proxy 已重启并监听 3456，但 `/targets` 健康请求仍等待 Chrome 的可见
+  remote-debugging 授权而超时；用户点击“允许”后才能复核 proxy READY。该动作只恢复
+  工具，不会重跑 READY-only 或访问 OJ。
+- 本次单次授权已终止。proxy 健康恢复后，任何 READY-only 重跑都需要新的明确授权；
+  真实提交仍需另一份独立授权。证据报告：
+  `work/reports/v4-phase-d-r5-yu-leetcode-ready-only-cdp-connect-blocked-2026-09-01.md`。
+
+### 23.14 用户允许后 R5 续跑与 observer compatibility 根因（2026-09-01）
+
+- 用户在 Chrome 接受 remote-debugging prompt 后回复“已允许。继续”，明确恢复同一
+  candidate/R5 identity/零数据库/receipt 的一次 READY-only 续跑；未扩展 action、click、
+  submission 或 NowCoder 范围。
+- web-access proxy 先达到真实 READY。候选 ancestry、观察工具/acceptance-profile、
+  candidate/connection receipts、五项 exact-dist artifacts、R5 DB `0/0/0`、默认数据库、
+  3000/root pointer 与 evidence absence 全部再次通过。
+- 第二次 runner invocation 仍未带任何 action flag，并在完全相同的
+  `browserType.connectOverCDP` 位置等待 30 秒后 exit 1；依旧没有 browser context、popup、
+  LeetCode、observer arm、READY/action marker、evidence、click、submission 或 NowCoder。
+  禁止第三次重复调用。
+- 根因已从一般环境阻断缩小为 observer transport compatibility：本机 Chrome
+  `151.0.7922.175` 没有传统 `--remote-debugging-port` 启动参数，9222/DevToolsActivePort
+  来自 M144+ `chrome://inspect/#remote-debugging` 按需模式；仓库固定 Playwright
+  `1.53.1`。Playwright 官方 issue #40027 记录该模式下 `connectOverCDP()` 不兼容及同类
+  30 秒初始化超时。相同 Chrome endpoint 上，Node-native raw-CDP proxy 可连接且
+  `/targets` 返回 200，进一步排除用户未允许、端口不可达、产品 READY 与 LeetCode 根因。
+- 第二次收尾后 localhost 停止、3000 空闲、root pointer 删除、runner 退出、R5 DB
+  `0/0/0`、candidate/connection receipts 与默认数据库不变；Chrome PID `45404`/9222
+  存活，web-access proxy 已恢复 `connected` 且 `/targets` HTTP 200。
+- 下一方向不得继续重跑。推荐单独评审 observer-only compatibility repair：保持产品候选、
+  exact dist、receipt、隐私与 READY evidence 合同不变，只替换/适配 current-`yu` Chrome
+  的连接 transport，增加 M144+ 按需调试回归并重冻 observation-tool hash。该修复尚未授权。
+  备选是显式重启当前 `yu` Chrome 使用传统 debugging flag，但会影响用户浏览器生命周期，
+  风险更高且同样未授权。真实提交仍未授权。

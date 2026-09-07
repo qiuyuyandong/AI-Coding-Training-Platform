@@ -1,16 +1,23 @@
 # Superpowers Documentation Index
 
-> **Current status (2026-08-16):** The user accepted `ISOLATED` as the
-> replacement D4 minimum; P0A alignment and P1 LeetCode offline RED/GREEN are
-> complete, and P2 NowCoder non-regression passes without a NowCoder production
-> change. The machine contract is `authorized_for_offline_work_only`; P3 is
-> next. P1 proves the ActionEpoch/result-root runtime branch offline but does
-> not create a live D4 claim. Candidate freeze, live observation, D5/F1-F4,
-> RC, release, push, and PR remain unauthorized. Historical Route A facts stay
-> authoritative for their own runs but cannot satisfy the new contract. Plans:
-> [`plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md`](plans/2026-08-16-v4-phase-d-d4-platform-specific-acceptance-rescue.md)
-> and
-> [`plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`](plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md).
+> **Current status (2026-08-31; refreeze evidence is dated 2026-08-30):** Route H D0-D7/R0-R4 is offline-complete.
+> The minimum status-GET repair and all D8-A evidence were committed at
+> `fd49a8f`; the first exact candidate attempt failed closed before the quality
+> gate because six cumulative D7-R4 reports were not explicitly owned. Those
+> six paths were added individually, without a wildcard, in validator-only
+> commit `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`, the current immutable
+> product candidate. Exact validation passed with root `2607/1`, App E2E
+> `24/24`, extension `1671/1671`, extension E2E `55/1`, build PASS, privacy
+> `0 findings`, adapter readiness PASS and preserved default-database metadata.
+> Exact dist is `.tmp/v4-route-h-exact-dist-ee0e1f5`; strict receipt SHA-256 is
+> `A46B79F64F4A9373D134EA918D67959BBECDD89172B7EB37B4DC7E4706188E7C`.
+> The previously authorized D8-A action opportunity was consumed before
+> observer arm; no current-`yu` preparation, OJ page, click, submission or
+> NowCoder run followed. D4, D5, RC, release, push and PR remain stopped.
+> Active plan:
+> [`plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md`](plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md);
+> evidence:
+> [`../../work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md`](../../work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md).
 >
 > **Historical status (2026-08-09):** **V4 Phase D D1, D2, and D3 candidate engineering
 > work is complete** on `feature/v1-followup` (candidate `509faf0e60532cf565a6a57aa796b96bc1053f38`;
@@ -72,6 +79,10 @@
 
 The completed repair implementation record is
 [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md).
+The current code-only Phase 1-4 acceleration and its offline validation record
+is [`plans/2026-09-07-v1-phase-1-4-offline-acceleration.md`](plans/2026-09-07-v1-phase-1-4-offline-acceleration.md).
+It does not authorize or claim Chrome, real-OJ, pilot, RC, release or cloud
+validation.
 The completed execution entry is:
 [`plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`](plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md).
 The V0 closeout plan remains blocked:
@@ -96,11 +107,12 @@ the Phase D product candidate or authorize production service monitoring.
 1. [`../../IDEA.md`](../../IDEA.md) — product definition, adopted decisions, V0/V0.5/V1/Public Beta scope.
 2. [`plans/2026-07-11-product-development-roadmap.md`](plans/2026-07-11-product-development-roadmap.md) — active release/Phase map and exit gates.
 3. [`plans/2026-07-24-v4-network-confirmed-capture-refactor-master.md`](plans/2026-07-24-v4-network-confirmed-capture-refactor-master.md) — active V4 phase hierarchy and gates.
-4. [`plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`](plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md) — completed execution entry; removes click-only waiting before network evidence work. Phase A awaits separate authorization.
-5. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — blocked V0 observation and closeout checklist.
-6. [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md) — completed historical V3 repair and real-browser validation record.
-7. [`plans/2026-07-21-v0-bilingual-user-interface.md`](plans/2026-07-21-v0-bilingual-user-interface.md) — approved but deferred post-V0 implementation plan.
-8. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — earlier domestic-OJ repair implementation record.
+4. [`plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md`](plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md) — active Route H plan, status-GET repair and candidate-refreeze entry.
+5. [`plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md`](plans/2026-07-24-v4-network-confirmed-capture-refactor-phase-0-click-ingress-stopgap.md) — completed execution entry; removes click-only waiting before network evidence work. Phase A awaits separate authorization.
+6. [`plans/2026-07-18-v0-closeout-observation-final-verification.md`](plans/2026-07-18-v0-closeout-observation-final-verification.md) — blocked V0 observation and closeout checklist.
+7. [`plans/2026-07-21-v0-verdict-gated-capture-repair.md`](plans/2026-07-21-v0-verdict-gated-capture-repair.md) — completed historical V3 repair and real-browser validation record.
+8. [`plans/2026-07-21-v0-bilingual-user-interface.md`](plans/2026-07-21-v0-bilingual-user-interface.md) — approved but deferred post-V0 implementation plan.
+9. [`plans/2026-07-20-v0-domestic-oj-capture-stabilization.md`](plans/2026-07-20-v0-domestic-oj-capture-stabilization.md) — earlier domestic-OJ repair implementation record.
 
 The completed B3 lifecycle record is
 [`plans/2026-07-27-v4-phase-b-b3-restart-safe-navigation-witness.md`](plans/2026-07-27-v4-phase-b-b3-restart-safe-navigation-witness.md).
@@ -129,7 +141,7 @@ and closes terminally `V4_BLOCKED`, with evidence at
 [`../../work/reports/v4-luogu-c4-blocker-2026-08-02.md`](../../work/reports/v4-luogu-c4-blocker-2026-08-02.md).
 C5 closes Phase C isolation/scaffolding work, with evidence at
 [`../../work/reports/v4-phase-c-c5-closeout-2026-08-02.md`](../../work/reports/v4-phase-c-c5-closeout-2026-08-02.md).
-Phase D D1, D2, and D3 candidate engineering are complete (candidate
+Historical Phase D D1, D2, and D3 candidate engineering are complete (baseline candidate
 `509faf0e60532cf565a6a57aa796b96bc1053f38`; documentation-reconciled HEAD
 `78ac9c73fbfe3359dab0044d82e52cc36abd7b12`). D1 evidence:
 [`../../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md`](../../work/reports/v4-phase-d-d1-upgrade-reliability-2026-08-03.md)
@@ -154,14 +166,18 @@ P0A C0 alignment completed through
 and its template-derived
 [`plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md`](plans/2026-08-16-v4-leetcode-d4-readiness-contract-alignment.md).
 P1-P7 and their F1 repair history remain evidence for their own candidates.
-The active repair entry is now
-[`plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md`](plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md):
-observer compatibility is frozen at `9cf7926`, and the repaired immutable
-product candidate is `34916705712cac1ef2e5d8816cd8e40fa4e29ca7` with exact
-D3 PASS, exact dist, receipt and preserved default database. Old-candidate
-LeetCode and NowCoder READY-only lanes passed without action; new-candidate
-READY-only remains separately gated. Development-only Sentry exception tooling
-is governed independently by ADR 0003 and the
+The 2026-08-23 cross-project repair entry is historical:
+[`plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md`](plans/2026-08-23-v4-phase-d-cross-project-capture-chain-reliability-repair.md)
+recorded observer compatibility at `9cf7926`. Its product candidate
+`34916705712cac1ef2e5d8816cd8e40fa4e29ca7` is superseded by the status-GET
+repair candidate `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`; the old candidate's
+dist, receipt and READY-only evidence remain historical. The current active
+plan is
+[`plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md`](plans/2026-08-24-v4-phase-d-local-vault-no-pairing-revision.md)
+and its exact refreeze evidence is
+[`../../work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md`](../../work/reports/v4-phase-d-d8a-2026-08-30-status-get-candidate-refreeze.md).
+Development-only Sentry exception tooling is governed independently by ADR
+0003 and the
 [`2026-08-24 plan`](plans/2026-08-24-development-only-sentry-error-tooling.md);
 it does not amend the frozen extension candidate. D4, D5, real actions, formal
 V0 observation, RC, release and V0.5 remain stopped. The total product target

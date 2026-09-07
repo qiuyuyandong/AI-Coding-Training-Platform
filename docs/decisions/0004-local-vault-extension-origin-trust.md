@@ -2,7 +2,7 @@
 
 - Status: Accepted for local V0/V1
 - Date: 2026-08-24
-- Amended: 2026-08-25 after the exact-Origin P1 stop
+- Amended: 2026-08-30 after the status-GET contract repair
 
 ## Context
 
@@ -86,10 +86,13 @@ metadata, logs, reports, URLs or repository files.
 ## Capture request boundary
 
 `POST /api/capture/attempts`, the compatibility events route, and the
-authenticated status route require the valid bearer before opening SQLite or
-parsing a capture body. Host, method, content type, size, CORS and exact
-extension Origin remain fail-closed defense in depth, but documentation and
-code must not label Origin as authentication.
+authenticated `GET /api/capture/status` route require the valid bearer before
+opening SQLite or parsing a capture body. Host, method, content type and size
+remain fail-closed. Capture writes and `OPTIONS` require the exact extension
+Origin. The status GET health probe accepts a missing `Origin` only after the
+canonical localhost and bearer checks because the browser-controlled extension
+fetch may omit that header; an explicit Origin must equal the fixed extension
+Origin. Origin remains defense in depth, not authentication.
 
 The old pairing-code routes and UI are removed. Existing credential hashing,
 constant-time verification, installation identity, rotation semantics,

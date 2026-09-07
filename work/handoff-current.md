@@ -1,5 +1,148 @@
 # Current Handoff
 
+## Status (2026-09-07 offline-theoretical V1 implementation authorized)
+
+The Phase 1-4 acceleration is committed and pushed at
+`c7b2c237ebc7d98df14772e83712f1a8ac876b5e`. Work continues on branch
+`codex/offline-theoretical-v1` under
+`docs/superpowers/plans/2026-09-07-offline-theoretical-v1-hardening-ai-operations.md`.
+The active scope is Phase 1-4 correctness hardening, an observer-only native
+CDP relay, an on-demand provider-neutral AI layer, and Local Vault backup,
+restore, diagnostics, and opt-in local metrics. Only offline and synthetic
+browser/provider evidence is authorized. Real Chrome/OJ/provider/Windows,
+pilot, RC, release and PR work remain outside the scope.
+
+Project status now has three independent levels: `theoretical-ready`,
+`runtime-validated`, and `release-ready`. Passing the first allows later code
+development but never implies either real-runtime validation or release.
+
+## Historical status (2026-09-07 Phase 1-4 code-only acceleration implemented)
+
+Under the explicit code-only authorization, the resulting commit contains the
+offline Phase 1-4 expansion: Resources and five daily modes; append-only
+evidence, E1-E4 coverage, five outcomes, review/assessment flows and replay-safe
+L1-L5 projection; and an editor-agnostic six-milestone C++ project with
+correctable run/test facts, explicit artifacts, full/basic/minimal retention,
+deletion/export, rubric gates, session replacement and automatic milestone
+progression. The active implementation plan is
+`docs/superpowers/plans/2026-09-07-v1-phase-1-4-offline-acceleration.md` and the
+evidence report is
+`work/reports/v1-phase-1-4-offline-acceleration-2026-09-07.md`.
+
+Offline validation passes: lint, disposable migrations, curriculum validation,
+typecheck, production build, full Vitest `120` files / `2623` passed / `1`
+pre-existing Windows symlink capability skip, plus `6` focused scheduler cases.
+No Playwright, Chrome, extension E2E, READY-only, OJ page/click/submission,
+compiler workspace, external model, PR, RC or release ran for that acceleration.
+The implementation was later committed and pushed as `c7b2c23`; the original
+report's uncommitted `90aec3c` snapshot is historical timing, not current Git
+state.
+
+## Status (2026-09-01 R5 continuation repeats CDP blocker; root cause isolated)
+
+After the user accepted Chrome's remote-debugging prompt, the web-access proxy
+reached READY. The user's `已允许。继续` authorized one continuation under the
+same candidate `ee0e1f5`, R5 identity/zero DB/receipt and READY-only boundary;
+real action and NowCoder remained unauthorized.
+
+The complete frozen preflight passed again. A second runner invocation without
+action flags nevertheless timed out at the identical
+`browserType.connectOverCDP` point before obtaining a browser context. It did
+not open the popup or LeetCode, arm the observer, write evidence, click or
+submit. No third invocation ran.
+
+Root cause is isolated to observer transport compatibility. Installed Chrome
+is `151.0.7922.175`, uses M144+ on-demand
+`chrome://inspect/#remote-debugging` (no traditional `--remote-debugging-port`
+process argument), while the frozen runner uses Playwright `1.53.1`.
+Playwright issue #40027 documents that `connectOverCDP()` cannot attach to this
+on-demand protocol and produces the same initialization timeout. The raw-CDP
+web-access proxy connects to the same endpoint and `/targets` returns 200, so
+user approval, port reachability, product READY and LeetCode are excluded.
+
+Cleanup is complete: localhost stopped, 3000 free, root pointer absent, no
+runner, R5 DB `0/0/0`, candidate/connection receipts and default DB unchanged,
+Chrome PID `45404`/9222 alive, proxy `connected`. Evidence:
+`work/reports/v4-phase-d-r5-yu-leetcode-ready-only-cdp-connect-blocked-2026-09-01.md`.
+
+Do not run READY again on the same transport. Recommended next work is a
+separately reviewed observer-only M144+ compatibility repair that preserves the
+product candidate and evidence/privacy contracts, adds regressions and refreezes
+the observation-tool hash. Restarting current `yu` Chrome under a traditional
+debugging flag is a higher-risk alternative. Neither route nor any real action,
+D4, RC, release, push or PR is authorized.
+
+## Status (2026-09-01 new-candidate LeetCode R5 READY-only CDP blocked; no OJ/action)
+
+The user authorized one LeetCode READY-only invocation on immutable candidate
+`ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`, reusing prepared identity
+`r5-ready-yu-leetcode-ee0e1f5`, its zero database and bounded receipt. The
+invocation omitted all action authorization and execution flags.
+
+Frozen preflight passed candidate ancestry, observation-tool and acceptance-
+profile hashes, candidate/connection receipts, all five exact-dist artifacts,
+the `yu` profile binding, R5 database `0/0/0`, default-database preservation,
+free port 3000 and absent prior R5 evidence. Existing uncommitted preparation
+documentation was preserved; observer-contract files had no worktree drift.
+
+After the web-access proxy handed off CDP and localhost warmed only root/status,
+the single runner invocation timed out after 30 seconds in
+`browserType.connectOverCDP`, before it obtained a browser context. No popup or
+LeetCode page opened, the observer was not armed, no READY/action marker or
+evidence file was written, and no click, submission or NowCoder run occurred.
+This is `CDP_CONNECT_BLOCKED`, not a product READY failure. No retry ran.
+
+Data cleanup passed: localhost stopped, port 3000 is free, the root pointer is
+absent, no runner remains, R5 DB is `0/0/0`, candidate/connection receipts and
+the default database are byte-identical, and Chrome PID `45404`/9222 survived.
+The web-access proxy process restarted and listens on 3456, but `/targets`
+remains pending until the user accepts Chrome's visible remote-debugging prompt.
+Evidence:
+`work/reports/v4-phase-d-r5-yu-leetcode-ready-only-cdp-connect-blocked-2026-09-01.md`.
+
+The authorized READY-only invocation is terminal. First restore proxy health by
+accepting the Chrome prompt. A rerun then requires a fresh explicit READY-only
+authorization; real submission remains separately unauthorized. D4, RC,
+release, push and PR remain stopped.
+
+## Status (2026-09-01 new candidate exact-extension preparation PASS; no OJ/action)
+
+The user authorized replacing the old exact extension in current `yu` Chrome.
+The fixed ID was first proved unique, enabled and exactly bound to
+`.tmp/v4-route-h-exact-dist-0c23fca`. One `Extensions.uninstall` removed that
+binding; one `Extensions.loadUnpacked` loaded only
+`.tmp/v4-route-h-exact-dist-ee0e1f5`. The returned and final unique extension ID
+remained `oldmkbngfokmhlkjmlichccmbebipmei`, and the final path/enabled binding
+passed. The old dist directory remains historical evidence on disk but is no
+longer installed.
+
+Fresh preparation identity `r5-ready-yu-leetcode-ee0e1f5` migrated at DB
+`0/0/0`. The existing runner ran once with only `--prepare-connection=true` and
+the immutable candidate `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`. It exited
+0 with `CONNECTION_PREPARED=1`; the new bounded receipt is
+`.tmp/v4-ready-connection-receipts/r5-ready-yu-leetcode-ee0e1f5.json`, SHA-256
+`F6EA6D1899D1D3D2E551EADB79DA1950FE1A777E14600076944ABF075A9A3A5F`.
+Installation identity and capability version both rotated as allowed; raw
+values were not retained in the report. The fixed extension ID did not change.
+
+The first replacement session's post-close HTTP liveness check used Chrome's
+unavailable `/json/version` endpoint and therefore reported false after the
+replacement had already passed. No mutation was retried. Immediate read-only
+CDP reconnection plus PID/port checks proved Chrome survived and the new exact
+binding remained valid.
+
+Localhost opened only root/status/settings/connect routes and the extension
+popup. No READY/action evidence file was produced, no OJ page or observer arm
+occurred, and there was no click, submission or NowCoder run. Cleanup is
+complete: DB `0/0/0`, port 3000 free, root pointer absent, proxy READY, Chrome
+PID `45404`/9222 alive, old receipt/candidate receipt/default DB unchanged.
+Evidence:
+`work/reports/v4-phase-d-d8a-2026-09-01-new-candidate-extension-preparation.md`.
+
+The only next live gate is a separately authorized new-candidate READY-only
+LeetCode run reusing this exact R5 identity, zero DB and receipt. This is not an
+action authorization. D4, RC, release, push and PR remain stopped.
+
 ## Status (2026-08-30 status GET candidate refrozen; exact gate PASS)
 
 The authorized minimum status-GET repair and D8-A evidence were committed at
