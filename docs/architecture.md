@@ -1,12 +1,17 @@
 # Architecture
 
-Last updated: 2026-09-07 (Phase 1-4 offline evidence/project implementation added; no new Chrome, OJ, D4, RC or release evidence)
+Last updated: 2026-09-07 (offline V1 hardening, AI contract, Vault operations, and observer relay; theoretical evidence only)
 
 ## Overview
 
 The app is a local-first unified OJ training memory system. It opens original problem pages through deep links, receives user-visible browser capture events from a user-installed extension, stores local training records in SQLite, and renders deterministic Coach/Growth insights from those records.
 
-This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. As of 2026-08-24, accounts, cloud sync, hosted AI, editor-agnostic project evidence, and multi-tenant storage are not implemented. The product does not plan editor activity or workspace-footprint monitoring.
+This document describes the current implementation. The accepted future product direction is a staged move from this local pilot to a hosted SaaS after validation; see `docs/decisions/0001-local-pilot-to-cloud-saas.md`. Accounts, cloud sync, platform-funded AI, and multi-tenant storage are not implemented. Editor-agnostic explicit project evidence and an optional local BYOK-compatible AI contract are implemented; neither monitors editor activity or workspace footprint.
+
+Development state is tracked independently as `theoretical-ready` (offline and
+synthetic proof), `runtime-validated` (real browser/provider/Windows proof),
+and `release-ready` (pilot, acceptance, and release gates). One state never
+implies either later state.
 
 Phase D now uses the user-authorized `ISOLATED` contract for future offline
 work. Historical same-SHA deliveries and the Route A closeout remain factual
@@ -36,7 +41,27 @@ Explicit local developer activation
 -> closed development-only event projection
 -> Sentry environment=development + validated Git SHA
 -> read-only issue inspection -> local repair -> quality gate
+
+Explicit learner AI request
+-> saved local consent + selected evidence IDs
+-> shared OpenAI-compatible adapter (optional, quota bounded)
+-> validated structured report or plan proposal
+-> report saved locally / proposal waits for explicit accept
+-> existing deterministic plan constraints before any plan revision
+
+Stopped Local Vault process
+-> versioned backup manifest + SQLite online backup + selected snapshots
+-> preflight hash/SQLite/migration/reference validation
+-> automatic pre-restore safety backup
+-> atomic database/evidence replacement with rollback
 ```
+
+`scripts/cdp-native-relay.mjs` is an observer-only compatibility transport. It
+binds a random-path single-client WebSocket on `127.0.0.1`, forwards bounded
+CDP text frames to the existing Chrome browser endpoint, logs no payload, and
+never terminates the browser process. It is opt-in through
+`--cdp-transport=native-relay`; the existing Playwright transport remains the
+default. It is not part of the application or extension production bundle.
 
 `lib/observability/sentryDev.ts` is the sole Sentry data boundary. It requires
 development mode, a literal enable flag, an approved ingest DSN and a full Git

@@ -1,6 +1,6 @@
 # Compliance Notes
 
-This file describes the **current local V0 implementation under validation**. It is not the privacy policy for the planned hosted Public Beta. Cloud accounts, code-snapshot upload, platform-funded AI, retention, deletion, and provider disclosure require the separate Phase 7 contract in `IDEA.md` and `docs/superpowers/plans/2026-07-13-phase-7-public-beta-cloud.md`.
+This file describes the **current local V1 implementation under offline validation**. It is not the privacy policy for the planned hosted Public Beta. Cloud accounts, platform-funded AI, cloud retention/deletion, and multi-tenant provider disclosure require the separate Phase 7 contract in `IDEA.md` and `docs/superpowers/plans/2026-07-13-phase-7-public-beta-cloud.md`.
 
 The product uses this rule: use browser session, do not extract browser session.
 
@@ -122,7 +122,31 @@ Coach and Growth analysis remains local-only:
 
 - deterministic rules compute summaries, signals, recommendations, rates, and distributions from local `training_attempts` rows;
 - recommendations cite local attempt IDs as evidence and do not infer hidden platform state;
-- no external LLM, cloud analytics service, or third-party API receives attempts, verdicts, reflections, code, cookies, or platform session data.
+- rules remain the default and work with AI disabled;
+- the optional AI layer runs only after an explicit click, saved on-demand
+  consent, and explicit evidence selection. It sends a bounded structured
+  projection through one provider-neutral adapter and rejects invented
+  evidence IDs;
+- code snapshot context is separately disabled by default and is sent only
+  when the learner enables that category and requests it for selected evidence;
+- keys and raw prompts are never persisted. AI can save a structured report or
+  a pending proposal, but cannot write evidence, ability, or plan state;
+- accepting a proposal still passes through the deterministic prerequisite,
+  workload, review, and immutable-plan revision path.
+
+## Local backup, diagnosis, and feedback
+
+- backups contain the Vault descriptor, a consistent SQLite snapshot, selected
+  content-addressed evidence files, and a version/hash manifest;
+- manifests and feedback never contain system absolute paths, credentials,
+  capture capability, logs, raw prompts, or unselected free text;
+- restore is a stopped-process command and validates port availability,
+  sidecars, hashes, SQLite integrity, foreign keys, migrations, and snapshot
+  references before replacement. A restore safety backup is created first;
+- local metrics are disabled by default and remain a closed event/count
+  allowlist when enabled;
+- feedback export is manual, category-selected, aggregate-only, and has no
+  upload endpoint or background telemetry.
 
 ## Explicit Evidence and Project Practice
 

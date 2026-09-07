@@ -1,6 +1,12 @@
 # Offline-Theoretical V1 Hardening, AI, and Operations Plan
 
-**Status:** authorized for offline and synthetic-environment implementation.
+**Status:** offline and synthetic implementation complete; `theoretical-ready` only.
+
+Implementation checkpoints: `8ca24a1`, `b1d9e44`, `78b2de2`, `b3f8f38`, and
+`9924923`, followed by the integration commit containing this closeout. The
+full quality gate passed with root `2649/1`, App E2E `25/25`, extension
+`1671/1671`, extension E2E `55/1`, and production build PASS. Runtime and
+release gates remain pending and separately authorized.
 
 **Goal:** make the local V1 code path theoretically usable without treating
 real Chrome, OJ, AI-provider, Windows-machine, pilot, RC, or release evidence

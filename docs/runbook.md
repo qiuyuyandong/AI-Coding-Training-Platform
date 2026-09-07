@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-08-31 (evidence through 2026-08-30; Route H status GET repair and D8-A evidence committed; immutable candidate `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0` exact validator PASS; D8-A action opportunity consumed before observer arm; no OJ submission, D4, RC, release, push or PR)
+Last updated: 2026-09-07 (offline V1 theoretical hardening; real Chrome/OJ/AI/Windows and release validation remain pending)
 
 ## Setup
 
@@ -35,6 +35,54 @@ The offline verification set is `npm run lint`, disposable `npm run db:migrate`,
 `npm run curriculum:validate`, `npm run test`, `npm run typecheck`, and a
 disposable `npm run build`. This set does not launch Chrome or establish real
 OJ/project-runtime behavior.
+
+### Optional on-demand AI
+
+AI remains disabled unless both the local UI preference and environment mode
+are enabled. Configure only in the current process; never commit a key:
+
+```powershell
+$env:TRAINING_AI_MODE = 'on_demand'
+$env:TRAINING_AI_OPENAI_BASE_URL = 'https://provider.example'
+$env:TRAINING_AI_OPENAI_MODEL = '<model>'
+$env:TRAINING_AI_OPENAI_API_KEY = '<local-key>'
+$env:TRAINING_AI_TIMEOUT_MS = '8000'
+$env:TRAINING_AI_DAILY_QUOTA = '20'
+```
+
+`V0_AI_REFLECTION_*` remains compatible and uses the same adapter. `/coach`,
+`/evidence`, and `/plan` make no provider request on page load. Reports are
+stored as validated JSON; plan proposals remain pending until explicitly
+accepted and revalidated by the local plan generator.
+
+### Backup, restore, and diagnostics
+
+```powershell
+npm run vault:backup -- --target D:\absolute\empty-backup-directory
+npm run diagnose
+npm run feedback:export -- --target D:\absolute\new-feedback.json --include vault_health,feature_counts,schema
+```
+
+Stop the application before restore. Port 3000 must be free and the live
+database must have no `-wal`, `-shm`, or `-journal` sidecar:
+
+```powershell
+npm run vault:restore -- --backup D:\absolute\validated-backup-directory
+```
+
+Restore validates every listed hash, SQLite quick/foreign-key checks,
+migration compatibility, and snapshot references before replacing anything.
+It first retains an automatic backup under the active Vault's
+`.restore-safety` directory. The settings page never performs restore.
+
+Windows helper commands perform checks/start/read-only diagnosis only; they do
+not install software or change system settings:
+
+```powershell
+npm run setup:windows
+npm run start:windows
+npm run diagnose:windows
+```
 
 ## Development
 
@@ -118,6 +166,11 @@ omit it; when an Origin header is present it must equal the fixed extension
 origin. `OPTIONS` and capture-write routes retain their exact-origin checks.
 
 ### Route H READY preparation contract
+
+The observer now accepts `--cdp-transport=playwright|native-relay`. Omission
+keeps `playwright`; `native-relay` is an explicit observer-only fallback and
+requires `--cdp-active-port-file`. Offline relay tests are not READY or D4
+evidence and authorize no OJ navigation or action.
 
 This describes the frozen tooling contract; it does not authorize a new D8-A
 action or any OJ navigation. For each separately authorized lane, run

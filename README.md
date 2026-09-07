@@ -1,6 +1,17 @@
 # AI Coding Training Platform
 
-> **Status (2026-08-31; evidence through 2026-08-30):** Route H Local Vault engineering D0-D7 and the
+> **Current development status (2026-09-07):** The local V1 implementation on
+> `codex/offline-theoretical-v1` has completed its offline gate under three independent states.
+> Phase 1-4 evidence/project behavior is transaction-hardened; an opt-in
+> observer-only native CDP relay, an on-demand provider-neutral AI Coach
+> contract, and Local Vault backup/restore/diagnostics are implemented and
+> offline-tested. The final local quality gate passed, so the current permitted
+> conclusion is `theoretical-ready`. Real Chrome/OJ/AI/Windows validation remains
+> `runtime-validated: pending`; pilot acceptance, RC, deployment, and release
+> remain `release-ready: pending`. The frozen extension product candidate
+> `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0` is unchanged.
+
+> **Historical Route H status (2026-08-31; evidence through 2026-08-30):** Route H Local Vault engineering D0-D7 and the
 > approved R0-R4 lifecycle work are complete locally. The minimum status-GET
 > repair and all D8-A evidence were committed at `fd49a8f`; the first exact
 > candidate attempt failed closed before the quality gate because six cumulative
@@ -70,6 +81,12 @@ It provides:
   explicit build/test corrections, selected snapshot/diff evidence,
   full/basic/minimal retention, deletion/export, milestone replacement and a
   versioned 0-3 rubric;
+- on-demand AI Coach reports and plan proposals through one shared
+  OpenAI-compatible adapter; disabled by default, evidence-scoped, quota-bound,
+  and incapable of directly mutating evidence, ability, or plans;
+- Local Vault backup/restore with versioned hashes, pre-restore safety backup,
+  read-only diagnosis, opt-in aggregate metrics, and manual local feedback
+  export with no upload path;
 - a V0 **manual learning loop** (implemented; observation and acceptance pending): curriculum package 1.0.1 has 12 nodes, 12 reviewed resources, 12 mapped practice tasks (11 domestic OJ links across LeetCode.cn, Luogu and NowCoder plus one manual Git exercise), 13 prerequisite edges and 9 career summaries; a 6-prompt resumable diagnosis with starting-node override; deterministic candidate selection with semantic alternatives; an atomic completion loop that records attempt, attempt→node mapping, ability projection and successor plan; optional opt-in per-completion AI reflection (default disabled, network-denial guard, deterministic fallback). V0 introduces the `/map`, `/plan`, and `/today` pages and the underlying services, repositories, migrations 0006/0007/0008, and validators.
 
 The 2026-09-07 Phase 1-4 acceleration is code-complete and offline-validated.
@@ -110,6 +127,10 @@ npm run extension:check
 npm run extension:e2e
 npm run build
 npm run quality:gate
+npm run vault:backup -- --target <absolute-empty-directory>
+npm run vault:restore -- --backup <absolute-backup-directory>
+npm run diagnose
+npm run feedback:export -- --target <absolute-new-json-file> --include vault_health,feature_counts,schema
 ```
 
 `npm run lint` runs the strict ESLint flat config (`eslint . --max-warnings=0`). `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run extension:e2e` runs the new bundled-Chromium Playwright lane that loads the exact production `extension/dist` (Fake OJ matrix + A10 full-chain smoke). `npm run quality:gate` runs lint, a disposable migration, curriculum validation, unit tests, typecheck, E2E, extension parity, extension E2E, and production build in that order using an OS-temporary database and is the safe all-in-one gate. Use it instead of running individual commands when you want one reproducible verification.

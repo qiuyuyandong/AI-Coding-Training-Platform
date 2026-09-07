@@ -37,7 +37,7 @@ test.describe("Coach and Growth smoke", () => {
   test("coach renders deterministic insight sections", async ({ page }) => {
     await page.goto("/coach");
 
-    await expect(page.getByRole("heading", { name: "Coach" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Coach", exact: true })).toBeVisible();
     await expect(page.getByText("Local coach summary")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Signals" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Recommendations" })).toBeVisible();

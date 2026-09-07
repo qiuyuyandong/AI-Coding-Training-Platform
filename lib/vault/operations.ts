@@ -119,6 +119,7 @@ export function validateBackup(backupInput: string, expectedVaultId?: string): V
     if (stat.size !== file.size || hash !== file.sha256) throw new LocalVaultError(`Backup hash mismatch for ${file.path}`);
   }
   validateSqliteDatabase(join(backup, VAULT_DATABASE_NAME));
+  validateBackupSnapshotReferences(join(backup, VAULT_DATABASE_NAME), backup);
   validateMigrationCompatibility(manifest.schemaMigrations);
   return manifest;
 }
@@ -293,6 +294,28 @@ function validateRestoredSnapshotReferences(databasePath: string, evidenceRoot: 
   const result = diagnoseVault(validateVault(dirname(databasePath)));
   if (result.status !== "ok") throw new LocalVaultError("Restored database contains invalid snapshot references");
   requireSafeDirectory(evidenceRoot, "Restored evidence store");
+}
+
+function validateBackupSnapshotReferences(databasePath: string, backupRoot: string): void {
+  const db = new Database(databasePath, { readonly: true, fileMustExist: true });
+  try {
+    const rows = db.prepare<[], { readonly content_hash: string; readonly storage_path: string }>(`
+      SELECT content_hash, storage_path FROM code_snapshot_refs
+      WHERE deleted_at IS NULL AND storage_path IS NOT NULL
+    `).all();
+    for (const row of rows) {
+      const expectedName = `${row.content_hash}.snapshot`;
+      if (row.storage_path.split(/[\\/]/u).at(-1) !== expectedName) {
+        throw new LocalVaultError("Backup database contains a malformed snapshot reference");
+      }
+      const artifact = join(backupRoot, "evidence", expectedName);
+      if (!pathEntryExists(artifact) || sha256(requireSafeRegularFile(artifact, "Backup snapshot")) !== row.content_hash) {
+        throw new LocalVaultError("Backup is missing a referenced snapshot");
+      }
+    }
+  } finally {
+    db.close();
+  }
 }
 
 function assertNoSqliteSidecars(databasePath: string): void {

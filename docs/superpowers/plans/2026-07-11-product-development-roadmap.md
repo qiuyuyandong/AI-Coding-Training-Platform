@@ -104,6 +104,20 @@ The target is cloud SaaS, but the migration happens after the learning loop and 
 
 ## 5. Release Gates
 
+### Independent readiness tracks (2026-09-07 governance)
+
+- `theoretical-ready`: offline migrations, unit/component tests, synthetic app
+  and extension E2E, privacy checks, and production build pass. Development may
+  continue from this state.
+- `runtime-validated`: the specifically named real Chrome/OJ/provider/Windows
+  environment has passed its separately authorized protocol.
+- `release-ready`: pilot use, product acceptance, RC, deployment, and release
+  gates pass.
+
+These tracks are monotonic but independent: theoretical readiness does not
+claim runtime or release readiness, and a runtime observation does not bypass
+pilot/release acceptance.
+
 ### Pre-V0 — Trustworthy technical foundation
 
 User outcome: the current local tool stops corrupting or misclassifying its own evidence.

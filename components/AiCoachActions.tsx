@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import type { AiContextCategory, AiMode, CoachReport, PlanChangeProposal } from "@/lib/domain/aiCoach";
 
 type EvidenceOption = { readonly id: string; readonly label: string };

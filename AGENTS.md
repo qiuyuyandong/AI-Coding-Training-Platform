@@ -39,11 +39,15 @@
 # Agent Handoff Guide
 
 > **Current development status (2026-09-07):** Phase 1-4 offline acceleration
-> is committed and pushed at `c7b2c23`. The authorized continuation lives on
+> baseline is `c7b2c23`. The authorized continuation lives on
 > `codex/offline-theoretical-v1` and is governed by
 > `docs/superpowers/plans/2026-09-07-offline-theoretical-v1-hardening-ai-operations.md`.
-> It may harden Phase 1-4, add an observer-only native CDP relay, implement the
-> offline-tested on-demand AI contract, and add Local Vault backup/diagnostics.
+> Pushed implementation checkpoints cover Phase 1-4 transactional
+> hardening, the observer-only native CDP relay, the offline-tested on-demand
+> AI contract, and Local Vault backup/restore/diagnostics. The final offline
+> quality gate passed with root `2649/1`, App E2E `25/25`, extension
+> `1671/1671`, extension E2E `55/1`, and build PASS. Status is
+> `theoretical-ready` only.
 > Only `theoretical-ready` may be claimed. Real Chrome/OJ/provider/Windows,
 > pilot, RC, release and PR validation remain separate and unauthorized.
 

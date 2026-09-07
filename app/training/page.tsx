@@ -14,7 +14,7 @@ export default async function TrainingPage({ searchParams }: { searchParams: Pro
       SELECT summary.outcome, summary.coverage_level, summary.confidence
       FROM training_session_summaries summary
       JOIN training_attempts attempt ON summary.source_type = 'attempt' AND summary.source_id = attempt.id
-      WHERE summary.learner_id = ? AND attempt.platform = ? AND attempt.external_id = ?
+      WHERE summary.learner_id = ? AND attempt.platform = ? AND attempt.problem_external_id = ?
       ORDER BY summary.created_at DESC LIMIT 1
     `).get(LOCAL_DEFAULT_LEARNER_ID, platform, externalId);
     activeProjects = db.prepare<[string], { readonly count: number }>(`

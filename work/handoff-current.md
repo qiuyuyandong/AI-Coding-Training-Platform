@@ -1,15 +1,17 @@
 # Current Handoff
 
-## Status (2026-09-07 offline-theoretical V1 implementation authorized)
+## Status (2026-09-07 offline-theoretical V1 complete)
 
-The Phase 1-4 acceleration is committed and pushed at
-`c7b2c237ebc7d98df14772e83712f1a8ac876b5e`. Work continues on branch
+The Phase 1-4 acceleration baseline is `c7b2c237ebc7d98df14772e83712f1a8ac876b5e`. Work continues on branch
 `codex/offline-theoretical-v1` under
 `docs/superpowers/plans/2026-09-07-offline-theoretical-v1-hardening-ai-operations.md`.
-The active scope is Phase 1-4 correctness hardening, an observer-only native
-CDP relay, an on-demand provider-neutral AI layer, and Local Vault backup,
-restore, diagnostics, and opt-in local metrics. Only offline and synthetic
-browser/provider evidence is authorized. Real Chrome/OJ/provider/Windows,
+Checkpoints are `8ca24a1` (baseline/plan), `b1d9e44` (project evidence
+transactions and UI closure), `78b2de2` (observer-only native CDP relay),
+`b3f8f38` (on-demand provider-neutral AI), and `9924923` (Local Vault
+backup/restore/diagnostics), followed by one integration/closeout commit. The
+full offline quality gate passed with root `2649/1`, App E2E `25/25`,
+extension `1671/1671`, extension E2E `55/1`, and production build PASS.
+The current status is `theoretical-ready` only. Real Chrome/OJ/provider/Windows,
 pilot, RC, release and PR work remain outside the scope.
 
 Project status now has three independent levels: `theoretical-ready`,
