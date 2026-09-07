@@ -2,6 +2,8 @@ import { EvidenceActions } from "@/components/EvidenceActions";
 import { openDatabase } from "@/lib/db/client";
 import { LOCAL_DEFAULT_LEARNER_ID } from "@/lib/domain/learner";
 import { getOrCreateLocalProfile } from "@/lib/repositories/learnerProfiles";
+import { AiCoachActions } from "@/components/AiCoachActions";
+import { buildAiCoachPanelData } from "@/lib/services/aiCoachService";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +67,7 @@ export default function EvidencePage() {
       WHERE ability.learner_id = ?
       ORDER BY node.order_index ASC, node.title ASC
     `).all(LOCAL_DEFAULT_LEARNER_ID);
+    const ai = buildAiCoachPanelData(db);
     const coverage = countBy(summaries.map((summary) => summary.coverage_level));
 
     return (
@@ -80,6 +83,8 @@ export default function EvidencePage() {
         </section>
 
         <div className="mt-6"><EvidenceActions nodes={nodes} initialReviews={reviews.map((review) => ({ id: review.id, nodeTitle: review.node_title, purpose: review.purpose, dueAt: review.due_at }))} /></div>
+
+        <div className="mt-6"><AiCoachActions surface="evidence" evidenceOptions={ai.evidenceOptions} initialPreference={ai.preference} /></div>
 
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="text-lg font-semibold text-slate-950">当前能力投影</h2>

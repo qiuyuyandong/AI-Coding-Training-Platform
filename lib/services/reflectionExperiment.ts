@@ -25,6 +25,13 @@
  * built from this allowlist and nothing else.
  */
 
+import {
+  requestOpenAiCompatibleJson,
+  type FetchInit,
+  type FetchLike,
+  type FetchResponseLike,
+} from "@/lib/services/openAiCompatible";
+
 const DEFAULT_TIMEOUT_MS = 8000;
 const MAX_QUESTION_LENGTH = 300;
 const REQUEST_TEMPERATURE = 0.2;
@@ -49,23 +56,7 @@ export type ReflectionResult = {
   readonly question: string;
 };
 
-export type FetchInit = {
-  readonly method?: string;
-  readonly headers?: Readonly<Record<string, string>>;
-  readonly body?: string;
-  readonly signal?: AbortSignal;
-};
-
-export type FetchResponseLike = {
-  readonly ok: boolean;
-  readonly status: number;
-  text(): Promise<string>;
-};
-
-export type FetchLike = (
-  input: string,
-  init?: FetchInit,
-) => Promise<FetchResponseLike>;
+export type { FetchInit, FetchLike, FetchResponseLike };
 
 export type EnvSource = Readonly<Record<string, string | undefined>>;
 
@@ -130,11 +121,17 @@ type ResolvedConfig = {
 };
 
 function readEnv(env: EnvSource): ResolvedConfig {
-  const enabled = env["V0_AI_REFLECTION_ENABLED"] === "1";
-  const url = (env["V0_AI_REFLECTION_URL"] ?? "").trim();
-  const model = (env["V0_AI_REFLECTION_MODEL"] ?? "").trim();
-  const apiKey = (env["V0_AI_REFLECTION_API_KEY"] ?? "").trim();
-  const rawTimeout = env["V0_AI_REFLECTION_TIMEOUT_MS"];
+  const legacyEnabled = env["V0_AI_REFLECTION_ENABLED"];
+  const enabled = legacyEnabled === undefined
+    ? env["TRAINING_AI_MODE"] === "on_demand"
+    : legacyEnabled === "1";
+  const legacyUrl = (env["V0_AI_REFLECTION_URL"] ?? "").trim();
+  const url = legacyUrl.length > 0
+    ? legacyUrl
+    : resolveTrainingAiUrl((env["TRAINING_AI_OPENAI_BASE_URL"] ?? "").trim());
+  const model = (env["V0_AI_REFLECTION_MODEL"] ?? env["TRAINING_AI_OPENAI_MODEL"] ?? "").trim();
+  const apiKey = (env["V0_AI_REFLECTION_API_KEY"] ?? env["TRAINING_AI_OPENAI_API_KEY"] ?? "").trim();
+  const rawTimeout = env["V0_AI_REFLECTION_TIMEOUT_MS"] ?? env["TRAINING_AI_TIMEOUT_MS"];
   const parsed: number = rawTimeout === undefined || rawTimeout === ""
     ? Number.NaN
     : Number.parseInt(rawTimeout, 10);
@@ -144,63 +141,20 @@ function readEnv(env: EnvSource): ResolvedConfig {
   return { enabled, url, model, apiKey, timeoutMs };
 }
 
-/**
- * Reject loopback, link-local, and RFC1918 private-network hostnames so
- * the AI experiment cannot be redirected at internal infrastructure
- * (LLM agents on localhost, cloud metadata services, or LAN devices).
- * Public DNS hostnames and unreserved IPv4/IPv6 addresses pass.
- */
-function isPrivateOrLocalHostname(rawHostname: string): boolean {
-  let host = rawHostname.toLowerCase();
-  if (host.startsWith("[") && host.endsWith("]")) {
-    host = host.slice(1, -1);
-  }
-  if (host.length === 0) return true;
-  if (host === "localhost" || host === "::1") return true;
-  if (host === "ip6-localhost" || host === "ip6-loopback") return true;
-  if (host.startsWith("fe80:") || host.startsWith("fe80::")) return true;
-  const parts = host.split(".");
-  if (parts.length === 4) {
-    const nums = parts.map((p) => Number.parseInt(p, 10));
-    if (nums.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) {
-      const [a, b] = nums;
-      if (a === undefined || b === undefined) return false;
-      // 127.0.0.0/8 loopback
-      if (a === 127) return true;
-      // 169.254.0.0/16 link-local (covers cloud metadata 169.254.169.254)
-      if (a === 169 && b === 254) return true;
-      // 10.0.0.0/8 private
-      if (a === 10) return true;
-      // 172.16.0.0/12 private
-      if (a === 172 && b >= 16 && b <= 31) return true;
-      // 192.168.0.0/16 private
-      if (a === 192 && b === 168) return true;
-    }
-  }
-  return false;
-}
-
-function isConfigValid(config: ResolvedConfig): boolean {
-  if (!config.enabled) return false;
-  if (config.url.length === 0) return false;
-  if (config.model.length === 0) return false;
-  if (config.apiKey.length === 0) return false;
-  let parsed: URL;
+function resolveTrainingAiUrl(value: string): string {
+  if (value.length === 0) return "";
   try {
-    parsed = new URL(config.url);
+    const parsed = new URL(value);
+    if (!parsed.pathname.endsWith("/chat/completions")) {
+      parsed.pathname = `${parsed.pathname.replace(/\/$/u, "")}/v1/chat/completions`;
+    }
+    return parsed.toString();
   } catch {
-    return false;
+    return value;
   }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return false;
-  }
-  if (isPrivateOrLocalHostname(parsed.hostname)) {
-    return false;
-  }
-  return true;
 }
 
-function buildRequestBody(model: string, input: ReflectionInput): string {
+function buildUserPayload(input: ReflectionInput): Readonly<Record<string, string | number>> {
   const userPayload: Record<string, string | number> = {};
   for (const key of REQUEST_ALLOWLIST_KEYS) {
     const value: unknown = Reflect.get(input, key);
@@ -210,17 +164,7 @@ function buildRequestBody(model: string, input: ReflectionInput): string {
       userPayload[key] = value;
     }
   }
-  const body = {
-    model,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: JSON.stringify(userPayload) },
-    ],
-    temperature: REQUEST_TEMPERATURE,
-    max_tokens: REQUEST_MAX_TOKENS,
-    stream: false,
-  };
-  return JSON.stringify(body);
+  return userPayload;
 }
 
 function fallbackFor(result: ReflectionResultKind): ReflectionResult {
@@ -241,47 +185,6 @@ function validateQuestion(raw: unknown): string | null {
   if (trimmed.length > MAX_QUESTION_LENGTH) return null;
   if (isForbidden(trimmed)) return null;
   return trimmed;
-}
-
-type WireResponse = {
-  readonly choices?: ReadonlyArray<{
-    readonly message?: { readonly content?: unknown };
-  }>;
-};
-
-function parseResponseText(text: string): string | null {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  if (parsed === null || typeof parsed !== "object") return null;
-  const wire: WireResponse = parsed as WireResponse;
-  if (!Array.isArray(wire.choices) || wire.choices.length === 0) {
-    return null;
-  }
-  const first = wire.choices[0];
-  if (first === undefined) return null;
-  const content: unknown = first.message?.content;
-  if (typeof content !== "string") return null;
-
-  let inner: unknown;
-  try {
-    inner = JSON.parse(content.trim());
-  } catch {
-    return null;
-  }
-  if (inner === null || typeof inner !== "object") return null;
-  const innerObject = inner as { question?: unknown };
-  return validateQuestion(innerObject.question);
-}
-
-function getFetchImpl(deps: RequestReflectionDeps | undefined): FetchLike | null {
-  if (deps?.fetch !== undefined) return deps.fetch;
-  const candidate: unknown = (globalThis as { fetch?: unknown }).fetch;
-  if (typeof candidate === "function") return candidate as FetchLike;
-  return null;
 }
 
 function getEnvSource(deps: RequestReflectionDeps | undefined): EnvSource {
@@ -310,46 +213,18 @@ export async function requestReflectionQuestion(
   try {
     const fallback = fallbackFor(input.result);
     const config = readEnv(getEnvSource(deps));
-    if (!isConfigValid(config)) return fallback;
-
-    const fetchImpl = getFetchImpl(deps);
-    if (fetchImpl === null) return fallback;
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      controller.abort();
-    }, config.timeoutMs);
-
-    let response: FetchResponseLike | undefined;
-    try {
-      response = await fetchImpl(config.url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${config.apiKey}`,
-        },
-        body: buildRequestBody(config.model, input),
-        signal: controller.signal,
-      });
-    } catch {
-      return fallback;
-    } finally {
-      clearTimeout(timer);
-    }
-
-    if (!response.ok) return fallback;
-
-    let text: string;
-    try {
-      text = await response.text();
-    } catch {
-      return fallback;
-    }
-
-    const validated = parseResponseText(text);
-    if (validated === null) return fallback;
-
-    return { source: "ai", question: validated };
+    const result = await requestOpenAiCompatibleJson({
+      ...config,
+      systemPrompt: SYSTEM_PROMPT,
+      userPayload: buildUserPayload(input),
+      temperature: REQUEST_TEMPERATURE,
+      maxTokens: REQUEST_MAX_TOKENS,
+      validate: (value) => {
+        if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+        return validateQuestion(Reflect.get(value, "question"));
+      },
+    }, { fetch: deps?.fetch });
+    return result.ok ? { source: "ai", question: result.value } : fallback;
   } catch {
     return fallbackFor(input.result);
   }

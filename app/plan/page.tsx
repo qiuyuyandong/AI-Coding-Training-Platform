@@ -11,6 +11,8 @@ import {
 import {
   type LearnerNodeBaselineRow,
 } from "@/lib/domain/learner";
+import { AiCoachActions } from "@/components/AiCoachActions";
+import { buildAiCoachPanelData } from "@/lib/services/aiCoachService";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,8 @@ export default function PlanPage() {
   const db = openDatabase();
   try {
     const payload = buildPlanPagePayload(db);
-    return <PlanView payload={payload} />;
+    const ai = buildAiCoachPanelData(db);
+    return <PlanView payload={payload} ai={ai} />;
   } finally {
     db.close();
   }
@@ -26,9 +29,10 @@ export default function PlanPage() {
 
 type PlanViewProps = {
   readonly payload: PlanPagePayload;
+  readonly ai: ReturnType<typeof buildAiCoachPanelData>;
 };
 
-function PlanView({ payload }: PlanViewProps) {
+function PlanView({ payload, ai }: PlanViewProps) {
   if (payload.state === "no_goal") {
     return (
       <main lang="zh-CN" className="mx-auto max-w-4xl px-6 py-10">
@@ -108,6 +112,7 @@ function PlanView({ payload }: PlanViewProps) {
       />
       <UpcomingItemsCard items={payload.overview.items} />
       <BaselinesCard baselines={payload.baselines} />
+      <div className="mt-6"><AiCoachActions surface="plan" evidenceOptions={ai.evidenceOptions} initialPreference={ai.preference} /></div>
       <details className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
         <summary className="cursor-pointer text-sm font-medium text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950">
           修改方向选择
