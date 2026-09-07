@@ -327,7 +327,7 @@ export function snapshotFile(filePath: string): SourceSnapshot {
   };
 }
 
-function validateSqliteDatabase(databasePath: string): void {
+export function validateSqliteDatabase(databasePath: string): void {
   requireSafeRegularFile(databasePath, "SQLite database");
   let database: Database.Database;
   try {
@@ -412,7 +412,7 @@ function findExistingAncestor(requestedPath: string): string {
   return current;
 }
 
-function requireSafeDirectory(requestedPath: string, label: string): string {
+export function requireSafeDirectory(requestedPath: string, label: string): string {
   requireAbsolutePath(requestedPath, label);
   let stats: ReturnType<typeof lstatSync>;
   try {
@@ -430,7 +430,7 @@ function requireSafeDirectory(requestedPath: string, label: string): string {
   return canonical;
 }
 
-function requireSafeRegularFile(requestedPath: string, label: string): string {
+export function requireSafeRegularFile(requestedPath: string, label: string): string {
   requireAbsolutePath(requestedPath, label);
   let stats: ReturnType<typeof lstatSync>;
   try {
@@ -487,7 +487,7 @@ function removeOwnedRegularFile(filePath: string): void {
   unlinkSync(filePath);
 }
 
-function pathEntryExists(filePath: string): boolean {
+export function pathEntryExists(filePath: string): boolean {
   return lstatSync(filePath, { throwIfNoEntry: false }) !== undefined;
 }
 
