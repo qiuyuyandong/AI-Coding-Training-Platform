@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { openDatabase } from "@/lib/db/client";
 import { getOrCreateLocalProfile } from "@/lib/repositories/learnerProfiles";
-import { CaptureRequestError, readBoundedJson, requireSameOrigin } from "@/lib/http/captureRequest";
+import { CaptureRequestError, readBoundedJson, requireSameOrigin, statusForRangeError } from "@/lib/http/captureRequest";
 import { generateCoachReport } from "@/lib/services/aiCoachService";
 
 const GenerateSchema = z.object({
@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
     }
   } catch (error) {
     if (error instanceof CaptureRequestError) return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
-    if (error instanceof RangeError) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    if (error instanceof RangeError) return NextResponse.json({ ok: false, error: error.message }, { status: statusForRangeError(error) });
     return NextResponse.json({ ok: false, error: "Failed to generate AI report" }, { status: 500 });
   }
 }

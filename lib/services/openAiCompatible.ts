@@ -56,44 +56,75 @@ export async function requestOpenAiCompatibleJson<T>(
   const fetchImpl = deps.fetch ?? readGlobalFetch();
   if (fetchImpl === null) return { ok: false, error: "transport_error" };
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), request.timeoutMs);
-  let response: FetchResponseLike;
-  try {
-    response = await fetchImpl(request.url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${request.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: request.model,
-        messages: [
-          { role: "system", content: request.systemPrompt },
-          { role: "user", content: JSON.stringify(request.userPayload) },
-        ],
-        temperature: request.temperature ?? 0.2,
-        max_tokens: request.maxTokens ?? 512,
-        stream: false,
-      }),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    return { ok: false, error: controller.signal.aborted || isAbortError(error) ? "timeout" : "transport_error" };
-  } finally {
-    clearTimeout(timer);
-  }
-  if (!response.ok) return { ok: false, error: "provider_error" };
-  let text: string;
-  try {
-    text = await response.text();
-  } catch {
-    return { ok: false, error: "invalid_response" };
-  }
-  if (Buffer.byteLength(text, "utf8") > 256 * 1024) return { ok: false, error: "invalid_response" };
-  const inner = parseWireContent(text);
+  type WireOutcome =
+    | { readonly kind: "text"; readonly text: string }
+    | { readonly kind: "provider_error" }
+    | { readonly kind: "invalid_response" }
+    | { readonly kind: "transport_error" }
+    | { readonly kind: "timeout" };
+  const wireRequest = (async (): Promise<WireOutcome> => {
+    try {
+      const response = await fetchImpl(request.url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${request.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: request.model,
+          messages: [
+            { role: "system", content: request.systemPrompt },
+            { role: "user", content: JSON.stringify(request.userPayload) },
+          ],
+          temperature: request.temperature ?? 0.2,
+          max_tokens: request.maxTokens ?? 512,
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) return { kind: "provider_error" };
+      try {
+        return { kind: "text", text: await response.text() };
+      } catch {
+        return { kind: "invalid_response" };
+      }
+    } catch (error) {
+      return { kind: controller.signal.aborted || isAbortError(error) ? "timeout" : "transport_error" };
+    }
+  })();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<WireOutcome>((resolve) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      resolve({ kind: "timeout" });
+    }, request.timeoutMs);
+  });
+  const outcome = await Promise.race([wireRequest, timeout]);
+  if (timer !== undefined) clearTimeout(timer);
+  if (outcome.kind !== "text") return { ok: false, error: outcome.kind };
+  if (Buffer.byteLength(outcome.text, "utf8") > 256 * 1024) return { ok: false, error: "invalid_response" };
+  const inner = parseWireContent(outcome.text);
   if (inner === null) return { ok: false, error: "invalid_response" };
   const value = request.validate(inner);
   return value === null ? { ok: false, error: "invalid_output" } : { ok: true, value };
+}
+
+export function resolveOpenAiChatCompletionsUrl(baseUrl: string): string {
+  if (baseUrl.length === 0) return "";
+  try {
+    const parsed = new URL(baseUrl);
+    const pathname = parsed.pathname.replace(/\/+$/u, "");
+    if (pathname.endsWith("/chat/completions")) {
+      parsed.pathname = pathname;
+    } else if (pathname.endsWith("/v1")) {
+      parsed.pathname = `${pathname}/chat/completions`;
+    } else {
+      parsed.pathname = `${pathname}/v1/chat/completions`;
+    }
+    return parsed.toString();
+  } catch {
+    return baseUrl;
+  }
 }
 
 function isConfigValid(request: OpenAiCompatibleRequest<unknown>): boolean {

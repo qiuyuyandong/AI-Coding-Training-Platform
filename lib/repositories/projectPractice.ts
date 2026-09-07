@@ -40,6 +40,20 @@ type RunResultRow = {
   readonly recorded_at: string;
 };
 
+type ProjectSessionRow = {
+  readonly id: string;
+  readonly learner_project_id: string;
+  readonly learner_id: string;
+  readonly template_milestone_id: string;
+  readonly practice_task_id: string | null;
+  readonly language: string;
+  readonly toolchain_label: string | null;
+  readonly provenance_json: string;
+  readonly status: string;
+  readonly started_at: string;
+  readonly ended_at: string | null;
+};
+
 type ArtifactRow = {
   readonly id: string;
   readonly project_session_id: string;
@@ -135,25 +149,27 @@ export function replaceActiveProjectSession(
     readonly reason: string;
     readonly now: string;
   },
-): ProjectPracticeSession {
+): { readonly session: ProjectPracticeSession; readonly replayed: boolean } {
   const reason = input.reason.trim();
   if (reason.length === 0 || reason.length > 500) throw new RangeError("Replacement reason must contain 1-500 characters");
   return db.transaction(() => {
-    const prior = db.prepare<[string], {
-      readonly learner_project_id: string;
-      readonly learner_id: string;
-      readonly template_milestone_id: string;
-      readonly practice_task_id: string | null;
-      readonly language: string;
-      readonly toolchain_label: string | null;
-      readonly status: string;
-    }>(`
-      SELECT learner_project_id, learner_id, template_milestone_id,
-             practice_task_id, language, toolchain_label, status
+    const prior = db.prepare<[string], ProjectSessionRow>(`
+      SELECT *
       FROM project_practice_sessions WHERE id = ?
     `).get(input.projectSessionId);
     if (prior === undefined) throw new RangeError(`Project session '${input.projectSessionId}' was not found`);
-    if (prior.status !== "active") throw new RangeError(`Project session '${input.projectSessionId}' is not active`);
+    if (prior.status !== "active") {
+      const replacement = db.prepare<[string], ProjectSessionRow>(`
+        SELECT * FROM project_practice_sessions
+        WHERE learner_project_id = ? ORDER BY started_at ASC, id ASC
+      `).all(prior.learner_project_id).find((row) => readReplacementProvenance(row.provenance_json)?.previousSessionId === input.projectSessionId);
+      if (replacement === undefined) throw new RangeError(`Project session '${input.projectSessionId}' is not active`);
+      const provenance = readReplacementProvenance(replacement.provenance_json);
+      if (provenance?.reason !== reason) {
+        throw new RangeError("Project replacement request conflicts with the original reason");
+      }
+      return { session: fromProjectSessionRow(replacement), replayed: true };
+    }
     db.prepare(`UPDATE project_practice_sessions SET status = 'cancelled', ended_at = ? WHERE id = ?`)
       .run(input.now, input.projectSessionId);
     const replacement = startProjectSession(db, {
@@ -172,7 +188,7 @@ export function replaceActiveProjectSession(
     });
     db.prepare(`UPDATE learner_projects SET updated_at = ? WHERE id = ?`)
       .run(input.now, prior.learner_project_id);
-    return replacement;
+    return { session: replacement, replayed: false };
   })();
 }
 
@@ -204,7 +220,45 @@ export function recordExplicitRunResult(
     SELECT * FROM explicit_run_results WHERE idempotency_key = ?
   `).get(candidate.idempotencyKey);
   if (existing === undefined) throw new Error("Run-result replay row disappeared");
+  if (existing.project_session_id !== candidate.projectSessionId || existing.kind !== candidate.kind
+    || existing.result !== candidate.result || existing.exit_code !== candidate.exitCode
+    || existing.diagnostics !== candidate.diagnostics || existing.provenance !== candidate.provenance
+    || existing.supersedes_result_id !== candidate.supersedesResultId) {
+    throw new RangeError("Run-result idempotency key was already used for different evidence");
+  }
   return { runResult: fromRunResultRow(existing), replayed: true };
+}
+
+function readReplacementProvenance(value: string): { readonly previousSessionId: string; readonly reason: string } | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+  const initiatedBy = Reflect.get(parsed, "initiatedBy");
+  const previousSessionId = Reflect.get(parsed, "previousSessionId");
+  const reason = Reflect.get(parsed, "reason");
+  return initiatedBy === "learner_replacement" && typeof previousSessionId === "string" && typeof reason === "string"
+    ? { previousSessionId, reason }
+    : null;
+}
+
+function fromProjectSessionRow(row: ProjectSessionRow): ProjectPracticeSession {
+  return ProjectPracticeSessionSchema.parse({
+    id: row.id,
+    learnerProjectId: row.learner_project_id,
+    learnerId: row.learner_id,
+    templateMilestoneId: row.template_milestone_id,
+    practiceTaskId: row.practice_task_id,
+    language: row.language,
+    toolchainLabel: row.toolchain_label,
+    provenanceJson: row.provenance_json,
+    status: row.status,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+  });
 }
 
 export function recordArtifactEvidence(

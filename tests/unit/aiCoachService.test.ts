@@ -16,7 +16,9 @@ import {
   readAiPreference,
   saveAiPreference,
 } from "@/lib/services/aiCoachService";
-import type { FetchLike } from "@/lib/services/openAiCompatible";
+import { startDefaultProject } from "@/lib/services/projectEvidence";
+import { recordProjectArtifactEvidence } from "@/lib/services/projectEvidenceIntake";
+import type { FetchLike, FetchResponseLike } from "@/lib/services/openAiCompatible";
 import { serializeLearningPlanSnapshot } from "@/lib/services/planSnapshot";
 
 const directories: string[] = [];
@@ -72,6 +74,29 @@ describe("on-demand AI coach service", () => {
     expect(serialized).not.toContain("Return strict JSON");
   });
 
+  it.each([
+    ["https://provider.example", "https://provider.example/v1/chat/completions"],
+    ["https://provider.example/v1", "https://provider.example/v1/chat/completions"],
+    ["https://provider.example/api/v1/", "https://provider.example/api/v1/chat/completions"],
+    ["https://provider.example/custom/chat/completions/", "https://provider.example/custom/chat/completions"],
+  ])("normalizes OpenAI-compatible base URL %s", async (baseUrl, expectedUrl) => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const fetch = vi.fn<FetchLike>(async (url) => {
+      expect(url).toBe(expectedUrl);
+      return wireResponse({
+        summary: "URL is normalized.", strengths: [], risks: [], nextSteps: ["Continue"],
+        evidenceIds: [fixture.evidenceId],
+      });
+    });
+    const result = await generateCoachReport(fixture.db, {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"],
+      requestKey: `url-${baseUrl}`, now: NOW,
+    }, { env: { ...AI_ENV, TRAINING_AI_OPENAI_BASE_URL: baseUrl }, fetch });
+
+    expect(result.source).toBe("ai");
+  });
+
   it("rejects forged citations and replays without a second call or charge", async () => {
     const fixture = openFixture();
     saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
@@ -92,6 +117,78 @@ describe("on-demand AI coach service", () => {
     expect(count(fixture.db, "ai_coach_reports")).toBe(1);
   });
 
+  it("coalesces concurrent report requests with the same request key", async () => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const pending = deferredResponse();
+    const fetch = vi.fn<FetchLike>(async () => pending.promise);
+    const input = {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"] as const,
+      requestKey: "concurrent-report", now: NOW,
+    };
+
+    const firstPromise = generateCoachReport(fixture.db, input, { env: AI_ENV, fetch });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    const secondDb = openConcurrentConnection(fixture.db);
+    const secondPromise = generateCoachReport(secondDb, input, { env: AI_ENV, fetch });
+    pending.resolve(wireResponse({
+      summary: "One result.", strengths: ["Idempotent"], risks: [],
+      nextSteps: ["Keep one record"], evidenceIds: [fixture.evidenceId],
+    }));
+
+    const [first, second] = await Promise.all([firstPromise, secondPromise]);
+    expect(second).toEqual({ ...first, replayed: true });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_request_audit")).toBe(1);
+    expect(count(fixture.db, "ai_coach_reports")).toBe(1);
+  });
+
+  it("rejects reuse of a report request key for different evidence", async () => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const otherEvidence = appendEvidenceEvent(fixture.db, {
+      learnerId: LOCAL_DEFAULT_LEARNER_ID, sourceType: "attempt", sourceId: "attempt-other",
+      eventType: "run", occurredAt: NOW, factsJson: JSON.stringify({ result: "passed" }),
+      provenanceJson: JSON.stringify({ explicit: true }), schemaVersion: "test-1", parserVersion: "test-1",
+      confidence: "high", supersedesEventId: null, idempotencyKey: "evidence-other",
+    });
+    const fetch = vi.fn<FetchLike>(async () => wireResponse({
+      summary: "First input.", strengths: [], risks: [], nextSteps: ["Continue"],
+      evidenceIds: [fixture.evidenceId],
+    }));
+    await generateCoachReport(fixture.db, {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"],
+      requestKey: "reused-report-key", now: NOW,
+    }, { env: AI_ENV, fetch });
+
+    await expect(generateCoachReport(fixture.db, {
+      evidenceIds: [otherEvidence.event.id], requestedContext: ["evidence_summary"],
+      requestKey: "reused-report-key", now: NOW,
+    }, { env: AI_ENV, fetch })).rejects.toThrow(/different input/u);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_coach_reports")).toBe(1);
+  });
+
+  it("replays a failed provider attempt without charging or calling twice", async () => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const fetch = vi.fn<FetchLike>(async () => { throw new Error("transport detail must not persist"); });
+    const input = {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"] as const,
+      requestKey: "failed-report", now: NOW,
+    };
+    const first = await generateCoachReport(fixture.db, input, { env: AI_ENV, fetch });
+    const replay = await generateCoachReport(fixture.db, input, { env: AI_ENV, fetch });
+
+    expect(first).toMatchObject({ source: "fallback", replayed: false, error: "transport_error" });
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_request_audit")).toBe(1);
+  });
+
   it("does not call the provider for an unknown evidence id", async () => {
     const fixture = openFixture();
     saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
@@ -103,6 +200,69 @@ describe("on-demand AI coach service", () => {
     expect(result.report.evidenceIds).toEqual([]);
     expect(fetch).not.toHaveBeenCalled();
     expect(count(fixture.db, "ai_quota_ledger")).toBe(0);
+  });
+
+  it("sends code only when both the saved preference and current request allow it", async () => {
+    const fixture = openFixture();
+    const code = "int private_algorithm = 42;";
+    const codeEvidenceId = attachCodeEvidence(fixture.db, code);
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const bodies: string[] = [];
+    const fetch = vi.fn<FetchLike>(async (_url, init) => {
+      bodies.push(init?.body ?? "");
+      return wireResponse({
+        summary: "Consent checked.", strengths: [], risks: [], nextSteps: ["Continue"], evidenceIds: [codeEvidenceId],
+      });
+    });
+    await generateCoachReport(fixture.db, {
+      evidenceIds: [codeEvidenceId], requestedContext: ["evidence_summary", "code_snapshot"],
+      requestKey: "code-not-consented", now: NOW,
+    }, { env: AI_ENV, fetch });
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary", "code_snapshot"], now: NOW });
+    await generateCoachReport(fixture.db, {
+      evidenceIds: [codeEvidenceId], requestedContext: ["evidence_summary", "code_snapshot"],
+      requestKey: "code-consented", now: NOW,
+    }, { env: AI_ENV, fetch });
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).not.toContain(code);
+    expect(bodies[1]).toContain(code);
+  });
+
+  it.each([
+    ["API key", AI_ENV.TRAINING_AI_OPENAI_API_KEY],
+    ["absolute path", "C:\\Users\\person\\private.cpp"],
+    ["raw prompt", "Return strict JSON with summary, strengths, risks, nextSteps, and evidenceIds."],
+  ])("rejects and does not persist provider output containing %s", async (_label, sensitiveText) => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const fetch = vi.fn<FetchLike>(async () => wireResponse({
+      summary: sensitiveText, strengths: [], risks: [], nextSteps: ["Continue"], evidenceIds: [fixture.evidenceId],
+    }));
+    const result = await generateCoachReport(fixture.db, {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"],
+      requestKey: `sensitive-${_label}`, now: NOW,
+    }, { env: AI_ENV, fetch });
+
+    expect(result).toMatchObject({ source: "fallback", error: "invalid_output" });
+    expect(JSON.stringify(fixture.db.prepare("SELECT * FROM ai_coach_reports").all())).not.toContain(sensitiveText);
+  });
+
+  it("rejects a provider response that echoes an explicitly shared code snapshot", async () => {
+    const fixture = openFixture();
+    const code = "int private_algorithm = 42;";
+    const codeEvidenceId = attachCodeEvidence(fixture.db, code);
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary", "code_snapshot"], now: NOW });
+    const fetch = vi.fn<FetchLike>(async () => wireResponse({
+      summary: code, strengths: [], risks: [], nextSteps: ["Continue"], evidenceIds: [codeEvidenceId],
+    }));
+    const result = await generateCoachReport(fixture.db, {
+      evidenceIds: [codeEvidenceId], requestedContext: ["evidence_summary", "code_snapshot"],
+      requestKey: "echoed-code", now: NOW,
+    }, { env: AI_ENV, fetch });
+
+    expect(result).toMatchObject({ source: "fallback", error: "invalid_output" });
+    expect(JSON.stringify(fixture.db.prepare("SELECT * FROM ai_coach_reports").all())).not.toContain(code);
   });
 
   it("applies a proposal only after local validation and makes acceptance idempotent", async () => {
@@ -123,6 +283,60 @@ describe("on-demand AI coach service", () => {
     expect(fixture.db.prepare<[string], { readonly daily_mode: string; readonly effort_boundary_minutes: number }>(
       "SELECT daily_mode, effort_boundary_minutes FROM daily_plan_snapshots WHERE id = ?",
     ).get(accepted.successorDailyPlanId ?? "")).toEqual({ daily_mode: "review", effort_boundary_minutes: 60 });
+  });
+
+  it("coalesces concurrent plan proposals with the same request key", async () => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const pending = deferredResponse();
+    const fetch = vi.fn<FetchLike>(async () => pending.promise);
+    const input = {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"] as const,
+      requestKey: "concurrent-proposal", now: NOW,
+    };
+
+    const firstPromise = generatePlanChangeProposal(fixture.db, input, { env: AI_ENV, fetch });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    const secondDb = openConcurrentConnection(fixture.db);
+    const secondPromise = generatePlanChangeProposal(secondDb, input, { env: AI_ENV, fetch });
+    pending.resolve(wireResponse({
+      dailyMode: "review", effortBoundaryMinutes: 60,
+      rationale: "Use one proposal.", evidenceIds: [fixture.evidenceId],
+    }));
+
+    const [first, second] = await Promise.all([firstPromise, secondPromise]);
+    expect(second).toEqual({ ...first, replayed: true });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_request_audit")).toBe(1);
+    expect(count(fixture.db, "ai_plan_change_proposals")).toBe(1);
+  });
+
+  it("rejects reuse of a proposal request key for different evidence", async () => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const otherEvidence = appendEvidenceEvent(fixture.db, {
+      learnerId: LOCAL_DEFAULT_LEARNER_ID, sourceType: "attempt", sourceId: "proposal-attempt-other",
+      eventType: "run", occurredAt: NOW, factsJson: JSON.stringify({ result: "passed" }),
+      provenanceJson: JSON.stringify({ explicit: true }), schemaVersion: "test-1", parserVersion: "test-1",
+      confidence: "high", supersedesEventId: null, idempotencyKey: "proposal-evidence-other",
+    });
+    const fetch = vi.fn<FetchLike>(async () => wireResponse({
+      dailyMode: "review", effortBoundaryMinutes: 60,
+      rationale: "Use the cited evidence.", evidenceIds: [fixture.evidenceId],
+    }));
+    await generatePlanChangeProposal(fixture.db, {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"],
+      requestKey: "reused-proposal-key", now: NOW,
+    }, { env: AI_ENV, fetch });
+
+    await expect(generatePlanChangeProposal(fixture.db, {
+      evidenceIds: [otherEvidence.event.id], requestedContext: ["evidence_summary"],
+      requestKey: "reused-proposal-key", now: NOW,
+    }, { env: AI_ENV, fetch })).rejects.toThrow(/different input/u);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_plan_change_proposals")).toBe(1);
   });
 });
 
@@ -155,6 +369,13 @@ function openFixture(): { readonly db: Database.Database; readonly evidenceId: s
   return { db, evidenceId: evidence.event.id };
 }
 
+function openConcurrentConnection(db: Database.Database): Database.Database {
+  const concurrent = new Database(db.name);
+  databases.push(concurrent);
+  concurrent.pragma("foreign_keys = ON");
+  return concurrent;
+}
+
 function wireResponse(value: unknown) {
   return {
     ok: true,
@@ -163,6 +384,40 @@ function wireResponse(value: unknown) {
       return JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) } }] });
     },
   };
+}
+
+function deferredResponse(): {
+  readonly promise: Promise<FetchResponseLike>;
+  readonly resolve: (value: FetchResponseLike) => void;
+} {
+  let complete: ((value: FetchResponseLike) => void) | undefined;
+  const promise = new Promise<FetchResponseLike>((resolve) => {
+    complete = resolve;
+  });
+  if (complete === undefined) throw new Error("Deferred response was not initialized");
+  return { promise, resolve: complete };
+}
+
+function attachCodeEvidence(db: Database.Database, content: string): string {
+  const started = startDefaultProject(db, { captureMode: "full", now: NOW });
+  const stored = recordProjectArtifactEvidence(db, join(db.name, "..", ".training-evidence"), {
+    projectSessionId: started.sessionId,
+    kind: "snapshot",
+    purpose: "AI consent test",
+    captureMode: "full",
+    relativePath: "src/private.cpp",
+    content,
+    idempotencyKey: `code-${content}`,
+    recordedAt: NOW,
+  });
+  const evidence = appendEvidenceEvent(db, {
+    learnerId: LOCAL_DEFAULT_LEARNER_ID, sourceType: "project", sourceId: started.sessionId,
+    eventType: "snapshot", occurredAt: NOW,
+    factsJson: JSON.stringify({ contentHash: stored.artifact.contentHash, byteSize: stored.artifact.byteSize }),
+    provenanceJson: JSON.stringify({ explicit: true }), schemaVersion: "test-1", parserVersion: "test-1",
+    confidence: "high", supersedesEventId: null, idempotencyKey: `evidence-${content}`,
+  });
+  return evidence.event.id;
 }
 
 function count(db: Database.Database, table: string): number {

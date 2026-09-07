@@ -6,6 +6,7 @@ import {
   CaptureRequestError,
   readBoundedJson,
   requireSameOrigin,
+  statusForRangeError,
 } from "@/lib/http/captureRequest";
 import { appendLearnerAssessment } from "@/lib/repositories/learnerAssessments";
 import { getOrCreateLocalProfile } from "@/lib/repositories/learnerProfiles";
@@ -16,6 +17,7 @@ const RequestSchema = z.object({
   rating: z.enum(["unassessed", "L1", "L2", "L3", "L4", "L5"]).nullable(),
   reason: z.string().trim().min(1).max(500).nullable(),
   abilityInputFingerprint: z.string().min(1).max(200).nullable(),
+  idempotencyKey: z.string().min(1).max(200),
 }).strict().superRefine((value, context) => {
   if (value.kind === "self_rating" && value.rating === null) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Self-rating requires a level", path: ["rating"] });
@@ -35,12 +37,12 @@ export async function POST(request: Request): Promise<Response> {
     const db = openDatabase();
     try {
       getOrCreateLocalProfile(db);
-      const assessment = appendLearnerAssessment(db, {
+      const saved = appendLearnerAssessment(db, {
         learnerId: LOCAL_DEFAULT_LEARNER_ID,
         ...parsed.data,
         createdAt: new Date().toISOString(),
       });
-      return NextResponse.json({ ok: true, assessment });
+      return NextResponse.json({ ok: true, ...saved });
     } finally {
       db.close();
     }
@@ -48,8 +50,11 @@ export async function POST(request: Request): Promise<Response> {
     if (error instanceof CaptureRequestError) {
       return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
     }
-    if (error instanceof z.ZodError || error instanceof RangeError) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    }
+    if (error instanceof RangeError) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: statusForRangeError(error) });
     }
     return NextResponse.json({ ok: false, error: "Failed to save assessment" }, { status: 500 });
   }

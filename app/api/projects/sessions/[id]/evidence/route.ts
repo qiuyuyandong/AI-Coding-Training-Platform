@@ -6,6 +6,7 @@ import {
   CaptureRequestError,
   readBoundedJson,
   requireSameOrigin,
+  statusForRangeError,
 } from "@/lib/http/captureRequest";
 import {
   deleteProjectArtifactEvidence,
@@ -41,6 +42,7 @@ const DeleteSchema = z.object({
 }).strict();
 
 const EvidenceRequestSchema = z.discriminatedUnion("action", [RunSchema, ArtifactSchema, DeleteSchema]);
+const RouteIdSchema = z.string().min(1).max(200);
 type RouteContext = { readonly params: Promise<{ readonly id: string }> };
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
@@ -48,7 +50,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     requireSameOrigin(request);
     const parsed = EvidenceRequestSchema.safeParse(await readBoundedJson(request));
     if (!parsed.success) return NextResponse.json({ ok: false, error: "Invalid evidence request", issues: parsed.error.issues }, { status: 400 });
-    const { id: sessionId } = await context.params;
+    const sessionId = RouteIdSchema.parse((await context.params).id);
     const db = openDatabase();
     try {
       const now = new Date().toISOString();
@@ -93,7 +95,8 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     }
   } catch (error) {
     if (error instanceof CaptureRequestError) return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
-    if (error instanceof z.ZodError || error instanceof RangeError) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    if (error instanceof z.ZodError) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    if (error instanceof RangeError) return NextResponse.json({ ok: false, error: error.message }, { status: statusForRangeError(error) });
     return NextResponse.json({ ok: false, error: "Failed to record project evidence" }, { status: 500 });
   }
 }

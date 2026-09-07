@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
+import { z } from "zod";
 import type { CaptureMode } from "@/lib/domain/evidence";
 import { RubricScoresSchema, rubricPasses, type RubricScores } from "@/lib/domain/project";
 import { LOCAL_DEFAULT_LEARNER_ID } from "@/lib/domain/learner";
@@ -25,6 +27,23 @@ import { scheduleNextReview } from "@/lib/services/reviewScheduler";
 import { replayEvidenceAbility } from "@/lib/services/evidenceAbilityReplay";
 
 const PROJECT_EVIDENCE_VERSION = "project-evidence-1" as const;
+const ProjectCompletionResultSchema = z.object({
+  summaryId: z.string().min(1),
+  outcome: z.enum([
+    "independent_effective_completion",
+    "assisted_effective_completion",
+    "productive_struggle",
+    "unproductive_trial_and_error",
+    "insufficient_evidence",
+  ]),
+  reviewId: z.string().nullable(),
+  milestoneRecordId: z.string().min(1),
+  rubricAssessmentId: z.string().min(1),
+  projectCompleted: z.boolean(),
+  nextSessionId: z.string().nullable(),
+  nextMilestoneTitle: z.string().nullable(),
+}).strict();
+type ProjectCompletionResult = z.infer<typeof ProjectCompletionResultSchema>;
 
 type SessionRow = {
   readonly id: string;
@@ -76,7 +95,7 @@ export function startDefaultProject(
     readonly now: string;
     readonly toolchainLabel?: string | null;
   },
-): { readonly projectId: string; readonly sessionId: string; readonly milestoneId: string } {
+): { readonly projectId: string; readonly sessionId: string; readonly milestoneId: string; readonly replayed: boolean } {
   return db.transaction(() => {
     const definition = loadProjectTemplateDefinition(join(
       process.cwd(),
@@ -90,9 +109,12 @@ export function startDefaultProject(
       readonly project_id: string;
       readonly session_id: string;
       readonly milestone_id: string;
+      readonly capture_mode: string;
+      readonly toolchain_label: string | null;
     }>(`
       SELECT project.id AS project_id, session.id AS session_id,
-             session.template_milestone_id AS milestone_id
+             session.template_milestone_id AS milestone_id,
+             project.capture_mode, session.toolchain_label
       FROM learner_projects project
       JOIN project_practice_sessions session ON session.learner_project_id = project.id
       WHERE project.learner_id = ? AND project.template_id = ?
@@ -100,7 +122,16 @@ export function startDefaultProject(
       ORDER BY session.started_at DESC LIMIT 1
     `).get(learnerId, template.id);
     if (existing !== undefined) {
-      return { projectId: existing.project_id, sessionId: existing.session_id, milestoneId: existing.milestone_id };
+      if (existing.capture_mode !== input.captureMode
+        || existing.toolchain_label !== (input.toolchainLabel ?? null)) {
+        throw new RangeError("Active project request conflicts with its saved capture mode or toolchain");
+      }
+      return {
+        projectId: existing.project_id,
+        sessionId: existing.session_id,
+        milestoneId: existing.milestone_id,
+        replayed: true,
+      };
     }
     const project = createLearnerProject(db, {
       learnerId,
@@ -135,7 +166,7 @@ export function startDefaultProject(
       evidenceIds: [],
       confirmedAt: input.now,
     });
-    return { projectId: project.id, sessionId: session.id, milestoneId: milestone.id };
+    return { projectId: project.id, sessionId: session.id, milestoneId: milestone.id, replayed: false };
   })();
 }
 
@@ -148,20 +179,28 @@ export function completeProjectSessionEvidence(
     readonly reflection?: string | null;
     readonly now: string;
   },
-): {
-  readonly summaryId: string;
-  readonly outcome: ReturnType<typeof classifyTrainingOutcome>["outcome"];
-  readonly reviewId: string | null;
-  readonly milestoneRecordId: string;
-  readonly rubricAssessmentId: string;
-  readonly projectCompleted: boolean;
-  readonly nextSessionId: string | null;
-  readonly nextMilestoneTitle: string | null;
-} {
+): ProjectCompletionResult & { readonly replayed: boolean } {
+  const rubricScores = RubricScoresSchema.parse(input.rubricScores);
+  if (!rubricPasses(rubricScores)) {
+    throw new RangeError("Function, testing, integration, and explanation rubric scores must each be at least 2");
+  }
+  const reflection = input.reflection?.trim() || null;
+  const inputFingerprint = createHash("sha256").update(JSON.stringify({
+    sessionId: input.sessionId,
+    usedAssistance: input.usedAssistance,
+    rubricScores,
+    reflection,
+  })).digest("hex");
   return db.transaction(() => {
-    const rubricScores = RubricScoresSchema.parse(input.rubricScores);
-    if (!rubricPasses(rubricScores)) {
-      throw new RangeError("Function, testing, integration, and explanation rubric scores must each be at least 2");
+    const receipt = db.prepare<[string], { readonly input_fingerprint: string; readonly result_json: string }>(`
+      SELECT input_fingerprint, result_json FROM project_session_completion_receipts
+      WHERE project_session_id = ?
+    `).get(input.sessionId);
+    if (receipt !== undefined) {
+      if (receipt.input_fingerprint !== inputFingerprint) {
+        throw new RangeError("Project completion request was already used with different input");
+      }
+      return { ...ProjectCompletionResultSchema.parse(JSON.parse(receipt.result_json)), replayed: true };
     }
     const session = db.prepare<[string], SessionRow>(`
       SELECT session.id, session.learner_project_id, session.learner_id,
@@ -245,7 +284,7 @@ export function completeProjectSessionEvidence(
       hasSubmissionSequence: false,
       hasCodeSnapshot: artifacts.some((artifact) => artifact.kind === "snapshot" || artifact.kind === "diff"),
       hasRunOrTestEvidence: true,
-      hasReflection: (input.reflection ?? "").trim().length > 0,
+      hasReflection: reflection !== null,
     });
     const summary = saveTrainingSessionSummary(db, {
       learnerId: session.learner_id,
@@ -275,11 +314,11 @@ export function completeProjectSessionEvidence(
       reasonCodes: [...scheduled.reasonCodes],
       createdAt: input.now,
     }).review;
-    if ((input.reflection ?? "").trim().length > 0) {
+    if (reflection !== null) {
       confirmProjectSessionMilestoneStatus(db, {
         projectSessionId: session.id,
         status: "retrospective",
-        reflection: input.reflection,
+        reflection,
         evidenceIds: eventIds,
         confirmedAt: input.now,
       });
@@ -288,7 +327,7 @@ export function completeProjectSessionEvidence(
       learnerProjectId: session.learner_project_id,
       templateMilestoneId: session.template_milestone_id,
       status: "completed",
-      reflection: input.reflection ?? null,
+      reflection,
       evidenceIds: eventIds,
       confirmedAt: input.now,
     });
@@ -357,7 +396,7 @@ export function completeProjectSessionEvidence(
         .run(input.now, session.learner_project_id);
     }
     replayEvidenceAbility(db, session.learner_id, input.now);
-    return {
+    const result: ProjectCompletionResult = {
       summaryId: summary.summary.id,
       outcome: summary.summary.outcome,
       reviewId: review?.id ?? null,
@@ -367,6 +406,12 @@ export function completeProjectSessionEvidence(
       nextSessionId,
       nextMilestoneTitle: nextMilestone?.title ?? null,
     };
+    db.prepare(`
+      INSERT INTO project_session_completion_receipts (
+        project_session_id, input_fingerprint, result_json, completed_at
+      ) VALUES (?, ?, ?, ?)
+    `).run(input.sessionId, inputFingerprint, JSON.stringify(result), input.now);
+    return { ...result, replayed: false };
   })();
 }
 

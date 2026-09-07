@@ -24,6 +24,8 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:prepare": "tsx tests/e2e/prepare.ts",
+    "e2e:acceptance": "playwright test --config playwright.acceptance.config.ts",
+    "e2e:acceptance:prepare": "tsx tests/acceptance-e2e/prepare.ts",
     "db:migrate": "tsx lib/db/migrate.ts",
     "db:seed": "tsx lib/db/seed.ts",
     "extension:test": "vitest run --config vitest.extension.config.ts",

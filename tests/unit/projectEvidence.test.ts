@@ -75,9 +75,15 @@ describe("Phase 4 explicit project evidence", () => {
       toolchainLabel: "g++",
     });
     expect(startDefaultProject(db, {
-      captureMode: "full",
+      captureMode: "basic",
       now: "2026-09-07T00:01:00.000Z",
-    })).toEqual(started);
+      toolchainLabel: "g++",
+    })).toEqual({ ...started, replayed: true });
+    expect(() => startDefaultProject(db, {
+      captureMode: "full",
+      now: "2026-09-07T00:02:00.000Z",
+      toolchainLabel: "g++",
+    })).toThrow(/conflicts/u);
     recordExplicitRunResult(db, {
       projectSessionId: started.sessionId,
       kind: "build",
@@ -215,12 +221,13 @@ describe("Phase 4 explicit project evidence", () => {
       reason: "Restart with a smaller module boundary",
       now: "2026-09-07T03:10:00.000Z",
     });
-    expect(replacement.learnerProjectId).toBe(started.projectId);
-    expect(replacement.templateMilestoneId).toBe(started.milestoneId);
+    expect(replacement.session.learnerProjectId).toBe(started.projectId);
+    expect(replacement.session.templateMilestoneId).toBe(started.milestoneId);
     expect(db.prepare<[string], { readonly status: string }>(
       "SELECT status FROM project_practice_sessions WHERE id = ?",
     ).get(started.sessionId)?.status).toBe("cancelled");
-    expect(replacement.status).toBe("active");
+    expect(replacement.session.status).toBe("active");
+    expect(replacement.replayed).toBe(false);
   });
 
   it("stores and deletes only an explicitly selected full snapshot", () => {

@@ -89,13 +89,22 @@ export function listDueReviews(
 
 export function completeReview(
   db: Database.Database,
+  learnerId: string,
   reviewId: string,
   completedAt: string,
-): boolean {
-  return db.prepare(`
+): { readonly replayed: boolean } | null {
+  const row = db.prepare<[string, string], { readonly status: string }>(`
+    SELECT status FROM review_items WHERE id = ? AND learner_id = ?
+  `).get(reviewId, learnerId);
+  if (row === undefined) return null;
+  if (row.status === "completed") return { replayed: true };
+  if (row.status !== "open") throw new RangeError(`Review '${reviewId}' is already ${row.status}`);
+  const updated = db.prepare(`
     UPDATE review_items SET status = 'completed', completed_at = ?
-    WHERE id = ? AND status = 'open'
-  `).run(completedAt, reviewId).changes === 1;
+    WHERE id = ? AND learner_id = ? AND status = 'open'
+  `).run(completedAt, reviewId, learnerId);
+  if (updated.changes !== 1) throw new RangeError(`Review '${reviewId}' completion conflicted with another request`);
+  return { replayed: false };
 }
 
 export function selectReviewPracticeTaskId(

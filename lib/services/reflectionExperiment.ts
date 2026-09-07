@@ -27,6 +27,7 @@
 
 import {
   requestOpenAiCompatibleJson,
+  resolveOpenAiChatCompletionsUrl,
   type FetchInit,
   type FetchLike,
   type FetchResponseLike,
@@ -128,7 +129,7 @@ function readEnv(env: EnvSource): ResolvedConfig {
   const legacyUrl = (env["V0_AI_REFLECTION_URL"] ?? "").trim();
   const url = legacyUrl.length > 0
     ? legacyUrl
-    : resolveTrainingAiUrl((env["TRAINING_AI_OPENAI_BASE_URL"] ?? "").trim());
+    : resolveOpenAiChatCompletionsUrl((env["TRAINING_AI_OPENAI_BASE_URL"] ?? "").trim());
   const model = (env["V0_AI_REFLECTION_MODEL"] ?? env["TRAINING_AI_OPENAI_MODEL"] ?? "").trim();
   const apiKey = (env["V0_AI_REFLECTION_API_KEY"] ?? env["TRAINING_AI_OPENAI_API_KEY"] ?? "").trim();
   const rawTimeout = env["V0_AI_REFLECTION_TIMEOUT_MS"] ?? env["TRAINING_AI_TIMEOUT_MS"];
@@ -139,19 +140,6 @@ function readEnv(env: EnvSource): ResolvedConfig {
     ? parsed
     : DEFAULT_TIMEOUT_MS;
   return { enabled, url, model, apiKey, timeoutMs };
-}
-
-function resolveTrainingAiUrl(value: string): string {
-  if (value.length === 0) return "";
-  try {
-    const parsed = new URL(value);
-    if (!parsed.pathname.endsWith("/chat/completions")) {
-      parsed.pathname = `${parsed.pathname.replace(/\/$/u, "")}/v1/chat/completions`;
-    }
-    return parsed.toString();
-  } catch {
-    return value;
-  }
 }
 
 function buildUserPayload(input: ReflectionInput): Readonly<Record<string, string | number>> {

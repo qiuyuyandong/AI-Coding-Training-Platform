@@ -78,6 +78,14 @@ export function requireSameOrigin(request: Request): void {
   }
 }
 
+export function statusForRangeError(error: RangeError): 400 | 404 | 409 {
+  const message = error.message.toLowerCase();
+  if (message.includes("not found")) return 404;
+  if (message.includes("not active") || message.includes("already")
+    || message.includes("different") || message.includes("conflict") || message.includes("stale")) return 409;
+  return 400;
+}
+
 export function requireCanonicalLocalCaptureHost(request: Request): void {
   const url = new URL(request.url);
   if (

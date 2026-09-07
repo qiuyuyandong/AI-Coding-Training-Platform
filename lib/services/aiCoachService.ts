@@ -17,6 +17,7 @@ import { DailyModeSchema, EffortBoundaryMinutesSchema } from "@/lib/domain/plan"
 import { regenerateDailyPlan } from "@/lib/services/planRegeneration";
 import {
   requestOpenAiCompatibleJson,
+  resolveOpenAiChatCompletionsUrl,
   type FetchLike,
   type ProviderErrorCode,
 } from "@/lib/services/openAiCompatible";
@@ -24,6 +25,8 @@ import {
 const DEFAULT_TIMEOUT_MS = 8_000;
 const DEFAULT_DAILY_QUOTA = 20;
 const MAX_CODE_CONTEXT_BYTES = 16 * 1024;
+const ABSOLUTE_PATH_OUTPUT = /(?:[A-Za-z]:[\\/]|\/(?:Users|home|etc|var|private|tmp)(?:\/|$))/u;
+const SECRET_LIKE_OUTPUT = /(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:api[_-]?key|secret|token|password)\s*[:=]\s*["'][^"']{8,}["'])/iu;
 
 type PreferenceRow = { readonly mode: string; readonly allowed_context_json: string };
 type EvidenceRow = {
@@ -36,6 +39,7 @@ type EvidenceRow = {
   readonly occurred_at: string;
 };
 type SnapshotRow = { readonly storage_path: string | null; readonly content_hash: string; readonly byte_size: number };
+type CodeContext = { readonly evidenceId: string; readonly contentHash: string; readonly content: string };
 type PlanRow = {
   readonly learning_plan_id: string;
   readonly daily_plan_id: string;
@@ -43,7 +47,36 @@ type PlanRow = {
   readonly daily_mode: string;
   readonly effort_boundary_minutes: number;
 };
-type ReportRow = { readonly id: string; readonly report_json: string; readonly provider_status: "ai" | "fallback" };
+type AiRequestKind = "coach_report" | "plan_proposal";
+type AiRequestInput = {
+  readonly learnerId?: string;
+  readonly evidenceIds: readonly string[];
+  readonly requestedContext: readonly AiContextCategory[];
+  readonly requestKey: string;
+  readonly now: string;
+};
+type CoachReportResult = {
+  readonly id: string;
+  readonly report: CoachReport;
+  readonly source: "ai" | "fallback";
+  readonly replayed: boolean;
+  readonly error: ProviderErrorCode | null;
+};
+type PlanProposalResult = {
+  readonly id: string;
+  readonly proposal: PlanChangeProposal;
+  readonly source: "ai" | "fallback";
+  readonly replayed: boolean;
+  readonly error: ProviderErrorCode | null;
+};
+type ReportRow = {
+  readonly id: string;
+  readonly learner_id: string;
+  readonly input_fingerprint: string;
+  readonly report_json: string;
+  readonly provider_status: "ai" | "fallback";
+  readonly error_code: string | null;
+};
 type ProposalRow = {
   readonly id: string;
   readonly learner_id: string;
@@ -53,6 +86,16 @@ type ProposalRow = {
   readonly status: "pending" | "accepted" | "rejected";
   readonly successor_daily_plan_id: string | null;
 };
+type RequestAuditRow = {
+  readonly learner_id: string;
+  readonly request_kind: AiRequestKind;
+  readonly input_fingerprint: string;
+};
+
+const activeAiRequests = new Map<string, { readonly kind: AiRequestKind; readonly inputFingerprint: string }>();
+const reportRequests = new Map<string, Promise<CoachReportResult>>();
+const proposalRequests = new Map<string, Promise<PlanProposalResult>>();
+const memoryDatabaseScopes = new WeakMap<Database.Database, string>();
 
 export type AiCoachDeps = {
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -112,18 +155,42 @@ export function saveAiPreference(
 
 export async function generateCoachReport(
   db: Database.Database,
-  input: {
-    readonly learnerId?: string;
-    readonly evidenceIds: readonly string[];
-    readonly requestedContext: readonly AiContextCategory[];
-    readonly requestKey: string;
-    readonly now: string;
-  },
+  input: AiRequestInput,
   deps: AiCoachDeps = {},
-): Promise<{ readonly id: string; readonly report: CoachReport; readonly source: "ai" | "fallback"; readonly replayed: boolean; readonly error: ProviderErrorCode | null }> {
+): Promise<CoachReportResult> {
   const learnerId = input.learnerId ?? LOCAL_DEFAULT_LEARNER_ID;
-  const replay = findReportReplay(db, input.requestKey);
-  if (replay !== null) return { ...replay, replayed: true, error: null };
+  const inputFingerprint = fingerprintAiRequest(learnerId, "coach_report", input);
+  const replay = findReportReplay(db, input.requestKey, learnerId, inputFingerprint);
+  if (replay !== null) return { ...replay, replayed: true };
+  assertStoredRequestCompatible(db, input.requestKey, learnerId, "coach_report", inputFingerprint);
+  const scope = requestScope(db, input.requestKey);
+  const active = activeAiRequests.get(scope);
+  if (active !== undefined) {
+    assertActiveRequestCompatible(active, "coach_report", inputFingerprint);
+    const pending = reportRequests.get(scope);
+    if (pending === undefined) throw new Error("AI report request state is inconsistent");
+    return { ...await pending, replayed: true };
+  }
+  activeAiRequests.set(scope, { kind: "coach_report", inputFingerprint });
+  const pending = generateCoachReportOnce(db, input, deps, inputFingerprint);
+  reportRequests.set(scope, pending);
+  try {
+    return await pending;
+  } finally {
+    if (reportRequests.get(scope) === pending) {
+      reportRequests.delete(scope);
+      activeAiRequests.delete(scope);
+    }
+  }
+}
+
+async function generateCoachReportOnce(
+  db: Database.Database,
+  input: AiRequestInput,
+  deps: AiCoachDeps,
+  inputFingerprint: string,
+): Promise<CoachReportResult> {
+  const learnerId = input.learnerId ?? LOCAL_DEFAULT_LEARNER_ID;
   const preference = readAiPreference(db, learnerId);
   const categories = authorizedCategories(preference, input.requestedContext);
   const evidence = loadEvidence(db, learnerId, input.evidenceIds);
@@ -131,17 +198,23 @@ export async function generateCoachReport(
   const fallback = fallbackReport(allEvidenceKnown ? evidence.map((row) => row.id) : []);
   const config = readConfig(deps.env ?? process.env);
   const contextAuthorized = categories.includes("evidence_summary");
-  const quota = reserveQuota(db, learnerId, "coach_report", input.requestKey, input.now, config.dailyQuota,
+  const quota = reserveQuota(db, learnerId, "coach_report", input.requestKey, inputFingerprint, input.now, config.dailyQuota,
     preference.mode === "on_demand" && config.enabled && allEvidenceKnown && contextAuthorized);
+  const codeSnapshots = quota.error === null && categories.includes("code_snapshot") ? loadCodeContext(db, evidence) : [];
   let result: Awaited<ReturnType<typeof requestOpenAiCompatibleJson<CoachReport>>> = quota.error === null
     ? await requestOpenAiCompatibleJson({
       ...config,
       systemPrompt: REPORT_SYSTEM_PROMPT,
       userPayload: {
         evidence: contextAuthorized ? evidence.map(projectEvidence) : [],
-        codeSnapshots: categories.includes("code_snapshot") ? loadCodeContext(db, evidence) : [],
+        codeSnapshots,
       },
-      validate: (value) => validateCoachReport(value, new Set(evidence.map((row) => row.id))),
+      validate: (value) => validateCoachReport(
+        value,
+        new Set(evidence.map((row) => row.id)),
+        [config.apiKey, ...promptSentences(REPORT_SYSTEM_PROMPT)],
+        codeSnapshots,
+      ),
     }, { fetch: deps.fetch })
     : { ok: false, error: quota.error };
   if (!allEvidenceKnown) result = { ok: false, error: "invalid_output" };
@@ -152,28 +225,53 @@ export async function generateCoachReport(
   db.transaction(() => {
     db.prepare(`
       INSERT INTO ai_coach_reports (
-        id, learner_id, request_key, report_json, evidence_ids_json, provider_status, created_at, deleted_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
-    `).run(id, learnerId, input.requestKey, JSON.stringify(report), JSON.stringify(report.evidenceIds), source, input.now);
-    writeAudit(db, learnerId, "coach_report", input.requestKey, preference.mode, categories, source, error, quota.charged, input.now);
+        id, learner_id, request_key, input_fingerprint, report_json, evidence_ids_json, provider_status, created_at, deleted_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
+    `).run(id, learnerId, input.requestKey, inputFingerprint, JSON.stringify(report), JSON.stringify(report.evidenceIds), source, input.now);
+    writeAudit(db, learnerId, "coach_report", input.requestKey, inputFingerprint,
+      preference.mode, categories, source, error, quota.charged, input.now);
   })();
   return { id, report, source, replayed: false, error };
 }
 
 export async function generatePlanChangeProposal(
   db: Database.Database,
-  input: {
-    readonly learnerId?: string;
-    readonly evidenceIds: readonly string[];
-    readonly requestedContext: readonly AiContextCategory[];
-    readonly requestKey: string;
-    readonly now: string;
-  },
+  input: AiRequestInput,
   deps: AiCoachDeps = {},
-): Promise<{ readonly id: string; readonly proposal: PlanChangeProposal; readonly source: "ai" | "fallback"; readonly replayed: boolean; readonly error: ProviderErrorCode | null }> {
+): Promise<PlanProposalResult> {
   const learnerId = input.learnerId ?? LOCAL_DEFAULT_LEARNER_ID;
-  const replay = findProposalReplay(db, input.requestKey);
-  if (replay !== null) return { ...replay, replayed: true, error: null };
+  const inputFingerprint = fingerprintAiRequest(learnerId, "plan_proposal", input);
+  const replay = findProposalReplay(db, input.requestKey, learnerId, inputFingerprint);
+  if (replay !== null) return { ...replay, replayed: true };
+  assertStoredRequestCompatible(db, input.requestKey, learnerId, "plan_proposal", inputFingerprint);
+  const scope = requestScope(db, input.requestKey);
+  const active = activeAiRequests.get(scope);
+  if (active !== undefined) {
+    assertActiveRequestCompatible(active, "plan_proposal", inputFingerprint);
+    const pending = proposalRequests.get(scope);
+    if (pending === undefined) throw new Error("AI proposal request state is inconsistent");
+    return { ...await pending, replayed: true };
+  }
+  activeAiRequests.set(scope, { kind: "plan_proposal", inputFingerprint });
+  const pending = generatePlanChangeProposalOnce(db, input, deps, inputFingerprint);
+  proposalRequests.set(scope, pending);
+  try {
+    return await pending;
+  } finally {
+    if (proposalRequests.get(scope) === pending) {
+      proposalRequests.delete(scope);
+      activeAiRequests.delete(scope);
+    }
+  }
+}
+
+async function generatePlanChangeProposalOnce(
+  db: Database.Database,
+  input: AiRequestInput,
+  deps: AiCoachDeps,
+  inputFingerprint: string,
+): Promise<PlanProposalResult> {
+  const learnerId = input.learnerId ?? LOCAL_DEFAULT_LEARNER_ID;
   const plan = requireCurrentPlan(db, learnerId);
   const preference = readAiPreference(db, learnerId);
   const categories = authorizedCategories(preference, input.requestedContext);
@@ -189,8 +287,9 @@ export async function generatePlanChangeProposal(
   };
   const config = readConfig(deps.env ?? process.env);
   const contextAuthorized = categories.includes("evidence_summary");
-  const quota = reserveQuota(db, learnerId, "plan_proposal", input.requestKey, input.now, config.dailyQuota,
+  const quota = reserveQuota(db, learnerId, "plan_proposal", input.requestKey, inputFingerprint, input.now, config.dailyQuota,
     preference.mode === "on_demand" && config.enabled && allEvidenceKnown && contextAuthorized);
+  const codeSnapshots = quota.error === null && categories.includes("code_snapshot") ? loadCodeContext(db, evidence) : [];
   let result: Awaited<ReturnType<typeof requestOpenAiCompatibleJson<PlanChangeProposal>>> = quota.error === null
     ? await requestOpenAiCompatibleJson({
       ...config,
@@ -201,9 +300,14 @@ export async function generatePlanChangeProposal(
           effortBoundaryMinutes: plan.effort_boundary_minutes,
         },
         evidence: contextAuthorized ? evidence.map(projectEvidence) : [],
-        codeSnapshots: categories.includes("code_snapshot") ? loadCodeContext(db, evidence) : [],
+        codeSnapshots,
       },
-      validate: (value) => validatePlanProposal(value, new Set(evidence.map((row) => row.id))),
+      validate: (value) => validatePlanProposal(
+        value,
+        new Set(evidence.map((row) => row.id)),
+        [config.apiKey, ...promptSentences(PLAN_SYSTEM_PROMPT)],
+        codeSnapshots,
+      ),
     }, { fetch: deps.fetch })
     : { ok: false, error: quota.error };
   if (!allEvidenceKnown) result = { ok: false, error: "invalid_output" };
@@ -214,12 +318,13 @@ export async function generatePlanChangeProposal(
   db.transaction(() => {
     db.prepare(`
       INSERT INTO ai_plan_change_proposals (
-        id, learner_id, learning_plan_id, before_daily_plan_id, request_key,
+        id, learner_id, learning_plan_id, before_daily_plan_id, request_key, input_fingerprint,
         proposal_json, evidence_ids_json, provider_status, status, created_at, decided_at, successor_daily_plan_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL, NULL)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL, NULL)
     `).run(id, learnerId, plan.learning_plan_id, plan.daily_plan_id, input.requestKey,
-      JSON.stringify(proposal), JSON.stringify(proposal.evidenceIds), source, input.now);
-    writeAudit(db, learnerId, "plan_proposal", input.requestKey, preference.mode, categories, source, error, quota.charged, input.now);
+      inputFingerprint, JSON.stringify(proposal), JSON.stringify(proposal.evidenceIds), source, input.now);
+    writeAudit(db, learnerId, "plan_proposal", input.requestKey, inputFingerprint,
+      preference.mode, categories, source, error, quota.charged, input.now);
   })();
   return { id, proposal, source, replayed: false, error };
 }
@@ -290,25 +395,12 @@ function readConfig(env: Readonly<Record<string, string | undefined>>) {
   const quota = Number.parseInt(env["TRAINING_AI_DAILY_QUOTA"] ?? "", 10);
   return {
     enabled: mode === "on_demand",
-    url: resolveChatCompletionsUrl(baseUrl),
+    url: resolveOpenAiChatCompletionsUrl(baseUrl),
     model: (env["TRAINING_AI_OPENAI_MODEL"] ?? "").trim(),
     apiKey: (env["TRAINING_AI_OPENAI_API_KEY"] ?? "").trim(),
     timeoutMs: Number.isInteger(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS,
     dailyQuota: Number.isInteger(quota) && quota > 0 && quota <= 1_000 ? quota : DEFAULT_DAILY_QUOTA,
   };
-}
-
-function resolveChatCompletionsUrl(baseUrl: string): string {
-  if (baseUrl.length === 0) return "";
-  try {
-    const parsed = new URL(baseUrl);
-    if (!parsed.pathname.endsWith("/chat/completions")) {
-      parsed.pathname = `${parsed.pathname.replace(/\/$/u, "")}/v1/chat/completions`;
-    }
-    return parsed.toString();
-  } catch {
-    return baseUrl;
-  }
 }
 
 function authorizedCategories(
@@ -359,8 +451,8 @@ function projectSafeFacts(value: unknown): Readonly<Record<string, string | numb
   return output;
 }
 
-function loadCodeContext(db: Database.Database, evidence: readonly EvidenceRow[]): readonly Readonly<Record<string, unknown>>[] {
-  const output: Readonly<Record<string, unknown>>[] = [];
+function loadCodeContext(db: Database.Database, evidence: readonly EvidenceRow[]): readonly CodeContext[] {
+  const output: CodeContext[] = [];
   const root = resolve(dirname(db.name), ".training-evidence");
   const statement = db.prepare<[string, string], SnapshotRow>(`
     SELECT storage_path, content_hash, byte_size FROM code_snapshot_refs
@@ -387,8 +479,9 @@ function loadCodeContext(db: Database.Database, evidence: readonly EvidenceRow[]
 function reserveQuota(
   db: Database.Database,
   learnerId: string,
-  kind: "coach_report" | "plan_proposal",
+  kind: AiRequestKind,
   requestKey: string,
+  inputFingerprint: string,
   now: string,
   dailyQuota: number,
   eligible: boolean,
@@ -402,19 +495,24 @@ function reserveQuota(
   `).get(learnerId, start, end)?.count ?? 0;
   if (count >= dailyQuota) return { charged: false, error: "quota_exhausted" };
   const result = db.prepare(`
-    INSERT OR IGNORE INTO ai_quota_ledger (id, learner_id, request_kind, request_key, units, created_at)
-    VALUES (?, ?, ?, ?, 1, ?)
-  `).run(`ai_quota_${randomUUID()}`, learnerId, kind, requestKey, now);
-  return result.changes === 1
-    ? { charged: true, error: null }
-    : { charged: false, error: "quota_exhausted" };
+    INSERT OR IGNORE INTO ai_quota_ledger (
+      id, learner_id, request_kind, request_key, input_fingerprint, units, created_at
+    ) VALUES (?, ?, ?, ?, ?, 1, ?)
+  `).run(`ai_quota_${randomUUID()}`, learnerId, kind, requestKey, inputFingerprint, now);
+  if (result.changes === 1) return { charged: true, error: null };
+  const existing = db.prepare<[string], RequestAuditRow>(`
+    SELECT learner_id, request_kind, input_fingerprint FROM ai_quota_ledger WHERE request_key = ?
+  `).get(requestKey);
+  if (existing !== undefined) assertPersistedRequestCompatible(existing, learnerId, kind, inputFingerprint);
+  return { charged: false, error: "quota_exhausted" };
 }
 
 function writeAudit(
   db: Database.Database,
   learnerId: string,
-  kind: "coach_report" | "plan_proposal",
+  kind: AiRequestKind,
   requestKey: string,
+  inputFingerprint: string,
   mode: AiMode,
   categories: readonly AiContextCategory[],
   source: "ai" | "fallback",
@@ -424,33 +522,143 @@ function writeAudit(
 ): void {
   db.prepare(`
     INSERT INTO ai_request_audit (
-      id, learner_id, request_kind, request_key, mode, context_categories_json,
+      id, learner_id, request_kind, request_key, input_fingerprint, mode, context_categories_json,
       provider_status, error_code, charged, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(`ai_audit_${randomUUID()}`, learnerId, kind, requestKey, mode,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(`ai_audit_${randomUUID()}`, learnerId, kind, requestKey, inputFingerprint, mode,
     JSON.stringify(categories), source, error, charged ? 1 : 0, now);
 }
 
-function findReportReplay(db: Database.Database, requestKey: string) {
+function findReportReplay(
+  db: Database.Database,
+  requestKey: string,
+  learnerId: string,
+  inputFingerprint: string,
+) {
   const row = db.prepare<[string], ReportRow>(`
-    SELECT id, report_json, provider_status FROM ai_coach_reports WHERE request_key = ?
+    SELECT report.id, report.learner_id, report.input_fingerprint, report.report_json,
+      report.provider_status, audit.error_code
+    FROM ai_coach_reports report
+    LEFT JOIN ai_request_audit audit ON audit.request_key = report.request_key
+    WHERE report.request_key = ?
   `).get(requestKey);
-  return row === undefined ? null : {
+  if (row === undefined) return null;
+  assertPersistedRequestCompatible(row, learnerId, "coach_report", inputFingerprint);
+  return {
     id: row.id,
     report: CoachReportSchema.parse(JSON.parse(row.report_json)),
     source: row.provider_status,
+    error: parseProviderErrorCode(row.error_code),
   };
 }
 
-function findProposalReplay(db: Database.Database, requestKey: string) {
-  const row = db.prepare<[string], { readonly id: string; readonly proposal_json: string; readonly provider_status: "ai" | "fallback" }>(`
-    SELECT id, proposal_json, provider_status FROM ai_plan_change_proposals WHERE request_key = ?
+function findProposalReplay(
+  db: Database.Database,
+  requestKey: string,
+  learnerId: string,
+  inputFingerprint: string,
+) {
+  const row = db.prepare<[string], {
+    readonly id: string;
+    readonly learner_id: string;
+    readonly input_fingerprint: string;
+    readonly proposal_json: string;
+    readonly provider_status: "ai" | "fallback";
+    readonly error_code: string | null;
+  }>(`
+    SELECT proposal.id, proposal.learner_id, proposal.input_fingerprint, proposal.proposal_json,
+      proposal.provider_status, audit.error_code
+    FROM ai_plan_change_proposals proposal
+    LEFT JOIN ai_request_audit audit ON audit.request_key = proposal.request_key
+    WHERE proposal.request_key = ?
   `).get(requestKey);
-  return row === undefined ? null : {
+  if (row === undefined) return null;
+  assertPersistedRequestCompatible(row, learnerId, "plan_proposal", inputFingerprint);
+  return {
     id: row.id,
     proposal: PlanChangeProposalSchema.parse(JSON.parse(row.proposal_json)),
     source: row.provider_status,
+    error: parseProviderErrorCode(row.error_code),
   };
+}
+
+function parseProviderErrorCode(value: string | null): ProviderErrorCode | null {
+  switch (value) {
+    case "disabled":
+    case "invalid_config":
+    case "network_denied":
+    case "timeout":
+    case "transport_error":
+    case "provider_error":
+    case "invalid_response":
+    case "invalid_output":
+    case "quota_exhausted":
+      return value;
+    default:
+      return null;
+  }
+}
+
+function fingerprintAiRequest(learnerId: string, kind: AiRequestKind, input: AiRequestInput): string {
+  if (input.requestKey.trim().length === 0 || input.requestKey.length > 200) {
+    throw new RangeError("AI request key must contain 1 to 200 characters");
+  }
+  const evidenceIds = [...new Set(input.evidenceIds)].sort();
+  const requestedContext = [...new Set(input.requestedContext.map((item) => AiContextCategorySchema.parse(item)))].sort();
+  return createHash("sha256").update(JSON.stringify({ learnerId, kind, evidenceIds, requestedContext })).digest("hex");
+}
+
+function requestScope(db: Database.Database, requestKey: string): string {
+  let databaseScope = db.name;
+  if (databaseScope === ":memory:") {
+    const existing = memoryDatabaseScopes.get(db);
+    if (existing === undefined) {
+      databaseScope = `memory:${randomUUID()}`;
+      memoryDatabaseScopes.set(db, databaseScope);
+    } else {
+      databaseScope = existing;
+    }
+  } else {
+    databaseScope = resolve(databaseScope);
+  }
+  return `${databaseScope}\n${requestKey}`;
+}
+
+function assertStoredRequestCompatible(
+  db: Database.Database,
+  requestKey: string,
+  learnerId: string,
+  kind: AiRequestKind,
+  inputFingerprint: string,
+): void {
+  const existing = db.prepare<[string], RequestAuditRow>(`
+    SELECT learner_id, request_kind, input_fingerprint FROM ai_request_audit WHERE request_key = ?
+  `).get(requestKey);
+  if (existing !== undefined) assertPersistedRequestCompatible(existing, learnerId, kind, inputFingerprint);
+}
+
+function assertPersistedRequestCompatible(
+  existing: RequestAuditRow | Pick<ReportRow, "learner_id" | "input_fingerprint">,
+  learnerId: string,
+  kind: AiRequestKind,
+  inputFingerprint: string,
+): void {
+  const existingKind = "request_kind" in existing ? existing.request_kind : kind;
+  const legacyFingerprint = existing.input_fingerprint.length === 0;
+  if (existing.learner_id !== learnerId || existingKind !== kind
+    || (!legacyFingerprint && existing.input_fingerprint !== inputFingerprint)) {
+    throw new RangeError("AI request key was already used with different input");
+  }
+}
+
+function assertActiveRequestCompatible(
+  active: { readonly kind: AiRequestKind; readonly inputFingerprint: string },
+  kind: AiRequestKind,
+  inputFingerprint: string,
+): void {
+  if (active.kind !== kind || active.inputFingerprint !== inputFingerprint) {
+    throw new RangeError("AI request key is already in use with different input");
+  }
 }
 
 function requireCurrentPlan(db: Database.Database, learnerId: string): PlanRow {
@@ -470,14 +678,47 @@ function requireCurrentPlan(db: Database.Database, learnerId: string): PlanRow {
   return row;
 }
 
-function validateCoachReport(value: unknown, evidenceIds: ReadonlySet<string>): CoachReport | null {
+function validateCoachReport(
+  value: unknown,
+  evidenceIds: ReadonlySet<string>,
+  sensitiveLiterals: readonly string[],
+  codeContexts: readonly CodeContext[],
+): CoachReport | null {
   const parsed = CoachReportSchema.safeParse(value);
-  return parsed.success && parsed.data.evidenceIds.every((id) => evidenceIds.has(id)) ? parsed.data : null;
+  if (!parsed.success || !parsed.data.evidenceIds.every((id) => evidenceIds.has(id))) return null;
+  const text = [parsed.data.summary, ...parsed.data.strengths, ...parsed.data.risks, ...parsed.data.nextSteps];
+  return generatedTextIsSafe(text, sensitiveLiterals, codeContexts) ? parsed.data : null;
 }
 
-function validatePlanProposal(value: unknown, evidenceIds: ReadonlySet<string>): PlanChangeProposal | null {
+function validatePlanProposal(
+  value: unknown,
+  evidenceIds: ReadonlySet<string>,
+  sensitiveLiterals: readonly string[],
+  codeContexts: readonly CodeContext[],
+): PlanChangeProposal | null {
   const parsed = PlanChangeProposalSchema.safeParse(value);
-  return parsed.success && parsed.data.evidenceIds.every((id) => evidenceIds.has(id)) ? parsed.data : null;
+  if (!parsed.success || !parsed.data.evidenceIds.every((id) => evidenceIds.has(id))) return null;
+  return generatedTextIsSafe([parsed.data.rationale], sensitiveLiterals, codeContexts) ? parsed.data : null;
+}
+
+function generatedTextIsSafe(
+  values: readonly string[],
+  sensitiveLiterals: readonly string[],
+  codeContexts: readonly CodeContext[],
+): boolean {
+  const codeFragments = codeContexts.flatMap((context) => [
+    context.content.trim(),
+    ...context.content.split(/\r?\n/u).map((line) => line.trim()).filter((line) => line.length >= 8),
+  ]).filter((fragment) => fragment.length > 0);
+  const forbiddenLiterals = [...sensitiveLiterals, ...codeFragments].filter((literal) => literal.length > 0);
+  return values.every((value) => !ABSOLUTE_PATH_OUTPUT.test(value)
+    && !SECRET_LIKE_OUTPUT.test(value)
+    && !value.includes("```")
+    && forbiddenLiterals.every((literal) => !value.includes(literal)));
+}
+
+function promptSentences(prompt: string): readonly string[] {
+  return prompt.split(/(?<=\.)\s+/u).map((sentence) => sentence.trim()).filter((sentence) => sentence.length > 0);
 }
 
 function fallbackReport(evidenceIds: readonly string[]): CoachReport {

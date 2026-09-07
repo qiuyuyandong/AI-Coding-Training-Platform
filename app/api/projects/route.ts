@@ -6,6 +6,7 @@ import {
   CaptureRequestError,
   readBoundedJson,
   requireSameOrigin,
+  statusForRangeError,
 } from "@/lib/http/captureRequest";
 import { getOrCreateLocalProfile } from "@/lib/repositories/learnerProfiles";
 import { listLearnerProjects } from "@/lib/repositories/projectPractice";
@@ -43,7 +44,7 @@ export async function POST(request: Request): Promise<Response> {
         toolchainLabel: body.data.toolchainLabel,
         now: new Date().toISOString(),
       });
-      return NextResponse.json({ ok: true, ...started }, { status: 201 });
+      return NextResponse.json({ ok: true, ...started }, { status: started.replayed ? 200 : 201 });
     } finally {
       db.close();
     }
@@ -54,6 +55,7 @@ export async function POST(request: Request): Promise<Response> {
 
 function projectErrorResponse(error: unknown, fallback: string): Response {
   if (error instanceof CaptureRequestError) return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
-  if (error instanceof z.ZodError || error instanceof RangeError) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+  if (error instanceof z.ZodError) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+  if (error instanceof RangeError) return NextResponse.json({ ok: false, error: error.message }, { status: statusForRangeError(error) });
   return NextResponse.json({ ok: false, error: fallback }, { status: 500 });
 }

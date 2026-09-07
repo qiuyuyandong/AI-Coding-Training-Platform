@@ -46,6 +46,12 @@ const ManifestSchema = z.object({
 }).strict();
 
 export type VaultBackupManifest = z.infer<typeof ManifestSchema>;
+export type VaultRestoreStep =
+  | "live_database_moved"
+  | "replacement_database_moved"
+  | "live_evidence_moved"
+  | "replacement_evidence_moved"
+  | "replacement_validated";
 
 export async function backupVault(
   vaultInput: ValidatedVault,
@@ -131,6 +137,7 @@ export async function restoreVault(
     readonly now?: () => string;
     readonly assertStopped?: () => Promise<void>;
     readonly beforeSwap?: () => void;
+    readonly afterStep?: (step: VaultRestoreStep) => void;
   } = {},
 ): Promise<{ readonly safetyBackupPath: string; readonly restoredManifest: VaultBackupManifest }> {
   const vault = validateVault(vaultInput.vaultPath);
@@ -172,29 +179,61 @@ export async function restoreVault(
     assertNoSqliteSidecars(vault.databasePath);
     renameSync(vault.databasePath, oldDatabase);
     databaseMoved = true;
+    options.afterStep?.("live_database_moved");
     renameSync(stagedDatabase, vault.databasePath);
     replacementDatabaseMoved = true;
+    options.afterStep?.("replacement_database_moved");
     if (pathEntryExists(liveEvidence)) {
-      requireSafeDirectory(liveEvidence, "Live evidence store");
+      validateOwnedEvidenceStore(liveEvidence);
       renameSync(liveEvidence, oldEvidence);
       evidenceMoved = true;
+      options.afterStep?.("live_evidence_moved");
     }
     renameSync(stagedEvidence, liveEvidence);
     replacementEvidenceMoved = true;
+    options.afterStep?.("replacement_evidence_moved");
     validateVault(vault.vaultPath);
     validateRestoredSnapshotReferences(vault.databasePath, liveEvidence);
+    options.afterStep?.("replacement_validated");
     removeOwnedPath(vault.vaultPath, oldDatabase);
     if (evidenceMoved) removeOwnedPath(vault.vaultPath, oldEvidence);
     removeOwnedPath(vault.vaultPath, stage);
     return { safetyBackupPath, restoredManifest: manifest };
   } catch (error) {
-    if (replacementEvidenceMoved) removeOwnedPath(vault.vaultPath, liveEvidence);
-    if (evidenceMoved && pathEntryExists(oldEvidence)) renameSync(oldEvidence, liveEvidence);
     if (replacementDatabaseMoved) removeOwnedPath(vault.vaultPath, vault.databasePath);
     if (databaseMoved && pathEntryExists(oldDatabase)) renameSync(oldDatabase, vault.databasePath);
+    if (evidenceMoved && pathEntryExists(oldEvidence)) restoreEvidenceStore(vault.vaultPath, oldEvidence, liveEvidence);
+    else if (replacementEvidenceMoved && pathEntryExists(liveEvidence)) removeOwnedPath(vault.vaultPath, liveEvidence);
     if (pathEntryExists(stage)) removeOwnedPath(vault.vaultPath, stage);
     throw new LocalVaultError("Could not restore Vault; original data was restored", { cause: error });
   }
+}
+
+function validateOwnedEvidenceStore(directoryInput: string): void {
+  const directory = requireSafeDirectory(directoryInput, "Live evidence store");
+  for (const name of readdirSync(directory)) {
+    if (!/^[a-f0-9]{64}\.snapshot$/u.test(name)) {
+      throw new LocalVaultError("Live evidence store contains an unmanaged entry");
+    }
+    requireSafeRegularFile(join(directory, name), "Live evidence snapshot");
+  }
+}
+
+function restoreEvidenceStore(vaultPath: string, oldEvidence: string, liveEvidence: string): void {
+  const source = requireSafeDirectory(oldEvidence, "Rollback evidence store");
+  validateOwnedEvidenceStore(source);
+  const sourceNames = new Set(readdirSync(source));
+  if (!pathEntryExists(liveEvidence)) mkdirSync(liveEvidence);
+  const target = requireSafeDirectory(liveEvidence, "Rollback target evidence store");
+  for (const name of readdirSync(target)) {
+    if (!sourceNames.has(name)) removeOwnedPath(target, join(target, name));
+  }
+  for (const name of sourceNames) {
+    const sourcePath = requireSafeRegularFile(join(source, name), "Rollback evidence snapshot");
+    copyFileSync(sourcePath, join(target, name));
+  }
+  validateOwnedEvidenceStore(target);
+  removeOwnedPath(vaultPath, oldEvidence);
 }
 
 export function diagnoseVault(vaultInput: ValidatedVault): Readonly<{

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 
 type NodeOption = { readonly id: string; readonly title: string };
 type DueReview = { readonly id: string; readonly nodeTitle: string; readonly purpose: string; readonly dueAt: string };
@@ -16,6 +16,7 @@ export function EvidenceActions({ nodes, initialReviews }: {
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [assessmentRequestKey, setAssessmentRequestKey] = useState(() => crypto.randomUUID());
 
   async function submitAssessment(): Promise<void> {
     setBusy(true);
@@ -29,11 +30,17 @@ export function EvidenceActions({ nodes, initialReviews }: {
           rating: kind === "self_rating" ? rating : null,
           reason: reason.trim().length > 0 ? reason.trim() : null,
           abilityInputFingerprint: null,
+          idempotencyKey: assessmentRequestKey,
         }),
       });
       const result: { readonly ok: boolean; readonly error?: string } = await response.json();
       setStatus(result.ok ? "已记录，能力等级保持不变，等待后续证据验证。" : result.error ?? "保存失败");
-      if (result.ok) setReason("");
+      if (result.ok) {
+        setReason("");
+        setAssessmentRequestKey(crypto.randomUUID());
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? `网络错误：${error.message}` : "网络错误：保存失败");
     } finally {
       setBusy(false);
     }
@@ -46,6 +53,8 @@ export function EvidenceActions({ nodes, initialReviews }: {
       const result: { readonly ok: boolean; readonly error?: string } = await response.json();
       if (result.ok) setReviews((current) => current.filter((review) => review.id !== reviewId));
       setStatus(result.ok ? "复习项已完成。" : result.error ?? "更新失败");
+    } catch (error) {
+      setStatus(error instanceof Error ? `网络错误：${error.message}` : "网络错误：更新失败");
     } finally {
       setBusy(false);
     }
