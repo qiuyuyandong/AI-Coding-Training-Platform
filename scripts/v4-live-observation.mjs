@@ -28,6 +28,7 @@ import {
   validateCdpExtensionBinding,
 } from "./v4-live-observation-observer.mjs";
 import { buildStageSequence, storageKeyDiagnosticListener, validateDiagnosticOutputPath, writeDiagnosticOutputFile } from "./v4-live-observation-diagnostic.mjs";
+import { createNativeCdpRelay } from "./cdp-native-relay.mjs";
 
 const TARGETS = Object.freeze({
   "leetcode.cn": Object.freeze({
@@ -59,6 +60,7 @@ const OBSERVATION_TOOL_FILES = Object.freeze([
   fileURLToPath(import.meta.url),
   resolve("scripts", "v4-live-observation-observer.mjs"),
   resolve("scripts", "v4-live-observation-diagnostic.mjs"),
+  resolve("scripts", "cdp-native-relay.mjs"),
   resolve("extension", "identity.json"),
 ]);
 const PROFILE_ROOT = resolve(".tmp", "v4-d4-observation-profiles");
@@ -258,8 +260,20 @@ async function openObservationBrowser(input) {
     };
   }
 
-  const endpoint = readCdpEndpoint(input.cdpActivePortFile);
-  const browser = await chromium.connectOverCDP(endpoint);
+  const upstreamEndpoint = readCdpEndpoint(input.cdpActivePortFile);
+  const relay = input.cdpTransport === "native-relay"
+    ? await createNativeCdpRelay({
+      upstreamEndpoint,
+      onLog: (code) => process.stderr.write(`CDP_RELAY=${code}\n`),
+    })
+    : null;
+  let browser;
+  try {
+    browser = await chromium.connectOverCDP(relay?.endpoint ?? upstreamEndpoint);
+  } catch (error) {
+    await relay?.close();
+    throw error;
+  }
   const contexts = browser.contexts();
   const ownedPages = new Set();
   let browserSession;
@@ -269,6 +283,7 @@ async function openObservationBrowser(input) {
     // For connectOverCDP, Playwright's public close releases this client's CDP
     // transport; the live lifecycle regression requires the original Chrome to survive.
     await browser.close();
+    await relay?.close();
   };
   try {
     if (contexts.length !== 1) throw new Error("observer_cdp_endpoint_rejected");
@@ -508,6 +523,14 @@ async function main() {
   }
   const cdpActivePortArgument = argumentValue(args, "--cdp-active-port-file");
   const usingCdp = cdpActivePortArgument.length > 0;
+  const cdpTransportArgument = argumentValue(args, "--cdp-transport");
+  const cdpTransport = cdpTransportArgument.length === 0 ? "playwright" : cdpTransportArgument;
+  if (cdpTransport !== "playwright" && cdpTransport !== "native-relay") {
+    throw new Error("--cdp-transport must be playwright or native-relay");
+  }
+  if (!usingCdp && cdpTransport !== "playwright") {
+    throw new Error("--cdp-transport=native-relay requires --cdp-active-port-file");
+  }
   if (actionAuthorization.length > 0 && !usingCdp) {
     throw new Error("Real actions require the authorized remote-debug Chrome profile");
   }
@@ -539,6 +562,7 @@ async function main() {
     extensionDist,
     cdpActivePortFile: usingCdp ? resolve(cdpActivePortArgument) : undefined,
     expectedCdpProfileHash,
+    cdpTransport,
   });
   const { context, profilePath, newPage, closeOwnedPages } = observationBrowser;
   const profileIdentity = sha256Bytes(profilePath);
