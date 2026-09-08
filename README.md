@@ -1,16 +1,20 @@
 # AI Coding Training Platform
 
 > **Current development status (2026-09-08):** The local V1 implementation on
-> `codex/offline-theoretical-v1` passed an independent repair and ten-stage offline gate.
+> `codex/offline-theoretical-v1` passed an independent repair, reproducible
+> Node 22/npm 10 clean install, and ten-stage offline gate on both a fresh local
+> checkout and a fresh GitHub-hosted Windows runner.
 > Phase 1-4 evidence/project behavior is transaction-hardened; an opt-in
 > observer-only native CDP relay, an on-demand provider-neutral AI Coach
 > contract, and Local Vault backup/restore/diagnostics are implemented and
 > offline-tested. Shared full snapshots, durable AI request/quota recovery,
 > portable active-snapshot backups, provider HTTPS boundaries, relay handshake
 > recovery, and mandatory fresh acceptance are covered. The final local quality
-> gate passed (`2707/1`, App `25/25`, fresh acceptance `1/1`, extension
-> `1671/1671`, extension E2E `55/1`, build `28/28`), so the current permitted
-> conclusion is `theoretical-ready`. Real Chrome/OJ/AI/Windows validation remains
+> gate passed (`2709/1`, App `25/25`, fresh acceptance `1/1`, extension
+> `1671/1671`, extension E2E `55/1`, build `28/28`); GitHub Actions run
+> `34220508035` passed the same gate (`2710/0` root on its symlink-capable host).
+> The current permitted conclusion is `theoretical-ready candidate`. Real
+> Chrome/OJ/AI/Windows validation remains
 > `runtime-validated: pending`; pilot acceptance, RC, deployment, and release
 > remain `release-ready: pending`. The frozen extension product candidate
 > `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0` is unchanged.
@@ -105,7 +109,7 @@ The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem s
 
 - `IDEA.md` is the canonical product definition, V0/V0.5/V1 scope, and current decision record.
 - `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` maps vertical releases to engineering Phases and exit gates.
-- `docs/superpowers/plans/2026-09-08-offline-theoretical-ready-independent-repair.md` and `work/reports/offline-theoretical-v1-independent-repair-2026-09-08.md` define the current offline checkpoint and its remaining gaps.
+- `docs/superpowers/plans/2026-09-08-offline-theoretical-ready-independent-repair.md`, `docs/superpowers/plans/2026-09-08-clean-install-reproducibility-repair.md`, and `work/reports/offline-theoretical-v1-independent-repair-2026-09-08.md` define the current offline checkpoint and its remaining gaps.
 - `docs/superpowers/README.md` distinguishes active plans from historical Phase-numbered prototype documents.
 - `docs/architecture.md` explains the current app, extension, API, SQLite, and Coach/Growth flow.
 - `docs/runbook.md` contains setup, verification, and troubleshooting steps.

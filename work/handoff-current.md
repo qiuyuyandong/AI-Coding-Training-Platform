@@ -1,24 +1,30 @@
 # Current Handoff
 
-## Status (2026-09-08 independent offline repair complete)
+## Status (2026-09-08 independent offline repair and clean-install recovery complete)
 
 Branch `codex/offline-theoretical-v1` now contains implementation commit
-`64a179d` under
-`docs/superpowers/plans/2026-09-08-offline-theoretical-ready-independent-repair.md`.
+`64a179d` plus clean-install/Windows-runner repair checkpoint `990862e` under
+`docs/superpowers/plans/2026-09-08-offline-theoretical-ready-independent-repair.md`
+and `docs/superpowers/plans/2026-09-08-clean-install-reproducibility-repair.md`.
 The independent pass repaired shared full-snapshot deletion, durable AI
 request/quota recovery after provider launch, portable active-snapshot Vault
 backup/restore, hash-aware diagnosis, public-HTTPS provider filtering, relay
 handshake recovery, and Route H worker readiness. Fresh local-V1 acceptance is
 now mandatory inside the canonical ten-stage gate.
 
-The final gate exited `0`: root `2707 passed / 1 skipped`, App E2E `25/25`,
+The final clean local gate exited `0`: root `2709 passed / 1 skipped`, App E2E `25/25`,
 fresh acceptance `1/1`, extension `1671/1671`, extension E2E `55 passed / 1
 skipped`, and production build `28/28`. The default SQLite length, UTC mtime and
 SHA-256 remained unchanged; ports 3000/3010 and current-run temporary roots were
 clean after teardown. Frozen extension product paths have zero diff from
 `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`.
 
-The current status is `theoretical-ready` only. Real `yu` Chrome/OJ/provider,
+GitHub Actions Quality Gate run `34220508035` then passed on exact checkpoint
+`990862e4f08a3c9af3b2adc2305a57a7a44cc657`: fresh Windows checkout, Node
+`22.23.2`/npm `10.9.8`, `npm ci`, Chromium installation, and the complete gate
+all succeeded. Its symlink-capable host ran all `2710/2710` root tests.
+
+The current status is `theoretical-ready candidate` only. Real `yu` Chrome/OJ/provider,
 compiler workspace, clean stopped-process Windows restore/diagnosis, pilot,
 RC, release and PR work remain outside this checkpoint.
 

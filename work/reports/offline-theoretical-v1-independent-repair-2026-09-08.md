@@ -2,13 +2,15 @@
 
 ## Verdict
 
-`theoretical-ready` only.
+`theoretical-ready candidate` only.
 
 The review started from pushed checkpoint
 `c1d4cd7788ead4634d93cf9eaa078ddb438a28fd`, reproduced the reported failure
 classes, repaired them in implementation commit `64a179d`, and reran the
-canonical ten-stage gate from the beginning. This is offline and synthetic
-evidence. It does not establish `runtime-validated` or `release-ready`.
+canonical ten-stage gate from the beginning. Clean-install and Windows-runner
+repairs then closed the last reproducibility blocker at checkpoint `990862e`.
+This is offline and synthetic evidence. It does not establish
+`runtime-validated` or `release-ready`.
 
 No real `yu` Chrome profile, OJ, AI provider, compiler workspace, clean Windows
 machine, pilot, PR, deployment, release, READY, click, or submission was used.
@@ -47,18 +49,49 @@ machine, pilot, PR, deployment, release, READY, click, or submission was used.
 6. Fresh local-V1 acceptance was an optional script rather than a required
    quality-gate stage. The canonical gate now runs ten stages and places
    `e2e:acceptance` immediately after ordinary App E2E. The matching Windows CI
-   cap is 45 minutes because the historical 20-minute cap is below observed
-   ten-stage duration; permissions and no-upload/no-deploy behavior are unchanged.
+   cap is 75 minutes to tolerate hosted Windows filesystem/build variance while
+   the gate performs three production builds; the observed successful run
+   completed in under 19 minutes. Workflow
+   permissions and no-upload/no-deploy behavior are unchanged.
 7. App/acceptance webServer waits expired before slow local production builds,
    while their test bodies never ran. Only the server-start allowance was raised
-   to 10 minutes; per-test timeouts remain unchanged. Historical migration
-   prefix cases received explicit 15-second test timeouts because their real
-   work now exceeds the default five seconds.
+   to 10 minutes. Hosted Windows later proved ordinary database tests can exceed
+   Vitest's five-second default, so the root default is 30 seconds; three
+   exhaustive migration-prefix cases have explicit five-minute limits. Test
+   assertions and the canonical stages remain unchanged.
 8. The production Route H E2E selected the first listed service worker and
    evaluated it before the target extension context was ready. It now waits for
    the exact frozen extension URL and a live matching runtime ID. A minimum
    failing full-suite run was followed by a focused `1/1` pass and two complete
    gate passes with this case green.
+
+## Clean-install reproducibility receipt
+
+- Before repair, a detached clean checkout of
+  `30962ecc434d8f0eb999cf66807562fbff392595` with no `node_modules`, Node
+  `22.23.0`, and npm `10.9.8` reproduced `npm ci` exit `1`: the lockfile lacked
+  `@emnapi/runtime@1.11.3` and `@emnapi/core@1.11.3` records required by the
+  resolved sharp/unrs WASM dependency graph.
+- Commit `3327232` added only those two lockfile package records (23 lines).
+  `package.json`, top-level ranges, and resolved dependency versions did not
+  change. Two independent no-`node_modules` checkouts then completed `npm ci`.
+- The first clean full gate exposed stale-worktree assumptions in five CLI
+  hashbang imports, exact-dist preparation, and relay Chromium teardown. The
+  next remote run exposed Windows short-path/canonical-path false positives and
+  hosted test-time budgets. Those were repaired without changing extension
+  product files, provider contracts, backup data scope, or application features.
+- Final local receipt: exact `990862e4f08a3c9af3b2adc2305a57a7a44cc657`,
+  Node `22.23.0`, npm `10.9.8`, no pre-existing `node_modules`, `npm ci` exit
+  `0`, and `npm run quality:gate` exit `0`.
+- Final remote receipt: GitHub Actions Quality Gate run
+  [`34220508035`](https://github.com/qiuyuyandong/AI-Coding-Training-Platform/actions/runs/34220508035),
+  exact `990862e4f08a3c9af3b2adc2305a57a7a44cc657`, hosted Node `22.23.2`, npm
+  `10.9.8`; Checkout, dependency install, Chromium install, and the complete
+  canonical gate all concluded `success`.
+- Intermediate runs are retained as failure evidence, not acceptance: run
+  `34194787091` first reached the clean gate and exposed fresh-run assumptions;
+  run `34217886111` reached all 129 root files and isolated one obsolete
+  short-path spelling assertion (`128` files passed, one failed).
 
 ## Acceptance mapping
 
@@ -84,7 +117,7 @@ The final `npm run quality:gate` exited `0` after all runtime-code changes:
 - Disposable migration through `0018_ai_request_lifecycle.sql`: PASS.
 - Curriculum: 12 nodes, 13 edges, 12 resources, 12 practice mappings and 9
   careers.
-- Root Vitest: 129 files, 2707 passed, 1 skipped. The skip is the documented
+- Root Vitest: 129 files, 2709 passed, 1 skipped. The skip is the documented
   Windows file-symlink capability probe (`EPERM`); mandatory junction/path and
   restore rollback cases passed.
 - TypeScript: PASS under the repository strict rules.
@@ -103,6 +136,11 @@ set at `101/101`, migration prefixes at `24/24`, provider mapping at `21/21`,
 standalone fresh acceptance `1/1`, ordinary App E2E `25/25`, and Route H
 production connection `1/1`.
 
+The matching fresh Windows run passed 129/129 files and 2710/2710 root tests;
+that host can create the file-symlink capability fixture. It also passed App
+E2E `25/25`, fresh acceptance `1/1`, extension unit `1671/1671`, extension E2E
+`55/1`, and the 28-route production build.
+
 Earlier full-gate attempts were not counted as acceptance: one found a default
 five-second migration-test timeout, one found the App webServer startup timeout,
 and one reproduced the Route H service-worker readiness race. Each was fixed
@@ -118,8 +156,9 @@ and followed by a new gate from lint rather than resuming after the failure.
 - Frozen product candidate remains
   `ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`; `extension/src`,
   `extension/manifest.json`, and `extension/identity.json` have zero diff.
-- One root file-symlink capability test and one extension worker-restart harness
-  scenario remain skipped and are not represented as passing.
+- This local host skipped one file-symlink capability test under `EPERM`; the
+  hosted Windows run executed it. One extension worker-restart harness scenario
+  remains skipped in both and is not represented as passing.
 - Real Chrome/OJ/provider, compiler workspace and clean Windows
   backup/restore/diagnosis are `runtime-validated: pending`.
 - Human pilot, RC, packaging, deployment and release are
