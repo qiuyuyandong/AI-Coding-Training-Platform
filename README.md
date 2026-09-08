@@ -1,11 +1,15 @@
 # AI Coding Training Platform
 
-> **Current development status (2026-09-07):** The local V1 implementation on
-> `codex/offline-theoretical-v1` has completed its offline gate under three independent states.
+> **Current development status (2026-09-08):** The local V1 implementation on
+> `codex/offline-theoretical-v1` passed an independent repair and ten-stage offline gate.
 > Phase 1-4 evidence/project behavior is transaction-hardened; an opt-in
 > observer-only native CDP relay, an on-demand provider-neutral AI Coach
 > contract, and Local Vault backup/restore/diagnostics are implemented and
-> offline-tested. The final local quality gate passed, so the current permitted
+> offline-tested. Shared full snapshots, durable AI request/quota recovery,
+> portable active-snapshot backups, provider HTTPS boundaries, relay handshake
+> recovery, and mandatory fresh acceptance are covered. The final local quality
+> gate passed (`2707/1`, App `25/25`, fresh acceptance `1/1`, extension
+> `1671/1671`, extension E2E `55/1`, build `28/28`), so the current permitted
 > conclusion is `theoretical-ready`. Real Chrome/OJ/AI/Windows validation remains
 > `runtime-validated: pending`; pilot acceptance, RC, deployment, and release
 > remain `release-ready: pending`. The frozen extension product candidate
@@ -89,10 +93,11 @@ It provides:
   export with no upload path;
 - a V0 **manual learning loop** (implemented; observation and acceptance pending): curriculum package 1.0.1 has 12 nodes, 12 reviewed resources, 12 mapped practice tasks (11 domestic OJ links across LeetCode.cn, Luogu and NowCoder plus one manual Git exercise), 13 prerequisite edges and 9 career summaries; a 6-prompt resumable diagnosis with starting-node override; deterministic candidate selection with semantic alternatives; an atomic completion loop that records attempt, attempt→node mapping, ability projection and successor plan; optional opt-in per-completion AI reflection (default disabled, network-denial guard, deterministic fallback). V0 introduces the `/map`, `/plan`, and `/today` pages and the underlying services, repositories, migrations 0006/0007/0008, and validators.
 
-The 2026-09-07 Phase 1-4 acceleration is code-complete and offline-validated.
-It has not been exercised through Playwright, Chrome, a real OJ, or a real
-compiler/project workspace, so this is an engineering implementation result,
-not runtime acceptance or release evidence.
+The original 2026-09-07 Phase 1-4 code-only checkpoint was not itself exercised
+through Playwright. The current 2026-09-08 checkpoint adds bundled-Chromium App
+E2E and fresh acceptance, but still has not used a real OJ, user Chrome profile,
+AI provider, compiler/project workspace, or clean Windows restore. It remains an
+engineering result, not runtime acceptance or release evidence.
 
 The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem statements by default.
 
@@ -100,6 +105,7 @@ The project does not mirror LeetCode, NowCoder, Luogu, or similar full problem s
 
 - `IDEA.md` is the canonical product definition, V0/V0.5/V1 scope, and current decision record.
 - `docs/superpowers/plans/2026-07-11-product-development-roadmap.md` maps vertical releases to engineering Phases and exit gates.
+- `docs/superpowers/plans/2026-09-08-offline-theoretical-ready-independent-repair.md` and `work/reports/offline-theoretical-v1-independent-repair-2026-09-08.md` define the current offline checkpoint and its remaining gaps.
 - `docs/superpowers/README.md` distinguishes active plans from historical Phase-numbered prototype documents.
 - `docs/architecture.md` explains the current app, extension, API, SQLite, and Coach/Growth flow.
 - `docs/runbook.md` contains setup, verification, and troubleshooting steps.
@@ -123,6 +129,7 @@ npm run lint
 npm run typecheck
 npm run test
 npm run e2e
+npm run e2e:acceptance
 npm run extension:check
 npm run extension:e2e
 npm run build
@@ -133,7 +140,7 @@ npm run diagnose
 npm run feedback:export -- --target <absolute-new-json-file> --include vault_health,feature_counts,schema
 ```
 
-`npm run lint` runs the strict ESLint flat config (`eslint . --max-warnings=0`). `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run extension:e2e` runs the new bundled-Chromium Playwright lane that loads the exact production `extension/dist` (Fake OJ matrix + A10 full-chain smoke). `npm run quality:gate` runs lint, a disposable migration, curriculum validation, unit tests, typecheck, E2E, extension parity, extension E2E, and production build in that order using an OS-temporary database and is the safe all-in-one gate. Use it instead of running individual commands when you want one reproducible verification.
+`npm run lint` runs the strict ESLint flat config (`eslint . --max-warnings=0`). `npm run extension:check` chains typecheck, focused extension tests, the MV3 build, and the `extension/dist` parity/ignore check. `npm run extension:e2e` runs the bundled-Chromium Playwright lane that loads the exact production `extension/dist` (Fake OJ matrix + A10 full-chain smoke). `npm run quality:gate` runs ten stages in order: lint, disposable migration, curriculum validation, unit tests, typecheck, App E2E, fresh local-V1 acceptance, extension parity, extension E2E, and production build. Every database is disposable and the command is the safe all-in-one gate.
 
 `npm run e2e` creates a freshly migrated database at `.tmp/playwright/training-platform.sqlite`, starts and stops its own Next.js server, and removes the disposable database afterward. It never reuses a server on port 3000 and never writes to the default `training-platform.sqlite`. `npm run extension:e2e` writes only to `.tmp/playwright-extension/` (its own disposable SQLite under `.tmp/capture-v4-full-chain-*/`) and is forbidden from opening the default `training-platform.sqlite`.
 

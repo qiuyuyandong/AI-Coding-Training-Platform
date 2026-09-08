@@ -1,18 +1,26 @@
 # Current Handoff
 
-## Status (2026-09-07 offline-theoretical V1 complete)
+## Status (2026-09-08 independent offline repair complete)
 
-The Phase 1-4 acceleration baseline is `c7b2c237ebc7d98df14772e83712f1a8ac876b5e`. Work continues on branch
-`codex/offline-theoretical-v1` under
-`docs/superpowers/plans/2026-09-07-offline-theoretical-v1-hardening-ai-operations.md`.
-Checkpoints are `8ca24a1` (baseline/plan), `b1d9e44` (project evidence
-transactions and UI closure), `78b2de2` (observer-only native CDP relay),
-`b3f8f38` (on-demand provider-neutral AI), and `9924923` (Local Vault
-backup/restore/diagnostics), followed by one integration/closeout commit. The
-full offline quality gate passed with root `2649/1`, App E2E `25/25`,
-extension `1671/1671`, extension E2E `55/1`, and production build PASS.
-The current status is `theoretical-ready` only. Real Chrome/OJ/provider/Windows,
-pilot, RC, release and PR work remain outside the scope.
+Branch `codex/offline-theoretical-v1` now contains implementation commit
+`64a179d` under
+`docs/superpowers/plans/2026-09-08-offline-theoretical-ready-independent-repair.md`.
+The independent pass repaired shared full-snapshot deletion, durable AI
+request/quota recovery after provider launch, portable active-snapshot Vault
+backup/restore, hash-aware diagnosis, public-HTTPS provider filtering, relay
+handshake recovery, and Route H worker readiness. Fresh local-V1 acceptance is
+now mandatory inside the canonical ten-stage gate.
+
+The final gate exited `0`: root `2707 passed / 1 skipped`, App E2E `25/25`,
+fresh acceptance `1/1`, extension `1671/1671`, extension E2E `55 passed / 1
+skipped`, and production build `28/28`. The default SQLite length, UTC mtime and
+SHA-256 remained unchanged; ports 3000/3010 and current-run temporary roots were
+clean after teardown. Frozen extension product paths have zero diff from
+`ee0e1f5a2332fdeaf743e6fcfcadb0d799f869f0`.
+
+The current status is `theoretical-ready` only. Real `yu` Chrome/OJ/provider,
+compiler workspace, clean stopped-process Windows restore/diagnosis, pilot,
+RC, release and PR work remain outside this checkpoint.
 
 Project status now has three independent levels: `theoretical-ready`,
 `runtime-validated`, and `release-ready`. Passing the first allows later code

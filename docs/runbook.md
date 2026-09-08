@@ -1,6 +1,6 @@
 # Runbook
 
-Last updated: 2026-09-07 (offline V1 theoretical hardening; real Chrome/OJ/AI/Windows and release validation remain pending)
+Last updated: 2026-09-08 (independent offline repair; real Chrome/OJ/AI/Windows and release validation remain pending)
 
 ## Setup
 
@@ -28,8 +28,9 @@ Training, Growth, and Coach use active attempts by default. A voided row remains
   milestone; completing one advances to the next.
 - Full artifacts store only explicitly pasted bytes in the dedicated local
   evidence directory beside the selected database. Basic stores hash/shape;
-  minimal stores structured results. Delete removes the retained bytes and
-  marks both references deleted. Export omits snapshot bytes and absolute paths.
+  minimal stores structured results. Delete marks the selected references and
+  removes content-addressed bytes only after the last active reference is gone.
+  Export omits snapshot bytes and absolute paths.
 
 The offline verification set is `npm run lint`, disposable `npm run db:migrate`,
 `npm run curriculum:validate`, `npm run test`, `npm run typecheck`, and a
@@ -53,7 +54,11 @@ $env:TRAINING_AI_DAILY_QUOTA = '20'
 `V0_AI_REFLECTION_*` remains compatible and uses the same adapter. `/coach`,
 `/evidence`, and `/plan` make no provider request on page load. Reports are
 stored as validated JSON; plan proposals remain pending until explicitly
-accepted and revalidated by the local plan generator.
+accepted and revalidated by the local plan generator. Provider endpoints must
+be public HTTPS without URL credentials. Request identity is stored before a
+provider launch; quota is consumed once at launch. A later persistence failure
+is recovered as a durable `persistence_error` fallback without a second call or
+debit, and the same key with changed input is rejected.
 
 ### Backup, restore, and diagnostics
 
@@ -70,8 +75,11 @@ database must have no `-wal`, `-shm`, or `-journal` sidecar:
 npm run vault:restore -- --backup D:\absolute\validated-backup-directory
 ```
 
-Restore validates every listed hash, SQLite quick/foreign-key checks,
-migration compatibility, and snapshot references before replacing anything.
+Backup includes only active full snapshots referenced by SQLite, rejects
+missing/corrupt active snapshots, excludes deleted and orphan files, and writes
+location-neutral references. Restore validates every listed hash, SQLite
+quick/foreign-key checks, migration compatibility, and snapshot references,
+then rewrites references for the destination before replacing anything.
 It first retains an automatic backup under the active Vault's
 `.restore-safety` directory. The settings page never performs restore.
 
@@ -200,18 +208,23 @@ npm run curriculum:validate
 npm run test
 npm run typecheck
 npm run e2e
+npm run e2e:acceptance
 npm run extension:check
 npm run extension:e2e
 npm run build
 ```
 
-`npm run quality:gate` runs all nine commands above in this exact order using an OS-temporary database, so it is the recommended single verification:
+`npm run quality:gate` runs all ten commands above in this exact order using owned temporary databases, so it is the recommended single verification:
 
 ```powershell
 npm run quality:gate
 ```
 
-The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses a server on port 3000. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
+The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses servers on ports 3000 or 3010. App E2E and fresh acceptance have a 10-minute server-start allowance for production builds while retaining their existing per-test timeouts. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
+
+The matching Windows CI job has a 45-minute cap because the ten-stage gate
+performs three production builds. It still runs no deploy, upload, real OJ or AI
+step.
 
 The latest 2026-07-26 V4 Phase A closeout gate ran 950 passing extension unit tests across 30 files (the new Phase A scope). `npm run extension:check` (typecheck → extension:test → extension:build → check-extension-dist) covers the V4 modules end-to-end: `extension/src/evidence.ts` (Safe Evidence), `extension/src/submissionCorrelator.ts` (closed-tag-union correlator with frozen state), `extension/src/captureStateMachine.ts` (pure reducer; pure-JS SHA-256 with byte-identical output to Node `createHash("sha256")` for the canonical A4 fixture `bundle_91b8a3600f18390ffdee270d325ddd1d92295484e6552dc4b8b5f866782ca7f2`), `extension/src/adapters/contract.ts` + `extension/src/adapters/registry.ts` (single registry with host-ownership / DOM status / V4 network status), `extension/src/networkObserver.ts` (host-scoped webRequest lifecycle), `extension/src/mainWorldBridge.ts` (MAIN-world IIFE bridge), `extension/src/mainWorldRelay.ts` (ISOLATED-world relay with recursive forbidden-key gate), `extension/src/backgroundOrchestrator.ts` (pure 9-event reducer), `extension/src/transientEvidenceStorage.ts` (session-only storage) and `extension/src/confirmedSubmissionStorage.ts` (local-only durable storage) with deterministic `${platform}:${externalSubmissionId}` storageKey and bounded tombstones. The Fake OJ matrix `tests/extension-e2e/capture-v4-network.spec.ts` reports 31 passed and 1 skipped; the skipped scenario is the service-worker-restart seam (a known test-harness infrastructure limitation, not a production defect; the `test.skip` annotation documents this). The earlier Phase 0 1046-test V0 gate remains historical.
 

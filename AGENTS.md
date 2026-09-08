@@ -38,15 +38,19 @@
 
 # Agent Handoff Guide
 
-> **Current development status (2026-09-07):** Phase 1-4 offline acceleration
+> **Current development status (2026-09-08):** Phase 1-6 independent offline repair
 > baseline is `c7b2c23`. The authorized continuation lives on
 > `codex/offline-theoretical-v1` and is governed by
-> `docs/superpowers/plans/2026-09-07-offline-theoretical-v1-hardening-ai-operations.md`.
+> `docs/superpowers/plans/2026-09-08-offline-theoretical-ready-independent-repair.md`.
 > Pushed implementation checkpoints cover Phase 1-4 transactional
 > hardening, the observer-only native CDP relay, the offline-tested on-demand
-> AI contract, and Local Vault backup/restore/diagnostics. The final offline
-> quality gate passed with root `2649/1`, App E2E `25/25`, extension
-> `1671/1671`, extension E2E `55/1`, and build PASS. Status is
+> AI contract, and Local Vault backup/restore/diagnostics. Independent repair
+> implementation commit `64a179d` closes shared full-snapshot deletion, durable
+> AI request/quota recovery, portable active-snapshot backup/restore, diagnosis,
+> provider HTTPS filtering, relay handshake, and Route H worker-wakeup gaps. The
+> final ten-stage gate passed with root `2707/1`, App E2E `25/25`, fresh
+> acceptance `1/1`, extension `1671/1671`, extension E2E `55/1`, and build
+> `28/28`. Status is
 > `theoretical-ready` only.
 > Only `theoretical-ready` may be claimed. Real Chrome/OJ/provider/Windows,
 > pilot, RC, release and PR validation remain separate and unauthorized.
@@ -438,6 +442,7 @@ npm run curriculum:validate
 npm run test
 npm run typecheck
 npm run e2e
+npm run e2e:acceptance
 npm run extension:check
 npm run extension:e2e
 npm run build
@@ -449,7 +454,7 @@ extension:check` chains typecheck, focused extension tests, the MV3
 build, and the `extension/dist` parity/ignore check. `npm run
 extension:e2e` runs the new bundled-Chromium Playwright lane that
 loads the exact production `extension/dist` (Fake OJ matrix + A10
-full-chain smoke). `npm run quality:gate` runs the nine commands
+full-chain smoke). `npm run quality:gate` runs the ten commands
 above in this exact order under an OS-temporary database and is the
 safe single verification.
 

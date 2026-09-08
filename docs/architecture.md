@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-09-07 (offline V1 hardening, AI contract, Vault operations, and observer relay; theoretical evidence only)
+Last updated: 2026-09-08 (independent offline repair and mandatory fresh acceptance; theoretical evidence only)
 
 ## Overview
 
@@ -44,14 +44,16 @@ Explicit local developer activation
 
 Explicit learner AI request
 -> saved local consent + selected evidence IDs
--> shared OpenAI-compatible adapter (optional, quota bounded)
+-> shared OpenAI-compatible adapter (optional, quota bounded, public HTTPS only)
+-> durable request identity before launch; quota charged exactly at provider launch
 -> validated structured report or plan proposal
 -> report saved locally / proposal waits for explicit accept
 -> existing deterministic plan constraints before any plan revision
 
 Stopped Local Vault process
--> versioned backup manifest + SQLite online backup + selected snapshots
+-> versioned backup manifest + SQLite online backup + active referenced snapshots
 -> preflight hash/SQLite/migration/reference validation
+-> location-neutral backup references rewritten for the destination Vault
 -> automatic pre-restore safety backup
 -> atomic database/evidence replacement with rollback
 ```
@@ -210,8 +212,8 @@ smoke test that proves the disposable SQLite lifecycle + production
 extension artifact + scenario identity helpers + default-DB
 preservation. The full E2->E3->Route-H-connect->real-API->SQLite
 delivery probe and the worker-restart recovery probe remain out of
-Phase A scope. Task A11 integrates `npm run extension:e2e` into the
-canonical nine-stage `quality:gate` (after `extension:check` and before
+Phase A scope. Task A11 integrated `npm run extension:e2e` into the
+then-canonical nine-stage `quality:gate` (after `extension:check` and before
 `build`), giving each E2E lane its own temporary storage lifecycle:
 `.tmp/playwright/` for the offline lane and `.tmp/playwright-extension/`
 for the extension lane. The `scripts/a10-bootstrap.mjs` helper is a
@@ -294,6 +296,7 @@ The SQLite schema is defined by migrations under `lib/db/migrations`.
 | `ability_snapshots`, `evidence_ability_transitions` | Current L1-L5 view and replay-safe evidence-cited transitions. |
 | `project_templates`, `learner_projects`, `project_practice_sessions` | Versioned project definition and explicit learner/session lifecycle. |
 | `explicit_run_results`, `artifact_evidence`, `project_milestones`, `rubric_assessments` | Correctable run facts, selected artifacts, milestone history and evidence-cited rubric. |
+| `ai_request_lifecycle`, `ai_quota_ledger`, `ai_request_audit`, AI report/proposal tables | Durable request identity, launch-time quota debit, sanitized audit, structured output and proposal state. |
 
 Raw event insertion and projection run in the same SQLite transaction. Event identity is content-sensitive: the same `eventId` and fingerprint is an idempotent replay, while the same `eventId` with a different payload is a conflict. Verdicts may arrive before submissions, multiple submissions remain distinct within one session, and a missing session-end event is valid.
 
@@ -340,9 +343,9 @@ Attempt repository queries require an explicit limit between 1 and 100 and exclu
 
 Playwright enforces a disposable `TRAINING_DB_PATH`, refuses to reuse an existing port-3000 server, and removes `.tmp/playwright` during teardown. Playwright owns `.tmp/playwright/training-platform.sqlite` exclusively and never writes to the default `training-platform.sqlite`. E2E database cleanup uses an `lstatSync`-based safe walker that handles symlinks, junctions, and broken reparse points without following their targets. A corresponding unit test suite (`tests/unit/e2eDatabase.test.ts`) exercises junction/symlink scenarios; one file-symlink capability test is skipped under EPERM (standard on Windows without Developer Mode), while all mandatory junction tests pass.
 
-`scripts/quality-gate.mjs` owns a separate disposable aggregate gate. It creates its own OS-temporary directory under `os.tmpdir()`, sets `TRAINING_DB_PATH` to that directory for every subcommand, runs the nine stages (lint, disposable migration, curriculum:validate, unit tests, typecheck, E2E, extension parity, extension E2E, production build) in that order, then removes the directory in a `finally` block. The runner never opens, hashes, or migrates the default `training-platform.sqlite`; that database remains the developer's local source of truth. A `git check-ignore` verification of `extension/dist` keeps the gate's generated state out of the working tree.
+`scripts/quality-gate.mjs` owns a separate disposable aggregate gate. It creates its own OS-temporary directory under `os.tmpdir()`, sets `TRAINING_DB_PATH` to that directory for every subcommand, and runs ten stages: lint, disposable migration, curriculum validation, unit tests, typecheck, App E2E, fresh local-V1 acceptance, extension parity, extension E2E, and production build. App E2E and acceptance own distinct temporary roots and ports. The runner removes its database in a `finally` block and never opens, hashes, or migrates the default `training-platform.sqlite`; that database remains the developer's local source of truth. A `git check-ignore` verification of `extension/dist` keeps generated state out of the working tree.
 
-GitHub Actions mirrors the same gate. `.github/workflows/quality-gate.yml` runs `windows-latest` with Node 22, installs Chromium, and calls only `npm run quality:gate`. CI does not deploy, upload database artifacts, read secrets, or call external product, OJ, AI, or analytics APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner.
+GitHub Actions mirrors the same gate. `.github/workflows/quality-gate.yml` runs `windows-latest` with Node 22, installs Chromium, and calls only `npm run quality:gate`; its 45-minute cap accommodates the added acceptance build. CI does not deploy, upload database artifacts, read secrets, or call external product, OJ, AI, or analytics APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner.
 
 Extension unit tests cover actual SPA runtime decisions. Playwright does not load the unpacked MV3 extension; its SPA-shaped scenario validates the resulting end/start event sequence through the API, SQLite, and problem-specific UI. The extension's `vitest.extension.config.ts` runs only the focused set of extension-owned unit and certification tests; the full unit suite still uses `vitest.config.ts`.
 

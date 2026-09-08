@@ -2,6 +2,15 @@
 
 This file describes the **current local V1 implementation under offline validation**. It is not the privacy policy for the planned hosted Public Beta. Cloud accounts, platform-funded AI, cloud retention/deletion, and multi-tenant provider disclosure require the separate Phase 7 contract in `IDEA.md` and `docs/superpowers/plans/2026-07-13-phase-7-public-beta-cloud.md`.
 
+The optional AI path remains disabled by default and user-triggered. It accepts
+only public HTTPS provider URLs without embedded credentials, stores durable
+request identity, quota debit, sanitized audit and validated structured output,
+and never stores the API key or raw prompt. Code snapshot context still requires
+saved category consent plus an explicit request. Backup packages include only
+active referenced full snapshots; deleted/orphan bytes, absolute source paths,
+AI keys, logs and capture capabilities are excluded. Diagnosis reports counts,
+not paths or file contents.
+
 The product uses this rule: use browser session, do not extract browser session.
 
 The Phase D same-SHA final-delivery observations on candidate `a911425...` preserved this
@@ -20,7 +29,7 @@ an attempt bundle, or local API traffic. The V4 Phase A closeout (A0-A12,
 2026-07-26) builds the evidence core, strict correlator, pure capture state
 machine, session/local storage split, production webRequest observer, optional
 MAIN bridge, background orchestrator, Fake OJ matrix, disposable SQLite
-lifecycle, and the canonical nine-stage quality gate. The framework engineering
+lifecycle, and the then-canonical nine-stage quality gate. The framework engineering
 pass is complete. Later Phase B/C work adds strict experimental LeetCode and
 NowCoder network policies; `等待判题` still requires adapter-owned E2 evidence and
 can never arise from a click. The V4 evidence boundary rejects forbidden raw fields
@@ -192,10 +201,10 @@ Authenticated localhost transport uses one settings-page click, a 60-second sing
 
 Disposable test and migration databases are owned by the verification stack, not by users:
 
-- `npm run e2e` writes only to `.tmp/playwright/training-platform.sqlite` and removes it during teardown; `npm run extension:e2e` writes only to `.tmp/playwright-extension/` (its own disposable SQLite under `.tmp/capture-v4-full-chain-*/`) and removes it during teardown; `npm run quality:gate` writes only to an OS-temporary `ai-training-quality-gate-*` directory and removes it in a `finally` block.
+- `npm run e2e` writes only to `.tmp/playwright/training-platform.sqlite`; `npm run e2e:acceptance` uses `.tmp/playwright-acceptance/`; `npm run extension:e2e` uses `.tmp/playwright-extension/` and a disposable SQLite under `.tmp/capture-v4-full-chain-*/`. Each removes its owned current-run data during teardown; `npm run quality:gate` additionally owns an OS-temporary `ai-training-quality-gate-*` database and removes it in a `finally` block.
 - These databases contain only synthetic test fixtures and migration rows; they never hold production capture data, training records, attempts, manual reflections, credentials, or any user-derived content.
-- The default `training-platform.sqlite` at the repository root is the developer's local source of truth. The aggregate gate never opens, hashes, or migrates it; `npm run e2e`, `npm run extension:e2e`, and `npm run quality:gate` are the only commands that own disposable databases; neither E2E lane ever opens the default SQLite file.
-- GitHub Actions (`windows-latest`, Node 22) installs dependencies and Chromium, then runs only `npm run quality:gate`. CI does not deploy, expose secrets, upload database artifacts, or call external LLM, analytics, sync, OJ, or third-party APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner. The Phase A A11 workflow (`workflows/quality-gate.yml`) carries `permissions: contents: read`, `timeout-minutes: 20`, and the `**` branch triggers; it is local-only and never uploads artifacts.
+- The default `training-platform.sqlite` at the repository root is the developer's local source of truth. The aggregate gate never opens, hashes, or migrates it; App E2E, fresh acceptance, extension E2E, and the aggregate gate own only disposable databases and never open the default SQLite file.
+- GitHub Actions (`windows-latest`, Node 22) installs dependencies and Chromium, then runs only `npm run quality:gate`. CI does not deploy, expose secrets, upload database artifacts, or call external LLM, analytics, sync, OJ, or third-party APIs. The CI database lives in a GitHub-managed workspace path and is removed with the runner. The workflow carries `permissions: contents: read`, a 45-minute cap for the ten-stage gate, and `**` branch triggers; it never uploads artifacts. The original Phase A A11 checkpoint used a 20-minute cap before fresh acceptance added another production build.
 
 ## V4 Phase C isolation boundary
 

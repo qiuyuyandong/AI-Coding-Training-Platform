@@ -1,5 +1,11 @@
 # Local V1 offline theoretical-ready closeout (2026-09-07)
 
+> Superseded for current readiness: an independent review reproduced additional
+> defects in snapshot sharing, AI post-provider persistence, Vault portability,
+> diagnosis, relay handshake recovery, and gate enforcement. Use
+> `work/reports/offline-theoretical-v1-independent-repair-2026-09-08.md` for the
+> current verdict. The evidence below remains historical for its own checkpoint.
+
 ## Verdict
 
 `theoretical-ready` only.

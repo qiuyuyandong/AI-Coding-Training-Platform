@@ -47,6 +47,8 @@ limited to syntactically public HTTPS, including correct treatment of
 IPv4-mapped IPv6 literals.
 
 The canonical gate now has ten stages and requires fresh local-V1 acceptance.
+The matching Windows CI timeout is 45 minutes because the new gate performs
+three production builds and exceeded the historical 20-minute cap locally.
 The final run exited `0`: root Vitest `2707 passed / 1 skipped`, App E2E
 `25/25`, fresh acceptance `1/1`, extension `1671/1671`, extension E2E
 `55 passed / 1 skipped`, and production build `28/28`. The default database

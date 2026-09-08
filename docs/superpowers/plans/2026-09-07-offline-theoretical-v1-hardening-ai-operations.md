@@ -1,5 +1,10 @@
 # Offline-Theoretical V1 Hardening, AI, and Operations Plan
 
+> Historical checkpoint: its 2026-09-07 verdict and counts were independently
+> superseded by the repair plan
+> `2026-09-08-offline-theoretical-ready-independent-repair.md` and report
+> `work/reports/offline-theoretical-v1-independent-repair-2026-09-08.md`.
+
 **Status:** offline and synthetic implementation complete; `theoretical-ready` only.
 
 Implementation checkpoints: `8ca24a1`, `b1d9e44`, `78b2de2`, `b3f8f38`, and
