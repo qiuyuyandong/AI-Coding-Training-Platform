@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -67,7 +68,7 @@ describe("Local Vault core", () => {
     ].sort());
 
     const configPath = writeActiveVaultPointer(vault, configDirectory);
-    expect(configPath).toBe(join(configDirectory, VAULT_CONFIG_NAME));
+    expect(configPath).toBe(join(realpathSync.native(configDirectory), VAULT_CONFIG_NAME));
     expect(readActiveVault(configDirectory)).toEqual(vault);
   });
 
@@ -117,9 +118,16 @@ describe("Local Vault core", () => {
     const requestedDatabasePath = process.platform === "win32"
       ? `\\\\?\\${created.databasePath}`
       : created.databasePath;
+    const configDirectory = join(root, "namespace-config");
+    const requestedConfigPath = process.platform === "win32"
+      ? `\\\\?\\${configDirectory}`
+      : configDirectory;
+    mkdirSync(configDirectory);
+    const pointerPath = writeActiveVaultPointer(created, requestedConfigPath);
 
     expect(created).toEqual(validateVault(vaultDirectory));
     expect(snapshotFile(requestedDatabasePath)).toEqual(snapshotFile(created.databasePath));
+    expect(pointerPath).toBe(join(realpathSync.native(configDirectory), VAULT_CONFIG_NAME));
   });
 
   it("rejects a Vault reached through an ancestor junction", () => {
