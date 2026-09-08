@@ -25,6 +25,6 @@ export default defineConfig({
     },
     url: BASE_URL,
     reuseExistingServer: false,
-    timeout: 300_000,
+    timeout: 600_000,
   },
 });

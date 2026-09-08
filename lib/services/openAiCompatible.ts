@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 export type ProviderErrorCode =
   | "disabled"
   | "invalid_config"
@@ -7,6 +9,7 @@ export type ProviderErrorCode =
   | "provider_error"
   | "invalid_response"
   | "invalid_output"
+  | "persistence_error"
   | "quota_exhausted";
 
 export type OpenAiProviderResult<T> = Readonly<
@@ -44,6 +47,7 @@ export type OpenAiCompatibleRequest<T> = {
 
 export type OpenAiCompatibleDeps = {
   readonly fetch?: FetchLike;
+  readonly authorizeRequest?: () => ProviderErrorCode | null;
 };
 
 export async function requestOpenAiCompatibleJson<T>(
@@ -55,6 +59,8 @@ export async function requestOpenAiCompatibleJson<T>(
   if (!isPublicHttpEndpoint(request.url)) return { ok: false, error: "network_denied" };
   const fetchImpl = deps.fetch ?? readGlobalFetch();
   if (fetchImpl === null) return { ok: false, error: "transport_error" };
+  const authorizationError = deps.authorizeRequest?.() ?? null;
+  if (authorizationError !== null) return { ok: false, error: authorizationError };
   const controller = new AbortController();
   type WireOutcome =
     | { readonly kind: "text"; readonly text: string }
@@ -143,7 +149,7 @@ export function isPublicHttpEndpoint(value: string): boolean {
   } catch {
     return false;
   }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+  if (parsed.protocol !== "https:") return false;
   if (parsed.username.length > 0 || parsed.password.length > 0) return false;
   return !isPrivateOrLocalHostname(parsed.hostname);
 }
@@ -151,18 +157,44 @@ export function isPublicHttpEndpoint(value: string): boolean {
 function isPrivateOrLocalHostname(rawHostname: string): boolean {
   let host = rawHostname.toLowerCase();
   if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
-  if (host.length === 0 || host === "localhost" || host === "::1"
-    || host === "ip6-localhost" || host === "ip6-loopback") return true;
-  if (host.startsWith("fe80:")) return true;
+  host = host.replace(/\.$/u, "");
+  if (host.length === 0 || host === "localhost" || host.endsWith(".localhost")
+    || host.endsWith(".local") || host.endsWith(".internal") || host.endsWith(".home")
+    || host.endsWith(".lan") || host === "ip6-localhost" || host === "ip6-loopback") return true;
+  if (isIP(host) === 6) return isNonPublicIpv6(host);
   const parts = host.split(".");
-  if (parts.length !== 4) return false;
+  if (isIP(host) !== 4 || parts.length !== 4) return false;
   const numbers = parts.map((part) => Number.parseInt(part, 10));
-  if (!numbers.every((number) => Number.isInteger(number) && number >= 0 && number <= 255)) return false;
   const first = numbers[0];
   const second = numbers[1];
   if (first === undefined || second === undefined) return true;
-  return first === 127 || first === 10 || (first === 169 && second === 254)
-    || (first === 172 && second >= 16 && second <= 31) || (first === 192 && second === 168);
+  return first === 0 || first === 10 || first === 127 || first >= 224
+    || (first === 100 && second >= 64 && second <= 127)
+    || (first === 169 && second === 254)
+    || (first === 172 && second >= 16 && second <= 31)
+    || (first === 192 && second === 0 && (numbers[2] === 0 || numbers[2] === 2))
+    || (first === 192 && second === 168)
+    || (first === 198 && (second === 18 || second === 19))
+    || (first === 198 && second === 51 && numbers[2] === 100)
+    || (first === 203 && second === 0 && numbers[2] === 113);
+}
+
+function isNonPublicIpv6(host: string): boolean {
+  if (host === "::" || host === "::1") return true;
+  if (host.startsWith("::ffff:")) {
+    const tail = host.slice("::ffff:".length).split(":");
+    if (tail.length !== 2) return true;
+    const high = Number.parseInt(tail[0] ?? "", 16);
+    const low = Number.parseInt(tail[1] ?? "", 16);
+    if (!Number.isInteger(high) || !Number.isInteger(low)) return true;
+    const ipv4 = `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
+    return isPrivateOrLocalHostname(ipv4);
+  }
+  const first = Number.parseInt(host.split(":")[0] ?? "", 16);
+  if (!Number.isInteger(first)) return true;
+  if ((first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00) return true;
+  if (host.startsWith("2001:db8:")) return true;
+  return false;
 }
 
 function parseWireContent(text: string): unknown | null {

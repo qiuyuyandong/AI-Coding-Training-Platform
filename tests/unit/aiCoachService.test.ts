@@ -189,6 +189,60 @@ describe("on-demand AI coach service", () => {
     expect(count(fixture.db, "ai_request_audit")).toBe(1);
   });
 
+  it("recovers a report persistence failure without another provider call or quota charge", async () => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const fetch = vi.fn<FetchLike>(async () => wireResponse({
+      summary: "Provider completed.", strengths: [], risks: [], nextSteps: ["Persist once"],
+      evidenceIds: [fixture.evidenceId],
+    }));
+    const input = {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"] as const,
+      requestKey: "report-persistence-failure", now: NOW,
+    };
+    fixture.db.exec(`
+      CREATE TRIGGER fail_ai_report BEFORE INSERT ON ai_coach_reports
+      BEGIN SELECT RAISE(ABORT, 'injected report persistence failure'); END;
+    `);
+
+    await expect(generateCoachReport(fixture.db, input, { env: { ...AI_ENV, TRAINING_AI_DAILY_QUOTA: "1" }, fetch }))
+      .rejects.toThrow(/injected report persistence failure/u);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_request_audit")).toBe(0);
+    expect(count(fixture.db, "ai_coach_reports")).toBe(0);
+    expect(fixture.db.prepare<[string], { readonly status: string; readonly quota_charged: number }>(`
+      SELECT status, quota_charged FROM ai_request_lifecycle WHERE request_key = ?
+    `).get(input.requestKey)).toEqual({ status: "pending", quota_charged: 1 });
+
+    const otherEvidence = appendEvidenceEvent(fixture.db, {
+      learnerId: LOCAL_DEFAULT_LEARNER_ID, sourceType: "attempt", sourceId: "persistence-other",
+      eventType: "run", occurredAt: NOW, factsJson: JSON.stringify({ result: "passed" }),
+      provenanceJson: JSON.stringify({ explicit: true }), schemaVersion: "test-1", parserVersion: "test-1",
+      confidence: "high", supersedesEventId: null, idempotencyKey: "persistence-other-evidence",
+    });
+    await expect(generateCoachReport(fixture.db, {
+      ...input, evidenceIds: [otherEvidence.event.id],
+    }, { env: AI_ENV, fetch })).rejects.toThrow(/different input/u);
+    expect(fetch).toHaveBeenCalledOnce();
+
+    fixture.db.exec("DROP TRIGGER fail_ai_report");
+    const recovered = await generateCoachReport(fixture.db, input, { env: AI_ENV, fetch });
+    const replay = await generateCoachReport(fixture.db, input, { env: AI_ENV, fetch });
+    expect(recovered).toMatchObject({ source: "fallback", replayed: true, error: "persistence_error" });
+    expect(replay).toEqual(recovered);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_request_audit")).toBe(1);
+    expect(count(fixture.db, "ai_coach_reports")).toBe(1);
+    expect(fixture.db.prepare<[string], { readonly charged: number; readonly error_code: string }>(`
+      SELECT charged, error_code FROM ai_request_audit WHERE request_key = ?
+    `).get(input.requestKey)).toEqual({ charged: 1, error_code: "persistence_error" });
+    expect(fixture.db.prepare<[string], { readonly status: string }>(`
+      SELECT status FROM ai_request_lifecycle WHERE request_key = ?
+    `).get(input.requestKey)?.status).toBe("completed");
+  });
+
   it("does not call the provider for an unknown evidence id", async () => {
     const fixture = openFixture();
     saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
@@ -306,6 +360,40 @@ describe("on-demand AI coach service", () => {
 
     const [first, second] = await Promise.all([firstPromise, secondPromise]);
     expect(second).toEqual({ ...first, replayed: true });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_request_audit")).toBe(1);
+    expect(count(fixture.db, "ai_plan_change_proposals")).toBe(1);
+  });
+
+  it("recovers a proposal persistence failure without duplicating proposal, provider call, or quota", async () => {
+    const fixture = openFixture();
+    saveAiPreference(fixture.db, { mode: "on_demand", allowedContext: ["evidence_summary"], now: NOW });
+    const fetch = vi.fn<FetchLike>(async () => wireResponse({
+      dailyMode: "review", effortBoundaryMinutes: 60,
+      rationale: "Provider completed.", evidenceIds: [fixture.evidenceId],
+    }));
+    const input = {
+      evidenceIds: [fixture.evidenceId], requestedContext: ["evidence_summary"] as const,
+      requestKey: "proposal-persistence-failure", now: NOW,
+    };
+    fixture.db.exec(`
+      CREATE TRIGGER fail_ai_proposal BEFORE INSERT ON ai_plan_change_proposals
+      BEGIN SELECT RAISE(ABORT, 'injected proposal persistence failure'); END;
+    `);
+
+    await expect(generatePlanChangeProposal(fixture.db, input, { env: AI_ENV, fetch }))
+      .rejects.toThrow(/injected proposal persistence failure/u);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
+    expect(count(fixture.db, "ai_request_audit")).toBe(0);
+    expect(count(fixture.db, "ai_plan_change_proposals")).toBe(0);
+
+    fixture.db.exec("DROP TRIGGER fail_ai_proposal");
+    const recovered = await generatePlanChangeProposal(fixture.db, input, { env: AI_ENV, fetch });
+    const replay = await generatePlanChangeProposal(fixture.db, input, { env: AI_ENV, fetch });
+    expect(recovered).toMatchObject({ source: "fallback", replayed: true, error: "persistence_error" });
+    expect(replay).toEqual(recovered);
     expect(fetch).toHaveBeenCalledOnce();
     expect(count(fixture.db, "ai_quota_ledger")).toBe(1);
     expect(count(fixture.db, "ai_request_audit")).toBe(1);

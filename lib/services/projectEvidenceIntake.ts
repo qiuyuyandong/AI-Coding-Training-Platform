@@ -102,12 +102,20 @@ export function deleteProjectArtifactEvidence(
   },
 ): boolean {
   requireActiveSessionPolicy(db, input.projectSessionId);
-  const row = db.prepare<[string, string], { readonly reference: string | null }>(`
-    SELECT reference FROM artifact_evidence
+  const row = db.prepare<[string, string], {
+    readonly reference: string | null;
+    readonly snapshot_ref_id: string | null;
+  }>(`
+    SELECT reference, snapshot_ref_id FROM artifact_evidence
     WHERE id = ? AND project_session_id = ? AND deleted_at IS NULL
   `).get(input.artifactId, input.projectSessionId);
   if (row === undefined) return false;
-  const receipt = row.reference !== null && row.reference.endsWith(".snapshot")
+  const shared = row.reference !== null && row.snapshot_ref_id !== null
+    && (db.prepare<[string, string], { readonly count: number }>(`
+      SELECT COUNT(*) AS count FROM code_snapshot_refs
+      WHERE storage_path = ? AND id <> ? AND deleted_at IS NULL
+    `).get(row.reference, row.snapshot_ref_id)?.count ?? 0) > 0;
+  const receipt = !shared && row.reference !== null && row.reference.endsWith(".snapshot")
     ? deleteStoredArtifactWithReceipt(storageRoot, row.reference)
     : null;
   try {

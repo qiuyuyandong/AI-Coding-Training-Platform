@@ -12,12 +12,12 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-// Canonical nine-stage order for the V0 quality gate. Stage 2 was added by
+// Canonical ten-stage order for the V0 quality gate. Stage 2 was added by
 // Todo 24 so migrations are validated against the committed content package
-// before any test runs. Stage 7 (extension:e2e) was added by Task A11 so the
-// Fake OJ Playwright lane runs after extension:check (which already validates
-// the dist) and before build. Tests and downstream tooling assert against this
-// frozen array.
+// before any test runs. Extension E2E was added by Task A11 so the Fake OJ
+// Playwright lane runs after extension:check (which already validates
+// the dist) and before build. Fresh local-V1 acceptance runs after the ordinary
+// app E2E lane. Tests and downstream tooling assert against this frozen array.
 export const QUALITY_GATE_STAGES = Object.freeze([
   Object.freeze(["run", "lint"]),
   Object.freeze(["run", "db:migrate"]),
@@ -25,6 +25,7 @@ export const QUALITY_GATE_STAGES = Object.freeze([
   Object.freeze(["run", "test"]),
   Object.freeze(["run", "typecheck"]),
   Object.freeze(["run", "e2e"]),
+  Object.freeze(["run", "e2e:acceptance"]),
   Object.freeze(["run", "extension:check"]),
   Object.freeze(["run", "extension:e2e"]),
   Object.freeze(["run", "build"]),

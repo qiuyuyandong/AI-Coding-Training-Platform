@@ -336,6 +336,52 @@ describe("Phase 4 explicit project evidence", () => {
       "SELECT deleted_at FROM artifact_evidence WHERE id = ?",
     ).get(saved.artifact.id)?.deleted_at).toBeNull();
   });
+
+  it("keeps a content-addressed snapshot until its last active reference is deleted", () => {
+    const db = openFixture();
+    const directory = mkdtempSync(join(tmpdir(), "phase4-shared-snapshot-"));
+    directories.push(directory);
+    const started = startDefaultProject(db, { captureMode: "full", now: "2026-09-07T04:40:00.000Z" });
+    const content = "int shared_snapshot = 7;";
+    const first = recordProjectArtifactEvidence(db, directory, {
+      projectSessionId: started.sessionId, kind: "snapshot", purpose: "first shared reference",
+      captureMode: "full", relativePath: "src/first.cpp", content,
+      idempotencyKey: "shared-snapshot-first", recordedAt: "2026-09-07T04:41:00.000Z",
+    }).artifact;
+    const second = recordProjectArtifactEvidence(db, directory, {
+      projectSessionId: started.sessionId, kind: "snapshot", purpose: "second shared reference",
+      captureMode: "full", relativePath: "src/second.cpp", content,
+      idempotencyKey: "shared-snapshot-second", recordedAt: "2026-09-07T04:42:00.000Z",
+    }).artifact;
+    if (first.reference === null || second.reference === null) throw new Error("Shared snapshot reference is missing");
+    expect(first.reference).toBe(second.reference);
+    expect(readDirectoryFiles(directory)).toHaveLength(1);
+    expect(db.prepare<[], { readonly count: number }>(`
+      SELECT COUNT(*) AS count FROM code_snapshot_refs WHERE deleted_at IS NULL
+    `).get()?.count).toBe(2);
+
+    expect(deleteProjectArtifactEvidence(db, directory, {
+      projectSessionId: started.sessionId, artifactId: first.id, deletedAt: "2026-09-07T04:43:00.000Z",
+    })).toBe(true);
+    expect(existsSync(second.reference)).toBe(true);
+    expect(db.prepare<[string], { readonly deleted_at: string | null }>(`
+      SELECT deleted_at FROM artifact_evidence WHERE id = ?
+    `).get(second.id)?.deleted_at).toBeNull();
+    expect(db.prepare<[], { readonly count: number }>(`
+      SELECT COUNT(*) AS count FROM code_snapshot_refs WHERE deleted_at IS NULL
+    `).get()?.count).toBe(1);
+    expect(deleteProjectArtifactEvidence(db, directory, {
+      projectSessionId: started.sessionId, artifactId: first.id, deletedAt: "2026-09-07T04:44:00.000Z",
+    })).toBe(false);
+
+    expect(deleteProjectArtifactEvidence(db, directory, {
+      projectSessionId: started.sessionId, artifactId: second.id, deletedAt: "2026-09-07T04:45:00.000Z",
+    })).toBe(true);
+    expect(existsSync(second.reference)).toBe(false);
+    expect(db.prepare<[], { readonly count: number }>(`
+      SELECT COUNT(*) AS count FROM code_snapshot_refs WHERE deleted_at IS NULL
+    `).get()?.count).toBe(0);
+  });
 });
 
 function openFixture(): Database.Database {

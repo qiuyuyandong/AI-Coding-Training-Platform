@@ -330,7 +330,7 @@ export function deleteArtifactEvidence(
     if (row === undefined) return false;
     db.prepare(`UPDATE artifact_evidence SET deleted_at = ? WHERE id = ?`).run(deletedAt, artifactId);
     if (row.snapshot_ref_id !== null) {
-      db.prepare(`UPDATE code_snapshot_refs SET deleted_at = ?, storage_path = NULL WHERE id = ?`)
+      db.prepare(`UPDATE code_snapshot_refs SET deleted_at = ? WHERE id = ?`)
         .run(deletedAt, row.snapshot_ref_id);
     }
     return true;

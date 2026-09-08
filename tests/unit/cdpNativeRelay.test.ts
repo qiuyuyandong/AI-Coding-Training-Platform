@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { createServer, type Server } from "node:http";
-import type { Socket } from "node:net";
+import { createConnection, type Socket } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket, WebSocketServer } from "ws";
 import { createNativeCdpRelay } from "../../scripts/cdp-native-relay.mjs";
@@ -83,6 +83,18 @@ describe("native CDP relay", () => {
     expect(logs).toContain("relay_upstream_handshake_timeout");
     for (const socket of rawSockets) socket.destroy();
   });
+
+  it("releases the single-client handshake slot after a malformed upgrade", async () => {
+    const upstream = await startWebSocketServer(() => undefined);
+    const relay = await createNativeCdpRelay({ upstreamEndpoint: upstream.endpoint });
+    relays.push(relay);
+
+    const response = await malformedUpgrade(relay.endpoint);
+    expect(response).toMatch(/^HTTP\/1\.1 400 /u);
+    const valid = await connect(relay.endpoint);
+    sockets.push(valid);
+    expect(valid.readyState).toBe(WebSocket.OPEN);
+  });
 });
 
 async function startWebSocketServer(onConnection: (socket: WebSocket) => void): Promise<{ readonly endpoint: string }> {
@@ -122,4 +134,31 @@ async function nextMessage(socket: WebSocket): Promise<string> {
 async function onceClosed(socket: WebSocket): Promise<void> {
   if (socket.readyState === WebSocket.CLOSED) return;
   await new Promise<void>((resolve) => socket.once("close", () => resolve()));
+}
+
+async function malformedUpgrade(endpoint: string): Promise<string> {
+  const target = new URL(endpoint);
+  const socket = createConnection({ host: "127.0.0.1", port: Number(target.port) });
+  let response = "";
+  socket.setEncoding("utf8");
+  socket.on("data", (chunk: string) => { response += chunk; });
+  await new Promise<void>((resolve, reject) => {
+    socket.once("connect", resolve);
+    socket.once("error", reject);
+  });
+  socket.end([
+    `GET ${target.pathname} HTTP/1.1`,
+    `Host: 127.0.0.1:${target.port}`,
+    "Connection: Upgrade",
+    "Upgrade: websocket",
+    "Sec-WebSocket-Version: 13",
+    "Sec-WebSocket-Key: invalid",
+    "",
+    "",
+  ].join("\r\n"));
+  await new Promise<void>((resolve, reject) => {
+    socket.once("close", resolve);
+    socket.once("error", reject);
+  });
+  return response;
 }

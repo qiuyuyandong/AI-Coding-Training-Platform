@@ -19,6 +19,7 @@ const EXPECTED_STAGE_SCRIPT_NAMES = [
   "test",
   "typecheck",
   "e2e",
+  "e2e:acceptance",
   "extension:check",
   "extension:e2e",
   "build",
@@ -26,7 +27,7 @@ const EXPECTED_STAGE_SCRIPT_NAMES = [
 
 describe("scripts/quality-gate.mjs", () => {
   describe("QUALITY_GATE_STAGES", () => {
-    it("declares the canonical nine-stage order for the V0 quality gate", () => {
+    it("declares the canonical ten-stage order including fresh local-V1 acceptance", () => {
       const scriptNames = QUALITY_GATE_STAGES.map((args) => args[1]);
       expect(scriptNames).toEqual(EXPECTED_STAGE_SCRIPT_NAMES);
     });
@@ -48,6 +49,11 @@ describe("scripts/quality-gate.mjs", () => {
       expect(migrateIndex).toBeGreaterThanOrEqual(0);
       expect(validateIndex).toBe(migrateIndex + 1);
       expect(testIndex).toBe(validateIndex + 1);
+    });
+
+    it("runs fresh acceptance immediately after the ordinary app E2E lane", () => {
+      const scriptNames = QUALITY_GATE_STAGES.map((args) => args[1]);
+      expect(scriptNames.indexOf("e2e:acceptance")).toBe(scriptNames.indexOf("e2e") + 1);
     });
 
     it("freezes the stages array so callers cannot mutate the canonical order", () => {

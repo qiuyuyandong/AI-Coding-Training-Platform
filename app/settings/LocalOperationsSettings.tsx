@@ -80,7 +80,7 @@ export function LocalOperationsSettings({
       <h2 className="text-lg font-semibold">诊断与本地反馈</h2>
       <p className="mt-2 text-sm text-slate-600">网页只执行只读诊断和本地导出；恢复必须在应用停止后使用终端命令。</p>
       <button type="button" disabled={busy} onClick={() => void runDiagnosis()} className="mt-3 rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50">运行只读诊断</button>
-      {diagnosis === null ? null : <p className="mt-3 text-sm text-slate-700">Vault：{diagnosis.status} · 数据库：{diagnosis.database} · 缺失快照：{diagnosis.missingSnapshotCount} · sidecar：{diagnosis.sidecars}</p>}
+      {diagnosis === null ? null : <p className="mt-3 text-sm text-slate-700">Vault：{diagnosis.status} · 数据库：{diagnosis.database} · 缺失：{diagnosis.missingSnapshotCount} · 损坏：{diagnosis.invalidSnapshotCount} · 未引用：{diagnosis.unexpectedSnapshotCount} · sidecar：{diagnosis.sidecars}</p>}
       <label className="mt-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={metricsEnabled} disabled={busy} onChange={(event) => void updateMetrics(event.target.checked)} />启用白名单本地聚合指标（默认关闭）</label>
       <fieldset className="mt-4">
         <legend className="text-sm font-medium">反馈包类别</legend>

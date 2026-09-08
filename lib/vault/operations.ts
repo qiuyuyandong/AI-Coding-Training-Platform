@@ -68,6 +68,8 @@ export async function backupVault(
     }
   }
   try {
+    const evidenceSource = join(vault.vaultPath, EVIDENCE_DIRECTORY);
+    collectActiveSnapshotFiles(vault.databasePath, evidenceSource);
     const databaseTarget = join(target, VAULT_DATABASE_NAME);
     const source = new Database(vault.databasePath, { readonly: true, fileMustExist: true });
     try {
@@ -75,10 +77,11 @@ export async function backupVault(
     } finally {
       source.close();
     }
-    validateSqliteDatabase(databaseTarget);
     copyFileSync(vault.descriptorPath, join(target, VAULT_DESCRIPTOR_NAME), constants.COPYFILE_EXCL);
-    const evidenceSource = join(vault.vaultPath, EVIDENCE_DIRECTORY);
-    if (pathEntryExists(evidenceSource)) copyEvidenceStore(evidenceSource, join(target, "evidence"));
+    const snapshots = collectActiveSnapshotFiles(databaseTarget, evidenceSource);
+    normalizeBackupSnapshotReferences(databaseTarget);
+    copySnapshotFiles(snapshots, join(target, "evidence"));
+    validateSqliteDatabase(databaseTarget);
     const files = listManifestFiles(target).map((path) => snapshotManifestFile(target, path));
     const schemaMigrations = readSchemaMigrations(databaseTarget);
     const manifest = ManifestSchema.parse({
@@ -167,6 +170,8 @@ export async function restoreVault(
     try {
       staged.pragma("foreign_keys = ON");
       applyMigrations(staged);
+      rewriteRestoredSnapshotReferences(staged, vault.vaultPath);
+      staged.exec("VACUUM");
     } finally {
       staged.close();
     }
@@ -175,6 +180,7 @@ export async function restoreVault(
     const stagedEvidence = join(stage, EVIDENCE_DIRECTORY);
     mkdirSync(stagedEvidence);
     if (pathEntryExists(backupEvidence)) copyEvidenceStore(backupEvidence, stagedEvidence);
+    validateStagedSnapshotReferences(stagedDatabase, stagedEvidence, liveEvidence);
     options.beforeSwap?.();
     assertNoSqliteSidecars(vault.databasePath);
     renameSync(vault.databasePath, oldDatabase);
@@ -243,36 +249,145 @@ export function diagnoseVault(vaultInput: ValidatedVault): Readonly<{
   schemaMigrationCount: number;
   retainedSnapshotCount: number;
   missingSnapshotCount: number;
+  invalidSnapshotCount: number;
+  unexpectedSnapshotCount: number;
 }> {
   try {
     const vault = validateVault(vaultInput.vaultPath);
     const sidecars = countSqliteSidecars(vault.databasePath);
     const db = new Database(vault.databasePath, { readonly: true, fileMustExist: true });
     try {
-      const snapshots = db.prepare<[], { readonly storage_path: string }>(`
-        SELECT storage_path FROM code_snapshot_refs
-        WHERE deleted_at IS NULL AND storage_path IS NOT NULL
+      const snapshots = db.prepare<[], {
+        readonly content_hash: string;
+        readonly byte_size: number;
+        readonly storage_path: string;
+      }>(`
+        SELECT content_hash, byte_size, storage_path FROM code_snapshot_refs
+        WHERE deleted_at IS NULL AND capture_mode = 'full' AND storage_path IS NOT NULL
       `).all();
       const evidenceRoot = resolve(vault.vaultPath, EVIDENCE_DIRECTORY);
       let missing = 0;
+      let invalid = 0;
+      const expectedNames = new Set<string>();
       for (const snapshot of snapshots) {
         const path = resolve(snapshot.storage_path);
-        if (!path.startsWith(`${evidenceRoot}${sep}`) || !path.endsWith(".snapshot") || !pathEntryExists(path)) missing += 1;
+        const name = `${snapshot.content_hash}.snapshot`;
+        expectedNames.add(name);
+        if (path !== resolve(evidenceRoot, name)) {
+          invalid += 1;
+        } else if (!pathEntryExists(path)) {
+          missing += 1;
+        } else {
+          const stat = lstatSync(path);
+          if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== snapshot.byte_size || sha256(path) !== snapshot.content_hash) {
+            invalid += 1;
+          }
+        }
+      }
+      let unexpected = 0;
+      if (pathEntryExists(evidenceRoot)) {
+        const directory = requireSafeDirectory(evidenceRoot, "Evidence store");
+        for (const name of readdirSync(directory)) {
+          const path = join(directory, name);
+          const stat = lstatSync(path);
+          if (!/^[a-f0-9]{64}\.snapshot$/u.test(name) || !stat.isFile() || stat.isSymbolicLink()) invalid += 1;
+          else if (!expectedNames.has(name)) unexpected += 1;
+        }
       }
       return {
-        status: sidecars === 0 && missing === 0 ? "ok" : "error",
+        status: sidecars === 0 && missing === 0 && invalid === 0 && unexpected === 0 ? "ok" : "error",
         database: "ok",
         sidecars,
         schemaMigrationCount: readSchemaMigrations(vault.databasePath).length,
         retainedSnapshotCount: snapshots.length,
         missingSnapshotCount: missing,
+        invalidSnapshotCount: invalid,
+        unexpectedSnapshotCount: unexpected,
       };
     } finally {
       db.close();
     }
   } catch {
-    return { status: "error", database: "error", sidecars: 0, schemaMigrationCount: 0, retainedSnapshotCount: 0, missingSnapshotCount: 0 };
+    return {
+      status: "error", database: "error", sidecars: 0, schemaMigrationCount: 0,
+      retainedSnapshotCount: 0, missingSnapshotCount: 0, invalidSnapshotCount: 0, unexpectedSnapshotCount: 0,
+    };
   }
+}
+
+type ActiveSnapshotFile = { readonly name: string; readonly sourcePath: string };
+
+function collectActiveSnapshotFiles(databasePath: string, evidenceRoot: string): readonly ActiveSnapshotFile[] {
+  const db = new Database(databasePath, { readonly: true, fileMustExist: true });
+  try {
+    const rows = db.prepare<[], {
+      readonly content_hash: string;
+      readonly byte_size: number;
+      readonly storage_path: string;
+    }>(`
+      SELECT content_hash, byte_size, storage_path FROM code_snapshot_refs
+      WHERE deleted_at IS NULL AND capture_mode = 'full'
+    `).all();
+    const files = new Map<string, ActiveSnapshotFile>();
+    for (const row of rows) {
+      const name = `${row.content_hash}.snapshot`;
+      const expected = resolve(evidenceRoot, name);
+      if (resolve(row.storage_path) !== expected) throw new LocalVaultError("Vault contains an invalid snapshot reference");
+      const path = requireSafeRegularFile(expected, "Referenced snapshot");
+      if (lstatSync(path).size !== row.byte_size || sha256(path) !== row.content_hash) {
+        throw new LocalVaultError("Vault contains a corrupt referenced snapshot");
+      }
+      files.set(name, { name, sourcePath: path });
+    }
+    return [...files.values()].sort((left, right) => left.name.localeCompare(right.name));
+  } finally {
+    db.close();
+  }
+}
+
+function normalizeBackupSnapshotReferences(databasePath: string): void {
+  const db = new Database(databasePath);
+  try {
+    db.transaction(() => {
+      db.prepare(`
+        UPDATE code_snapshot_refs
+        SET storage_path = 'evidence/' || content_hash || '.snapshot'
+        WHERE capture_mode = 'full'
+      `).run();
+      db.prepare(`
+        UPDATE artifact_evidence
+        SET reference = 'evidence/' || (
+          SELECT content_hash FROM code_snapshot_refs WHERE id = artifact_evidence.snapshot_ref_id
+        ) || '.snapshot'
+        WHERE snapshot_ref_id IN (SELECT id FROM code_snapshot_refs WHERE capture_mode = 'full')
+      `).run();
+    })();
+    db.exec("VACUUM");
+  } finally {
+    db.close();
+  }
+}
+
+function rewriteRestoredSnapshotReferences(db: Database.Database, vaultPath: string): void {
+  const evidenceRoot = resolve(vaultPath, EVIDENCE_DIRECTORY);
+  const rows = db.prepare<[], { readonly id: string; readonly content_hash: string }>(`
+    SELECT id, content_hash FROM code_snapshot_refs WHERE capture_mode = 'full'
+  `).all();
+  const updateRef = db.prepare(`UPDATE code_snapshot_refs SET storage_path = ? WHERE id = ?`);
+  const updateArtifact = db.prepare(`UPDATE artifact_evidence SET reference = ? WHERE snapshot_ref_id = ?`);
+  db.transaction(() => {
+    for (const row of rows) {
+      const path = resolve(evidenceRoot, `${row.content_hash}.snapshot`);
+      updateRef.run(path, row.id);
+      updateArtifact.run(path, row.id);
+    }
+  })();
+}
+
+function copySnapshotFiles(files: readonly ActiveSnapshotFile[], target: string): void {
+  if (files.length === 0) return;
+  mkdirSync(target);
+  for (const file of files) copyFileSync(file.sourcePath, join(target, file.name), constants.COPYFILE_EXCL);
 }
 
 function copyEvidenceStore(sourceInput: string, target: string): void {
@@ -335,6 +450,38 @@ function validateRestoredSnapshotReferences(databasePath: string, evidenceRoot: 
   requireSafeDirectory(evidenceRoot, "Restored evidence store");
 }
 
+function validateStagedSnapshotReferences(databasePath: string, stagedEvidenceRoot: string, liveEvidenceRoot: string): void {
+  const db = new Database(databasePath, { readonly: true, fileMustExist: true });
+  try {
+    const rows = db.prepare<[], {
+      readonly content_hash: string;
+      readonly byte_size: number;
+      readonly storage_path: string;
+    }>(`
+      SELECT content_hash, byte_size, storage_path FROM code_snapshot_refs
+      WHERE deleted_at IS NULL AND capture_mode = 'full'
+    `).all();
+    const expectedNames = new Set<string>();
+    for (const row of rows) {
+      const name = `${row.content_hash}.snapshot`;
+      expectedNames.add(name);
+      if (resolve(row.storage_path) !== resolve(liveEvidenceRoot, name)) {
+        throw new LocalVaultError("Staged database contains an invalid destination snapshot reference");
+      }
+      const path = requireSafeRegularFile(join(stagedEvidenceRoot, name), "Staged snapshot");
+      if (lstatSync(path).size !== row.byte_size || sha256(path) !== row.content_hash) {
+        throw new LocalVaultError("Staged snapshot failed integrity validation");
+      }
+    }
+    const actualNames = readdirSync(requireSafeDirectory(stagedEvidenceRoot, "Staged evidence store"));
+    if (actualNames.some((name) => !expectedNames.has(name))) {
+      throw new LocalVaultError("Staged evidence store contains an unreferenced snapshot");
+    }
+  } finally {
+    db.close();
+  }
+}
+
 function validateBackupSnapshotReferences(databasePath: string, backupRoot: string): void {
   const db = new Database(databasePath, { readonly: true, fileMustExist: true });
   try {
@@ -344,7 +491,8 @@ function validateBackupSnapshotReferences(databasePath: string, backupRoot: stri
     `).all();
     for (const row of rows) {
       const expectedName = `${row.content_hash}.snapshot`;
-      if (row.storage_path.split(/[\\/]/u).at(-1) !== expectedName) {
+      const legacyName = row.storage_path.split(/[\\/]/u).at(-1);
+      if (row.storage_path !== `evidence/${expectedName}` && legacyName !== expectedName) {
         throw new LocalVaultError("Backup database contains a malformed snapshot reference");
       }
       const artifact = join(backupRoot, "evidence", expectedName);
@@ -376,7 +524,7 @@ function removeOwnedPath(parent: string, target: string): void {
   if (!isAbsolute(canonicalTarget) || !canonicalTarget.startsWith(`${canonicalParent}${sep}`)) {
     throw new LocalVaultError("Refusing cleanup outside the owned directory");
   }
-  rmSync(canonicalTarget, { recursive: true, force: true });
+  rmSync(canonicalTarget, { recursive: true, force: true, maxRetries: 3, retryDelay: 10 });
 }
 
 function isDescendant(parent: string, child: string): boolean {

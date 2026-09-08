@@ -26,7 +26,7 @@ export async function createNativeCdpRelay({
   const localServer = new WebSocketServer({ noServer: true, maxPayload: maxFrameBytes });
   let activeClient = null;
   let activeUpstream = null;
-  let clientPending = false;
+  let pendingClient = null;
   let closed = false;
 
   server.on("upgrade", (request, socket, head) => {
@@ -34,20 +34,23 @@ export async function createNativeCdpRelay({
       rejectUpgrade(socket, 404);
       return;
     }
-    if (activeClient !== null || clientPending) {
+    if (activeClient !== null || pendingClient !== null) {
       onLog("relay_second_client_rejected");
       rejectUpgrade(socket, 409);
       return;
     }
-    clientPending = true;
+    pendingClient = socket;
+    socket.once("close", () => {
+      if (pendingClient === socket) pendingClient = null;
+    });
     localServer.handleUpgrade(request, socket, head, (client) => {
+      if (pendingClient === socket) pendingClient = null;
       localServer.emit("connection", client, request);
     });
   });
 
   localServer.on("connection", (client) => {
     activeClient = client;
-    clientPending = false;
     const upstream = new globalThis.WebSocket(upstreamEndpoint);
     activeUpstream = upstream;
     upstream.binaryType = "arraybuffer";
@@ -123,6 +126,8 @@ export async function createNativeCdpRelay({
     async close() {
       if (closed) return;
       closed = true;
+      pendingClient?.destroy();
+      pendingClient = null;
       const client = activeClient;
       if (client !== null && client.readyState === client.OPEN) client.close(1001, "relay closing");
       if (activeUpstream?.readyState === globalThis.WebSocket.OPEN

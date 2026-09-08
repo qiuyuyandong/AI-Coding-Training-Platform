@@ -431,6 +431,50 @@ describe("applyMigrations", () => {
       }
     }
   });
+
+  it("backfills completed and interrupted AI requests into the durable lifecycle", () => {
+    const migrationNames = repositoryMigrationNames();
+    const lifecycleIndex = migrationNames.indexOf("0018_ai_request_lifecycle.sql");
+    const directory = makeTempDir("migration-ai-lifecycle-");
+    const oldMigrationsDir = join(directory, "old-migrations");
+    const db = new Database(join(directory, "test.sqlite"));
+    copyMigrationPrefix(oldMigrationsDir, migrationNames, lifecycleIndex);
+    try {
+      applyMigrations(db, { migrationsDir: oldMigrationsDir, now: fixedMigrationTime });
+      db.exec(`
+        INSERT INTO learner_profiles VALUES (
+          'local-default-learner', 'new', '2026-09-07T00:00:00.000Z', '2026-09-07T00:00:00.000Z'
+        );
+        INSERT INTO ai_quota_ledger (
+          id, learner_id, request_kind, request_key, input_fingerprint, units, created_at
+        ) VALUES (
+          'quota_partial', 'local-default-learner', 'coach_report', 'partial-request', 'fingerprint-partial', 1,
+          '2026-09-07T00:00:00.000Z'
+        );
+        INSERT INTO ai_request_audit (
+          id, learner_id, request_kind, request_key, input_fingerprint, mode,
+          context_categories_json, provider_status, error_code, charged, created_at
+        ) VALUES (
+          'audit_complete', 'local-default-learner', 'plan_proposal', 'complete-request', 'fingerprint-complete',
+          'disabled', '[]', 'fallback', 'disabled', 0, '2026-09-07T00:01:00.000Z'
+        );
+      `);
+
+      applyMigrations(db, { now: fixedMigrationTime });
+      expect(db.prepare<[], {
+        readonly request_key: string;
+        readonly status: string;
+        readonly quota_charged: number;
+      }>(`
+        SELECT request_key, status, quota_charged FROM ai_request_lifecycle ORDER BY request_key
+      `).all()).toEqual([
+        { request_key: "complete-request", status: "completed", quota_charged: 0 },
+        { request_key: "partial-request", status: "pending", quota_charged: 1 },
+      ]);
+    } finally {
+      db.close();
+    }
+  });
 });
 
 function countRows(db: Database.Database, table: string): number {

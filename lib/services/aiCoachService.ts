@@ -91,6 +91,10 @@ type RequestAuditRow = {
   readonly request_kind: AiRequestKind;
   readonly input_fingerprint: string;
 };
+type RequestLifecycleRow = RequestAuditRow & {
+  readonly status: "pending" | "completed";
+  readonly quota_charged: 0 | 1;
+};
 
 const activeAiRequests = new Map<string, { readonly kind: AiRequestKind; readonly inputFingerprint: string }>();
 const reportRequests = new Map<string, Promise<CoachReportResult>>();
@@ -198,10 +202,13 @@ async function generateCoachReportOnce(
   const fallback = fallbackReport(allEvidenceKnown ? evidence.map((row) => row.id) : []);
   const config = readConfig(deps.env ?? process.env);
   const contextAuthorized = categories.includes("evidence_summary");
-  const quota = reserveQuota(db, learnerId, "coach_report", input.requestKey, inputFingerprint, input.now, config.dailyQuota,
-    preference.mode === "on_demand" && config.enabled && allEvidenceKnown && contextAuthorized);
-  const codeSnapshots = quota.error === null && categories.includes("code_snapshot") ? loadCodeContext(db, evidence) : [];
-  let result: Awaited<ReturnType<typeof requestOpenAiCompatibleJson<CoachReport>>> = quota.error === null
+  const lifecycle = beginAiRequest(db, learnerId, "coach_report", input.requestKey, inputFingerprint, input.now);
+  let charged = lifecycle.charged;
+  const eligible = preference.mode === "on_demand" && config.enabled && allEvidenceKnown && contextAuthorized;
+  const codeSnapshots = eligible && !lifecycle.recovered && categories.includes("code_snapshot") ? loadCodeContext(db, evidence) : [];
+  let result: Awaited<ReturnType<typeof requestOpenAiCompatibleJson<CoachReport>>> = lifecycle.recovered
+    ? { ok: false, error: "persistence_error" }
+    : eligible
     ? await requestOpenAiCompatibleJson({
       ...config,
       systemPrompt: REPORT_SYSTEM_PROMPT,
@@ -215,8 +222,17 @@ async function generateCoachReportOnce(
         [config.apiKey, ...promptSentences(REPORT_SYSTEM_PROMPT)],
         codeSnapshots,
       ),
-    }, { fetch: deps.fetch })
-    : { ok: false, error: quota.error };
+    }, {
+      fetch: deps.fetch,
+      authorizeRequest: () => {
+        const quota = chargeQuotaAtProviderLaunch(
+          db, learnerId, "coach_report", input.requestKey, inputFingerprint, input.now, config.dailyQuota,
+        );
+        charged = quota.charged;
+        return quota.error;
+      },
+    })
+    : { ok: false, error: "disabled" };
   if (!allEvidenceKnown) result = { ok: false, error: "invalid_output" };
   const report = result.ok ? result.value : fallback;
   const source = result.ok ? "ai" : "fallback";
@@ -229,9 +245,10 @@ async function generateCoachReportOnce(
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
     `).run(id, learnerId, input.requestKey, inputFingerprint, JSON.stringify(report), JSON.stringify(report.evidenceIds), source, input.now);
     writeAudit(db, learnerId, "coach_report", input.requestKey, inputFingerprint,
-      preference.mode, categories, source, error, quota.charged, input.now);
+      preference.mode, categories, source, error, charged, input.now);
+    completeAiRequest(db, input.requestKey, input.now);
   })();
-  return { id, report, source, replayed: false, error };
+  return { id, report, source, replayed: lifecycle.recovered, error };
 }
 
 export async function generatePlanChangeProposal(
@@ -287,10 +304,13 @@ async function generatePlanChangeProposalOnce(
   };
   const config = readConfig(deps.env ?? process.env);
   const contextAuthorized = categories.includes("evidence_summary");
-  const quota = reserveQuota(db, learnerId, "plan_proposal", input.requestKey, inputFingerprint, input.now, config.dailyQuota,
-    preference.mode === "on_demand" && config.enabled && allEvidenceKnown && contextAuthorized);
-  const codeSnapshots = quota.error === null && categories.includes("code_snapshot") ? loadCodeContext(db, evidence) : [];
-  let result: Awaited<ReturnType<typeof requestOpenAiCompatibleJson<PlanChangeProposal>>> = quota.error === null
+  const lifecycle = beginAiRequest(db, learnerId, "plan_proposal", input.requestKey, inputFingerprint, input.now);
+  let charged = lifecycle.charged;
+  const eligible = preference.mode === "on_demand" && config.enabled && allEvidenceKnown && contextAuthorized;
+  const codeSnapshots = eligible && !lifecycle.recovered && categories.includes("code_snapshot") ? loadCodeContext(db, evidence) : [];
+  let result: Awaited<ReturnType<typeof requestOpenAiCompatibleJson<PlanChangeProposal>>> = lifecycle.recovered
+    ? { ok: false, error: "persistence_error" }
+    : eligible
     ? await requestOpenAiCompatibleJson({
       ...config,
       systemPrompt: PLAN_SYSTEM_PROMPT,
@@ -308,8 +328,17 @@ async function generatePlanChangeProposalOnce(
         [config.apiKey, ...promptSentences(PLAN_SYSTEM_PROMPT)],
         codeSnapshots,
       ),
-    }, { fetch: deps.fetch })
-    : { ok: false, error: quota.error };
+    }, {
+      fetch: deps.fetch,
+      authorizeRequest: () => {
+        const quota = chargeQuotaAtProviderLaunch(
+          db, learnerId, "plan_proposal", input.requestKey, inputFingerprint, input.now, config.dailyQuota,
+        );
+        charged = quota.charged;
+        return quota.error;
+      },
+    })
+    : { ok: false, error: "disabled" };
   if (!allEvidenceKnown) result = { ok: false, error: "invalid_output" };
   const proposal = result.ok ? result.value : fallback;
   const source = result.ok ? "ai" : "fallback";
@@ -324,9 +353,10 @@ async function generatePlanChangeProposalOnce(
     `).run(id, learnerId, plan.learning_plan_id, plan.daily_plan_id, input.requestKey,
       inputFingerprint, JSON.stringify(proposal), JSON.stringify(proposal.evidenceIds), source, input.now);
     writeAudit(db, learnerId, "plan_proposal", input.requestKey, inputFingerprint,
-      preference.mode, categories, source, error, quota.charged, input.now);
+      preference.mode, categories, source, error, charged, input.now);
+    completeAiRequest(db, input.requestKey, input.now);
   })();
-  return { id, proposal, source, replayed: false, error };
+  return { id, proposal, source, replayed: lifecycle.recovered, error };
 }
 
 export function decidePlanChangeProposal(
@@ -476,7 +506,30 @@ function loadCodeContext(db: Database.Database, evidence: readonly EvidenceRow[]
   return output;
 }
 
-function reserveQuota(
+function beginAiRequest(
+  db: Database.Database,
+  learnerId: string,
+  kind: AiRequestKind,
+  requestKey: string,
+  inputFingerprint: string,
+  now: string,
+): { readonly recovered: boolean; readonly charged: boolean } {
+  return db.transaction(() => {
+    const inserted = db.prepare(`
+      INSERT OR IGNORE INTO ai_request_lifecycle (
+        request_key, learner_id, request_kind, input_fingerprint,
+        status, quota_charged, created_at, completed_at
+      ) VALUES (?, ?, ?, ?, 'pending', 0, ?, NULL)
+    `).run(requestKey, learnerId, kind, inputFingerprint, now);
+    if (inserted.changes === 1) return { recovered: false, charged: false };
+    const existing = requireRequestLifecycle(db, requestKey);
+    assertPersistedRequestCompatible(existing, learnerId, kind, inputFingerprint);
+    if (existing.status === "completed") throw new Error("Completed AI request is missing its durable result");
+    return { recovered: true, charged: existing.quota_charged === 1 };
+  })();
+}
+
+function chargeQuotaAtProviderLaunch(
   db: Database.Database,
   learnerId: string,
   kind: AiRequestKind,
@@ -484,27 +537,45 @@ function reserveQuota(
   inputFingerprint: string,
   now: string,
   dailyQuota: number,
-  eligible: boolean,
 ): { readonly charged: boolean; readonly error: ProviderErrorCode | null } {
-  if (!eligible) return { charged: false, error: "disabled" };
-  const start = `${now.slice(0, 10)}T00:00:00.000Z`;
-  const end = `${now.slice(0, 10)}T23:59:59.999Z`;
-  const count = db.prepare<[string, string, string], { readonly count: number }>(`
-    SELECT COUNT(*) AS count FROM ai_quota_ledger
-    WHERE learner_id = ? AND created_at BETWEEN ? AND ?
-  `).get(learnerId, start, end)?.count ?? 0;
-  if (count >= dailyQuota) return { charged: false, error: "quota_exhausted" };
-  const result = db.prepare(`
-    INSERT OR IGNORE INTO ai_quota_ledger (
-      id, learner_id, request_kind, request_key, input_fingerprint, units, created_at
-    ) VALUES (?, ?, ?, ?, ?, 1, ?)
-  `).run(`ai_quota_${randomUUID()}`, learnerId, kind, requestKey, inputFingerprint, now);
-  if (result.changes === 1) return { charged: true, error: null };
-  const existing = db.prepare<[string], RequestAuditRow>(`
-    SELECT learner_id, request_kind, input_fingerprint FROM ai_quota_ledger WHERE request_key = ?
+  return db.transaction((): { readonly charged: boolean; readonly error: ProviderErrorCode | null } => {
+    const lifecycle = requireRequestLifecycle(db, requestKey);
+    assertPersistedRequestCompatible(lifecycle, learnerId, kind, inputFingerprint);
+    if (lifecycle.status !== "pending" || lifecycle.quota_charged === 1) {
+      return { charged: lifecycle.quota_charged === 1, error: "persistence_error" };
+    }
+    const start = `${now.slice(0, 10)}T00:00:00.000Z`;
+    const end = `${now.slice(0, 10)}T23:59:59.999Z`;
+    const count = db.prepare<[string, string, string], { readonly count: number }>(`
+      SELECT COUNT(*) AS count FROM ai_quota_ledger
+      WHERE learner_id = ? AND created_at BETWEEN ? AND ?
+    `).get(learnerId, start, end)?.count ?? 0;
+    if (count >= dailyQuota) return { charged: false, error: "quota_exhausted" };
+    db.prepare(`
+      INSERT INTO ai_quota_ledger (
+        id, learner_id, request_kind, request_key, input_fingerprint, units, created_at
+      ) VALUES (?, ?, ?, ?, ?, 1, ?)
+    `).run(`ai_quota_${randomUUID()}`, learnerId, kind, requestKey, inputFingerprint, now);
+    db.prepare(`UPDATE ai_request_lifecycle SET quota_charged = 1 WHERE request_key = ?`).run(requestKey);
+    return { charged: true, error: null };
+  })();
+}
+
+function completeAiRequest(db: Database.Database, requestKey: string, now: string): void {
+  const updated = db.prepare(`
+    UPDATE ai_request_lifecycle SET status = 'completed', completed_at = ?
+    WHERE request_key = ? AND status = 'pending'
+  `).run(now, requestKey);
+  if (updated.changes !== 1) throw new Error("AI request lifecycle could not be completed");
+}
+
+function requireRequestLifecycle(db: Database.Database, requestKey: string): RequestLifecycleRow {
+  const row = db.prepare<[string], RequestLifecycleRow>(`
+    SELECT learner_id, request_kind, input_fingerprint, status, quota_charged
+    FROM ai_request_lifecycle WHERE request_key = ?
   `).get(requestKey);
-  if (existing !== undefined) assertPersistedRequestCompatible(existing, learnerId, kind, inputFingerprint);
-  return { charged: false, error: "quota_exhausted" };
+  if (row === undefined) throw new Error("AI request lifecycle disappeared");
+  return row;
 }
 
 function writeAudit(
@@ -592,6 +663,7 @@ function parseProviderErrorCode(value: string | null): ProviderErrorCode | null 
     case "provider_error":
     case "invalid_response":
     case "invalid_output":
+    case "persistence_error":
     case "quota_exhausted":
       return value;
     default:
@@ -631,10 +703,15 @@ function assertStoredRequestCompatible(
   kind: AiRequestKind,
   inputFingerprint: string,
 ): void {
-  const existing = db.prepare<[string], RequestAuditRow>(`
-    SELECT learner_id, request_kind, input_fingerprint FROM ai_request_audit WHERE request_key = ?
-  `).get(requestKey);
-  if (existing !== undefined) assertPersistedRequestCompatible(existing, learnerId, kind, inputFingerprint);
+  const queries = [
+    `SELECT learner_id, request_kind, input_fingerprint FROM ai_request_lifecycle WHERE request_key = ?`,
+    `SELECT learner_id, request_kind, input_fingerprint FROM ai_request_audit WHERE request_key = ?`,
+    `SELECT learner_id, request_kind, input_fingerprint FROM ai_quota_ledger WHERE request_key = ?`,
+  ];
+  for (const query of queries) {
+    const existing = db.prepare<[string], RequestAuditRow>(query).get(requestKey);
+    if (existing !== undefined) assertPersistedRequestCompatible(existing, learnerId, kind, inputFingerprint);
+  }
 }
 
 function assertPersistedRequestCompatible(

@@ -13,6 +13,8 @@ export type VaultDiagnosisSummary = Readonly<{
   schemaMigrationCount: number;
   retainedSnapshotCount: number;
   missingSnapshotCount: number;
+  invalidSnapshotCount: number;
+  unexpectedSnapshotCount: number;
 }>;
 
 export function readMetricsEnabled(db: Database.Database, learnerId = LOCAL_DEFAULT_LEARNER_ID): boolean {
@@ -55,6 +57,8 @@ export function buildFeedbackBundle(
       sidecars: input.diagnosis.sidecars,
       retainedSnapshots: input.diagnosis.retainedSnapshotCount,
       missingSnapshots: input.diagnosis.missingSnapshotCount,
+      invalidSnapshots: input.diagnosis.invalidSnapshotCount,
+      unexpectedSnapshots: input.diagnosis.unexpectedSnapshotCount,
     };
   }
   if (categories.includes("feature_counts")) {
