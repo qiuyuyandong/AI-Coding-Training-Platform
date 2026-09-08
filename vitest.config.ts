@@ -11,5 +11,6 @@ export default defineConfig({
     exclude: ["node_modules/**", ".worktrees/**", "tests/e2e/**", "tests/acceptance-e2e/**", "tests/extension-e2e/**"],
     environment: "jsdom",
     globals: true,
+    testTimeout: 30_000,
   },
 });

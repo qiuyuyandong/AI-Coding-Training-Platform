@@ -105,6 +105,36 @@ describe("Local Vault core", () => {
     expect(() => validateVault(junction)).toThrow(/link or file|symlink or junction/u);
   });
 
+  it("accepts an equivalent Windows namespace spelling for a real directory", () => {
+    const root = makeRoot();
+    const vaultDirectory = join(root, "namespace-vault");
+    const requestedVaultPath = process.platform === "win32"
+      ? `\\\\?\\${vaultDirectory}`
+      : vaultDirectory;
+    mkdirSync(vaultDirectory);
+
+    const created = createEmptyVault(requestedVaultPath);
+    const requestedDatabasePath = process.platform === "win32"
+      ? `\\\\?\\${created.databasePath}`
+      : created.databasePath;
+
+    expect(created).toEqual(validateVault(vaultDirectory));
+    expect(snapshotFile(requestedDatabasePath)).toEqual(snapshotFile(created.databasePath));
+  });
+
+  it("rejects a Vault reached through an ancestor junction", () => {
+    const root = makeRoot();
+    const outside = join(root, "outside-parent");
+    const vaultDirectory = join(outside, "vault");
+    const junction = join(root, "junction-parent");
+    mkdirSync(vaultDirectory, { recursive: true });
+    createEmptyVault(vaultDirectory);
+    symlinkSync(outside, junction, "junction");
+
+    expect(() => validateVault(join(junction, "vault"))).toThrow(/symlink or junction/u);
+    expect(() => snapshotFile(join(junction, "vault", VAULT_DATABASE_NAME))).toThrow(/symlink or junction/u);
+  });
+
   it("atomically replaces only the pointer after validating the next Vault", () => {
     const root = makeRoot();
     const firstDirectory = join(root, "first");

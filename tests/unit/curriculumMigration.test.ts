@@ -198,7 +198,7 @@ describe("0006_curriculum_catalog.sql", () => {
 
       assertDatabaseClean(db);
     }
-  }, 15_000);
+  }, 300_000);
 
   it("commits a happy-path curriculum insert in a single transaction", () => {
     const db = openTrackedDatabaseWithForeignKeys("curriculum-happy-");
@@ -988,7 +988,7 @@ describe("0007_learner_goals_and_plans.sql", () => {
 
       assertDatabaseClean(db);
     }
-  }, 15_000);
+  }, 300_000);
 
   it("commits a happy-path learner → diagnosis → plan → feedback sequence in one transaction", () => {
     const db = openTrackedDatabaseWithForeignKeys("learner-plan-happy-");

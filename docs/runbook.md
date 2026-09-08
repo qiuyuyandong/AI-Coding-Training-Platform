@@ -222,7 +222,7 @@ npm run quality:gate
 
 The gate owns its temporary database under `os.tmpdir()` and removes it in a `finally` block; it never opens the default `training-platform.sqlite` and never reuses servers on ports 3000 or 3010. App E2E and fresh acceptance have a 10-minute server-start allowance for production builds while retaining their existing per-test timeouts. Subcommands run sequentially and stop on the first non-zero exit code. `extension:check` chains `typecheck → extension:test → extension:build → scripts/check-extension-dist.mjs`, so calling it after `quality:gate` already covered it would re-run the full extension sequence.
 
-The matching Windows CI job has a 45-minute cap because the ten-stage gate
+The matching Windows CI job has a 75-minute cap because the ten-stage gate
 performs three production builds. It still runs no deploy, upload, real OJ or AI
 step.
 

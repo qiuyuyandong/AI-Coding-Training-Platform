@@ -18,6 +18,7 @@ import {
   isAbsolute,
   join,
   normalize,
+  parse,
   posix,
   resolve,
   win32,
@@ -423,11 +424,8 @@ export function requireSafeDirectory(requestedPath: string, label: string): stri
   if (stats.isSymbolicLink() || !stats.isDirectory()) {
     throw new LocalVaultError(`${label} must be a real directory, not a link or file`);
   }
-  const canonical = realpathSync.native(requestedPath);
-  if (!pathsEqual(resolve(requestedPath), canonical)) {
-    throw new LocalVaultError(`${label} cannot traverse a symlink or junction`);
-  }
-  return canonical;
+  requireNoLinkedAncestors(requestedPath, label);
+  return realpathSync.native(requestedPath);
 }
 
 export function requireSafeRegularFile(requestedPath: string, label: string): string {
@@ -441,15 +439,29 @@ export function requireSafeRegularFile(requestedPath: string, label: string): st
   if (stats.isSymbolicLink() || !stats.isFile()) {
     throw new LocalVaultError(`${label} must be a regular file, not a link or directory`);
   }
-  const canonical = realpathSync.native(requestedPath);
-  if (!pathsEqual(resolve(requestedPath), canonical)) {
-    throw new LocalVaultError(`${label} cannot traverse a symlink or junction`);
-  }
-  return canonical;
+  requireNoLinkedAncestors(requestedPath, label);
+  return realpathSync.native(requestedPath);
 }
 
 function requireAbsolutePath(value: string, label: string): void {
   if (!isAbsolute(value)) throw new LocalVaultError(`${label} must be an absolute path`);
+}
+
+function requireNoLinkedAncestors(requestedPath: string, label: string): void {
+  let current = dirname(resolve(requestedPath));
+  const root = parse(current).root;
+  while (current !== root) {
+    let stats: ReturnType<typeof lstatSync>;
+    try {
+      stats = lstatSync(current);
+    } catch (error) {
+      throw toVaultError(`${label} ancestor does not exist`, error);
+    }
+    if (stats.isSymbolicLink()) {
+      throw new LocalVaultError(`${label} cannot traverse a symlink or junction`);
+    }
+    current = dirname(current);
+  }
 }
 
 function pathsEqual(left: string, right: string): boolean {

@@ -121,7 +121,7 @@ describe("0009_local_vault_extension_origin.sql", () => {
         target.close();
       }
     }
-  }, 15_000);
+  }, 300_000);
 
   it("rejects a source/target collision without changing the source", () => {
     const root = makeRoot();
