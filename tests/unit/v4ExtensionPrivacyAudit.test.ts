@@ -1,9 +1,10 @@
 // @vitest-environment node
 
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   auditV4ExtensionPrivacy,
   collectV4PrivacyFixtureFiles,
@@ -40,6 +41,10 @@ const approvedManifest = {
     ],
   }],
 };
+
+beforeAll(() => {
+  execFileSync(process.execPath, ["extension/build.mjs"], { stdio: "pipe" });
+});
 
 function input(overrides: Partial<V4ExtensionPrivacyAuditInput> = {}): V4ExtensionPrivacyAuditInput {
   const base: V4ExtensionPrivacyAuditInput = {

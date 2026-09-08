@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
+import { once } from "node:events";
 import { chromium } from "@playwright/test";
 import { afterEach, describe, expect, it } from "vitest";
 import { createNativeCdpRelay } from "../../scripts/cdp-native-relay.mjs";
@@ -14,9 +15,23 @@ const relays: Array<{ readonly close: () => Promise<void> }> = [];
 
 afterEach(async () => {
   for (const relay of relays.splice(0)) await relay.close();
-  for (const process of processes.splice(0)) process.kill();
-  for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
+  for (const process of processes.splice(0)) await stopProcess(process);
+  for (const directory of directories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
 });
+
+async function stopProcess(process: ChildProcess): Promise<void> {
+  if (process.exitCode !== null || process.signalCode !== null) return;
+  const exited = once(process, "exit", { signal: AbortSignal.timeout(5_000) });
+  if (!process.kill()) {
+    if (process.exitCode === null && process.signalCode === null) {
+      throw new Error("Bundled Chromium could not be terminated");
+    }
+    return;
+  }
+  await exited;
+}
 
 describe("native CDP relay with bundled Chromium", () => {
   it("lets Playwright create and close a page without terminating Chromium", async () => {
